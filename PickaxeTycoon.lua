@@ -80,6 +80,27 @@ local function ExtractNumber(textObject)
     return num
 end
 
+-- LOGIKA SMART BUY BARU (CEK HARGA VS UANG)
+local function SmartBuy(buttonModel, currentCash)
+    if not buttonModel then return end
+    
+    -- Mencari UI Harga berdasarkan path yang kamu temukan
+    local priceTextLabel = buttonModel:FindFirstChild("BillboardGui") 
+        and buttonModel.BillboardGui:FindFirstChild("Frame") 
+        and buttonModel.BillboardGui.Frame:FindFirstChild("PriceText")
+    
+    if priceTextLabel then
+        local price = ExtractNumber(priceTextLabel)
+        -- Hanya sentuh jika uang kita cukup (atau lebih)
+        if currentCash >= price then
+            TouchButton(buttonModel:FindFirstChild("Button"))
+        end
+    else
+        -- Fallback: Jika suatu saat game update dan path UI berubah, tetap coba sentuh
+        TouchButton(buttonModel:FindFirstChild("Button"))
+    end
+end
+
 -- ==========================================
 -- STATE VARIABEL & CONFIG
 -- ==========================================
@@ -97,7 +118,7 @@ local toggles = {
     AutoPerSecond = false,
     AutoGroup = false,
     OreMultiplierEnabled = false,
-    TargetMultiplier = 1.0 -- Default awal diset ke 1.0x
+    TargetMultiplier = 1.0
 }
 
 local function SaveConfig()
@@ -112,10 +133,7 @@ local function LoadConfig()
             for k, v in pairs(result) do 
                 if toggles[k] ~= nil then toggles[k] = v end 
             end
-            -- Validasi agar jika ada config lama di bawah 1.0x langsung diubah ke 1.0x
-            if toggles.TargetMultiplier < 1.0 then
-                toggles.TargetMultiplier = 1.0
-            end
+            if toggles.TargetMultiplier < 1.0 then toggles.TargetMultiplier = 1.0 end
         end
     end
 end
@@ -134,7 +152,7 @@ MainFrame.Size = UDim2.new(0, 220, 0, 420)
 MainFrame.Active = true; MainFrame.Draggable = true; MainFrame.ClipsDescendants = true
 
 local TitleBar = Instance.new("TextLabel", MainFrame)
-TitleBar.Text = "  Pickaxe Tycoon v2.13"
+TitleBar.Text = "  Pickaxe Tycoon v2.14"
 TitleBar.Size = UDim2.new(1, 0, 0, 35); TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 TitleBar.TextColor3 = Color3.new(1, 1, 1); TitleBar.Font = Enum.Font.SourceSansBold; TitleBar.TextSize = 15
 TitleBar.TextXAlignment = Enum.TextXAlignment.Left
@@ -171,11 +189,8 @@ local function CreateToggle(name, configName)
     buttonsRefs[configName] = RefreshVisual
 end
 
--- Registrasi Tombol Utama
 CreateToggle("Auto Loot (Ore & Chest)", "AutoLoot")
 CreateToggle("Auto Deposit Ore", "AutoDeposit")
-
--- GANTI NAMA: Deposit Ore Multiplier
 CreateToggle("Deposit Ore Multiplier", "OreMultiplierEnabled")
 
 local StepperFrame = Instance.new("Frame", Container)
@@ -199,7 +214,6 @@ local function UpdateTargetMultiLabel()
     ValueLabel.Text = "Target Multi: " .. string.format("%.1f", toggles.TargetMultiplier) .. "x"
 end
 
--- FIX: Batasi minimal di 1.0x (Menghapus rentang 0.5 - 0.9)
 MinValueBtn.MouseButton1Click:Connect(function()
     toggles.TargetMultiplier = math.max(1.0, toggles.TargetMultiplier - 0.1)
     UpdateTargetMultiLabel(); SaveConfig()
@@ -262,12 +276,21 @@ task.spawn(function()
     end
 end)
 
--- Loop 2A: KHUSUS DEPOSIT & BUTTONS (DIUBAH JADI 0.3 DETIK)
+-- Loop 2A: KHUSUS DEPOSIT & BUTTONS (0.3 DETIK)
 task.spawn(function()
-    while task.wait(0.3) do -- FIX: Jeda diganti dari 0.1 menjadi 0.3 detik
+    while task.wait(0.3) do
         local myPlot = GetMyPlot()
         if not myPlot then continue end
         
+        -- Dapatkan Uang (Cash) Kamu Saat Ini
+        local myCash = 0
+        local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+        local currencyGui = playerGui and playerGui:FindFirstChild("CurrencyGui")
+        if currencyGui and currencyGui:FindFirstChild("Frame") and currencyGui.Frame:FindFirstChild("CashText") then
+            myCash = ExtractNumber(currencyGui.Frame.CashText)
+        end
+        
+        -- LOGIKA DEPOSIT ORE
         if toggles.AutoDeposit and myPlot:FindFirstChild("Sell") and myPlot.Sell:FindFirstChild("DepositButton") then
             local shouldDeposit = true
             
@@ -282,7 +305,6 @@ task.spawn(function()
                     if numData then currentMulti = numData end
                 end
                 
-                -- LOGIKA FLEKSIBEL: Mulai deposit jika server berada di targetmu s/d 1.5x
                 if currentMulti >= toggles.TargetMultiplier then
                     shouldDeposit = true
                 end
@@ -299,15 +321,19 @@ task.spawn(function()
         if toggles.AutoMerge and myPlot:FindFirstChild("Buttons") and myPlot.Buttons:FindFirstChild("ButtonMerge") then
             TouchButton(myPlot.Buttons.ButtonMerge:FindFirstChild("Button"))
         end
+        
+        -- MENGGUNAKAN SMART BUY UNTUK TOMBOL PICKAXE
         if toggles.AutoBuy and myPlot:FindFirstChild("Buttons") then
             local b = myPlot.Buttons
-            if b:FindFirstChild("ButtonBuy100") then TouchButton(b.ButtonBuy100:FindFirstChild("Button")) end
-            if b:FindFirstChild("ButtonBuy25") then TouchButton(b.ButtonBuy25:FindFirstChild("Button")) end
-            if b:FindFirstChild("ButtonBuy5") then TouchButton(b.ButtonBuy5:FindFirstChild("Button")) end
-            if b:FindFirstChild("ButtonBuy1") then TouchButton(b.ButtonBuy1:FindFirstChild("Button")) end
+            if b:FindFirstChild("ButtonBuy100") then SmartBuy(b.ButtonBuy100, myCash) end
+            if b:FindFirstChild("ButtonBuy25") then SmartBuy(b.ButtonBuy25, myCash) end
+            if b:FindFirstChild("ButtonBuy5") then SmartBuy(b.ButtonBuy5, myCash) end
+            if b:FindFirstChild("ButtonBuy1") then SmartBuy(b.ButtonBuy1, myCash) end
         end
+        
+        -- MENGGUNAKAN SMART BUY UNTUK TOMBOL UPGRADE
         if toggles.AutoPerSecond and myPlot:FindFirstChild("Sell") and myPlot.Sell:FindFirstChild("UpgradeButton") then
-            TouchButton(myPlot.Sell.UpgradeButton:FindFirstChild("Button"))
+            SmartBuy(myPlot.Sell.UpgradeButton, myCash)
         end
     end
 end)
@@ -364,4 +390,4 @@ LocalPlayer.Idled:Connect(function()
     VirtualUser:ClickButton2(Vector2.new())
 end)
 
-print("[SUCCESS] Pickaxe Tycoon Panel v2.13 (Dynamic Multiplier) Berhasil Dimuat!")
+print("[SUCCESS] Pickaxe Tycoon Panel v2.14 (Smart Cash Check) Berhasil Dimuat!")
