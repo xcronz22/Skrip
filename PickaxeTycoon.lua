@@ -85,7 +85,6 @@ end
 -- ==========================================
 local isLoadedCompletely = false
 local SaveFileName = "PickaxeTycoon_Config.json"
-local lastGroupRewardTime = 0
 local isMinimized = false
 
 local toggles = {
@@ -127,7 +126,7 @@ MainFrame.Size = UDim2.new(0, 220, 0, 380)
 MainFrame.Active = true; MainFrame.Draggable = true; MainFrame.ClipsDescendants = true
 
 local TitleBar = Instance.new("TextLabel", MainFrame)
-TitleBar.Text = "  Pickaxe Tycoon v2.10"
+TitleBar.Text = "  Pickaxe Tycoon v2.11"
 TitleBar.Size = UDim2.new(1, 0, 0, 35); TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 TitleBar.TextColor3 = Color3.new(1, 1, 1); TitleBar.Font = Enum.Font.SourceSansBold; TitleBar.TextSize = 15
 TitleBar.TextXAlignment = Enum.TextXAlignment.Left
@@ -187,7 +186,7 @@ end)
 -- CORE SYSTEM ENGINES (LOOPS)
 -- ==========================================
 
--- Loop 1: MAGNET BRUTAL (Kembali seperti awal, tarik semua)
+-- Loop 1: MAGNET BRUTAL
 task.spawn(function()
     while task.wait(0.3) do
         if toggles.AutoLoot then
@@ -219,7 +218,7 @@ task.spawn(function()
     end
 end)
 
--- Loop 2: Tycoon Buttons Simulator
+-- Loop 2: Tycoon Buttons Simulator (FIX BUG GROUP REWARD)
 task.spawn(function()
     while task.wait(0.4) do
         local myPlot = GetMyPlot()
@@ -244,9 +243,11 @@ task.spawn(function()
         if toggles.AutoPerSecond and myPlot:FindFirstChild("Sell") and myPlot.Sell:FindFirstChild("UpgradeButton") then
             TouchButton(myPlot.Sell.UpgradeButton:FindFirstChild("Button"))
         end
-        if toggles.AutoGroup and os.time() - lastGroupRewardTime >= 600 and myPlot:FindFirstChild("GroupReward") and myPlot.GroupReward:FindFirstChild("CollectButton") then
+        
+        -- FIX: Cooldown skrip dihapus agar tidak nyangkut. Skrip akan memicu tombol
+        -- kapan pun tombol tersebut tersedia di Plot kamu.
+        if toggles.AutoGroup and myPlot:FindFirstChild("GroupReward") and myPlot.GroupReward:FindFirstChild("CollectButton") then
             TouchButton(myPlot.GroupReward.CollectButton:FindFirstChild("Button"))
-            lastGroupRewardTime = os.time()
         end
     end
 end)
@@ -256,7 +257,6 @@ local isProcessingChest = false
 
 task.spawn(function()
     while task.wait(0.2) do
-        -- Hanya jalan jika fitur menyala DAN skrip tidak sedang sibuk mengurus peti lain
         if toggles.AutoUnlock and not isProcessingChest then
             pcall(function()
                 local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
@@ -264,13 +264,9 @@ task.spawn(function()
                 local currencyGui = playerGui and playerGui:FindFirstChild("CurrencyGui")
                 
                 if chestGui and chestGui:FindFirstChild("ChestInfo") and chestGui.ChestInfo.Visible then
-                    -- 1. KUNCI PROSES: Cegah skrip mengeksekusi peti berkali-kali
                     isProcessingChest = true 
-                    
-                    -- 2. JEDA NATURAL: Beri waktu 0.5 detik agar UI Harga dari server termuat sempurna
                     task.wait(0.5) 
                     
-                    -- Cek ulang, pastikan UI masih terbuka setelah jeda
                     if chestGui.ChestInfo.Visible then
                         local myCash = ExtractNumber(currencyGui.Frame.CashText)
                         local chestPrice = ExtractNumber(chestGui.ChestInfo.UnlockMenu.PriceFrame.ItemPrice)
@@ -280,12 +276,8 @@ task.spawn(function()
                         else
                             ReplicatedStorage.RemoteEvents.DiscardChest:FireServer()
                         end
-                        
-                        -- 3. JEDA SERVER: Beri waktu 1.5 detik untuk server memproses peti dan membuangnya dari tanganmu
                         task.wait(1.5) 
                     end
-                    
-                    -- 4. BUKA KUNCI: Silakan lanjut proses peti berikutnya yang nyangkut di tangan
                     isProcessingChest = false 
                 end
             end)
@@ -302,4 +294,4 @@ LocalPlayer.Idled:Connect(function()
     VirtualUser:ClickButton2(Vector2.new())
 end)
 
-print("[SUCCESS] Pickaxe Tycoon Panel v2.10 (Cooldown Fix) Berhasil Dimuat!")
+print("[SUCCESS] Pickaxe Tycoon Panel v2.11 (Group Reward Fix) Berhasil Dimuat!")
