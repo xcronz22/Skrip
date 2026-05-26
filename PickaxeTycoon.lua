@@ -130,7 +130,8 @@ local function ExtractNumber(textObject)
     if string.find(text, "K") then num = num * 1000
     elseif string.find(text, "M") then num = num * 1000000
     elseif string.find(text, "B") then num = num * 1000000000
-    elseif string.find(text, "T") then num = num * 1000000000000 end
+    elseif string.find(text, "T") then num = num * 1000000000000 
+	elseif string.find(text, "Qa") then num = num * 1000000000000000 end
     return num
 end
 
@@ -220,7 +221,7 @@ MainFrame.Size = UDim2.new(0, 220, 0, 420); MainFrame.Active = true; MainFrame.D
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
 
 local TitleBar = Instance.new("TextLabel", MainFrame)
-TitleBar.Text = "  Pickaxe Tycoon v2.26"; TitleBar.Size = UDim2.new(1, 0, 0, 35)
+TitleBar.Text = "  Pickaxe Tycoon v2.27.1"; TitleBar.Size = UDim2.new(1, 0, 0, 35)
 TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20); TitleBar.TextColor3 = Color3.new(1, 1, 1); TitleBar.Font = Enum.Font.SourceSansBold; TitleBar.TextSize = 15; TitleBar.TextXAlignment = Enum.TextXAlignment.Left
 
 local CloseBtn = Instance.new("TextButton", TitleBar); CloseBtn.Text = "X"; CloseBtn.Size = UDim2.new(0, 30, 0, 30); CloseBtn.Position = UDim2.new(1, -35, 0, 2.5); CloseBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50); CloseBtn.TextColor3 = Color3.new(1, 1, 1); CloseBtn.Font = Enum.Font.SourceSansBold; CloseBtn.TextSize = 14; Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
