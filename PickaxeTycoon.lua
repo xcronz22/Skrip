@@ -71,7 +71,6 @@ local function ExtractNumber(textObject)
     return num
 end
 
--- SMART BUY: Tetap pakai matematika karena butuh mengecek Harga vs Uang
 local function SmartBuy(buttonModel, currentCash)
     if not buttonModel then return end
     local bGui = buttonModel:FindFirstChild("BillboardGui")
@@ -99,7 +98,8 @@ local toggles = {
     AutoLoot = false, AutoDeposit = false, AutoCollect = false, AutoMerge = false,
     AutoBuy = false, AutoUnlock = false, AutoPerSecond = false, AutoGroup = false,
     OreMultiplierEnabled = false, TargetMultiplier = 1.0,
-    TargetMergeEnabled = false, TargetMergeValue = 0
+    TargetMergeEnabled = false, TargetMergeValue = 0,
+    ShopGUIActive = false -- Default mati agar layar langsung bersih
 }
 
 local function SaveConfig()
@@ -117,9 +117,6 @@ local function LoadConfig()
     end
 end
 
--- ==========================================
--- LOGIKA SMART MERGE
--- ==========================================
 local function ShouldMerge(myPlot)
     local holders = myPlot:FindFirstChild("Holders")
     if not holders then return false end
@@ -167,7 +164,7 @@ MainFrame.Size = UDim2.new(0, 220, 0, 420); MainFrame.Active = true; MainFrame.D
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
 
 local TitleBar = Instance.new("TextLabel", MainFrame)
-TitleBar.Text = "  Pickaxe Tycoon v2.21"; TitleBar.Size = UDim2.new(1, 0, 0, 35)
+TitleBar.Text = "  Pickaxe Tycoon v2.24"; TitleBar.Size = UDim2.new(1, 0, 0, 35)
 TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20); TitleBar.TextColor3 = Color3.new(1, 1, 1)
 TitleBar.Font = Enum.Font.SourceSansBold; TitleBar.TextSize = 15; TitleBar.TextXAlignment = Enum.TextXAlignment.Left
 
@@ -195,7 +192,7 @@ ToggleIcon.MouseButton1Click:Connect(function() ToggleIcon.Visible = false; Main
 
 local Container = Instance.new("ScrollingFrame", MainFrame)
 Container.Position = UDim2.new(0, 0, 0, 35); Container.Size = UDim2.new(1, 0, 1, -35)
-Container.BackgroundTransparency = 1; Container.CanvasSize = UDim2.new(0, 0, 0, 600); Container.ScrollBarThickness = 4
+Container.BackgroundTransparency = 1; Container.CanvasSize = UDim2.new(0, 0, 0, 650); Container.ScrollBarThickness = 4
 local UIList = Instance.new("UIListLayout", Container); UIList.Padding = UDim.new(0, 5); UIList.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
 local buttonsRefs = {}
@@ -258,6 +255,9 @@ CreateToggle("Auto Unlock/Discard Chest", "AutoUnlock")
 CreateToggle("Auto Upgrade Per Second", "AutoPerSecond")
 CreateToggle("Auto Group Reward", "AutoGroup")
 
+-- Tombol Sakelar UI Shop Baru di Paling Bawah
+CreateToggle("Shop GUI Active", "ShopGUIActive")
+
 LoadConfig(); isLoadedCompletely = true
 for _, refreshFunc in pairs(buttonsRefs) do refreshFunc() end
 UpdateMultiLabel(); UpdateMergeLabel()
@@ -265,6 +265,37 @@ UpdateMultiLabel(); UpdateMergeLabel()
 -- ==========================================
 -- CORE SYSTEM ENGINES (LOOPS)
 -- ==========================================
+
+-- 0. UI CLEANER ENGINE (V2.24 - Toggle Logic)
+task.spawn(function()
+    while task.wait(0.5) do -- Dipercepat jadi 0.5 detik agar respon sakelar terasa instan
+        pcall(function()
+            local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+            local frame = playerGui and playerGui:FindFirstChild("CurrencyGui") and playerGui.CurrencyGui:FindFirstChild("Frame")
+            
+            if frame then
+                -- BuyXPButtons: Dimatikan permanen (Visible & Active)
+                local buyXP = frame:FindFirstChild("BuyXPButtons")
+                if buyXP then
+                    buyXP.Visible = false
+                    buyXP.Active = false
+                end
+                
+                -- IncomeMultButton: Dikendalikan oleh toggle "Shop GUI Active"
+                local incomeBtn = frame:FindFirstChild("IncomeMultButton")
+                if incomeBtn then
+                    if toggles.ShopGUIActive then
+                        incomeBtn.Visible = true
+                        incomeBtn.Active = true
+                    else
+                        incomeBtn.Visible = false
+                        incomeBtn.Active = false
+                    end
+                end
+            end
+        end)
+    end
+end)
 
 task.spawn(function()
     while task.wait(0.3) do
@@ -303,7 +334,7 @@ task.spawn(function()
             myCash = ExtractNumber(currencyGui.Frame.CashText)
         end
         
-        -- 1. DEPOSIT ORE (PURE FRAME VISIBLE)
+        -- 1. DEPOSIT ORE
         if toggles.AutoDeposit and myPlot:FindFirstChild("Sell") and myPlot.Sell:FindFirstChild("DepositButton") then
             local depositBtn = myPlot.Sell.DepositButton
             local bGui = depositBtn:FindFirstChild("BillboardGui")
@@ -331,7 +362,7 @@ task.spawn(function()
             end
         end
 
-        -- 2. COLLECT MONEY (PURE FRAME VISIBLE)
+        -- 2. COLLECT MONEY
         if toggles.AutoCollect and myPlot:FindFirstChild("Sell") and myPlot.Sell:FindFirstChild("CollectButton") then
             local collectBtn = myPlot.Sell.CollectButton
             local bGui = collectBtn:FindFirstChild("BillboardGui")
@@ -342,7 +373,7 @@ task.spawn(function()
             end
         end
         
-        -- 3. MERGE BUTTON (PURE FRAME VISIBLE)
+        -- 3. MERGE BUTTON
         if toggles.AutoMerge and myPlot:FindFirstChild("Buttons") and myPlot.Buttons:FindFirstChild("ButtonMerge") then
             local mergeBtn = myPlot.Buttons.ButtonMerge
             local bGui = mergeBtn:FindFirstChild("BillboardGui")
@@ -356,7 +387,7 @@ task.spawn(function()
             end
         end
         
-        -- 4 & 5. BUY & UPGRADE PER SECOND (MATH LOGIC INSIDE SMARTBUY)
+        -- 4 & 5. BUY & UPGRADE PER SECOND
         if toggles.AutoBuy and myPlot:FindFirstChild("Buttons") then
             local b = myPlot.Buttons
             if b:FindFirstChild("ButtonBuy100") then SmartBuy(b.ButtonBuy100, myCash) end
@@ -371,18 +402,27 @@ task.spawn(function()
     end
 end)
 
--- 6. GROUP REWARD (PURE FRAME VISIBLE)
+-- 6. GROUP REWARD (COLOR GATE + JEDA SANTAI)
+local isClaimingGroup = false
 task.spawn(function()
     while task.wait(1.0) do
         local myPlot = GetMyPlot()
         if toggles.AutoGroup and myPlot and myPlot:FindFirstChild("GroupReward") and myPlot.GroupReward:FindFirstChild("CollectButton") then
-            local groupReward = myPlot.GroupReward
-            local boardPart = groupReward:FindFirstChild("BoardPart")
-            local sGui = boardPart and boardPart:FindFirstChild("SurfaceGui")
-            local frame = sGui and sGui:FindFirstChild("Frame")
-            
-            if frame and frame.Visible then
-                TouchButton(groupReward.CollectButton:FindFirstChild("Button"))
+            if not isClaimingGroup then
+                local btnPart = myPlot.GroupReward.CollectButton:FindFirstChild("Button")
+                if btnPart and btnPart:IsA("BasePart") then
+                    local r = math.round(btnPart.Color.R * 255)
+                    local g = math.round(btnPart.Color.G * 255)
+                    local b = math.round(btnPart.Color.B * 255)
+                    
+                    if r ~= 79 or g ~= 79 or b ~= 79 then
+                        isClaimingGroup = true
+                        task.wait(2.5) 
+                        TouchButton(btnPart)
+                        task.wait(1.5) 
+                        isClaimingGroup = false
+                    end
+                end
             end
         end
     end
@@ -416,4 +456,4 @@ end)
 local VirtualUser = game:GetService("VirtualUser")
 LocalPlayer.Idled:Connect(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end)
 
-print("[SUCCESS] Pickaxe Tycoon Panel v2.21 (Pure Frame Gate) Berhasil Dimuat!")
+print("[SUCCESS] Pickaxe Tycoon Panel v2.24 (Toggle Shop GUI) Berhasil Dimuat!")
