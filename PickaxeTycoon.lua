@@ -322,7 +322,7 @@ end)
 -- AUTO TRANSPARENCY ENGINE (Chest & Ore)
 -- ==========================================
 task.spawn(function()
-    while task.wait(0.5) do -- Cek setiap 0.5 detik agar tetap ringan
+    while task.wait(0.1) do -- Cek setiap 0.1 detik
         pcall(function()
             for _, obj in ipairs(workspace:GetChildren()) do
                 -- 1. Logika untuk Chest
