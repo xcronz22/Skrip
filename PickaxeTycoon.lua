@@ -84,21 +84,48 @@ end
 local function SmartBuy(buttonModel, currentCash)
     if not buttonModel then return end
     
-    -- Mencari UI Harga berdasarkan path yang kamu temukan
     local priceTextLabel = buttonModel:FindFirstChild("BillboardGui") 
         and buttonModel.BillboardGui:FindFirstChild("Frame") 
         and buttonModel.BillboardGui.Frame:FindFirstChild("PriceText")
     
     if priceTextLabel then
         local price = ExtractNumber(priceTextLabel)
-        -- Hanya sentuh jika uang kita cukup (atau lebih)
         if currentCash >= price then
             TouchButton(buttonModel:FindFirstChild("Button"))
         end
     else
-        -- Fallback: Jika suatu saat game update dan path UI berubah, tetap coba sentuh
         TouchButton(buttonModel:FindFirstChild("Button"))
     end
+end
+
+-- LOGIKA SMART MERGE BARU (ANTI SPAM)
+local function ShouldMerge(myPlot)
+    local holders = myPlot:FindFirstChild("Holders")
+    if not holders then return false end
+    
+    -- Kamus untuk menyimpan jumlah masing-masing Unit
+    local unitCounts = {}
+    
+    for _, holder in ipairs(holders:GetChildren()) do
+        if string.find(holder.Name, "Holder_") then
+            -- Mencari Unit di dalam Holder
+            for _, child in ipairs(holder:GetChildren()) do
+                -- Mengecek apakah objeknya bernama Unit1, Unit2, dst.
+                if string.match(child.Name, "^Unit%d+") then
+                    local uName = child.Name
+                    -- Tambahkan 1 ke jumlah Unit tersebut
+                    unitCounts[uName] = (unitCounts[uName] or 0) + 1
+                    
+                    -- Jika ada Unit yang jumlahnya 3 atau lebih, langsung kirim sinyal BOLEH MERGE!
+                    if unitCounts[uName] >= 3 then
+                        return true
+                    end
+                end
+            end
+        end
+    end
+    
+    return false -- Jika tidak ada satupun yang mencapai 3 buah
 end
 
 -- ==========================================
@@ -152,7 +179,7 @@ MainFrame.Size = UDim2.new(0, 220, 0, 420)
 MainFrame.Active = true; MainFrame.Draggable = true; MainFrame.ClipsDescendants = true
 
 local TitleBar = Instance.new("TextLabel", MainFrame)
-TitleBar.Text = "  Pickaxe Tycoon v2.14"
+TitleBar.Text = "  Pickaxe Tycoon v2.15"
 TitleBar.Size = UDim2.new(1, 0, 0, 35); TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 TitleBar.TextColor3 = Color3.new(1, 1, 1); TitleBar.Font = Enum.Font.SourceSansBold; TitleBar.TextSize = 15
 TitleBar.TextXAlignment = Enum.TextXAlignment.Left
@@ -282,7 +309,6 @@ task.spawn(function()
         local myPlot = GetMyPlot()
         if not myPlot then continue end
         
-        -- Dapatkan Uang (Cash) Kamu Saat Ini
         local myCash = 0
         local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
         local currencyGui = playerGui and playerGui:FindFirstChild("CurrencyGui")
@@ -290,7 +316,6 @@ task.spawn(function()
             myCash = ExtractNumber(currencyGui.Frame.CashText)
         end
         
-        -- LOGIKA DEPOSIT ORE
         if toggles.AutoDeposit and myPlot:FindFirstChild("Sell") and myPlot.Sell:FindFirstChild("DepositButton") then
             local shouldDeposit = true
             
@@ -318,11 +343,14 @@ task.spawn(function()
         if toggles.AutoCollect and myPlot:FindFirstChild("Sell") and myPlot.Sell:FindFirstChild("CollectButton") then
             TouchButton(myPlot.Sell.CollectButton:FindFirstChild("Button"))
         end
+        
+        -- PENGGUNAAN SMART MERGE BARU (ANTI SPAM)
         if toggles.AutoMerge and myPlot:FindFirstChild("Buttons") and myPlot.Buttons:FindFirstChild("ButtonMerge") then
-            TouchButton(myPlot.Buttons.ButtonMerge:FindFirstChild("Button"))
+            if ShouldMerge(myPlot) then
+                TouchButton(myPlot.Buttons.ButtonMerge:FindFirstChild("Button"))
+            end
         end
         
-        -- MENGGUNAKAN SMART BUY UNTUK TOMBOL PICKAXE
         if toggles.AutoBuy and myPlot:FindFirstChild("Buttons") then
             local b = myPlot.Buttons
             if b:FindFirstChild("ButtonBuy100") then SmartBuy(b.ButtonBuy100, myCash) end
@@ -331,7 +359,6 @@ task.spawn(function()
             if b:FindFirstChild("ButtonBuy1") then SmartBuy(b.ButtonBuy1, myCash) end
         end
         
-        -- MENGGUNAKAN SMART BUY UNTUK TOMBOL UPGRADE
         if toggles.AutoPerSecond and myPlot:FindFirstChild("Sell") and myPlot.Sell:FindFirstChild("UpgradeButton") then
             SmartBuy(myPlot.Sell.UpgradeButton, myCash)
         end
@@ -390,4 +417,4 @@ LocalPlayer.Idled:Connect(function()
     VirtualUser:ClickButton2(Vector2.new())
 end)
 
-print("[SUCCESS] Pickaxe Tycoon Panel v2.14 (Smart Cash Check) Berhasil Dimuat!")
+print("[SUCCESS] Pickaxe Tycoon Panel v2.15 (Smart Merge & Smart Buy) Berhasil Dimuat!")
