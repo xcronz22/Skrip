@@ -96,8 +96,8 @@ local toggles = {
     AutoUnlock = false,
     AutoPerSecond = false,
     AutoGroup = false,
-    OreMultiplierEnabled = false, -- Fitur Baru
-    TargetMultiplier = 1.0        -- Fitur Baru
+    OreMultiplierEnabled = false,
+    TargetMultiplier = 1.0 -- Default awal diset ke 1.0x
 }
 
 local function SaveConfig()
@@ -109,7 +109,13 @@ local function LoadConfig()
     if isfile and isfile(SaveFileName) and readfile then
         local success, result = pcall(function() return HttpService:JSONDecode(readfile(SaveFileName)) end)
         if success and result then
-            for k, v in pairs(result) do if toggles[k] ~= nil then toggles[k] = v end end
+            for k, v in pairs(result) do 
+                if toggles[k] ~= nil then toggles[k] = v end 
+            end
+            -- Validasi agar jika ada config lama di bawah 1.0x langsung diubah ke 1.0x
+            if toggles.TargetMultiplier < 1.0 then
+                toggles.TargetMultiplier = 1.0
+            end
         end
     end
 end
@@ -124,11 +130,11 @@ ScreenGui.ResetOnSpawn = false
 local MainFrame = Instance.new("Frame", ScreenGui)
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 MainFrame.Position = UDim2.new(0.15, 0, 0.25, 0)
-MainFrame.Size = UDim2.new(0, 220, 0, 420) -- Diperpanjang untuk menu baru
+MainFrame.Size = UDim2.new(0, 220, 0, 420)
 MainFrame.Active = true; MainFrame.Draggable = true; MainFrame.ClipsDescendants = true
 
 local TitleBar = Instance.new("TextLabel", MainFrame)
-TitleBar.Text = "  Pickaxe Tycoon v2.12"
+TitleBar.Text = "  Pickaxe Tycoon v2.13"
 TitleBar.Size = UDim2.new(1, 0, 0, 35); TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 TitleBar.TextColor3 = Color3.new(1, 1, 1); TitleBar.Font = Enum.Font.SourceSansBold; TitleBar.TextSize = 15
 TitleBar.TextXAlignment = Enum.TextXAlignment.Left
@@ -169,7 +175,7 @@ end
 CreateToggle("Auto Loot (Ore & Chest)", "AutoLoot")
 CreateToggle("Auto Deposit Ore", "AutoDeposit")
 
--- UI KHUSUS ORE MULTIPLIER (Baru)
+-- GANTI NAMA: Deposit Ore Multiplier
 CreateToggle("Deposit Ore Multiplier", "OreMultiplierEnabled")
 
 local StepperFrame = Instance.new("Frame", Container)
@@ -193,10 +199,12 @@ local function UpdateTargetMultiLabel()
     ValueLabel.Text = "Target Multi: " .. string.format("%.1f", toggles.TargetMultiplier) .. "x"
 end
 
+-- FIX: Batasi minimal di 1.0x (Menghapus rentang 0.5 - 0.9)
 MinValueBtn.MouseButton1Click:Connect(function()
-    toggles.TargetMultiplier = math.max(0.5, toggles.TargetMultiplier - 0.1)
+    toggles.TargetMultiplier = math.max(1.0, toggles.TargetMultiplier - 0.1)
     UpdateTargetMultiLabel(); SaveConfig()
 end)
+
 PlusValueBtn.MouseButton1Click:Connect(function()
     toggles.TargetMultiplier = math.min(1.5, toggles.TargetMultiplier + 0.1)
     UpdateTargetMultiLabel(); SaveConfig()
@@ -211,7 +219,7 @@ CreateToggle("Auto Group Reward", "AutoGroup")
 
 LoadConfig(); isLoadedCompletely = true
 for _, refreshFunc in pairs(buttonsRefs) do refreshFunc() end
-UpdateTargetMultiLabel() -- Panggil awal untuk Multiplier
+UpdateTargetMultiLabel()
 
 MinBtn.MouseButton1Click:Connect(function()
     isMinimized = not isMinimized
@@ -254,22 +262,19 @@ task.spawn(function()
     end
 end)
 
--- Loop 2A: KHUSUS DEPOSIT & BUTTONS (CEPAT)
+-- Loop 2A: KHUSUS DEPOSIT & BUTTONS (DIUBAH JADI 0.3 DETIK)
 task.spawn(function()
-    while task.wait(0.1) do
+    while task.wait(0.3) do -- FIX: Jeda diganti dari 0.1 menjadi 0.3 detik
         local myPlot = GetMyPlot()
         if not myPlot then continue end
         
-        -- LOGIKA BARU: AUTO DEPOSIT DENGAN MULTIPLIER
         if toggles.AutoDeposit and myPlot:FindFirstChild("Sell") and myPlot.Sell:FindFirstChild("DepositButton") then
             local shouldDeposit = true
             
-            -- Jika fitur Multiplier menyala, kita cek server dulu
             if toggles.OreMultiplierEnabled then
-                shouldDeposit = false -- Setel ke false dulu
+                shouldDeposit = false 
                 local currentMulti = 0
                 
-                -- Baca data langsung dari part yang kamu temukan!
                 local multPart = workspace:FindFirstChild("OreMultPart")
                 if multPart and multPart:FindFirstChild("BillboardGui") and multPart.BillboardGui:FindFirstChild("Frame") and multPart.BillboardGui.Frame:FindFirstChild("MultText") then
                     local textData = multPart.BillboardGui.Frame.MultText.Text
@@ -277,7 +282,7 @@ task.spawn(function()
                     if numData then currentMulti = numData end
                 end
                 
-                -- Cek apakah angka server memenuhi syarat targetmu
+                -- LOGIKA FLEKSIBEL: Mulai deposit jika server berada di targetmu s/d 1.5x
                 if currentMulti >= toggles.TargetMultiplier then
                     shouldDeposit = true
                 end
@@ -359,4 +364,4 @@ LocalPlayer.Idled:Connect(function()
     VirtualUser:ClickButton2(Vector2.new())
 end)
 
-print("[SUCCESS] Pickaxe Tycoon Panel v2.12 (Ore Multiplier Fix) Berhasil Dimuat!")
+print("[SUCCESS] Pickaxe Tycoon Panel v2.13 (Dynamic Multiplier) Berhasil Dimuat!")
