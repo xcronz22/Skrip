@@ -221,7 +221,7 @@ MainFrame.Size = UDim2.new(0, 220, 0, 420); MainFrame.Active = true; MainFrame.D
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
 
 local TitleBar = Instance.new("TextLabel", MainFrame)
-TitleBar.Text = "  Pickaxe Tycoon v2.27.1"; TitleBar.Size = UDim2.new(1, 0, 0, 35)
+TitleBar.Text = "  Pickaxe Tycoon v2.27"; TitleBar.Size = UDim2.new(1, 0, 0, 35)
 TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20); TitleBar.TextColor3 = Color3.new(1, 1, 1); TitleBar.Font = Enum.Font.SourceSansBold; TitleBar.TextSize = 15; TitleBar.TextXAlignment = Enum.TextXAlignment.Left
 
 local CloseBtn = Instance.new("TextButton", TitleBar); CloseBtn.Text = "X"; CloseBtn.Size = UDim2.new(0, 30, 0, 30); CloseBtn.Position = UDim2.new(1, -35, 0, 2.5); CloseBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50); CloseBtn.TextColor3 = Color3.new(1, 1, 1); CloseBtn.Font = Enum.Font.SourceSansBold; CloseBtn.TextSize = 14; Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
@@ -521,4 +521,4 @@ end)
 local VirtualUser = game:GetService("VirtualUser")
 LocalPlayer.Idled:Connect(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end)
 
-ShowToast("Pickaxe Tycoon Panel v2.26 Successfully Loaded!", 4)
+ShowToast("Pickaxe Tycoon Panel v2.27 Successfully Loaded!", 4)
