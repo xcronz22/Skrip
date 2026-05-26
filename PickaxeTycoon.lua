@@ -317,6 +317,34 @@ task.spawn(function()
     end
 end)
 
+-- ==========================================
+-- AUTO TRANSPARENCY ENGINE (Chest & Ore)
+-- ==========================================
+task.spawn(function()
+    while task.wait(0.5) do -- Cek setiap 0.5 detik agar tetap ringan
+        pcall(function()
+            for _, obj in ipairs(workspace:GetChildren()) do
+                -- 1. Logika untuk Chest
+                if string.find(string.lower(obj.Name), "chest") then
+                    local cp = obj:FindFirstChild("ChestPart")
+                    if cp and cp:IsA("BasePart") then
+                        cp.Transparency = 1
+                    end
+                end
+                
+                -- 2. Logika untuk Ore
+                -- Mencari objek yang bernama "Ore" atau mengandung "Loot"
+                if string.find(string.lower(obj.Name), "ore") or string.find(string.lower(obj.Name), "loot") then
+                    local lm = obj:FindFirstChild("LootMeshPart")
+                    if lm and lm:IsA("BasePart") then
+                        lm.Transparency = 1
+                    end
+                end
+            end
+        end)
+    end
+end)
+
 -- Auto Loot Engine (SMART CHEST)
 task.spawn(function()
     while task.wait(0.3) do
