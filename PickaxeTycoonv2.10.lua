@@ -1,0 +1,305 @@
+-- ==========================================
+-- GAME GUARD: PASTIKAN HANYA JALAN DI PICKAXE TYCOON
+-- ==========================================
+if not game:IsLoaded() then game.Loaded:Wait() end
+if not workspace:FindFirstChild("Plots") then
+    print("[SYSTEM] Folder 'Plots' tidak ditemukan. Skrip Pickaxe Tycoon dibatalkan!")
+    return
+end
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CoreGui = game:GetService("CoreGui")
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
+
+-- Bersihkan UI Lama jika ada
+if CoreGui:FindFirstChild("PickaxeTycoonPanel") then
+    CoreGui.PickaxeTycoonPanel:Destroy()
+end
+
+-- ==========================================
+-- UNIVERSAL AUTO REJOIN (ANTI KICK/DISCONNECT)
+-- ==========================================
+local function HandleErrorPrompt(child)
+	if child.Name == 'ErrorPrompt' then
+		print("[AUTO REJOIN] Terdeteksi Disconnect/Kick! Mencoba rejoin dalam 5 detik...")
+		task.wait(5)
+		TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+	end
+end
+
+local promptOverlay = CoreGui:WaitForChild("RobloxPromptGui"):WaitForChild("promptOverlay")
+promptOverlay.ChildAdded:Connect(HandleErrorPrompt)
+for _, child in ipairs(promptOverlay:GetChildren()) do
+	HandleErrorPrompt(child)
+end
+
+-- ==========================================
+-- DETEKSI PLOT SELEKSI DINAMIS
+-- ==========================================
+local function GetMyPlot()
+    local character = LocalPlayer.Character
+    local attr = character and character:GetAttribute("assignedPlot") or LocalPlayer:GetAttribute("assignedPlot")
+    if attr then
+        local p = workspace.Plots:FindFirstChild(tostring(attr))
+        if p then return p end
+    end
+    return workspace.Plots:FindFirstChild("Plot_3") -- Fallback
+end
+
+-- ==========================================
+-- LOGIKA EMULASI SENTUHAN TOMBOL FISIK
+-- ==========================================
+local function TouchButton(buttonInstance)
+    if buttonInstance and buttonInstance:IsA("BasePart") and firetouchinterest then
+        local character = LocalPlayer.Character
+        local root = character and character:FindFirstChild("HumanoidRootPart")
+        if root then
+            firetouchinterest(buttonInstance, root, 0)
+            task.wait(0.02)
+            firetouchinterest(buttonInstance, root, 1)
+        end
+    end
+end
+
+-- ==========================================
+-- SMART EXTRACTOR ANGKA (K, M, B, T)
+-- ==========================================
+local function ExtractNumber(textObject)
+    if not textObject then return 0 end
+    local text = string.upper(tostring(textObject.Text))
+    local numberStr = string.match(text, "[%d%.]+")
+    local num = tonumber(numberStr) or 0
+    
+    if string.find(text, "K") then num = num * 1000
+    elseif string.find(text, "M") then num = num * 1000000
+    elseif string.find(text, "B") then num = num * 1000000000
+    elseif string.find(text, "T") then num = num * 1000000000000 end
+    return num
+end
+
+-- ==========================================
+-- STATE VARIABEL & CONFIG
+-- ==========================================
+local isLoadedCompletely = false
+local SaveFileName = "PickaxeTycoon_Config.json"
+local lastGroupRewardTime = 0
+local isMinimized = false
+
+local toggles = {
+    AutoLoot = false,
+    AutoDeposit = false,
+    AutoCollect = false,
+    AutoMerge = false,
+    AutoBuy = false,
+    AutoUnlock = false,
+    AutoPerSecond = false,
+    AutoGroup = false
+}
+
+local function SaveConfig()
+    if not isLoadedCompletely then return end
+    if writefile then pcall(function() writefile(SaveFileName, HttpService:JSONEncode(toggles)) end) end
+end
+
+local function LoadConfig()
+    if isfile and isfile(SaveFileName) and readfile then
+        local success, result = pcall(function() return HttpService:JSONDecode(readfile(SaveFileName)) end)
+        if success and result then
+            for k, v in pairs(result) do if toggles[k] ~= nil then toggles[k] = v end end
+        end
+    end
+end
+
+-- ==========================================
+-- INITIALIZE INTERFACE (GUI PANEL)
+-- ==========================================
+local ScreenGui = Instance.new("ScreenGui", CoreGui)
+ScreenGui.Name = "PickaxeTycoonPanel"
+ScreenGui.ResetOnSpawn = false
+
+local MainFrame = Instance.new("Frame", ScreenGui)
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.Position = UDim2.new(0.15, 0, 0.25, 0)
+MainFrame.Size = UDim2.new(0, 220, 0, 380)
+MainFrame.Active = true; MainFrame.Draggable = true; MainFrame.ClipsDescendants = true
+
+local TitleBar = Instance.new("TextLabel", MainFrame)
+TitleBar.Text = "  Pickaxe Tycoon v2.10"
+TitleBar.Size = UDim2.new(1, 0, 0, 35); TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+TitleBar.TextColor3 = Color3.new(1, 1, 1); TitleBar.Font = Enum.Font.SourceSansBold; TitleBar.TextSize = 15
+TitleBar.TextXAlignment = Enum.TextXAlignment.Left
+
+local CloseBtn = Instance.new("TextButton", TitleBar)
+CloseBtn.Text = "X"; CloseBtn.Size = UDim2.new(0, 30, 0, 30); CloseBtn.Position = UDim2.new(1, -35, 0, 2.5)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50); CloseBtn.TextColor3 = Color3.new(1, 1, 1)
+CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
+
+local MinBtn = Instance.new("TextButton", TitleBar)
+MinBtn.Text = "-"; MinBtn.Size = UDim2.new(0, 30, 0, 30); MinBtn.Position = UDim2.new(1, -70, 0, 2.5)
+MinBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70); MinBtn.TextColor3 = Color3.new(1, 1, 1)
+
+local Container = Instance.new("ScrollingFrame", MainFrame)
+Container.Position = UDim2.new(0, 0, 0, 35); Container.Size = UDim2.new(1, 0, 1, -35)
+Container.BackgroundTransparency = 1; Container.CanvasSize = UDim2.new(0, 0, 0, 410); Container.ScrollBarThickness = 4
+
+local UIList = Instance.new("UIListLayout", Container)
+UIList.Padding = UDim.new(0, 5); UIList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+local buttonsRefs = {}
+local function CreateToggle(name, configName)
+    local Btn = Instance.new("TextButton", Container)
+    Btn.Size = UDim2.new(0, 200, 0, 35); Btn.Font = Enum.Font.SourceSansSemibold; Btn.TextSize = 14
+    
+    local function RefreshVisual()
+        if toggles[configName] then
+            Btn.Text = name .. " : ON"; Btn.BackgroundColor3 = Color3.fromRGB(0, 150, 70); Btn.TextColor3 = Color3.new(1, 1, 1)
+        else
+            Btn.Text = name .. " : OFF"; Btn.BackgroundColor3 = Color3.fromRGB(55, 55, 55); Btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+        end
+    end
+    Btn.MouseButton1Click:Connect(function() toggles[configName] = not toggles[configName]; RefreshVisual(); SaveConfig() end)
+    buttonsRefs[configName] = RefreshVisual
+end
+
+-- Registrasi Tombol
+CreateToggle("Auto Loot (Ore & Chest)", "AutoLoot")
+CreateToggle("Auto Deposit Ore", "AutoDeposit")
+CreateToggle("Auto Collect Money", "AutoCollect")
+CreateToggle("Auto Merge Pickaxe", "AutoMerge")
+CreateToggle("Auto Buy Pickaxe", "AutoBuy")
+CreateToggle("Auto Unlock/Discard Chest", "AutoUnlock")
+CreateToggle("Auto Upgrade Per Second", "AutoPerSecond")
+CreateToggle("Auto Group Reward", "AutoGroup")
+
+LoadConfig(); isLoadedCompletely = true
+for _, refreshFunc in pairs(buttonsRefs) do refreshFunc() end
+
+MinBtn.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    if isMinimized then Container.Visible = false; MainFrame:TweenSize(UDim2.new(0, 220, 0, 35), "Out", "Quad", 0.12, true)
+    else MainFrame:TweenSize(UDim2.new(0, 220, 0, 380), "Out", "Quad", 0.12, true); task.wait(0.12); Container.Visible = true end
+end)
+
+-- ==========================================
+-- CORE SYSTEM ENGINES (LOOPS)
+-- ==========================================
+
+-- Loop 1: MAGNET BRUTAL (Kembali seperti awal, tarik semua)
+task.spawn(function()
+    while task.wait(0.3) do
+        if toggles.AutoLoot then
+            pcall(function()
+                local character = LocalPlayer.Character
+                local root = character and character:FindFirstChild("HumanoidRootPart")
+                if root then
+                    for _, obj in ipairs(workspace:GetChildren()) do
+                        local objName = string.lower(obj.Name)
+                        
+                        if string.find(objName, "loot") or string.find(objName, "chest") then
+                            if obj:IsA("Model") or obj:IsA("Tool") then
+                                local targetPart = obj:FindFirstChild("Hitbox") or obj:FindFirstChild("Handle") or obj:FindFirstChildOfClass("BasePart")
+                                
+                                if targetPart then
+                                    targetPart.CFrame = root.CFrame
+                                    if firetouchinterest then
+                                        firetouchinterest(targetPart, root, 0)
+                                        task.wait(0.01)
+                                        firetouchinterest(targetPart, root, 1)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- Loop 2: Tycoon Buttons Simulator
+task.spawn(function()
+    while task.wait(0.4) do
+        local myPlot = GetMyPlot()
+        if not myPlot then continue end
+        
+        if toggles.AutoDeposit and myPlot:FindFirstChild("Sell") and myPlot.Sell:FindFirstChild("DepositButton") then
+            TouchButton(myPlot.Sell.DepositButton:FindFirstChild("Button"))
+        end
+        if toggles.AutoCollect and myPlot:FindFirstChild("Sell") and myPlot.Sell:FindFirstChild("CollectButton") then
+            TouchButton(myPlot.Sell.CollectButton:FindFirstChild("Button"))
+        end
+        if toggles.AutoMerge and myPlot:FindFirstChild("Buttons") and myPlot.Buttons:FindFirstChild("ButtonMerge") then
+            TouchButton(myPlot.Buttons.ButtonMerge:FindFirstChild("Button"))
+        end
+        if toggles.AutoBuy and myPlot:FindFirstChild("Buttons") then
+            local b = myPlot.Buttons
+            if b:FindFirstChild("ButtonBuy100") then TouchButton(b.ButtonBuy100:FindFirstChild("Button")) end
+            if b:FindFirstChild("ButtonBuy25") then TouchButton(b.ButtonBuy25:FindFirstChild("Button")) end
+            if b:FindFirstChild("ButtonBuy5") then TouchButton(b.ButtonBuy5:FindFirstChild("Button")) end
+            if b:FindFirstChild("ButtonBuy1") then TouchButton(b.ButtonBuy1:FindFirstChild("Button")) end
+        end
+        if toggles.AutoPerSecond and myPlot:FindFirstChild("Sell") and myPlot.Sell:FindFirstChild("UpgradeButton") then
+            TouchButton(myPlot.Sell.UpgradeButton:FindFirstChild("Button"))
+        end
+        if toggles.AutoGroup and os.time() - lastGroupRewardTime >= 600 and myPlot:FindFirstChild("GroupReward") and myPlot.GroupReward:FindFirstChild("CollectButton") then
+            TouchButton(myPlot.GroupReward.CollectButton:FindFirstChild("Button"))
+            lastGroupRewardTime = os.time()
+        end
+    end
+end)
+
+-- Loop 3: AUTO UNLOCK DENGAN COOLDOWN & ANTI-SPAM
+local isProcessingChest = false
+
+task.spawn(function()
+    while task.wait(0.2) do
+        -- Hanya jalan jika fitur menyala DAN skrip tidak sedang sibuk mengurus peti lain
+        if toggles.AutoUnlock and not isProcessingChest then
+            pcall(function()
+                local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+                local chestGui = playerGui and playerGui:FindFirstChild("ChestGui")
+                local currencyGui = playerGui and playerGui:FindFirstChild("CurrencyGui")
+                
+                if chestGui and chestGui:FindFirstChild("ChestInfo") and chestGui.ChestInfo.Visible then
+                    -- 1. KUNCI PROSES: Cegah skrip mengeksekusi peti berkali-kali
+                    isProcessingChest = true 
+                    
+                    -- 2. JEDA NATURAL: Beri waktu 0.5 detik agar UI Harga dari server termuat sempurna
+                    task.wait(0.5) 
+                    
+                    -- Cek ulang, pastikan UI masih terbuka setelah jeda
+                    if chestGui.ChestInfo.Visible then
+                        local myCash = ExtractNumber(currencyGui.Frame.CashText)
+                        local chestPrice = ExtractNumber(chestGui.ChestInfo.UnlockMenu.PriceFrame.ItemPrice)
+                        
+                        if myCash >= chestPrice and chestPrice > 0 then
+                            ReplicatedStorage.RemoteEvents.UnlockChest:FireServer()
+                        else
+                            ReplicatedStorage.RemoteEvents.DiscardChest:FireServer()
+                        end
+                        
+                        -- 3. JEDA SERVER: Beri waktu 1.5 detik untuk server memproses peti dan membuangnya dari tanganmu
+                        task.wait(1.5) 
+                    end
+                    
+                    -- 4. BUKA KUNCI: Silakan lanjut proses peti berikutnya yang nyangkut di tangan
+                    isProcessingChest = false 
+                end
+            end)
+        end
+    end
+end)
+
+-- ==========================================
+-- BYPASS DETEKSI IDLE (ANTI AFK)
+-- ==========================================
+local VirtualUser = game:GetService("VirtualUser")
+LocalPlayer.Idled:Connect(function()
+    VirtualUser:CaptureController()
+    VirtualUser:ClickButton2(Vector2.new())
+end)
+
+print("[SUCCESS] Pickaxe Tycoon Panel v2.10 (Cooldown Fix) Berhasil Dimuat!")
