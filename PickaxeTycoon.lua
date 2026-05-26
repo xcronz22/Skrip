@@ -95,7 +95,9 @@ local toggles = {
     AutoBuy = false,
     AutoUnlock = false,
     AutoPerSecond = false,
-    AutoGroup = false
+    AutoGroup = false,
+    OreMultiplierEnabled = false, -- Fitur Baru
+    TargetMultiplier = 1.0        -- Fitur Baru
 }
 
 local function SaveConfig()
@@ -122,11 +124,11 @@ ScreenGui.ResetOnSpawn = false
 local MainFrame = Instance.new("Frame", ScreenGui)
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 MainFrame.Position = UDim2.new(0.15, 0, 0.25, 0)
-MainFrame.Size = UDim2.new(0, 220, 0, 380)
+MainFrame.Size = UDim2.new(0, 220, 0, 420) -- Diperpanjang untuk menu baru
 MainFrame.Active = true; MainFrame.Draggable = true; MainFrame.ClipsDescendants = true
 
 local TitleBar = Instance.new("TextLabel", MainFrame)
-TitleBar.Text = "  Pickaxe Tycoon v2.11"
+TitleBar.Text = "  Pickaxe Tycoon v2.12"
 TitleBar.Size = UDim2.new(1, 0, 0, 35); TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 TitleBar.TextColor3 = Color3.new(1, 1, 1); TitleBar.Font = Enum.Font.SourceSansBold; TitleBar.TextSize = 15
 TitleBar.TextXAlignment = Enum.TextXAlignment.Left
@@ -142,7 +144,7 @@ MinBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70); MinBtn.TextColor3 = Color3
 
 local Container = Instance.new("ScrollingFrame", MainFrame)
 Container.Position = UDim2.new(0, 0, 0, 35); Container.Size = UDim2.new(1, 0, 1, -35)
-Container.BackgroundTransparency = 1; Container.CanvasSize = UDim2.new(0, 0, 0, 410); Container.ScrollBarThickness = 4
+Container.BackgroundTransparency = 1; Container.CanvasSize = UDim2.new(0, 0, 0, 500); Container.ScrollBarThickness = 4
 
 local UIList = Instance.new("UIListLayout", Container)
 UIList.Padding = UDim.new(0, 5); UIList.HorizontalAlignment = Enum.HorizontalAlignment.Center
@@ -163,9 +165,43 @@ local function CreateToggle(name, configName)
     buttonsRefs[configName] = RefreshVisual
 end
 
--- Registrasi Tombol
+-- Registrasi Tombol Utama
 CreateToggle("Auto Loot (Ore & Chest)", "AutoLoot")
 CreateToggle("Auto Deposit Ore", "AutoDeposit")
+
+-- UI KHUSUS ORE MULTIPLIER (Baru)
+CreateToggle("Deposit Ore Multiplier", "OreMultiplierEnabled")
+
+local StepperFrame = Instance.new("Frame", Container)
+StepperFrame.Size = UDim2.new(0, 200, 0, 30)
+StepperFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+
+local MinValueBtn = Instance.new("TextButton", StepperFrame)
+MinValueBtn.Size = UDim2.new(0, 40, 1, 0); MinValueBtn.Text = "-"; MinValueBtn.Font = Enum.Font.SourceSansBold
+MinValueBtn.BackgroundColor3 = Color3.fromRGB(65, 65, 65); MinValueBtn.TextColor3 = Color3.new(1, 1, 1); MinValueBtn.TextSize = 18
+
+local ValueLabel = Instance.new("TextLabel", StepperFrame)
+ValueLabel.Size = UDim2.new(1, -80, 1, 0); ValueLabel.Position = UDim2.new(0, 40, 0, 0)
+ValueLabel.BackgroundTransparency = 1; ValueLabel.TextColor3 = Color3.new(1, 1, 1)
+ValueLabel.Font = Enum.Font.SourceSansBold; ValueLabel.TextSize = 14
+
+local PlusValueBtn = Instance.new("TextButton", StepperFrame)
+PlusValueBtn.Size = UDim2.new(0, 40, 1, 0); PlusValueBtn.Position = UDim2.new(1, -40, 0, 0); PlusValueBtn.Text = "+"
+PlusValueBtn.BackgroundColor3 = Color3.fromRGB(65, 65, 65); PlusValueBtn.TextColor3 = Color3.new(1, 1, 1); PlusValueBtn.Font = Enum.Font.SourceSansBold; PlusValueBtn.TextSize = 18
+
+local function UpdateTargetMultiLabel()
+    ValueLabel.Text = "Target Multi: " .. string.format("%.1f", toggles.TargetMultiplier) .. "x"
+end
+
+MinValueBtn.MouseButton1Click:Connect(function()
+    toggles.TargetMultiplier = math.max(0.5, toggles.TargetMultiplier - 0.1)
+    UpdateTargetMultiLabel(); SaveConfig()
+end)
+PlusValueBtn.MouseButton1Click:Connect(function()
+    toggles.TargetMultiplier = math.min(1.5, toggles.TargetMultiplier + 0.1)
+    UpdateTargetMultiLabel(); SaveConfig()
+end)
+
 CreateToggle("Auto Collect Money", "AutoCollect")
 CreateToggle("Auto Merge Pickaxe", "AutoMerge")
 CreateToggle("Auto Buy Pickaxe", "AutoBuy")
@@ -175,11 +211,12 @@ CreateToggle("Auto Group Reward", "AutoGroup")
 
 LoadConfig(); isLoadedCompletely = true
 for _, refreshFunc in pairs(buttonsRefs) do refreshFunc() end
+UpdateTargetMultiLabel() -- Panggil awal untuk Multiplier
 
 MinBtn.MouseButton1Click:Connect(function()
     isMinimized = not isMinimized
     if isMinimized then Container.Visible = false; MainFrame:TweenSize(UDim2.new(0, 220, 0, 35), "Out", "Quad", 0.12, true)
-    else MainFrame:TweenSize(UDim2.new(0, 220, 0, 380), "Out", "Quad", 0.12, true); task.wait(0.12); Container.Visible = true end
+    else MainFrame:TweenSize(UDim2.new(0, 220, 0, 420), "Out", "Quad", 0.12, true); task.wait(0.12); Container.Visible = true end
 end)
 
 -- ==========================================
@@ -200,7 +237,6 @@ task.spawn(function()
                         if string.find(objName, "loot") or string.find(objName, "chest") then
                             if obj:IsA("Model") or obj:IsA("Tool") then
                                 local targetPart = obj:FindFirstChild("Hitbox") or obj:FindFirstChild("Handle") or obj:FindFirstChildOfClass("BasePart")
-                                
                                 if targetPart then
                                     targetPart.CFrame = root.CFrame
                                     if firetouchinterest then
@@ -218,15 +254,40 @@ task.spawn(function()
     end
 end)
 
--- Loop 2: Tycoon Buttons Simulator (FIX BUG GROUP REWARD)
+-- Loop 2A: KHUSUS DEPOSIT & BUTTONS (CEPAT)
 task.spawn(function()
-    while task.wait(0.4) do
+    while task.wait(0.1) do
         local myPlot = GetMyPlot()
         if not myPlot then continue end
         
+        -- LOGIKA BARU: AUTO DEPOSIT DENGAN MULTIPLIER
         if toggles.AutoDeposit and myPlot:FindFirstChild("Sell") and myPlot.Sell:FindFirstChild("DepositButton") then
-            TouchButton(myPlot.Sell.DepositButton:FindFirstChild("Button"))
+            local shouldDeposit = true
+            
+            -- Jika fitur Multiplier menyala, kita cek server dulu
+            if toggles.OreMultiplierEnabled then
+                shouldDeposit = false -- Setel ke false dulu
+                local currentMulti = 0
+                
+                -- Baca data langsung dari part yang kamu temukan!
+                local multPart = workspace:FindFirstChild("OreMultPart")
+                if multPart and multPart:FindFirstChild("BillboardGui") and multPart.BillboardGui:FindFirstChild("Frame") and multPart.BillboardGui.Frame:FindFirstChild("MultText") then
+                    local textData = multPart.BillboardGui.Frame.MultText.Text
+                    local numData = tonumber(string.match(textData, "[%d%.]+"))
+                    if numData then currentMulti = numData end
+                end
+                
+                -- Cek apakah angka server memenuhi syarat targetmu
+                if currentMulti >= toggles.TargetMultiplier then
+                    shouldDeposit = true
+                end
+            end
+            
+            if shouldDeposit then
+                TouchButton(myPlot.Sell.DepositButton:FindFirstChild("Button"))
+            end
         end
+
         if toggles.AutoCollect and myPlot:FindFirstChild("Sell") and myPlot.Sell:FindFirstChild("CollectButton") then
             TouchButton(myPlot.Sell.CollectButton:FindFirstChild("Button"))
         end
@@ -243,9 +304,14 @@ task.spawn(function()
         if toggles.AutoPerSecond and myPlot:FindFirstChild("Sell") and myPlot.Sell:FindFirstChild("UpgradeButton") then
             TouchButton(myPlot.Sell.UpgradeButton:FindFirstChild("Button"))
         end
-        
-        -- FIX: Cooldown skrip dihapus agar tidak nyangkut. Skrip akan memicu tombol
-        -- kapan pun tombol tersebut tersedia di Plot kamu.
+    end
+end)
+
+-- Loop 2B: KHUSUS GROUP REWARD (SANTAI)
+task.spawn(function()
+    while task.wait(2.0) do
+        local myPlot = GetMyPlot()
+        if not myPlot then continue end
         if toggles.AutoGroup and myPlot:FindFirstChild("GroupReward") and myPlot.GroupReward:FindFirstChild("CollectButton") then
             TouchButton(myPlot.GroupReward.CollectButton:FindFirstChild("Button"))
         end
@@ -254,7 +320,6 @@ end)
 
 -- Loop 3: AUTO UNLOCK DENGAN COOLDOWN & ANTI-SPAM
 local isProcessingChest = false
-
 task.spawn(function()
     while task.wait(0.2) do
         if toggles.AutoUnlock and not isProcessingChest then
@@ -294,4 +359,4 @@ LocalPlayer.Idled:Connect(function()
     VirtualUser:ClickButton2(Vector2.new())
 end)
 
-print("[SUCCESS] Pickaxe Tycoon Panel v2.11 (Group Reward Fix) Berhasil Dimuat!")
+print("[SUCCESS] Pickaxe Tycoon Panel v2.12 (Ore Multiplier Fix) Berhasil Dimuat!")
