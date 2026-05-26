@@ -80,7 +80,7 @@ local function ExtractNumber(textObject)
     return num
 end
 
--- LOGIKA SMART BUY BARU (CEK HARGA VS UANG)
+-- LOGIKA SMART BUY (CEK HARGA VS UANG)
 local function SmartBuy(buttonModel, currentCash)
     if not buttonModel then return end
     
@@ -98,25 +98,20 @@ local function SmartBuy(buttonModel, currentCash)
     end
 end
 
--- LOGIKA SMART MERGE BARU (ANTI SPAM)
+-- LOGIKA SMART MERGE (ANTI SPAM KAPAK)
 local function ShouldMerge(myPlot)
     local holders = myPlot:FindFirstChild("Holders")
     if not holders then return false end
     
-    -- Kamus untuk menyimpan jumlah masing-masing Unit
     local unitCounts = {}
     
     for _, holder in ipairs(holders:GetChildren()) do
         if string.find(holder.Name, "Holder_") then
-            -- Mencari Unit di dalam Holder
             for _, child in ipairs(holder:GetChildren()) do
-                -- Mengecek apakah objeknya bernama Unit1, Unit2, dst.
                 if string.match(child.Name, "^Unit%d+") then
                     local uName = child.Name
-                    -- Tambahkan 1 ke jumlah Unit tersebut
                     unitCounts[uName] = (unitCounts[uName] or 0) + 1
                     
-                    -- Jika ada Unit yang jumlahnya 3 atau lebih, langsung kirim sinyal BOLEH MERGE!
                     if unitCounts[uName] >= 3 then
                         return true
                     end
@@ -124,8 +119,7 @@ local function ShouldMerge(myPlot)
             end
         end
     end
-    
-    return false -- Jika tidak ada satupun yang mencapai 3 buah
+    return false
 end
 
 -- ==========================================
@@ -133,7 +127,6 @@ end
 -- ==========================================
 local isLoadedCompletely = false
 local SaveFileName = "PickaxeTycoon_Config.json"
-local isMinimized = false
 
 local toggles = {
     AutoLoot = false,
@@ -172,14 +165,18 @@ local ScreenGui = Instance.new("ScreenGui", CoreGui)
 ScreenGui.Name = "PickaxeTycoonPanel"
 ScreenGui.ResetOnSpawn = false
 
+-- PANEL UTAMA
 local MainFrame = Instance.new("Frame", ScreenGui)
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 MainFrame.Position = UDim2.new(0.15, 0, 0.25, 0)
 MainFrame.Size = UDim2.new(0, 220, 0, 420)
 MainFrame.Active = true; MainFrame.Draggable = true; MainFrame.ClipsDescendants = true
 
+local PanelCorner = Instance.new("UICorner", MainFrame)
+PanelCorner.CornerRadius = UDim.new(0, 10)
+
 local TitleBar = Instance.new("TextLabel", MainFrame)
-TitleBar.Text = "  Pickaxe Tycoon v2.15"
+TitleBar.Text = "  Pickaxe Tycoon v2.17"
 TitleBar.Size = UDim2.new(1, 0, 0, 35); TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 TitleBar.TextColor3 = Color3.new(1, 1, 1); TitleBar.Font = Enum.Font.SourceSansBold; TitleBar.TextSize = 15
 TitleBar.TextXAlignment = Enum.TextXAlignment.Left
@@ -187,12 +184,47 @@ TitleBar.TextXAlignment = Enum.TextXAlignment.Left
 local CloseBtn = Instance.new("TextButton", TitleBar)
 CloseBtn.Text = "X"; CloseBtn.Size = UDim2.new(0, 30, 0, 30); CloseBtn.Position = UDim2.new(1, -35, 0, 2.5)
 CloseBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50); CloseBtn.TextColor3 = Color3.new(1, 1, 1)
+CloseBtn.Font = Enum.Font.SourceSansBold; CloseBtn.TextSize = 14
+local CloseCorner = Instance.new("UICorner", CloseBtn); CloseCorner.CornerRadius = UDim.new(0, 6)
 CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
 
 local MinBtn = Instance.new("TextButton", TitleBar)
 MinBtn.Text = "-"; MinBtn.Size = UDim2.new(0, 30, 0, 30); MinBtn.Position = UDim2.new(1, -70, 0, 2.5)
-MinBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70); MinBtn.TextColor3 = Color3.new(1, 1, 1)
+MinBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 55); MinBtn.TextColor3 = Color3.new(1, 1, 1)
+MinBtn.Font = Enum.Font.SourceSansBold; MinBtn.TextSize = 16
+local MinCorner = Instance.new("UICorner", MinBtn); MinCorner.CornerRadius = UDim.new(0, 6)
 
+-- IKON MELAYANG (DELTA STYLE)
+local ToggleIcon = Instance.new("TextButton", ScreenGui)
+ToggleIcon.Name = "ToggleIcon"
+ToggleIcon.Size = UDim2.new(0, 50, 0, 50)
+ToggleIcon.Position = UDim2.new(0.05, 0, 0.35, 0) -- Posisi kiri layar agar nyaman
+ToggleIcon.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+ToggleIcon.TextColor3 = Color3.new(1, 1, 1)
+ToggleIcon.Text = "⛏️" -- Menggunakan emoji kapak agar estetik
+ToggleIcon.TextSize = 24
+ToggleIcon.Font = Enum.Font.SourceSansBold
+ToggleIcon.Visible = false -- Sembunyi di awal, karena panel langsung terbuka
+ToggleIcon.Active = true; ToggleIcon.Draggable = true -- Bisa digeser sesuka hati!
+
+local IconCorner = Instance.new("UICorner", ToggleIcon)
+IconCorner.CornerRadius = UDim.new(0, 25) -- Membuat lingkaran sempurna seperti Delta
+local IconStroke = Instance.new("UIStroke", ToggleIcon)
+IconStroke.Color = Color3.fromRGB(0, 150, 70); IconStroke.Thickness = 2 -- Garis tepi hijau keren
+
+-- LOGIKA MINIMIZE & MAXIMIZE BARU
+MinBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+    ToggleIcon.Visible = true
+end)
+
+ToggleIcon.MouseButton1Click:Connect(function()
+    ToggleIcon.Visible = false
+    -- Menyalin koordinat terakhir ikon agar panel besar muncul tepat di posisi ikon dilepas (opsional, tapi di sini kita buat statis/tetap agar rapi)
+    MainFrame.Visible = true
+end)
+
+-- ISI KONTEN PANEL
 local Container = Instance.new("ScrollingFrame", MainFrame)
 Container.Position = UDim2.new(0, 0, 0, 35); Container.Size = UDim2.new(1, 0, 1, -35)
 Container.BackgroundTransparency = 1; Container.CanvasSize = UDim2.new(0, 0, 0, 500); Container.ScrollBarThickness = 4
@@ -204,6 +236,7 @@ local buttonsRefs = {}
 local function CreateToggle(name, configName)
     local Btn = Instance.new("TextButton", Container)
     Btn.Size = UDim2.new(0, 200, 0, 35); Btn.Font = Enum.Font.SourceSansSemibold; Btn.TextSize = 14
+    local BtnCorner = Instance.new("UICorner", Btn); BtnCorner.CornerRadius = UDim.new(0, 6)
     
     local function RefreshVisual()
         if toggles[configName] then
@@ -223,10 +256,12 @@ CreateToggle("Deposit Ore Multiplier", "OreMultiplierEnabled")
 local StepperFrame = Instance.new("Frame", Container)
 StepperFrame.Size = UDim2.new(0, 200, 0, 30)
 StepperFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+local StepCorner = Instance.new("UICorner", StepperFrame); StepCorner.CornerRadius = UDim.new(0, 6)
 
 local MinValueBtn = Instance.new("TextButton", StepperFrame)
 MinValueBtn.Size = UDim2.new(0, 40, 1, 0); MinValueBtn.Text = "-"; MinValueBtn.Font = Enum.Font.SourceSansBold
 MinValueBtn.BackgroundColor3 = Color3.fromRGB(65, 65, 65); MinValueBtn.TextColor3 = Color3.new(1, 1, 1); MinValueBtn.TextSize = 18
+local MinVCorner = Instance.new("UICorner", MinValueBtn); MinVCorner.CornerRadius = UDim.new(0, 6)
 
 local ValueLabel = Instance.new("TextLabel", StepperFrame)
 ValueLabel.Size = UDim2.new(1, -80, 1, 0); ValueLabel.Position = UDim2.new(0, 40, 0, 0)
@@ -236,6 +271,7 @@ ValueLabel.Font = Enum.Font.SourceSansBold; ValueLabel.TextSize = 14
 local PlusValueBtn = Instance.new("TextButton", StepperFrame)
 PlusValueBtn.Size = UDim2.new(0, 40, 1, 0); PlusValueBtn.Position = UDim2.new(1, -40, 0, 0); PlusValueBtn.Text = "+"
 PlusValueBtn.BackgroundColor3 = Color3.fromRGB(65, 65, 65); PlusValueBtn.TextColor3 = Color3.new(1, 1, 1); PlusValueBtn.Font = Enum.Font.SourceSansBold; PlusValueBtn.TextSize = 18
+local PlusVCorner = Instance.new("UICorner", PlusValueBtn); PlusVCorner.CornerRadius = UDim.new(0, 6)
 
 local function UpdateTargetMultiLabel()
     ValueLabel.Text = "Target Multi: " .. string.format("%.1f", toggles.TargetMultiplier) .. "x"
@@ -261,12 +297,6 @@ CreateToggle("Auto Group Reward", "AutoGroup")
 LoadConfig(); isLoadedCompletely = true
 for _, refreshFunc in pairs(buttonsRefs) do refreshFunc() end
 UpdateTargetMultiLabel()
-
-MinBtn.MouseButton1Click:Connect(function()
-    isMinimized = not isMinimized
-    if isMinimized then Container.Visible = false; MainFrame:TweenSize(UDim2.new(0, 220, 0, 35), "Out", "Quad", 0.12, true)
-    else MainFrame:TweenSize(UDim2.new(0, 220, 0, 420), "Out", "Quad", 0.12, true); task.wait(0.12); Container.Visible = true end
-end)
 
 -- ==========================================
 -- CORE SYSTEM ENGINES (LOOPS)
@@ -303,7 +333,7 @@ task.spawn(function()
     end
 end)
 
--- Loop 2A: KHUSUS DEPOSIT & BUTTONS (0.3 DETIK)
+-- Loop 2A: DEPOSIT, BUY, MERGE, SMART COLLECT (0.3 DETIK)
 task.spawn(function()
     while task.wait(0.3) do
         local myPlot = GetMyPlot()
@@ -316,6 +346,7 @@ task.spawn(function()
             myCash = ExtractNumber(currencyGui.Frame.CashText)
         end
         
+        -- Auto Deposit Ore
         if toggles.AutoDeposit and myPlot:FindFirstChild("Sell") and myPlot.Sell:FindFirstChild("DepositButton") then
             local shouldDeposit = true
             
@@ -340,17 +371,31 @@ task.spawn(function()
             end
         end
 
+        -- SMART AUTO COLLECT MONEY (HANYA JIKA > 0)
         if toggles.AutoCollect and myPlot:FindFirstChild("Sell") and myPlot.Sell:FindFirstChild("CollectButton") then
-            TouchButton(myPlot.Sell.CollectButton:FindFirstChild("Button"))
+            local collectBtn = myPlot.Sell.CollectButton
+            local amountTextLabel = collectBtn:FindFirstChild("BillboardGui") 
+                and collectBtn.BillboardGui:FindFirstChild("Frame") 
+                and collectBtn.BillboardGui.Frame:FindFirstChild("AmountText")
+            
+            if amountTextLabel then
+                local moneyWaiting = ExtractNumber(amountTextLabel)
+                if moneyWaiting > 0 then
+                    TouchButton(collectBtn:FindFirstChild("Button"))
+                end
+            else
+                TouchButton(collectBtn:FindFirstChild("Button"))
+            end
         end
         
-        -- PENGGUNAAN SMART MERGE BARU (ANTI SPAM)
+        -- Auto Merge Pickaxe (Smart Merge)
         if toggles.AutoMerge and myPlot:FindFirstChild("Buttons") and myPlot.Buttons:FindFirstChild("ButtonMerge") then
             if ShouldMerge(myPlot) then
                 TouchButton(myPlot.Buttons.ButtonMerge:FindFirstChild("Button"))
             end
         end
         
+        -- Auto Buy Pickaxes
         if toggles.AutoBuy and myPlot:FindFirstChild("Buttons") then
             local b = myPlot.Buttons
             if b:FindFirstChild("ButtonBuy100") then SmartBuy(b.ButtonBuy100, myCash) end
@@ -359,24 +404,38 @@ task.spawn(function()
             if b:FindFirstChild("ButtonBuy1") then SmartBuy(b.ButtonBuy1, myCash) end
         end
         
+        -- Auto Upgrade Per Second
         if toggles.AutoPerSecond and myPlot:FindFirstChild("Sell") and myPlot.Sell:FindFirstChild("UpgradeButton") then
             SmartBuy(myPlot.Sell.UpgradeButton, myCash)
         end
     end
 end)
 
--- Loop 2B: KHUSUS GROUP REWARD (SANTAI)
+-- Loop 2B: SMART GROUP REWARD (CEK TIMER 00:00)
 task.spawn(function()
-    while task.wait(2.0) do
+    while task.wait(1.0) do
         local myPlot = GetMyPlot()
         if not myPlot then continue end
+        
         if toggles.AutoGroup and myPlot:FindFirstChild("GroupReward") and myPlot.GroupReward:FindFirstChild("CollectButton") then
-            TouchButton(myPlot.GroupReward.CollectButton:FindFirstChild("Button"))
+            local groupReward = myPlot.GroupReward
+            local timeTextLabel = groupReward:FindFirstChild("BoardPart")
+                and groupReward.BoardPart:FindFirstChild("SurfaceGui")
+                and groupReward.BoardPart.SurfaceGui:FindFirstChild("Frame")
+                and groupReward.BoardPart.SurfaceGui.Frame:FindFirstChild("TimeText")
+            
+            if timeTextLabel then
+                if string.find(timeTextLabel.Text, "00:00") then
+                    TouchButton(groupReward.CollectButton:FindFirstChild("Button"))
+                end
+            else
+                TouchButton(groupReward.CollectButton:FindFirstChild("Button"))
+            end
         end
     end
 end)
 
--- Loop 3: AUTO UNLOCK DENGAN COOLDOWN & ANTI-SPAM
+-- Loop 3: AUTO UNLOCK CHEST DENGAN COOLDOWN
 local isProcessingChest = false
 task.spawn(function()
     while task.wait(0.2) do
@@ -417,4 +476,4 @@ LocalPlayer.Idled:Connect(function()
     VirtualUser:ClickButton2(Vector2.new())
 end)
 
-print("[SUCCESS] Pickaxe Tycoon Panel v2.15 (Smart Merge & Smart Buy) Berhasil Dimuat!")
+print("[SUCCESS] Pickaxe Tycoon Panel v2.17 (Delta Floating Style) Berhasil Dimuat!")
