@@ -1,5 +1,5 @@
 -- ==========================================
--- Pickaxe Tycoon v2.29 (Bug Fixes & Qa Update)
+-- Pickaxe Tycoon v2.30 (Offline Ore Fix)
 -- ==========================================
 if not game:IsLoaded() then game.Loaded:Wait() end
 if not workspace:FindFirstChild("Plots") then
@@ -126,7 +126,7 @@ local function ExtractNumber(textObject)
     elseif string.find(text, "M") then num = num * 1000000
     elseif string.find(text, "B") then num = num * 1000000000
     elseif string.find(text, "T") then num = num * 1000000000000
-    elseif string.find(text, "Qa") then num = num * 1000000000000000 end -- Ditambahkan penanganan "Qa"
+    elseif string.find(text, "QA") then num = num * 1000000000000000 end
     return num
 end
 
@@ -191,7 +191,7 @@ local function ShouldMerge(myPlot)
 end
 
 local isLoadedCompletely = false
-local SaveFileName = "PickaxeTycoon_ConfigV29.json"
+local SaveFileName = "PickaxeTycoon_ConfigV30.json"
 
 local function SaveConfig()
     if isLoadedCompletely and writefile then pcall(function() writefile(SaveFileName, HttpService:JSONEncode(toggles)) end) end
@@ -217,7 +217,7 @@ MainFrame.Size = UDim2.new(0, 220, 0, 420); MainFrame.Active = true; MainFrame.D
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
 
 local TitleBar = Instance.new("TextLabel", MainFrame)
-TitleBar.Text = "  Pickaxe Tycoon v2.29"; TitleBar.Size = UDim2.new(1, 0, 0, 35)
+TitleBar.Text = "  Pickaxe Tycoon v2.30"; TitleBar.Size = UDim2.new(1, 0, 0, 35)
 TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20); TitleBar.TextColor3 = Color3.new(1, 1, 1); TitleBar.Font = Enum.Font.SourceSansBold; TitleBar.TextSize = 15; TitleBar.TextXAlignment = Enum.TextXAlignment.Left
 
 local CloseBtn = Instance.new("TextButton", TitleBar); CloseBtn.Text = "X"; CloseBtn.Size = UDim2.new(0, 30, 0, 30); CloseBtn.Position = UDim2.new(1, -35, 0, 2.5); CloseBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50); CloseBtn.TextColor3 = Color3.new(1, 1, 1); CloseBtn.Font = Enum.Font.SourceSansBold; CloseBtn.TextSize = 14; Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
@@ -366,7 +366,7 @@ task.spawn(function()
     end
 end)
 
--- SMART UNLOCK / DISCARD ENGINE (Fixed Logic)
+-- SMART UNLOCK / DISCARD ENGINE
 local chestMisses = 0
 local isAfkMode = false
 local isProcessingChest = false
@@ -374,7 +374,6 @@ local isProcessingChest = false
 local function MatchesTargetChest(text, targetVal)
     local txt = string.lower(text)
     if string.find(txt, "chest" .. targetVal) or string.find(txt, "chest " .. targetVal) then return true end
-    -- Updated to correct chest names
     if targetVal == 1 and string.find(txt, "basic") then return true end
     if targetVal == 2 and string.find(txt, "shiny") then return true end
     if targetVal == 3 and string.find(txt, "rare") then return true end
@@ -399,7 +398,6 @@ task.spawn(function()
                         local myCash = ExtractNumber(currencyGui.Frame.CashText)
                         local chestPrice = ExtractNumber(chestGui.ChestInfo.UnlockMenu.PriceFrame.ItemPrice)
                         
-                        -- Mengambil nama text chest dari GUI
                         local currentChestName = ""
                         for _, child in ipairs(chestGui.ChestInfo:GetDescendants()) do
                             if child:IsA("TextLabel") and (string.find(string.lower(child.Text), "chest") or string.find(string.lower(child.Text), "box")) then
@@ -408,9 +406,7 @@ task.spawn(function()
                             end
                         end
                         
-                        -- DIPISAHKAN: Logika Target Mode vs Normal Mode
                         if toggles.TargetUnlockEnabled then
-                            -- === TARGET MODE AKTIF ===
                             local isTarget = MatchesTargetChest(currentChestName, toggles.TargetChestValue)
                             
                             if isTarget then
@@ -418,15 +414,13 @@ task.spawn(function()
                                     ReplicatedStorage.RemoteEvents.UnlockChest:FireServer()
                                     task.wait(1.5)
                                 else
-                                    task.wait(0.5) -- Tunggu uang cukup
+                                    task.wait(0.5) 
                                 end
                             else
-                                -- Bukan chest target, DISCARD langsung
                                 ReplicatedStorage.RemoteEvents.DiscardChest:FireServer()
                                 task.wait(0.5)
                             end
                         else
-                            -- === NORMAL MODE (Target Mode MATI) ===
                             if myCash >= chestPrice and chestPrice > 0 then
                                 ReplicatedStorage.RemoteEvents.UnlockChest:FireServer()
                                 task.wait(1.5)
@@ -435,7 +429,6 @@ task.spawn(function()
                                     ReplicatedStorage.RemoteEvents.DiscardChest:FireServer()
                                     task.wait(0.5)
                                 else
-                                    -- Note diganti jadi 1 kali
                                     ShowToast("Waiting manual discard for 30s. If not discarded 1 time, it enters AFK mode & discards instantly.", 6)
                                     
                                     local waitTime = 0
@@ -450,7 +443,7 @@ task.spawn(function()
                                         ReplicatedStorage.RemoteEvents.DiscardChest:FireServer()
                                         chestMisses = chestMisses + 1
                                         
-                                        if chestMisses >= 1 then -- Batas diubah jadi 1x
+                                        if chestMisses >= 1 then 
                                             isAfkMode = true
                                             ShowToast("AFK Mode Activated: Discarding chests instantly.", 4)
                                         end
@@ -525,7 +518,7 @@ task.spawn(function()
     end
 end)
 
--- Auto Offline Ore Engine
+-- Auto Offline Ore Engine (FIXED)
 task.spawn(function()
     while task.wait(1) do
         if toggles.AutoOfflineOre then
@@ -535,8 +528,12 @@ task.spawn(function()
                     local offlineInc = myPlot:FindFirstChild("OfflineIncome")
                     if offlineInc then
                         local bGui = offlineInc:FindFirstChild("BillboardGui")
-                        if bGui and bGui.Enabled == true then
-                            TouchButton(offlineInc:FindFirstChild("Button") or offlineInc)
+                        local frame = bGui and bGui:FindFirstChild("Frame")
+                        -- Mengecek status Frame.Visible berdasarkan instruksimu
+                        if frame and frame.Visible == true then
+                            -- Target langsung ke part 'CollectOfflineIncome' sesuai screenshot agar firetouchinterest berhasil
+                            local triggerPart = offlineInc:FindFirstChild("CollectOfflineIncome") or offlineInc:FindFirstChild("Part1") or offlineInc
+                            TouchButton(triggerPart)
                         end
                     end
                 end
@@ -570,4 +567,4 @@ end)
 local VirtualUser = game:GetService("VirtualUser")
 LocalPlayer.Idled:Connect(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end)
 
-ShowToast("Pickaxe Tycoon v2.29 Loaded: Bug fixes applied!", 4)
+ShowToast("Pickaxe Tycoon v2.30 Loaded: Offline Ore Fixed!", 4)
