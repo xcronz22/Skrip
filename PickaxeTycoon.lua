@@ -1,5 +1,5 @@
 -- ==========================================
--- Pickaxe Tycoon v2.30 (Offline Ore Fix)
+-- Pickaxe Tycoon v2.32 (Readable Format)
 -- ==========================================
 if not game:IsLoaded() then game.Loaded:Wait() end
 if not workspace:FindFirstChild("Plots") then
@@ -191,7 +191,7 @@ local function ShouldMerge(myPlot)
 end
 
 local isLoadedCompletely = false
-local SaveFileName = "PickaxeTycoon_ConfigV30.json"
+local SaveFileName = "PickaxeTycoon_ConfigV32.json"
 
 local function SaveConfig()
     if isLoadedCompletely and writefile then pcall(function() writefile(SaveFileName, HttpService:JSONEncode(toggles)) end) end
@@ -217,7 +217,7 @@ MainFrame.Size = UDim2.new(0, 220, 0, 420); MainFrame.Active = true; MainFrame.D
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
 
 local TitleBar = Instance.new("TextLabel", MainFrame)
-TitleBar.Text = "  Pickaxe Tycoon v2.30"; TitleBar.Size = UDim2.new(1, 0, 0, 35)
+TitleBar.Text = "  Pickaxe Tycoon v2.32"; TitleBar.Size = UDim2.new(1, 0, 0, 35)
 TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20); TitleBar.TextColor3 = Color3.new(1, 1, 1); TitleBar.Font = Enum.Font.SourceSansBold; TitleBar.TextSize = 15; TitleBar.TextXAlignment = Enum.TextXAlignment.Left
 
 local CloseBtn = Instance.new("TextButton", TitleBar); CloseBtn.Text = "X"; CloseBtn.Size = UDim2.new(0, 30, 0, 30); CloseBtn.Position = UDim2.new(1, -35, 0, 2.5); CloseBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50); CloseBtn.TextColor3 = Color3.new(1, 1, 1); CloseBtn.Font = Enum.Font.SourceSansBold; CloseBtn.TextSize = 14; Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
@@ -518,22 +518,26 @@ task.spawn(function()
     end
 end)
 
--- Auto Offline Ore Engine (FIXED)
+-- Auto Offline Ore Engine (v2.32 Fix)
 task.spawn(function()
     while task.wait(1) do
         if toggles.AutoOfflineOre then
             pcall(function()
-                local myPlot = GetMyPlot() or workspace.Plots:FindFirstChild("Plot_3")
+                local myPlot = GetMyPlot()
                 if myPlot then
                     local offlineInc = myPlot:FindFirstChild("OfflineIncome")
                     if offlineInc then
                         local bGui = offlineInc:FindFirstChild("BillboardGui")
                         local frame = bGui and bGui:FindFirstChild("Frame")
-                        -- Mengecek status Frame.Visible berdasarkan instruksimu
+                        
+                        -- Jika indikator muncul
                         if frame and frame.Visible == true then
-                            -- Target langsung ke part 'CollectOfflineIncome' sesuai screenshot agar firetouchinterest berhasil
-                            local triggerPart = offlineInc:FindFirstChild("CollectOfflineIncome") or offlineInc:FindFirstChild("Part1") or offlineInc
-                            TouchButton(triggerPart)
+                            -- Menyentuh semua part yang ada di dalam model OfflineIncome
+                            for _, child in ipairs(offlineInc:GetChildren()) do
+                                if child:IsA("BasePart") then
+                                    TouchButton(child)
+                                end
+                            end
                         end
                     end
                 end
@@ -567,4 +571,4 @@ end)
 local VirtualUser = game:GetService("VirtualUser")
 LocalPlayer.Idled:Connect(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end)
 
-ShowToast("Pickaxe Tycoon v2.30 Loaded: Offline Ore Fixed!", 4)
+ShowToast("Pickaxe Tycoon v2.32 Loaded!", 4)
