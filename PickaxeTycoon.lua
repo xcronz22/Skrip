@@ -1,5 +1,5 @@
 -- ==========================================
--- Pickaxe Tycoon v2.38 (Fixed Executor UI Bug)
+-- Pickaxe Tycoon v2.40 (Sync Fix & Hide Toggle)
 -- ==========================================
 if not game:IsLoaded() then game.Loaded:Wait() end
 if not workspace:FindFirstChild("Plots") then
@@ -13,7 +13,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CoreGui = game:GetService("CoreGui")
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
-local TweenService = game:GetService("TweenService")
 
 if CoreGui:FindFirstChild("PickaxeTycoonPanel") then CoreGui.PickaxeTycoonPanel:Destroy() end
 
@@ -71,7 +70,7 @@ local function ExtractNumber(textObject)
     elseif string.find(text, "M") then num = num * 1000000
     elseif string.find(text, "B") then num = num * 1000000000
     elseif string.find(text, "T") then num = num * 1000000000000
-    elseif string.find(text, "Qa") then num = num * 1000000000000000 end
+    elseif string.find(text, "QA") then num = num * 1000000000000000 end
     return num
 end
 
@@ -101,7 +100,8 @@ local toggles = {
     AutoBuy = false, AutoUnlock = false, AutoPerSecond = false, AutoGroup = false,
     OreMultiplierEnabled = false, TargetMultiplier = 1.0,
     TargetMergeEnabled = false, TargetMergeValue = 0, ShopGUIActive = false,
-    TargetUnlockEnabled = false, TargetChestValue = 1, AutoOfflineOre = false
+    TargetUnlockEnabled = false, TargetChestValue = 1, AutoOfflineOre = false,
+    HideOreChest = false -- Variabel baru untuk fitur Hide
 }
 
 local function ShouldMerge(myPlot)
@@ -136,7 +136,7 @@ local function ShouldMerge(myPlot)
 end
 
 local isLoadedCompletely = false
-local SaveFileName = "PickaxeTycoon_ConfigV38.json"
+local SaveFileName = "PickaxeTycoon_ConfigV40.json"
 
 local function SaveConfig()
     if isLoadedCompletely and writefile then pcall(function() writefile(SaveFileName, HttpService:JSONEncode(toggles)) end) end
@@ -162,7 +162,7 @@ MainFrame.Size = UDim2.new(0, 220, 0, 420); MainFrame.Active = true; MainFrame.D
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
 
 local TitleBar = Instance.new("TextLabel", MainFrame)
-TitleBar.Text = "  Pickaxe Tycoon v2.38"; TitleBar.Size = UDim2.new(1, 0, 0, 35)
+TitleBar.Text = "  Pickaxe Tycoon v2.40"; TitleBar.Size = UDim2.new(1, 0, 0, 35)
 TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20); TitleBar.TextColor3 = Color3.new(1, 1, 1); TitleBar.Font = Enum.Font.SourceSansBold; TitleBar.TextSize = 15; TitleBar.TextXAlignment = Enum.TextXAlignment.Left
 
 local CloseBtn = Instance.new("TextButton", TitleBar); CloseBtn.Text = "X"; CloseBtn.Size = UDim2.new(0, 30, 0, 30); CloseBtn.Position = UDim2.new(1, -35, 0, 2.5); CloseBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50); CloseBtn.TextColor3 = Color3.new(1, 1, 1); CloseBtn.Font = Enum.Font.SourceSansBold; CloseBtn.TextSize = 14; Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
@@ -174,12 +174,11 @@ local IconStroke = Instance.new("UIStroke", ToggleIcon); IconStroke.Color = Colo
 MinBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false; ToggleIcon.Visible = true end)
 ToggleIcon.MouseButton1Click:Connect(function() ToggleIcon.Visible = false; MainFrame.Visible = true end)
 
--- [FIXED SCROLL SYSTEM] Manual CanvasSize yang sangat panjang (800)
 local Container = Instance.new("ScrollingFrame", MainFrame)
 Container.Position = UDim2.new(0, 0, 0, 35)
 Container.Size = UDim2.new(1, 0, 1, -35)
 Container.BackgroundTransparency = 1
-Container.CanvasSize = UDim2.new(0, 0, 0, 800) -- Area scroll diperpanjang
+Container.CanvasSize = UDim2.new(0, 0, 0, 850) -- Diperpanjang untuk tombol Hide
 Container.ScrollBarThickness = 4
 
 local UIList = Instance.new("UIListLayout", Container)
@@ -247,6 +246,7 @@ CreateToggle("Auto Upgrade Per Second", "AutoPerSecond")
 CreateToggle("Auto Group Reward", "AutoGroup")
 CreateToggle("Shop GUI Active", "ShopGUIActive")
 CreateToggle("Auto Offline Ore", "AutoOfflineOre")
+CreateToggle("Hide Ore & Chest", "HideOreChest") -- Tombol Baru
 
 LoadConfig(); isLoadedCompletely = true
 for _, f in pairs(buttonsRefs) do f() end
@@ -271,18 +271,33 @@ task.spawn(function()
     end
 end)
 
--- Auto Transparency Engine (Chest & Ore)
+-- Auto Transparency Engine (Dinamis dengan Toggle Hide)
 task.spawn(function()
     while task.wait(0.5) do
         pcall(function()
+            -- Jika tombol Hide ON = 1 (Transparan), Jika OFF = 0 (Terlihat)
+            local targetTransparency = toggles.HideOreChest and 1 or 0
+            
+            -- 1. Cek objek di Workspace
             for _, obj in ipairs(workspace:GetChildren()) do
                 if string.find(string.lower(obj.Name), "chest") then
                     local cp = obj:FindFirstChild("ChestPart")
-                    if cp and cp:IsA("BasePart") then cp.Transparency = 1 end
+                    if cp and cp:IsA("BasePart") then cp.Transparency = targetTransparency end
                 end
                 if string.find(string.lower(obj.Name), "ore") or string.find(string.lower(obj.Name), "loot") then
                     local lm = obj:FindFirstChild("LootMeshPart")
-                    if lm and lm:IsA("BasePart") then lm.Transparency = 1 end
+                    if lm and lm:IsA("BasePart") then lm.Transparency = targetTransparency end
+                end
+            end
+            
+            -- 2. Cek objek di dalam Karakter Player (Held Chest)
+            local character = LocalPlayer.Character
+            if character then
+                for _, obj in ipairs(character:GetChildren()) do
+                    if string.find(string.lower(obj.Name), "chest") then
+                        local cp = obj:FindFirstChild("ChestPart")
+                        if cp and cp:IsA("BasePart") then cp.Transparency = targetTransparency end
+                    end
                 end
             end
         end)
@@ -318,7 +333,7 @@ task.spawn(function()
     end
 end)
 
--- SMART UNLOCK / DISCARD ENGINE (v2.38 - Perfect Logic, No Toasts)
+-- SMART UNLOCK / DISCARD ENGINE (v2.40 - Anti Robux Sync Bug)
 local isProcessingChest = false
 
 local function MatchesTargetChest(text, targetVal)
@@ -361,27 +376,24 @@ task.spawn(function()
                             
                             if isTarget then
                                 if myCash >= chestPrice and chestPrice > 0 then
+                                    task.wait(0.6) -- Jeda sinkronisasi server agar tidak dikira beli pakai Robux
                                     ReplicatedStorage.RemoteEvents.UnlockChest:FireServer()
                                     task.wait(1.5)
                                 else
-                                    -- Ini adalah Target Chest, tapi uang kurang!
-                                    -- HOLD (Tahan): Cukup tunggu tanpa melakukan FireServer Discard.
-                                    task.wait(1.5) 
+                                    task.wait(0.5) 
                                 end
                             else
-                                -- BUKAN target: Langsung buang tanpa ampun!
                                 ReplicatedStorage.RemoteEvents.DiscardChest:FireServer()
-                                task.wait(1.5)
+                                task.wait(0.5)
                             end
                         else
-                            -- Jika Target Unlock MATI (Berarti mau buka semua jenis chest)
                             if myCash >= chestPrice and chestPrice > 0 then
+                                task.wait(0.6) -- Jeda sinkronisasi server
                                 ReplicatedStorage.RemoteEvents.UnlockChest:FireServer()
                                 task.wait(1.5)
                             else
-                                -- Uang tidak cukup untuk buka chest ini? Langsung discard!
                                 ReplicatedStorage.RemoteEvents.DiscardChest:FireServer()
-                                task.wait(1.5)
+                                task.wait(0.5)
                             end
                         end
                     end
@@ -501,4 +513,4 @@ end)
 local VirtualUser = game:GetService("VirtualUser")
 LocalPlayer.Idled:Connect(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end)
 
-print("[SYSTEM] Pickaxe Tycoon v2.38 Sukses Dimuat! (UI Bug Diperbaiki)")
+print("[SYSTEM] Pickaxe Tycoon v2.40 Sukses Dimuat! (Bug Robux Fixed & Hide Toggle Added)")
