@@ -125,7 +125,8 @@ local function ExtractNumber(textObject)
     if string.find(text, "K") then num = num * 1000
     elseif string.find(text, "M") then num = num * 1000000
     elseif string.find(text, "B") then num = num * 1000000000
-    elseif string.find(text, "T") then num = num * 1000000000000 end
+    elseif string.find(text, "T") then num = num * 1000000000000 
+	elseif string.find(text, "Qa") then num = num * 1000000000000000 end
     return num
 end
 
@@ -380,11 +381,11 @@ local function MatchesTargetChest(text, targetVal)
     local txt = string.lower(text)
     if string.find(txt, "chest" .. targetVal) or string.find(txt, "chest " .. targetVal) then return true end
     -- Fallback nama tier berdasarkan standard level 1-5 tycoon
-    if targetVal == 1 and (string.find(txt, "basic") or string.find(txt, "common")) then return true end
-    if targetVal == 2 and string.find(txt, "rare") then return true end
-    if targetVal == 3 and string.find(txt, "epic") then return true end
-    if targetVal == 4 and string.find(txt, "legendary") then return true end
-    if targetVal == 5 and (string.find(txt, "mythic") or string.find(txt, "godly")) then return true end
+    if targetVal == 1 and string.find(txt, "basic") then return true end
+    if targetVal == 2 and string.find(txt, "shiny") then return true end
+    if targetVal == 3 and string.find(txt, "rare") then return true end
+    if targetVal == 4 and string.find(txt, "epic") then return true end
+    if targetVal == 5 and string.find(txt, "legendary") then return true end
     return false
 end
 
