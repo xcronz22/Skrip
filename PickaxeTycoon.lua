@@ -1,5 +1,5 @@
 -- ==========================================
--- Pickaxe Tycoon v2.37 (Fixed Scroll Bug & Clean)
+-- Pickaxe Tycoon v2.38 (Fixed Executor UI Bug)
 -- ==========================================
 if not game:IsLoaded() then game.Loaded:Wait() end
 if not workspace:FindFirstChild("Plots") then
@@ -136,7 +136,7 @@ local function ShouldMerge(myPlot)
 end
 
 local isLoadedCompletely = false
-local SaveFileName = "PickaxeTycoon_ConfigV37.json"
+local SaveFileName = "PickaxeTycoon_ConfigV38.json"
 
 local function SaveConfig()
     if isLoadedCompletely and writefile then pcall(function() writefile(SaveFileName, HttpService:JSONEncode(toggles)) end) end
@@ -162,7 +162,7 @@ MainFrame.Size = UDim2.new(0, 220, 0, 420); MainFrame.Active = true; MainFrame.D
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
 
 local TitleBar = Instance.new("TextLabel", MainFrame)
-TitleBar.Text = "  Pickaxe Tycoon v2.37"; TitleBar.Size = UDim2.new(1, 0, 0, 35)
+TitleBar.Text = "  Pickaxe Tycoon v2.38"; TitleBar.Size = UDim2.new(1, 0, 0, 35)
 TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20); TitleBar.TextColor3 = Color3.new(1, 1, 1); TitleBar.Font = Enum.Font.SourceSansBold; TitleBar.TextSize = 15; TitleBar.TextXAlignment = Enum.TextXAlignment.Left
 
 local CloseBtn = Instance.new("TextButton", TitleBar); CloseBtn.Text = "X"; CloseBtn.Size = UDim2.new(0, 30, 0, 30); CloseBtn.Position = UDim2.new(1, -35, 0, 2.5); CloseBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50); CloseBtn.TextColor3 = Color3.new(1, 1, 1); CloseBtn.Font = Enum.Font.SourceSansBold; CloseBtn.TextSize = 14; Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
@@ -174,14 +174,13 @@ local IconStroke = Instance.new("UIStroke", ToggleIcon); IconStroke.Color = Colo
 MinBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false; ToggleIcon.Visible = true end)
 ToggleIcon.MouseButton1Click:Connect(function() ToggleIcon.Visible = false; MainFrame.Visible = true end)
 
--- [FIXED SCROLL SYSTEM] Menggunakan AutomaticCanvasSize agar memanjang otomatis ke bawah
+-- [FIXED SCROLL SYSTEM] Manual CanvasSize yang sangat panjang (800)
 local Container = Instance.new("ScrollingFrame", MainFrame)
 Container.Position = UDim2.new(0, 0, 0, 35)
 Container.Size = UDim2.new(1, 0, 1, -35)
 Container.BackgroundTransparency = 1
+Container.CanvasSize = UDim2.new(0, 0, 0, 800) -- Area scroll diperpanjang
 Container.ScrollBarThickness = 4
-Container.CanvasSize = UDim2.new(0, 0, 0, 0)
-Container.AutomaticCanvasSize = Enum.AutomaticCanvasSize.Y
 
 local UIList = Instance.new("UIListLayout", Container)
 UIList.Padding = UDim.new(0, 5)
@@ -319,7 +318,7 @@ task.spawn(function()
     end
 end)
 
--- SMART UNLOCK / DISCARD ENGINE (v2.37 - Perfect Logic, No Toasts)
+-- SMART UNLOCK / DISCARD ENGINE (v2.38 - Perfect Logic, No Toasts)
 local isProcessingChest = false
 
 local function MatchesTargetChest(text, targetVal)
@@ -502,4 +501,4 @@ end)
 local VirtualUser = game:GetService("VirtualUser")
 LocalPlayer.Idled:Connect(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end)
 
-print("[SYSTEM] Pickaxe Tycoon v2.37 Sukses Dimuat! (Scroll Bug Diperbaiki)")
+print("[SYSTEM] Pickaxe Tycoon v2.38 Sukses Dimuat! (UI Bug Diperbaiki)")
