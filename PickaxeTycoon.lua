@@ -1,5 +1,5 @@
 -- ==========================================
--- Pickaxe Tycoon v2.28 (Complete Premium Edition)
+-- Pickaxe Tycoon v2.29 (Bug Fixes & Qa Update)
 -- ==========================================
 if not game:IsLoaded() then game.Loaded:Wait() end
 if not workspace:FindFirstChild("Plots") then
@@ -125,8 +125,8 @@ local function ExtractNumber(textObject)
     if string.find(text, "K") then num = num * 1000
     elseif string.find(text, "M") then num = num * 1000000
     elseif string.find(text, "B") then num = num * 1000000000
-    elseif string.find(text, "T") then num = num * 1000000000000 
-	elseif string.find(text, "Qa") then num = num * 1000000000000000 end
+    elseif string.find(text, "T") then num = num * 1000000000000
+    elseif string.find(text, "Qa") then num = num * 1000000000000000 end -- Ditambahkan penanganan "Qa"
     return num
 end
 
@@ -156,7 +156,6 @@ local toggles = {
     AutoBuy = false, AutoUnlock = false, AutoPerSecond = false, AutoGroup = false,
     OreMultiplierEnabled = false, TargetMultiplier = 1.0,
     TargetMergeEnabled = false, TargetMergeValue = 0, ShopGUIActive = false,
-    -- Fitur Baru v2.28
     TargetUnlockEnabled = false, TargetChestValue = 1, AutoOfflineOre = false
 }
 
@@ -192,7 +191,7 @@ local function ShouldMerge(myPlot)
 end
 
 local isLoadedCompletely = false
-local SaveFileName = "PickaxeTycoon_ConfigV28.json"
+local SaveFileName = "PickaxeTycoon_ConfigV29.json"
 
 local function SaveConfig()
     if isLoadedCompletely and writefile then pcall(function() writefile(SaveFileName, HttpService:JSONEncode(toggles)) end) end
@@ -218,7 +217,7 @@ MainFrame.Size = UDim2.new(0, 220, 0, 420); MainFrame.Active = true; MainFrame.D
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
 
 local TitleBar = Instance.new("TextLabel", MainFrame)
-TitleBar.Text = "  Pickaxe Tycoon v2.28"; TitleBar.Size = UDim2.new(1, 0, 0, 35)
+TitleBar.Text = "  Pickaxe Tycoon v2.29"; TitleBar.Size = UDim2.new(1, 0, 0, 35)
 TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20); TitleBar.TextColor3 = Color3.new(1, 1, 1); TitleBar.Font = Enum.Font.SourceSansBold; TitleBar.TextSize = 15; TitleBar.TextXAlignment = Enum.TextXAlignment.Left
 
 local CloseBtn = Instance.new("TextButton", TitleBar); CloseBtn.Text = "X"; CloseBtn.Size = UDim2.new(0, 30, 0, 30); CloseBtn.Position = UDim2.new(1, -35, 0, 2.5); CloseBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50); CloseBtn.TextColor3 = Color3.new(1, 1, 1); CloseBtn.Font = Enum.Font.SourceSansBold; CloseBtn.TextSize = 14; Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
@@ -275,7 +274,7 @@ local function CreateStepper(labelPrefix, configKey, minVal, maxVal, step, isFlo
 end
 
 -- ==========================================
--- MENU GENERATION ORDER (Urutan Presisi)
+-- MENU GENERATION ORDER
 -- ==========================================
 CreateToggle("Auto Loot (Ore & Chest)", "AutoLoot")
 CreateToggle("Auto Deposit Ore", "AutoDeposit")
@@ -286,20 +285,15 @@ CreateToggle("Auto Merge Pickaxe", "AutoMerge")
 CreateToggle("Target Merge Active", "TargetMergeEnabled")
 local UpdateMergeLabel = CreateStepper("Target Slot: ", "TargetMergeValue", 0, 100, 1, false)
 
--- Di bawah Target Slot: Input pilihan list Target Chest
 local UpdateChestLabel = CreateStepper("Target Chest: Chest", "TargetChestValue", 1, 5, 1, false)
 
 CreateToggle("Auto Unlock/Discard Chest", "AutoUnlock")
-
--- Di bawah Auto Unlock/Discard: Target Unlock Active
 CreateToggle("Target Unlock Active", "TargetUnlockEnabled")
 
 CreateToggle("Auto Buy Pickaxe", "AutoBuy")
 CreateToggle("Auto Upgrade Per Second", "AutoPerSecond")
 CreateToggle("Auto Group Reward", "AutoGroup")
 CreateToggle("Shop GUI Active", "ShopGUIActive")
-
--- Di paling bawah panel: Auto Offline Ore
 CreateToggle("Auto Offline Ore", "AutoOfflineOre")
 
 LoadConfig(); isLoadedCompletely = true
@@ -325,7 +319,7 @@ task.spawn(function()
     end
 end)
 
--- Auto Transparency Engine (Chest & Ore V2.27 Safeguard)
+-- Auto Transparency Engine (Chest & Ore)
 task.spawn(function()
     while task.wait(0.5) do
         pcall(function()
@@ -372,7 +366,7 @@ task.spawn(function()
     end
 end)
 
--- SMART TARGET UNLOCK / DISCARD ENGINE (v2.28 Logic)
+-- SMART UNLOCK / DISCARD ENGINE (Fixed Logic)
 local chestMisses = 0
 local isAfkMode = false
 local isProcessingChest = false
@@ -380,7 +374,7 @@ local isProcessingChest = false
 local function MatchesTargetChest(text, targetVal)
     local txt = string.lower(text)
     if string.find(txt, "chest" .. targetVal) or string.find(txt, "chest " .. targetVal) then return true end
-    -- Fallback nama tier berdasarkan standard level 1-5 tycoon
+    -- Updated to correct chest names
     if targetVal == 1 and string.find(txt, "basic") then return true end
     if targetVal == 2 and string.find(txt, "shiny") then return true end
     if targetVal == 3 and string.find(txt, "rare") then return true end
@@ -414,24 +408,56 @@ task.spawn(function()
                             end
                         end
                         
-                        local isTarget = true
+                        -- DIPISAHKAN: Logika Target Mode vs Normal Mode
                         if toggles.TargetUnlockEnabled then
-                            isTarget = MatchesTargetChest(currentChestName, toggles.TargetChestValue)
-                        end
-                        
-                        if isTarget then
-                            -- Jika chest sesuai TARGET, tunggu uang cukup (jangan di-discard)
+                            -- === TARGET MODE AKTIF ===
+                            local isTarget = MatchesTargetChest(currentChestName, toggles.TargetChestValue)
+                            
+                            if isTarget then
+                                if myCash >= chestPrice and chestPrice > 0 then
+                                    ReplicatedStorage.RemoteEvents.UnlockChest:FireServer()
+                                    task.wait(1.5)
+                                else
+                                    task.wait(0.5) -- Tunggu uang cukup
+                                end
+                            else
+                                -- Bukan chest target, DISCARD langsung
+                                ReplicatedStorage.RemoteEvents.DiscardChest:FireServer()
+                                task.wait(0.5)
+                            end
+                        else
+                            -- === NORMAL MODE (Target Mode MATI) ===
                             if myCash >= chestPrice and chestPrice > 0 then
                                 ReplicatedStorage.RemoteEvents.UnlockChest:FireServer()
                                 task.wait(1.5)
                             else
-                                -- Uang tidak cukup, looping tunggu tanpa aksi discard
-                                task.wait(0.5)
+                                if isAfkMode then
+                                    ReplicatedStorage.RemoteEvents.DiscardChest:FireServer()
+                                    task.wait(0.5)
+                                else
+                                    -- Note diganti jadi 1 kali
+                                    ShowToast("Waiting manual discard for 30s. If not discarded 1 time, it enters AFK mode & discards instantly.", 6)
+                                    
+                                    local waitTime = 0
+                                    while waitTime < 30 and toggles.AutoUnlock and not toggles.TargetUnlockEnabled and chestGui.ChestInfo.Visible do
+                                        task.wait(0.5)
+                                        waitTime = waitTime + 0.5
+                                    end
+                                    
+                                    if not chestGui.ChestInfo.Visible then
+                                        chestMisses = 0 
+                                    elseif toggles.AutoUnlock and not toggles.TargetUnlockEnabled then
+                                        ReplicatedStorage.RemoteEvents.DiscardChest:FireServer()
+                                        chestMisses = chestMisses + 1
+                                        
+                                        if chestMisses >= 1 then -- Batas diubah jadi 1x
+                                            isAfkMode = true
+                                            ShowToast("AFK Mode Activated: Discarding chests instantly.", 4)
+                                        end
+                                        task.wait(1.5)
+                                    end
+                                end
                             end
-                        else
-                            -- Jika BUKAN chest target, langsung DISCARD detik itu juga!
-                            ReplicatedStorage.RemoteEvents.DiscardChest:FireServer()
-                            task.wait(0.5)
                         end
                     end
                     isProcessingChest = false 
@@ -499,18 +525,16 @@ task.spawn(function()
     end
 end)
 
--- Auto Offline Ore Engine (Pencegah Spam Lewat Properti Enabled)
+-- Auto Offline Ore Engine
 task.spawn(function()
     while task.wait(1) do
         if toggles.AutoOfflineOre then
             pcall(function()
-                -- Menggunakan Dynamic Plot_3 fallback aman
                 local myPlot = GetMyPlot() or workspace.Plots:FindFirstChild("Plot_3")
                 if myPlot then
                     local offlineInc = myPlot:FindFirstChild("OfflineIncome")
                     if offlineInc then
                         local bGui = offlineInc:FindFirstChild("BillboardGui")
-                        -- Mengecek validitas centang 'Enabled' pada properti BillboardGui game
                         if bGui and bGui.Enabled == true then
                             TouchButton(offlineInc:FindFirstChild("Button") or offlineInc)
                         end
@@ -546,4 +570,4 @@ end)
 local VirtualUser = game:GetService("VirtualUser")
 LocalPlayer.Idled:Connect(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end)
 
-ShowToast("Pickaxe Tycoon v2.28 Loaded Cleanly!", 4)
+ShowToast("Pickaxe Tycoon v2.29 Loaded: Bug fixes applied!", 4)
