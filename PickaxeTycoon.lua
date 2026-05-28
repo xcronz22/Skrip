@@ -70,7 +70,7 @@ local function ExtractNumber(textObject)
     elseif string.find(text, "M") then num = num * 1000000
     elseif string.find(text, "B") then num = num * 1000000000
     elseif string.find(text, "T") then num = num * 1000000000000
-    elseif string.find(text, "QA") then num = num * 1000000000000000 end
+    elseif string.find(text, "Qa") then num = num * 1000000000000000 end
     return num
 end
 
