@@ -1,9 +1,9 @@
 -- ==========================================
--- GAME GUARD: PASTIKAN HANYA JALAN DI PICKAXE TYCOON
+-- Pickaxe Tycoon v2.28 (Complete Premium Edition)
 -- ==========================================
 if not game:IsLoaded() then game.Loaded:Wait() end
 if not workspace:FindFirstChild("Plots") then
-    print("[SYSTEM] Folder 'Plots' tidak ditemukan. Skrip Pickaxe Tycoon dibatalkan!")
+    print("[SYSTEM] Folder 'Plots' tidak ditemukan. Skrip dihentikan!")
     return
 end
 
@@ -15,12 +15,8 @@ local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local TweenService = game:GetService("TweenService")
 
-if CoreGui:FindFirstChild("PickaxeTycoonPanel") then
-    CoreGui.PickaxeTycoonPanel:Destroy()
-end
-if CoreGui:FindFirstChild("PickaxeTycoonToasts") then
-    CoreGui.PickaxeTycoonToasts:Destroy()
-end
+if CoreGui:FindFirstChild("PickaxeTycoonPanel") then CoreGui.PickaxeTycoonPanel:Destroy() end
+if CoreGui:FindFirstChild("PickaxeTycoonToasts") then CoreGui.PickaxeTycoonToasts:Destroy() end
 
 -- ==========================================
 -- TOAST NOTIFICATION SYSTEM
@@ -88,6 +84,7 @@ end
 -- ==========================================
 -- UNIVERSAL AUTO REJOIN
 -- ==========================================
+local promptOverlay = CoreGui:WaitForChild("RobloxPromptGui"):WaitForChild("promptOverlay")
 local function HandleErrorPrompt(child)
 	if child.Name == 'ErrorPrompt' then
 		ShowToast("Disconnected! Rejoining in 5s...", 5)
@@ -95,8 +92,6 @@ local function HandleErrorPrompt(child)
 		TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
 	end
 end
-
-local promptOverlay = CoreGui:WaitForChild("RobloxPromptGui"):WaitForChild("promptOverlay")
 promptOverlay.ChildAdded:Connect(HandleErrorPrompt)
 for _, child in ipairs(promptOverlay:GetChildren()) do HandleErrorPrompt(child) end
 
@@ -130,8 +125,7 @@ local function ExtractNumber(textObject)
     if string.find(text, "K") then num = num * 1000
     elseif string.find(text, "M") then num = num * 1000000
     elseif string.find(text, "B") then num = num * 1000000000
-    elseif string.find(text, "T") then num = num * 1000000000000 
-	elseif string.find(text, "Qa") then num = num * 1000000000000000 end
+    elseif string.find(text, "T") then num = num * 1000000000000 end
     return num
 end
 
@@ -160,7 +154,9 @@ local toggles = {
     AutoLoot = false, AutoDeposit = false, AutoCollect = false, AutoMerge = false,
     AutoBuy = false, AutoUnlock = false, AutoPerSecond = false, AutoGroup = false,
     OreMultiplierEnabled = false, TargetMultiplier = 1.0,
-    TargetMergeEnabled = false, TargetMergeValue = 0, ShopGUIActive = false
+    TargetMergeEnabled = false, TargetMergeValue = 0, ShopGUIActive = false,
+    -- Fitur Baru v2.28
+    TargetUnlockEnabled = false, TargetChestValue = 1, AutoOfflineOre = false
 }
 
 local function ShouldMerge(myPlot)
@@ -195,7 +191,7 @@ local function ShouldMerge(myPlot)
 end
 
 local isLoadedCompletely = false
-local SaveFileName = "PickaxeTycoon_Config.json"
+local SaveFileName = "PickaxeTycoon_ConfigV28.json"
 
 local function SaveConfig()
     if isLoadedCompletely and writefile then pcall(function() writefile(SaveFileName, HttpService:JSONEncode(toggles)) end) end
@@ -221,7 +217,7 @@ MainFrame.Size = UDim2.new(0, 220, 0, 420); MainFrame.Active = true; MainFrame.D
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
 
 local TitleBar = Instance.new("TextLabel", MainFrame)
-TitleBar.Text = "  Pickaxe Tycoon v2.27"; TitleBar.Size = UDim2.new(1, 0, 0, 35)
+TitleBar.Text = "  Pickaxe Tycoon v2.28"; TitleBar.Size = UDim2.new(1, 0, 0, 35)
 TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20); TitleBar.TextColor3 = Color3.new(1, 1, 1); TitleBar.Font = Enum.Font.SourceSansBold; TitleBar.TextSize = 15; TitleBar.TextXAlignment = Enum.TextXAlignment.Left
 
 local CloseBtn = Instance.new("TextButton", TitleBar); CloseBtn.Text = "X"; CloseBtn.Size = UDim2.new(0, 30, 0, 30); CloseBtn.Position = UDim2.new(1, -35, 0, 2.5); CloseBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50); CloseBtn.TextColor3 = Color3.new(1, 1, 1); CloseBtn.Font = Enum.Font.SourceSansBold; CloseBtn.TextSize = 14; Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
@@ -234,7 +230,7 @@ MinBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false; ToggleIco
 ToggleIcon.MouseButton1Click:Connect(function() ToggleIcon.Visible = false; MainFrame.Visible = true end)
 
 local Container = Instance.new("ScrollingFrame", MainFrame)
-Container.Position = UDim2.new(0, 0, 0, 35); Container.Size = UDim2.new(1, 0, 1, -35); Container.BackgroundTransparency = 1; Container.CanvasSize = UDim2.new(0, 0, 0, 650); Container.ScrollBarThickness = 4
+Container.Position = UDim2.new(0, 0, 0, 35); Container.Size = UDim2.new(1, 0, 1, -35); Container.BackgroundTransparency = 1; Container.CanvasSize = UDim2.new(0, 0, 0, 750); Container.ScrollBarThickness = 4
 local UIList = Instance.new("UIListLayout", Container); UIList.Padding = UDim.new(0, 5); UIList.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
 local buttonsRefs = {}
@@ -269,6 +265,7 @@ local function CreateStepper(labelPrefix, configKey, minVal, maxVal, step, isFlo
     
     local function UpdateLabel()
         if isFloat then ValLabel.Text = labelPrefix .. string.format("%.1f", toggles[configKey]) .. "x"
+        elseif string.find(labelPrefix, "Target Chest") then ValLabel.Text = labelPrefix .. tostring(toggles[configKey])
         else ValLabel.Text = labelPrefix .. (toggles[configKey] == 0 and "0 (Auto)" or tostring(toggles[configKey])) end
     end
     MinBtn.MouseButton1Click:Connect(function() toggles[configKey] = math.max(minVal, toggles[configKey] - step); UpdateLabel(); SaveConfig() end)
@@ -277,7 +274,7 @@ local function CreateStepper(labelPrefix, configKey, minVal, maxVal, step, isFlo
 end
 
 -- ==========================================
--- MENU GENERATION
+-- MENU GENERATION ORDER (Urutan Presisi)
 -- ==========================================
 CreateToggle("Auto Loot (Ore & Chest)", "AutoLoot")
 CreateToggle("Auto Deposit Ore", "AutoDeposit")
@@ -287,15 +284,26 @@ CreateToggle("Auto Collect Money", "AutoCollect")
 CreateToggle("Auto Merge Pickaxe", "AutoMerge")
 CreateToggle("Target Merge Active", "TargetMergeEnabled")
 local UpdateMergeLabel = CreateStepper("Target Slot: ", "TargetMergeValue", 0, 100, 1, false)
+
+-- Di bawah Target Slot: Input pilihan list Target Chest
+local UpdateChestLabel = CreateStepper("Target Chest: Chest", "TargetChestValue", 1, 5, 1, false)
+
 CreateToggle("Auto Unlock/Discard Chest", "AutoUnlock")
+
+-- Di bawah Auto Unlock/Discard: Target Unlock Active
+CreateToggle("Target Unlock Active", "TargetUnlockEnabled")
+
 CreateToggle("Auto Buy Pickaxe", "AutoBuy")
 CreateToggle("Auto Upgrade Per Second", "AutoPerSecond")
 CreateToggle("Auto Group Reward", "AutoGroup")
 CreateToggle("Shop GUI Active", "ShopGUIActive")
 
+-- Di paling bawah panel: Auto Offline Ore
+CreateToggle("Auto Offline Ore", "AutoOfflineOre")
+
 LoadConfig(); isLoadedCompletely = true
 for _, f in pairs(buttonsRefs) do f() end
-UpdateMultiLabel(); UpdateMergeLabel()
+UpdateMultiLabel(); UpdateMergeLabel(); UpdateChestLabel()
 
 -- ==========================================
 -- CORE ENGINES
@@ -310,36 +318,24 @@ task.spawn(function()
                 local buyXP = frame:FindFirstChild("BuyXPButtons")
                 if buyXP then buyXP.Visible = false; buyXP.Active = false end
                 local incomeBtn = frame:FindFirstChild("IncomeMultButton")
-                if incomeBtn then
-                    incomeBtn.Visible = toggles.ShopGUIActive; incomeBtn.Active = toggles.ShopGUIActive
-                end
+                if incomeBtn then incomeBtn.Visible = toggles.ShopGUIActive; incomeBtn.Active = toggles.ShopGUIActive end
             end
         end)
     end
 end)
 
--- ==========================================
--- AUTO TRANSPARENCY ENGINE (Chest & Ore)
--- ==========================================
+-- Auto Transparency Engine (Chest & Ore V2.27 Safeguard)
 task.spawn(function()
-    while task.wait(0.1) do -- Cek setiap 0.1 detik
+    while task.wait(0.5) do
         pcall(function()
             for _, obj in ipairs(workspace:GetChildren()) do
-                -- 1. Logika untuk Chest
                 if string.find(string.lower(obj.Name), "chest") then
                     local cp = obj:FindFirstChild("ChestPart")
-                    if cp and cp:IsA("BasePart") then
-                        cp.Transparency = 1
-                    end
+                    if cp and cp:IsA("BasePart") then cp.Transparency = 1 end
                 end
-                
-                -- 2. Logika untuk Ore
-                -- Mencari objek yang bernama "Ore" atau mengandung "Loot"
                 if string.find(string.lower(obj.Name), "ore") or string.find(string.lower(obj.Name), "loot") then
                     local lm = obj:FindFirstChild("LootMeshPart")
-                    if lm and lm:IsA("BasePart") then
-                        lm.Transparency = 1
-                    end
+                    if lm and lm:IsA("BasePart") then lm.Transparency = 1 end
                 end
             end
         end)
@@ -350,7 +346,7 @@ end)
 task.spawn(function()
     while task.wait(0.3) do
         if toggles.AutoLoot then
-            local success, err = pcall(function()
+            pcall(function()
                 local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
                 if not root then return end
                 local isHoldingChest = IsHoldingChest()
@@ -371,15 +367,26 @@ task.spawn(function()
                     end
                 end
             end)
-            if not success then HandleError("Auto Loot") end
         end
     end
 end)
 
--- SMART AUTO DISCARD / UNLOCK ENGINE
+-- SMART TARGET UNLOCK / DISCARD ENGINE (v2.28 Logic)
 local chestMisses = 0
 local isAfkMode = false
 local isProcessingChest = false
+
+local function MatchesTargetChest(text, targetVal)
+    local txt = string.lower(text)
+    if string.find(txt, "chest" .. targetVal) or string.find(txt, "chest " .. targetVal) then return true end
+    -- Fallback nama tier berdasarkan standard level 1-5 tycoon
+    if targetVal == 1 and (string.find(txt, "basic") or string.find(txt, "common")) then return true end
+    if targetVal == 2 and string.find(txt, "rare") then return true end
+    if targetVal == 3 and string.find(txt, "epic") then return true end
+    if targetVal == 4 and string.find(txt, "legendary") then return true end
+    if targetVal == 5 and (string.find(txt, "mythic") or string.find(txt, "godly")) then return true end
+    return false
+end
 
 task.spawn(function()
     while task.wait(0.2) do
@@ -391,61 +398,58 @@ task.spawn(function()
                 
                 if chestGui and chestGui:FindFirstChild("ChestInfo") and chestGui.ChestInfo.Visible then
                     isProcessingChest = true
-                    task.wait(0.5) 
+                    task.wait(0.4) 
                     
                     if chestGui.ChestInfo.Visible then
                         local myCash = ExtractNumber(currencyGui.Frame.CashText)
                         local chestPrice = ExtractNumber(chestGui.ChestInfo.UnlockMenu.PriceFrame.ItemPrice)
                         
-                        if myCash >= chestPrice and chestPrice > 0 then
-                            ReplicatedStorage.RemoteEvents.UnlockChest:FireServer()
-                            task.wait(1.5)
-                        else
-                            if isAfkMode then
-                                ReplicatedStorage.RemoteEvents.DiscardChest:FireServer()
-                                task.wait(0.5)
-                            else
-                                ShowToast("Waiting for manual discard for 30 seconds, if not discarded manually 3 times it will enter AFK mode and discard instantly.", 6)
-                                
-                                local waitTime = 0
-                                while waitTime < 30 and toggles.AutoUnlock and chestGui.ChestInfo.Visible do
-                                    task.wait(0.5)
-                                    waitTime = waitTime + 0.5
-                                end
-                                
-                                if not chestGui.ChestInfo.Visible then
-                                    chestMisses = 0 
-                                elseif toggles.AutoUnlock then
-                                    ReplicatedStorage.RemoteEvents.DiscardChest:FireServer()
-                                    chestMisses = chestMisses + 1
-                                    
-                                    if chestMisses >= 3 then
-                                        isAfkMode = true
-                                        ShowToast("AFK Mode Activated: Discarding chests instantly.", 4)
-                                    end
-                                    task.wait(1.5)
-                                end
+                        -- Mengambil nama text chest dari GUI
+                        local currentChestName = ""
+                        for _, child in ipairs(chestGui.ChestInfo:GetDescendants()) do
+                            if child:IsA("TextLabel") and (string.find(string.lower(child.Text), "chest") or string.find(string.lower(child.Text), "box")) then
+                                currentChestName = child.Text
+                                break
                             end
+                        end
+                        
+                        local isTarget = true
+                        if toggles.TargetUnlockEnabled then
+                            isTarget = MatchesTargetChest(currentChestName, toggles.TargetChestValue)
+                        end
+                        
+                        if isTarget then
+                            -- Jika chest sesuai TARGET, tunggu uang cukup (jangan di-discard)
+                            if myCash >= chestPrice and chestPrice > 0 then
+                                ReplicatedStorage.RemoteEvents.UnlockChest:FireServer()
+                                task.wait(1.5)
+                            else
+                                -- Uang tidak cukup, looping tunggu tanpa aksi discard
+                                task.wait(0.5)
+                            end
+                        else
+                            -- Jika BUKAN chest target, langsung DISCARD detik itu juga!
+                            ReplicatedStorage.RemoteEvents.DiscardChest:FireServer()
+                            task.wait(0.5)
                         end
                     end
                     isProcessingChest = false 
                 end
-			end)
-            if not success then HandleError("Auto Unlock/Discard Chest") end
+            end)
+            if not success then HandleError("Target/Auto Unlock System") end
         end
     end
 end)
 
--- Auto Plot Actions (Deposit, Collect, Merge, Buy, Upgrade)
+-- Auto Plot Actions Loop
 task.spawn(function()
     while task.wait(0.3) do
-        local success, err = pcall(function()
+        pcall(function()
             local myPlot = GetMyPlot()
             if not myPlot then return end
-            
             local myCash = ExtractNumber(LocalPlayer:FindFirstChild("PlayerGui") and LocalPlayer.PlayerGui:FindFirstChild("CurrencyGui") and LocalPlayer.PlayerGui.CurrencyGui:FindFirstChild("Frame") and LocalPlayer.PlayerGui.CurrencyGui.Frame:FindFirstChild("CashText"))
             
-            -- Deposit Ore (Terhubung Multiplier)
+            -- Deposit Ore + Multiplier Check
             if toggles.AutoDeposit and myPlot:FindFirstChild("Sell") and myPlot.Sell:FindFirstChild("DepositButton") then
                 local frame = myPlot.Sell.DepositButton:FindFirstChild("BillboardGui") and myPlot.Sell.DepositButton.BillboardGui:FindFirstChild("Frame")
                 if frame and frame.Visible then 
@@ -486,21 +490,42 @@ task.spawn(function()
                 SmartBuy(b:FindFirstChild("ButtonBuy5"), myCash); SmartBuy(b:FindFirstChild("ButtonBuy1"), myCash)
             end
             
-            -- Auto Upgrade Per Second
+            -- Auto Per Second
             if toggles.AutoPerSecond and myPlot:FindFirstChild("Sell") and myPlot.Sell:FindFirstChild("UpgradeButton") then
                 SmartBuy(myPlot.Sell.UpgradeButton, myCash)
             end
         end)
-        if not success then HandleError("Auto Plot Actions") end
     end
 end)
 
--- Auto Group (Color Gate)
+-- Auto Offline Ore Engine (Pencegah Spam Lewat Properti Enabled)
+task.spawn(function()
+    while task.wait(1) do
+        if toggles.AutoOfflineOre then
+            pcall(function()
+                -- Menggunakan Dynamic Plot_3 fallback aman
+                local myPlot = GetMyPlot() or workspace.Plots:FindFirstChild("Plot_3")
+                if myPlot then
+                    local offlineInc = myPlot:FindFirstChild("OfflineIncome")
+                    if offlineInc then
+                        local bGui = offlineInc:FindFirstChild("BillboardGui")
+                        -- Mengecek validitas centang 'Enabled' pada properti BillboardGui game
+                        if bGui and bGui.Enabled == true then
+                            TouchButton(offlineInc:FindFirstChild("Button") or offlineInc)
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- Auto Group
 local isClaimingGroup = false
 task.spawn(function()
     while task.wait(1.0) do
         if toggles.AutoGroup then
-            local success, err = pcall(function()
+            pcall(function()
                 local myPlot = GetMyPlot()
                 if myPlot and myPlot:FindFirstChild("GroupReward") and myPlot.GroupReward:FindFirstChild("CollectButton") and not isClaimingGroup then
                     local btnPart = myPlot.GroupReward.CollectButton:FindFirstChild("Button")
@@ -513,7 +538,6 @@ task.spawn(function()
                     end
                 end
             end)
-            if not success then HandleError("Auto Group Reward") end
         end
     end
 end)
@@ -521,4 +545,4 @@ end)
 local VirtualUser = game:GetService("VirtualUser")
 LocalPlayer.Idled:Connect(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end)
 
-ShowToast("Pickaxe Tycoon Panel v2.27 Successfully Loaded!", 4)
+ShowToast("Pickaxe Tycoon v2.28 Loaded Cleanly!", 4)
