@@ -71,7 +71,7 @@ local function ExtractNumber(textObject)
     elseif string.find(text, "M") then num = num * 1000000
     elseif string.find(text, "B") then num = num * 1000000000
     elseif string.find(text, "T") then num = num * 1000000000000
-    elseif string.find(text, "QA") then num = num * 1000000000000000 end
+    elseif string.find(text, "Qa") then num = num * 1000000000000000 end
     return num
 end
 
@@ -366,12 +366,12 @@ task.spawn(function()
                                 else
                                     -- Ini adalah Target Chest, tapi uang kurang!
                                     -- HOLD (Tahan): Cukup tunggu tanpa melakukan FireServer Discard.
-                                    task.wait(0.5) 
+                                    task.wait(1.5) 
                                 end
                             else
                                 -- BUKAN target: Langsung buang tanpa ampun!
                                 ReplicatedStorage.RemoteEvents.DiscardChest:FireServer()
-                                task.wait(0.5)
+                                task.wait(1.5)
                             end
                         else
                             -- Jika Target Unlock MATI (Berarti mau buka semua jenis chest)
@@ -381,7 +381,7 @@ task.spawn(function()
                             else
                                 -- Uang tidak cukup untuk buka chest ini? Langsung discard!
                                 ReplicatedStorage.RemoteEvents.DiscardChest:FireServer()
-                                task.wait(0.5)
+                                task.wait(1.5)
                             end
                         end
                     end
