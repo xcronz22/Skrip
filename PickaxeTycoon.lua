@@ -1,5 +1,5 @@
 -- ==========================================
--- Pickaxe Tycoon v2.32 (Readable Format)
+-- Pickaxe Tycoon v2.36 (Clean Full Script - No Toasts)
 -- ==========================================
 if not game:IsLoaded() then game.Loaded:Wait() end
 if not workspace:FindFirstChild("Plots") then
@@ -16,67 +16,12 @@ local TeleportService = game:GetService("TeleportService")
 local TweenService = game:GetService("TweenService")
 
 if CoreGui:FindFirstChild("PickaxeTycoonPanel") then CoreGui.PickaxeTycoonPanel:Destroy() end
-if CoreGui:FindFirstChild("PickaxeTycoonToasts") then CoreGui.PickaxeTycoonToasts:Destroy() end
-
--- ==========================================
--- TOAST NOTIFICATION SYSTEM
--- ==========================================
-local ToastScreen = Instance.new("ScreenGui", CoreGui)
-ToastScreen.Name = "PickaxeTycoonToasts"
-ToastScreen.ResetOnSpawn = false
-
-local ToastFrame = Instance.new("Frame", ToastScreen)
-ToastFrame.Size = UDim2.new(0, 320, 1, -20)
-ToastFrame.Position = UDim2.new(1, -340, 0, 10)
-ToastFrame.BackgroundTransparency = 1
-
-local ToastLayout = Instance.new("UIListLayout", ToastFrame)
-ToastLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
-ToastLayout.Padding = UDim.new(0, 8)
-
-local function ShowToast(text, duration)
-    duration = duration or 3
-    local t = Instance.new("TextLabel")
-    t.Size = UDim2.new(1, 0, 0, 0)
-    t.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    t.TextColor3 = Color3.new(1, 1, 1)
-    t.Text = text
-    t.TextWrapped = true
-    t.Font = Enum.Font.SourceSansSemibold
-    t.TextSize = 14
-    t.AutomaticSize = Enum.AutomaticSize.Y
-    t.Parent = ToastFrame
-    
-    local padding = Instance.new("UIPadding", t)
-    padding.PaddingTop = UDim.new(0, 10); padding.PaddingBottom = UDim.new(0, 10)
-    padding.PaddingLeft = UDim.new(0, 10); padding.PaddingRight = UDim.new(0, 10)
-    
-    local corner = Instance.new("UICorner", t)
-    corner.CornerRadius = UDim.new(0, 6)
-    
-    local stroke = Instance.new("UIStroke", t)
-    stroke.Color = Color3.fromRGB(80, 80, 80)
-    stroke.Thickness = 1
-    
-    t.BackgroundTransparency = 1; t.TextTransparency = 1; stroke.Transparency = 1
-    TweenService:Create(t, TweenInfo.new(0.3), {BackgroundTransparency = 0, TextTransparency = 0}):Play()
-    TweenService:Create(stroke, TweenInfo.new(0.3), {Transparency = 0}):Play()
-    
-    task.spawn(function()
-        task.wait(duration)
-        local fadeOut = TweenService:Create(t, TweenInfo.new(0.5), {TextTransparency = 1, BackgroundTransparency = 1})
-        TweenService:Create(stroke, TweenInfo.new(0.5), {Transparency = 1}):Play()
-        fadeOut:Play()
-        fadeOut.Completed:Wait()
-        t:Destroy()
-    end)
-end
 
 local errorDebounce = {}
 local function HandleError(featureName)
     if not errorDebounce[featureName] then
         errorDebounce[featureName] = true
-        ShowToast("Error pada " .. featureName, 3)
+        print("[SYSTEM ERROR] Terjadi masalah pada fitur: " .. featureName)
         task.delay(5, function() errorDebounce[featureName] = false end)
     end
 end
@@ -87,7 +32,7 @@ end
 local promptOverlay = CoreGui:WaitForChild("RobloxPromptGui"):WaitForChild("promptOverlay")
 local function HandleErrorPrompt(child)
 	if child.Name == 'ErrorPrompt' then
-		ShowToast("Disconnected! Rejoining in 5s...", 5)
+		print("[SYSTEM] Terputus dari server! Mencoba masuk kembali dalam 5 detik...")
 		task.wait(5)
 		TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
 	end
@@ -191,7 +136,7 @@ local function ShouldMerge(myPlot)
 end
 
 local isLoadedCompletely = false
-local SaveFileName = "PickaxeTycoon_ConfigV32.json"
+local SaveFileName = "PickaxeTycoon_ConfigV36.json"
 
 local function SaveConfig()
     if isLoadedCompletely and writefile then pcall(function() writefile(SaveFileName, HttpService:JSONEncode(toggles)) end) end
@@ -217,7 +162,7 @@ MainFrame.Size = UDim2.new(0, 220, 0, 420); MainFrame.Active = true; MainFrame.D
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
 
 local TitleBar = Instance.new("TextLabel", MainFrame)
-TitleBar.Text = "  Pickaxe Tycoon v2.32"; TitleBar.Size = UDim2.new(1, 0, 0, 35)
+TitleBar.Text = "  Pickaxe Tycoon v2.36"; TitleBar.Size = UDim2.new(1, 0, 0, 35)
 TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20); TitleBar.TextColor3 = Color3.new(1, 1, 1); TitleBar.Font = Enum.Font.SourceSansBold; TitleBar.TextSize = 15; TitleBar.TextXAlignment = Enum.TextXAlignment.Left
 
 local CloseBtn = Instance.new("TextButton", TitleBar); CloseBtn.Text = "X"; CloseBtn.Size = UDim2.new(0, 30, 0, 30); CloseBtn.Position = UDim2.new(1, -35, 0, 2.5); CloseBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50); CloseBtn.TextColor3 = Color3.new(1, 1, 1); CloseBtn.Font = Enum.Font.SourceSansBold; CloseBtn.TextSize = 14; Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
@@ -230,7 +175,7 @@ MinBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false; ToggleIco
 ToggleIcon.MouseButton1Click:Connect(function() ToggleIcon.Visible = false; MainFrame.Visible = true end)
 
 local Container = Instance.new("ScrollingFrame", MainFrame)
-Container.Position = UDim2.new(0, 0, 0, 35); Container.Size = UDim2.new(1, 0, 1, -35); Container.BackgroundTransparency = 1; Container.CanvasSize = UDim2.new(0, 0, 0, 750); Container.ScrollBarThickness = 4
+Container.Position = UDim2.new(0, 0, 0, 35); Container.Size = UDim2.new(1, 0, 1, -35); Container.BackgroundTransparency = 1; Container.CanvasSize = UDim2.new(0, 0, 0, 550); Container.ScrollBarThickness = 4
 local UIList = Instance.new("UIListLayout", Container); UIList.Padding = UDim.new(0, 5); UIList.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
 local buttonsRefs = {}
@@ -246,7 +191,6 @@ local function CreateToggle(name, configName)
     Btn.MouseButton1Click:Connect(function() 
         toggles[configName] = not toggles[configName]; 
         RefreshVisual(); SaveConfig()
-        if toggles[configName] then ShowToast(name .. " active smoothly", 3) end
     end)
     buttonsRefs[configName] = RefreshVisual
 end
@@ -366,9 +310,7 @@ task.spawn(function()
     end
 end)
 
--- SMART UNLOCK / DISCARD ENGINE
-local chestMisses = 0
-local isAfkMode = false
+-- SMART UNLOCK / DISCARD ENGINE (v2.36 - Perfect Logic, No Toasts)
 local isProcessingChest = false
 
 local function MatchesTargetChest(text, targetVal)
@@ -414,42 +356,24 @@ task.spawn(function()
                                     ReplicatedStorage.RemoteEvents.UnlockChest:FireServer()
                                     task.wait(1.5)
                                 else
+                                    -- Ini adalah Target Chest, tapi uang kurang!
+                                    -- HOLD (Tahan): Cukup tunggu tanpa melakukan FireServer Discard.
                                     task.wait(0.5) 
                                 end
                             else
+                                -- BUKAN target: Langsung buang tanpa ampun!
                                 ReplicatedStorage.RemoteEvents.DiscardChest:FireServer()
                                 task.wait(0.5)
                             end
                         else
+                            -- Jika Target Unlock MATI (Berarti mau buka semua jenis chest)
                             if myCash >= chestPrice and chestPrice > 0 then
                                 ReplicatedStorage.RemoteEvents.UnlockChest:FireServer()
                                 task.wait(1.5)
                             else
-                                if isAfkMode then
-                                    ReplicatedStorage.RemoteEvents.DiscardChest:FireServer()
-                                    task.wait(0.5)
-                                else
-                                    ShowToast("Waiting manual discard for 30s. If not discarded 1 time, it enters AFK mode & discards instantly.", 6)
-                                    
-                                    local waitTime = 0
-                                    while waitTime < 30 and toggles.AutoUnlock and not toggles.TargetUnlockEnabled and chestGui.ChestInfo.Visible do
-                                        task.wait(0.5)
-                                        waitTime = waitTime + 0.5
-                                    end
-                                    
-                                    if not chestGui.ChestInfo.Visible then
-                                        chestMisses = 0 
-                                    elseif toggles.AutoUnlock and not toggles.TargetUnlockEnabled then
-                                        ReplicatedStorage.RemoteEvents.DiscardChest:FireServer()
-                                        chestMisses = chestMisses + 1
-                                        
-                                        if chestMisses >= 1 then 
-                                            isAfkMode = true
-                                            ShowToast("AFK Mode Activated: Discarding chests instantly.", 4)
-                                        end
-                                        task.wait(1.5)
-                                    end
-                                end
+                                -- Uang tidak cukup untuk buka chest ini? Langsung discard!
+                                ReplicatedStorage.RemoteEvents.DiscardChest:FireServer()
+                                task.wait(0.5)
                             end
                         end
                     end
@@ -518,7 +442,7 @@ task.spawn(function()
     end
 end)
 
--- Auto Offline Ore Engine (v2.32 Fix)
+-- Auto Offline Ore Engine
 task.spawn(function()
     while task.wait(1) do
         if toggles.AutoOfflineOre then
@@ -530,9 +454,7 @@ task.spawn(function()
                         local bGui = offlineInc:FindFirstChild("BillboardGui")
                         local frame = bGui and bGui:FindFirstChild("Frame")
                         
-                        -- Jika indikator muncul
                         if frame and frame.Visible == true then
-                            -- Menyentuh semua part yang ada di dalam model OfflineIncome
                             for _, child in ipairs(offlineInc:GetChildren()) do
                                 if child:IsA("BasePart") then
                                     TouchButton(child)
@@ -571,4 +493,4 @@ end)
 local VirtualUser = game:GetService("VirtualUser")
 LocalPlayer.Idled:Connect(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end)
 
-ShowToast("Pickaxe Tycoon v2.32 Loaded!", 4)
+print("[SYSTEM] Pickaxe Tycoon v2.36 Sukses Dimuat (Tanpa Fitur Toast)!")
