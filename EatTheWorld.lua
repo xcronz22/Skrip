@@ -1,5 +1,5 @@
 -- ==========================================
--- EAT THE WORLD - LIGHTWEIGHT HUB V8 (PERFECTED LOGIC)
+-- EAT THE WORLD - LIGHTWEIGHT HUB V9 (DYNAMIC RANGE)
 -- ==========================================
 
 local Players = game:GetService("Players")
@@ -12,7 +12,7 @@ local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 -- 1. SISTEM AUTO SAVE
-local settingsFile = "ETW_Settings_V8.json"
+local settingsFile = "ETW_Settings_V9.json"
 local settings = {
     AutoGrab = false,
     AutoEat = false,
@@ -46,7 +46,7 @@ loadSettings()
 local parentGui = PlayerGui
 pcall(function() if gethui then parentGui = gethui() else parentGui = CoreGui end end)
 
-local uiName = "ETW_LightPanel_V8"
+local uiName = "ETW_LightPanel_V9"
 if parentGui:FindFirstChild(uiName) then parentGui[uiName]:Destroy() end
 
 -- ==========================================
@@ -70,8 +70,8 @@ local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, -60, 0, 30)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "ETW Tool - V8"
-Title.TextColor3 = Color3.fromRGB(0, 255, 150)
+Title.Text = "ETW Tool - V9"
+Title.TextColor3 = Color3.fromRGB(0, 200, 255)
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 16
 Title.TextXAlignment = Enum.TextXAlignment.Left
@@ -171,39 +171,41 @@ MinIcon.MouseButton1Click:Connect(function() MinIcon.Visible = false; MainFrame.
 CloseBtn.MouseButton1Click:Connect(function() uiScreen:Destroy() end)
 
 -- ==========================================
--- 4. LOGIKA PERMAINAN (RADAR & SMART TARGET)
+-- 4. LOGIKA PERMAINAN (V9 - DYNAMIC & ANTI-STUCK)
 -- ==========================================
 
--- Hanya cek Chunks untuk tahu apakah kita pegang makanan
-local function isHoldingFood()
+-- Cek Chunks ANTI-BUG (Hanya mendeteksi yang benar-benar dekat)
+local function isHoldingFood(RootPart)
     local chunksFolder = Workspace:FindFirstChild("Chunks")
-    if not chunksFolder then return false end
+    if not chunksFolder or not RootPart then return false end
+    
     for _, chunk in pairs(chunksFolder:GetChildren()) do
         local ownerTag = chunk:FindFirstChild("Owner")
-        if ownerTag and ((ownerTag:IsA("ObjectValue") and ownerTag.Value and ownerTag.Value.Name == LocalPlayer.Name) or (ownerTag:IsA("StringValue") and ownerTag.Value == LocalPlayer.Name)) then 
-            return true 
+        if ownerTag and ((ownerTag:IsA("ObjectValue") and ownerTag.Value and ownerTag.Value.Name == LocalPlayer.Name) or (ownerTag:IsA("StringValue") and ownerTag.Value == LocalPlayer.Name)) then
+            -- Mencegah Ghost Chunk: Cek apakah posisinya dekat dengan kita (maks 50 stud)
+            local rootChunk = chunk:FindFirstChild("Root") or chunk:FindFirstChildOfClass("BasePart")
+            if rootChunk then
+                if (rootChunk.Position - RootPart.Position).Magnitude < 50 then
+                    return true 
+                end
+            end
         end
     end
     return false
 end
 
--- Hanya cari di Map (Buildings / Fragmentable)
-local function getSmartTarget()
-    local Character = LocalPlayer.Character
-    if not Character then return nil end
-    local RootPart = Character:FindFirstChild("HumanoidRootPart")
-    local Humanoid = Character:FindFirstChildOfClass("Humanoid")
-    if not RootPart or not Humanoid then return nil end
-
+-- Cari Map & Kembalikan Titik TP + Part Aslinya
+local function getSmartTarget(RootPart, Humanoid)
     local mapFolder = Workspace:FindFirstChild("Map")
-    if not mapFolder then return nil end
+    if not mapFolder then return nil, nil end
 
     local params = OverlapParams.new()
-    params.FilterDescendantsInstances = {mapFolder} -- HANYA FOLDER MAP
+    params.FilterDescendantsInstances = {mapFolder}
     params.FilterType = Enum.RaycastFilterType.Include
 
-    -- Mencari part di Map radius 100 stud
-    local parts = Workspace:GetPartBoundsInRadius(RootPart.Position, 100, params)
+    -- Mencari part di radius besar (sesuaikan dengan ukuran)
+    local searchRadius = 100 + (RootPart.Size.Y * 2) 
+    local parts = Workspace:GetPartBoundsInRadius(RootPart.Position, searchRadius, params)
 
     local nearestPart = nil
     local shortestDist = math.huge
@@ -211,7 +213,7 @@ local function getSmartTarget()
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") and part.CanCollide and part.Transparency < 1 then
             local dist = (RootPart.Position - part.Position).Magnitude
-            if dist > 3 and dist < shortestDist then
+            if dist > 1 and dist < shortestDist then
                 shortestDist = dist
                 nearestPart = part
             end
@@ -225,23 +227,17 @@ local function getSmartTarget()
             nearestPart.Position.Y + (nearestPart.Size.Y / 2) + characterHeightOffset + 0.5,
             nearestPart.Position.Z
         )
-        return targetPosition
+        return targetPosition, nearestPart
     end
     
-    return nil
+    return nil, nil
 end
 
--- AUTO CUBE FUNCTION (MAGNET STYLE)
-local function collectCubes()
-    if not settings.AutoCube then return end
-    local Character = LocalPlayer.Character
-    if not Character then return end
-    local RootPart = Character:FindFirstChild("HumanoidRootPart")
-    if not RootPart then return end
-
+-- AUTO CUBE (MAGNET)
+local function collectCubes(RootPart)
+    if not settings.AutoCube or not RootPart then return end
     for _, obj in ipairs(Workspace:GetChildren()) do
         if obj.Name == "Cube" and obj:IsA("BasePart") and obj:FindFirstChildOfClass("TouchTransmitter") then
-            -- Bypass touch tanpa memindahkan karakter
             if firetouchinterest then
                 pcall(function()
                     firetouchinterest(RootPart, obj, 0)
@@ -271,8 +267,8 @@ task.spawn(function()
         local Humanoid = Character:FindFirstChildOfClass("Humanoid")
         if not RootPart or not Humanoid then continue end
         
-        -- PANGGIL AUTO CUBE (Berjalan di latar belakang layaknya magnet)
-        collectCubes()
+        -- Magnet Cube jalan di belakang layar
+        collectCubes(RootPart)
         
         -- AUTO SELL LOGIC
         local isFull = false
@@ -284,79 +280,66 @@ task.spawn(function()
         if settings.AutoSell and isFull then
             Events:WaitForChild("Sell"):FireServer()
             task.wait(0.5)
-        elseif not isFull then
+            continue -- Langsung ulang loop, fokus jual dulu
+        end
+        
+        -- AUTO EAT Dibuat Independen (Tidak memblokir loop)
+        if settings.AutoEat then
+            pcall(function() Events:WaitForChild("Eat"):FireServer() end)
+        end
             
-            -- Jika sedang pegang makanan di Chunks
-            if isHoldingFood() then
-                if settings.AutoEat then
-                    Events:WaitForChild("Eat"):FireServer()
-                end
-            else
-                -- Jika tangan kosong, cari target di Map (Buildings/Fragmentable)
-                local targetPos = getSmartTarget()
-                local isTargetInFront = false
+        -- TARGET MAP DYNAMIC
+        local targetPos, targetPart = getSmartTarget(RootPart, Humanoid)
+        
+        if targetPart then
+            -- AUTO GRAB DENGAN DYNAMIC RANGE (Skala berdasarkan ukuran tubuh)
+            if settings.AutoGrab and (tick() - lastGrabTick > 0.3) then
+                local distToPart = (RootPart.Position - targetPart.Position).Magnitude
                 
-                -- CEK APAKAH TARGET MAP ADA DI DEPAN
-                if targetPos then
-                    local dist = (RootPart.Position - targetPos).Magnitude
-                    if dist > 0.1 and dist <= 18 then -- Jangkauan grab sedikit dinaikkan ke 18
-                        local toTarget = (targetPos - RootPart.Position).Unit
-                        local lookVector = RootPart.CFrame.LookVector
-                        if lookVector:Dot(toTarget) > 0.2 then
-                            isTargetInFront = true
-                        end
-                    end
-                end
+                -- Rumus ukuran jangkauan: Jarak dasar + (Tinggi Karakter x 1.8)
+                local dynamicGrabRange = 15 + (RootPart.Size.Y * 1.8) 
                 
-                -- AUTO GRAB
-                if settings.AutoGrab and isTargetInFront and (tick() - lastGrabTick > 0.4) then
-                    Events:WaitForChild("Grab"):FireServer(false, false, false)
+                -- Hapus cek LookVector (bebas grab 360 derajat asal masuk range)
+                if distToPart <= dynamicGrabRange then
+                    pcall(function() Events:WaitForChild("Grab"):FireServer(false, false, false) end)
                     lastGrabTick = tick()
                 end
+            end
+            
+            -- AUTO MOVE / TP
+            -- Hanya berhenti jalan jika benar-benar sedang memegang makanan dekat
+            if not isHoldingFood(RootPart) then
+                stuckLevel = 0
                 
-                -- AUTO MOVE / TP
-                if targetPos then
-                    stuckLevel = 0
+                if settings.AutoTP then
+                    RootPart.CFrame = CFrame.new(targetPos)
+                    task.wait(0.1)
+                elseif settings.AutoMove then
+                    if (Humanoid.WalkToPoint - targetPos).Magnitude > 3 then
+                        Humanoid:MoveTo(targetPos)
+                    end
                     
-                    if settings.AutoTP then
-                        RootPart.CFrame = CFrame.new(targetPos)
-                        task.wait(0.1)
-                    elseif settings.AutoMove then
-                        if (Humanoid.WalkToPoint - targetPos).Magnitude > 3 then
-                            Humanoid:MoveTo(targetPos)
-                        end
-                        
-                        -- ANTI-STUCK
-                        if tick() - lastStuckTick > 0.8 then
-                            local moveDist = (RootPart.Position - lastStuckPos).Magnitude
-                            if moveDist < 1.5 then 
-                                Humanoid.Jump = true 
-                                stuckLevel = stuckLevel + 1
-                                
-                                if stuckLevel >= 4 then
-                                    RootPart.CFrame = CFrame.new(0, 150, 0)
-                                    stuckLevel = 0
-                                    task.wait(0.5)
-                                end
+                    -- ANTI-STUCK SYSTEM
+                    if tick() - lastStuckTick > 0.8 then
+                        local moveDist = (RootPart.Position - lastStuckPos).Magnitude
+                        if moveDist < 1.5 then 
+                            Humanoid.Jump = true 
+                            stuckLevel = stuckLevel + 1
+                            
+                            if stuckLevel >= 4 then
+                                RootPart.CFrame = CFrame.new(0, RootPart.Position.Y + 50, 0)
+                                stuckLevel = 0
+                                task.wait(0.5)
                             end
-                            lastStuckPos = RootPart.Position
-                            lastStuckTick = tick()
                         end
-                    end
-                else
-                    if settings.AutoMove then
-                        Humanoid:MoveTo(RootPart.Position)
-                    end
-                    
-                    if settings.AutoMove or settings.AutoTP then
-                        stuckLevel = stuckLevel + 1
-                        if stuckLevel > 60 then
-                            RootPart.CFrame = CFrame.new(0, 150, 0)
-                            stuckLevel = 0
-                            task.wait(1)
-                        end
+                        lastStuckPos = RootPart.Position
+                        lastStuckTick = tick()
                     end
                 end
+            end
+        else
+            if settings.AutoMove then
+                Humanoid:MoveTo(RootPart.Position)
             end
         end
     end
