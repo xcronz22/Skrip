@@ -1,5 +1,5 @@
 -- ==========================================
--- Pickaxe Tycoon v2.40 (Sync Fix & Hide Toggle)
+-- Pickaxe Tycoon v2.42 (Strict ForceOpenFrame Check)
 -- ==========================================
 if not game:IsLoaded() then game.Loaded:Wait() end
 if not workspace:FindFirstChild("Plots") then
@@ -70,7 +70,7 @@ local function ExtractNumber(textObject)
     elseif string.find(text, "M") then num = num * 1000000
     elseif string.find(text, "B") then num = num * 1000000000
     elseif string.find(text, "T") then num = num * 1000000000000
-    elseif string.find(text, "Qa") then num = num * 1000000000000000 end
+    elseif string.find(text, "QA") then num = num * 1000000000000000 end
     return num
 end
 
@@ -101,7 +101,7 @@ local toggles = {
     OreMultiplierEnabled = false, TargetMultiplier = 1.0,
     TargetMergeEnabled = false, TargetMergeValue = 0, ShopGUIActive = false,
     TargetUnlockEnabled = false, TargetChestValue = 1, AutoOfflineOre = false,
-    HideOreChest = false -- Variabel baru untuk fitur Hide
+    HideOreChest = false
 }
 
 local function ShouldMerge(myPlot)
@@ -136,7 +136,7 @@ local function ShouldMerge(myPlot)
 end
 
 local isLoadedCompletely = false
-local SaveFileName = "PickaxeTycoon_ConfigV40.json"
+local SaveFileName = "PickaxeTycoon_ConfigV42.json"
 
 local function SaveConfig()
     if isLoadedCompletely and writefile then pcall(function() writefile(SaveFileName, HttpService:JSONEncode(toggles)) end) end
@@ -162,7 +162,7 @@ MainFrame.Size = UDim2.new(0, 220, 0, 420); MainFrame.Active = true; MainFrame.D
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
 
 local TitleBar = Instance.new("TextLabel", MainFrame)
-TitleBar.Text = "  Pickaxe Tycoon v2.40"; TitleBar.Size = UDim2.new(1, 0, 0, 35)
+TitleBar.Text = "  Pickaxe Tycoon v2.42"; TitleBar.Size = UDim2.new(1, 0, 0, 35)
 TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20); TitleBar.TextColor3 = Color3.new(1, 1, 1); TitleBar.Font = Enum.Font.SourceSansBold; TitleBar.TextSize = 15; TitleBar.TextXAlignment = Enum.TextXAlignment.Left
 
 local CloseBtn = Instance.new("TextButton", TitleBar); CloseBtn.Text = "X"; CloseBtn.Size = UDim2.new(0, 30, 0, 30); CloseBtn.Position = UDim2.new(1, -35, 0, 2.5); CloseBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50); CloseBtn.TextColor3 = Color3.new(1, 1, 1); CloseBtn.Font = Enum.Font.SourceSansBold; CloseBtn.TextSize = 14; Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
@@ -178,7 +178,7 @@ local Container = Instance.new("ScrollingFrame", MainFrame)
 Container.Position = UDim2.new(0, 0, 0, 35)
 Container.Size = UDim2.new(1, 0, 1, -35)
 Container.BackgroundTransparency = 1
-Container.CanvasSize = UDim2.new(0, 0, 0, 850) -- Diperpanjang untuk tombol Hide
+Container.CanvasSize = UDim2.new(0, 0, 0, 850)
 Container.ScrollBarThickness = 4
 
 local UIList = Instance.new("UIListLayout", Container)
@@ -246,7 +246,7 @@ CreateToggle("Auto Upgrade Per Second", "AutoPerSecond")
 CreateToggle("Auto Group Reward", "AutoGroup")
 CreateToggle("Shop GUI Active", "ShopGUIActive")
 CreateToggle("Auto Offline Ore", "AutoOfflineOre")
-CreateToggle("Hide Ore & Chest", "HideOreChest") -- Tombol Baru
+CreateToggle("Hide Ore & Chest", "HideOreChest")
 
 LoadConfig(); isLoadedCompletely = true
 for _, f in pairs(buttonsRefs) do f() end
@@ -271,14 +271,12 @@ task.spawn(function()
     end
 end)
 
--- Auto Transparency Engine (Dinamis dengan Toggle Hide)
+-- Auto Transparency Engine 
 task.spawn(function()
     while task.wait(0.5) do
         pcall(function()
-            -- Jika tombol Hide ON = 1 (Transparan), Jika OFF = 0 (Terlihat)
             local targetTransparency = toggles.HideOreChest and 1 or 0
             
-            -- 1. Cek objek di Workspace
             for _, obj in ipairs(workspace:GetChildren()) do
                 if string.find(string.lower(obj.Name), "chest") then
                     local cp = obj:FindFirstChild("ChestPart")
@@ -290,7 +288,6 @@ task.spawn(function()
                 end
             end
             
-            -- 2. Cek objek di dalam Karakter Player (Held Chest)
             local character = LocalPlayer.Character
             if character then
                 for _, obj in ipairs(character:GetChildren()) do
@@ -304,7 +301,7 @@ task.spawn(function()
     end
 end)
 
--- Auto Loot Engine (SMART CHEST)
+-- Auto Loot Engine
 task.spawn(function()
     while task.wait(0.3) do
         if toggles.AutoLoot then
@@ -333,7 +330,7 @@ task.spawn(function()
     end
 end)
 
--- SMART UNLOCK / DISCARD ENGINE (v2.40 - Anti Robux Sync Bug)
+-- STRICT UNLOCK / DISCARD ENGINE (v2.42 - ACCURATE VISIBLE CHECK)
 local isProcessingChest = false
 
 local function MatchesTargetChest(text, targetVal)
@@ -353,16 +350,12 @@ task.spawn(function()
             local success, err = pcall(function()
                 local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
                 local chestGui = playerGui and playerGui:FindFirstChild("ChestGui")
-                local currencyGui = playerGui and playerGui:FindFirstChild("CurrencyGui")
                 
                 if chestGui and chestGui:FindFirstChild("ChestInfo") and chestGui.ChestInfo.Visible then
                     isProcessingChest = true
-                    task.wait(0.4) 
+                    task.wait(0.4) -- Jeda animasi UI agar data properties ter-update sempurna
                     
                     if chestGui.ChestInfo.Visible then
-                        local myCash = ExtractNumber(currencyGui.Frame.CashText)
-                        local chestPrice = ExtractNumber(chestGui.ChestInfo.UnlockMenu.PriceFrame.ItemPrice)
-                        
                         local currentChestName = ""
                         for _, child in ipairs(chestGui.ChestInfo:GetDescendants()) do
                             if child:IsA("TextLabel") and (string.find(string.lower(child.Text), "chest") or string.find(string.lower(child.Text), "box")) then
@@ -371,27 +364,43 @@ task.spawn(function()
                             end
                         end
                         
+                        -- PATH CHECK SESUAI TEMUAN EXCAKTIDU
+                        local unlockMenu = chestGui.ChestInfo:FindFirstChild("UnlockMenu")
+                        local unlockBtn = unlockMenu and unlockMenu:FindFirstChild("UnlockButton")
+                        local forceOpenFrame = unlockBtn and unlockBtn:FindFirstChild("ForceOpenFrame")
+                        
+                        -- Kondisi Utama: Jika ForceOpenFrame.Visible == true, artinya game mendeteksi uang KURANG (Tombol berubah jadi Robux)
+                        local isRobuxButton = false
+                        if forceOpenFrame and forceOpenFrame.Visible == true then
+                            isRobuxButton = true
+                        end
+                        
                         if toggles.TargetUnlockEnabled then
                             local isTarget = MatchesTargetChest(currentChestName, toggles.TargetChestValue)
                             
                             if isTarget then
-                                if myCash >= chestPrice and chestPrice > 0 then
-                                    task.wait(0.6) -- Jeda sinkronisasi server agar tidak dikira beli pakai Robux
+                                if not isRobuxButton then
+                                    -- AMAN: Target sesuai dan tombol murni CASH (Visible = false)
                                     ReplicatedStorage.RemoteEvents.UnlockChest:FireServer()
                                     task.wait(1.5)
                                 else
-                                    task.wait(0.5) 
+                                    -- CRITICAL STOP: Ini target chest tapi terdeteksi tombol Robux (Visible = true).
+                                    -- Kita TIDAK AKAN unlock dan TIDAK AKAN discard. Biarkan skrip menunggu uang bertambah hingga Visible otomatis jadi false.
+                                    task.wait(0.3)
                                 end
                             else
+                                -- Bukan target, langsung buang tanpa peduli status robux
                                 ReplicatedStorage.RemoteEvents.DiscardChest:FireServer()
                                 task.wait(0.5)
                             end
                         else
-                            if myCash >= chestPrice and chestPrice > 0 then
-                                task.wait(0.6) -- Jeda sinkronisasi server
+                            -- Target Unlock OFF (Buka semua chest yang lewat)
+                            if not isRobuxButton then
+                                -- Uang cukup, langsung eksekusi buka
                                 ReplicatedStorage.RemoteEvents.UnlockChest:FireServer()
                                 task.wait(1.5)
                             else
+                                -- Jika mau buka semua tapi uang kurang (Tombol Robux aktif), buang saja biar slot kosong lagi
                                 ReplicatedStorage.RemoteEvents.DiscardChest:FireServer()
                                 task.wait(0.5)
                             end
@@ -400,7 +409,10 @@ task.spawn(function()
                     isProcessingChest = false 
                 end
             end)
-            if not success then HandleError("Target/Auto Unlock System") end
+            if not success then 
+                isProcessingChest = false
+                HandleError("Target/Auto Unlock System") 
+            end
         end
     end
 end)
@@ -513,4 +525,4 @@ end)
 local VirtualUser = game:GetService("VirtualUser")
 LocalPlayer.Idled:Connect(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end)
 
-print("[SYSTEM] Pickaxe Tycoon v2.40 Sukses Dimuat! (Bug Robux Fixed & Hide Toggle Added)")
+print("[SYSTEM] Pickaxe Tycoon v2.42 Sukses Dimuat! (Strict ForceOpenFrame Protected)")
