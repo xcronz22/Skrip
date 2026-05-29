@@ -1,5 +1,5 @@
 -- ==========================================
--- EAT THE WORLD - LIGHTWEIGHT HUB V5 (SMART RADAR)
+-- EAT THE WORLD - LIGHTWEIGHT HUB V8 (PERFECTED LOGIC)
 -- ==========================================
 
 local Players = game:GetService("Players")
@@ -12,14 +12,15 @@ local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 -- 1. SISTEM AUTO SAVE
-local settingsFile = "ETW_Settings_V5.json"
+local settingsFile = "ETW_Settings_V8.json"
 local settings = {
     AutoGrab = false,
     AutoEat = false,
     AutoSell = false,
     AutoMove = false,
     AutoTP = false,
-    AutoReward = false
+    AutoReward = false,
+    AutoCube = false
 }
 
 local function saveSettings()
@@ -45,7 +46,7 @@ loadSettings()
 local parentGui = PlayerGui
 pcall(function() if gethui then parentGui = gethui() else parentGui = CoreGui end end)
 
-local uiName = "ETW_LightPanel_V5"
+local uiName = "ETW_LightPanel_V8"
 if parentGui:FindFirstChild(uiName) then parentGui[uiName]:Destroy() end
 
 -- ==========================================
@@ -57,7 +58,7 @@ uiScreen.ResetOnSpawn = false
 uiScreen.Parent = parentGui
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 220, 0, 320)
+MainFrame.Size = UDim2.new(0, 220, 0, 365)
 MainFrame.Position = UDim2.new(0, 20, 0, 20)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MainFrame.Active = true
@@ -69,7 +70,7 @@ local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, -60, 0, 30)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "ETW Tool - V5"
+Title.Text = "ETW Tool - V8"
 Title.TextColor3 = Color3.fromRGB(0, 255, 150)
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 16
@@ -115,7 +116,6 @@ local function createToggle(text, yPos, settingKey)
     
     local function updateVisual(buttonToUpdate)
         local b = buttonToUpdate or btn
-        -- Ambil Key dari tabel berdasarkan referensi tombol
         local sKey = nil
         for k, v in pairs(buttonRefs) do if v == b then sKey = k; break end end
         if not sKey then return end
@@ -147,7 +147,6 @@ local function createToggle(text, yPos, settingKey)
         saveSettings()
     end)
     
-    -- Inisialisasi awal agar teks sesuai JSON
     if settings[settingKey] then
         btn.Text = text .. ": ON"
         btn.BackgroundColor3 = Color3.fromRGB(40, 80, 40)
@@ -159,12 +158,13 @@ local function createToggle(text, yPos, settingKey)
     end
 end
 
-createToggle("Auto Grab (Ambil)", 40, "AutoGrab")
+createToggle("Auto Grab (Cerdas)", 40, "AutoGrab")
 createToggle("Auto Eat (Makan)", 85, "AutoEat")
 createToggle("Auto Sell (Max)", 130, "AutoSell")
-createToggle("Auto Move (Smart)", 175, "AutoMove")
+createToggle("Auto Move (Jalan)", 175, "AutoMove")
 createToggle("Auto TP (Di Atas)", 220, "AutoTP")
 createToggle("Auto Timed Reward", 265, "AutoReward")
+createToggle("Auto Cube (Magnet)", 310, "AutoCube")
 
 MinBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false; MinIcon.Position = MainFrame.Position; MinIcon.Visible = true end)
 MinIcon.MouseButton1Click:Connect(function() MinIcon.Visible = false; MainFrame.Position = MinIcon.Position; MainFrame.Visible = true end)
@@ -174,7 +174,7 @@ CloseBtn.MouseButton1Click:Connect(function() uiScreen:Destroy() end)
 -- 4. LOGIKA PERMAINAN (RADAR & SMART TARGET)
 -- ==========================================
 
--- Cek apakah kita menggenggam sesuatu
+-- Hanya cek Chunks untuk tahu apakah kita pegang makanan
 local function isHoldingFood()
     local chunksFolder = Workspace:FindFirstChild("Chunks")
     if not chunksFolder then return false end
@@ -187,7 +187,7 @@ local function isHoldingFood()
     return false
 end
 
--- RADAR PENCARI MAKANAN
+-- Hanya cari di Map (Buildings / Fragmentable)
 local function getSmartTarget()
     local Character = LocalPlayer.Character
     if not Character then return nil end
@@ -198,13 +198,12 @@ local function getSmartTarget()
     local mapFolder = Workspace:FindFirstChild("Map")
     if not mapFolder then return nil end
 
-    -- Konfigurasi radar untuk mencari block di Workspace.Map
     local params = OverlapParams.new()
-    params.FilterDescendantsInstances = {mapFolder}
+    params.FilterDescendantsInstances = {mapFolder} -- HANYA FOLDER MAP
     params.FilterType = Enum.RaycastFilterType.Include
 
-    -- Ambil semua part makanan terdekat dalam radius 50 Studs
-    local parts = Workspace:GetPartBoundsInRadius(RootPart.Position, 50, params)
+    -- Mencari part di Map radius 100 stud
+    local parts = Workspace:GetPartBoundsInRadius(RootPart.Position, 100, params)
 
     local nearestPart = nil
     local shortestDist = math.huge
@@ -212,7 +211,6 @@ local function getSmartTarget()
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") and part.CanCollide and part.Transparency < 1 then
             local dist = (RootPart.Position - part.Position).Magnitude
-            -- Abaikan balok yang terlalu dekat (misal di bawah kaki persis saat kita nyangkut)
             if dist > 3 and dist < shortestDist then
                 shortestDist = dist
                 nearestPart = part
@@ -221,11 +219,10 @@ local function getSmartTarget()
     end
 
     if nearestPart then
-        -- KALKULASI PENTING: Mendarat DI ATAS balok berdasarkan skala karaktermu
         local characterHeightOffset = Humanoid.HipHeight + (RootPart.Size.Y / 2)
         local targetPosition = Vector3.new(
             nearestPart.Position.X,
-            nearestPart.Position.Y + (nearestPart.Size.Y / 2) + characterHeightOffset + 0.5, -- +0.5 batas toleransi
+            nearestPart.Position.Y + (nearestPart.Size.Y / 2) + characterHeightOffset + 0.5,
             nearestPart.Position.Z
         )
         return targetPosition
@@ -234,10 +231,34 @@ local function getSmartTarget()
     return nil
 end
 
+-- AUTO CUBE FUNCTION (MAGNET STYLE)
+local function collectCubes()
+    if not settings.AutoCube then return end
+    local Character = LocalPlayer.Character
+    if not Character then return end
+    local RootPart = Character:FindFirstChild("HumanoidRootPart")
+    if not RootPart then return end
+
+    for _, obj in ipairs(Workspace:GetChildren()) do
+        if obj.Name == "Cube" and obj:IsA("BasePart") and obj:FindFirstChildOfClass("TouchTransmitter") then
+            -- Bypass touch tanpa memindahkan karakter
+            if firetouchinterest then
+                pcall(function()
+                    firetouchinterest(RootPart, obj, 0)
+                    task.wait(0.01)
+                    firetouchinterest(RootPart, obj, 1)
+                end)
+            end
+        end
+    end
+end
+
 -- LOOP UTAMA
 task.spawn(function()
     local lastStuckPos = Vector3.zero
     local lastStuckTick = tick()
+    local lastGrabTick = tick()
+    local stuckLevel = 0
 
     while task.wait(0.05) do
         if not uiScreen.Parent then break end
@@ -250,6 +271,10 @@ task.spawn(function()
         local Humanoid = Character:FindFirstChildOfClass("Humanoid")
         if not RootPart or not Humanoid then continue end
         
+        -- PANGGIL AUTO CUBE (Berjalan di latar belakang layaknya magnet)
+        collectCubes()
+        
+        -- AUTO SELL LOGIC
         local isFull = false
         pcall(function()
             local warningUI = PlayerGui.ScreenGui.Sell.WarningText
@@ -261,46 +286,78 @@ task.spawn(function()
             task.wait(0.5)
         elseif not isFull then
             
-            -- Jika tangan sudah isi makanan, langsung makan
+            -- Jika sedang pegang makanan di Chunks
             if isHoldingFood() then
                 if settings.AutoEat then
                     Events:WaitForChild("Eat"):FireServer()
                 end
             else
-                -- Jika tangan kosong, coba ambil makanan di depan/bawah
-                if settings.AutoGrab then
-                    Events:WaitForChild("Grab"):FireServer(false, false, false)
-                    task.wait(0.2) -- Beri waktu sedikit untuk efek grab ke-register
+                -- Jika tangan kosong, cari target di Map (Buildings/Fragmentable)
+                local targetPos = getSmartTarget()
+                local isTargetInFront = false
+                
+                -- CEK APAKAH TARGET MAP ADA DI DEPAN
+                if targetPos then
+                    local dist = (RootPart.Position - targetPos).Magnitude
+                    if dist > 0.1 and dist <= 18 then -- Jangkauan grab sedikit dinaikkan ke 18
+                        local toTarget = (targetPos - RootPart.Position).Unit
+                        local lookVector = RootPart.CFrame.LookVector
+                        if lookVector:Dot(toTarget) > 0.2 then
+                            isTargetInFront = true
+                        end
+                    end
                 end
                 
-                -- Jika ternyata masih kosong juga (artinya kita di tempat kosong/lubang)
-                if not isHoldingFood() then
-                    if settings.AutoTP or settings.AutoMove then
-                        local targetPos = getSmartTarget()
+                -- AUTO GRAB
+                if settings.AutoGrab and isTargetInFront and (tick() - lastGrabTick > 0.4) then
+                    Events:WaitForChild("Grab"):FireServer(false, false, false)
+                    lastGrabTick = tick()
+                end
+                
+                -- AUTO MOVE / TP
+                if targetPos then
+                    stuckLevel = 0
+                    
+                    if settings.AutoTP then
+                        RootPart.CFrame = CFrame.new(targetPos)
+                        task.wait(0.1)
+                    elseif settings.AutoMove then
+                        if (Humanoid.WalkToPoint - targetPos).Magnitude > 3 then
+                            Humanoid:MoveTo(targetPos)
+                        end
                         
-                        if targetPos then
-                            if settings.AutoTP then
-                                RootPart.CFrame = CFrame.new(targetPos)
-                                task.wait(0.1) -- Jeda TP agar tidak pusing dan glitch
-                            elseif settings.AutoMove then
-                                -- Murni menyuruh jalan mengikuti WalkSpeed karaktermu!
-                                Humanoid:MoveTo(targetPos)
+                        -- ANTI-STUCK
+                        if tick() - lastStuckTick > 0.8 then
+                            local moveDist = (RootPart.Position - lastStuckPos).Magnitude
+                            if moveDist < 1.5 then 
+                                Humanoid.Jump = true 
+                                stuckLevel = stuckLevel + 1
                                 
-                                -- LOGIKA ANTI-STUCK (LOMPAT)
-                                if tick() - lastStuckTick > 0.8 then
-                                    local moveDist = (RootPart.Position - lastStuckPos).Magnitude
-                                    if moveDist < 1.5 then -- Jika dlm 0.8 detik gerak kurang dari 1.5 stud = Nyangkut
-                                        Humanoid.Jump = true 
-                                    end
-                                    lastStuckPos = RootPart.Position
-                                    lastStuckTick = tick()
+                                if stuckLevel >= 4 then
+                                    RootPart.CFrame = CFrame.new(0, 150, 0)
+                                    stuckLevel = 0
+                                    task.wait(0.5)
                                 end
                             end
+                            lastStuckPos = RootPart.Position
+                            lastStuckTick = tick()
+                        end
+                    end
+                else
+                    if settings.AutoMove then
+                        Humanoid:MoveTo(RootPart.Position)
+                    end
+                    
+                    if settings.AutoMove or settings.AutoTP then
+                        stuckLevel = stuckLevel + 1
+                        if stuckLevel > 60 then
+                            RootPart.CFrame = CFrame.new(0, 150, 0)
+                            stuckLevel = 0
+                            task.wait(1)
                         end
                     end
                 end
             end
-            
         end
     end
 end)
