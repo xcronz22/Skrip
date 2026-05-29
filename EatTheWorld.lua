@@ -1,5 +1,5 @@
 -- ==========================================
--- EAT THE WORLD - LIGHTWEIGHT HUB V14 (UI FIXED & ABSOLUTE CHUNK OWNER)
+-- EAT THE WORLD - LIGHTWEIGHT HUB V15 (NATIVE SCRIPT LOGIC)
 -- ==========================================
 
 local Players = game:GetService("Players")
@@ -12,7 +12,7 @@ local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 -- 1. SISTEM AUTO SAVE
-local settingsFile = "ETW_Settings_V14.json"
+local settingsFile = "ETW_Settings_V15.json"
 local settings = {
     AutoGrab = false,
     AutoEat = false,
@@ -46,11 +46,11 @@ loadSettings()
 local parentGui = PlayerGui
 pcall(function() if gethui then parentGui = gethui() else parentGui = CoreGui end end)
 
-local uiName = "ETW_LightPanel_V14"
+local uiName = "ETW_LightPanel_V15"
 if parentGui:FindFirstChild(uiName) then parentGui[uiName]:Destroy() end
 
 -- ==========================================
--- 3. PEMBUATAN UI (SUDAH DIPERBAIKI)
+-- 3. PEMBUATAN UI
 -- ==========================================
 local uiScreen = Instance.new("ScreenGui")
 uiScreen.Name = uiName
@@ -70,7 +70,7 @@ local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, -60, 0, 30)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "ETW Tool - V14"
+Title.Text = "ETW Tool - V15"
 Title.TextColor3 = Color3.fromRGB(0, 200, 255)
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 16
@@ -106,11 +106,9 @@ Instance.new("UICorner", MinIcon).CornerRadius = UDim.new(1, 0)
 MinIcon.Parent = uiScreen
 
 local buttonRefs = {}
-
 local function updateVisual(sKey)
     local ref = buttonRefs[sKey]
     if not ref then return end
-    
     local b = ref.button
     local label = ref.label
 
@@ -132,36 +130,25 @@ local function createToggle(text, yPos, settingKey)
     btn.Font = Enum.Font.SourceSansBold
     btn.TextSize = 14
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-    
-    -- Simpan referensi tombol dan nama aslinya
     buttonRefs[settingKey] = {button = btn, label = text}
     
     btn.MouseButton1Click:Connect(function()
         settings[settingKey] = not settings[settingKey]
-        
-        -- Logic eksklusif untuk Move & TP
         if settingKey == "AutoMove" and settings.AutoMove then
-            settings.AutoTP = false
-            updateVisual("AutoTP")
+            settings.AutoTP = false; updateVisual("AutoTP")
         elseif settingKey == "AutoTP" and settings.AutoTP then
-            settings.AutoMove = false
-            updateVisual("AutoMove")
+            settings.AutoMove = false; updateVisual("AutoMove")
         end
-        
-        updateVisual(settingKey)
-        saveSettings()
+        updateVisual(settingKey); saveSettings()
     end)
-    
-    -- Panggil pembaruan pertama kali agar teks/warna sesuai setting saat ini
     updateVisual(settingKey)
 end
 
--- Membuat tombol-tombol
-createToggle("Auto Grab", 40, "AutoGrab")
-createToggle("Auto Eat", 85, "AutoEat")
-createToggle("Auto Sell", 130, "AutoSell")
-createToggle("Auto Move", 175, "AutoMove")
-createToggle("Auto TP", 220, "AutoTP")
+createToggle("Auto Grab (Cerdas)", 40, "AutoGrab")
+createToggle("Auto Eat (Makan)", 85, "AutoEat")
+createToggle("Auto Sell (Max)", 130, "AutoSell")
+createToggle("Auto Move (Jalan)", 175, "AutoMove")
+createToggle("Auto TP (Di Atas)", 220, "AutoTP")
 createToggle("Auto Reward", 265, "AutoReward")
 createToggle("Auto Cube", 310, "AutoCube")
 
@@ -187,7 +174,6 @@ local function grabCubeInstantly(obj)
         end
     end
 end
-
 Workspace.ChildAdded:Connect(grabCubeInstantly)
 local function sweepCubes()
     if not settings.AutoCube then return end
@@ -195,14 +181,12 @@ local function sweepCubes()
 end
 
 -- ==========================================
--- 5. LOGIKA PERMAINAN (V14 - WORKSPACE.CHUNKS OWNER TAG)
+-- 5. LOGIKA PERMAINAN (V15 - NATIVE LOGIC TARGETING)
 -- ==========================================
 
--- LOGIKA: Scan Workspace.Chunks untuk tag Owner
 local function isHoldingFood()
     local chunksFolder = Workspace:FindFirstChild("Chunks")
     if not chunksFolder then return false end
-    
     for _, chunk in ipairs(chunksFolder:GetChildren()) do
         local ownerTag = chunk:FindFirstChild("Owner")
         if ownerTag then
@@ -217,6 +201,7 @@ end
 
 local blacklistedTargets = {} 
 
+-- 100% MENIRU DETEKSI DARI SCRIPT DEVELOPER
 local function getSmartTarget(RootPart, Humanoid)
     local mapFolder = Workspace:FindFirstChild("Map")
     if not mapFolder then return nil, nil end
@@ -232,17 +217,21 @@ local function getSmartTarget(RootPart, Humanoid)
     local shortestDist = math.huge
 
     for _, part in ipairs(parts) do
-        -- HANYA MENCARI SMOOTH BLOCK MODEL
-        if part.Name == "Smooth Block Model" and part:IsA("BasePart") and part.CanCollide then
+        if part:IsA("BasePart") and part.CanCollide and part.Transparency < 1 then
+            local parent = part.Parent
             
-            if blacklistedTargets[part] and (tick() - blacklistedTargets[part] < 10) then
-                continue 
-            end
+            -- LOGIKA ASLI GAME: Punya 'Size', tidak punya 'Humanoid'
+            if parent and parent:FindFirstChild("Size") and not parent:FindFirstChild("Humanoid") then
+                
+                if blacklistedTargets[part] and (tick() - blacklistedTargets[part] < 10) then
+                    continue 
+                end
 
-            local dist = (RootPart.Position - part.Position).Magnitude
-            if dist > 1 and dist < shortestDist then
-                shortestDist = dist
-                nearestPart = part
+                local dist = (RootPart.Position - part.Position).Magnitude
+                if dist > 1 and dist < shortestDist then
+                    shortestDist = dist
+                    nearestPart = part
+                end
             end
         end
     end
@@ -260,12 +249,15 @@ local function getSmartTarget(RootPart, Humanoid)
     return nil, nil
 end
 
-local function getFallbackSmoothBlock()
+local function getFallbackTarget()
     local mapFolder = Workspace:FindFirstChild("Map")
     if mapFolder then
         for _, desc in ipairs(mapFolder:GetDescendants()) do
-            if desc.Name == "Smooth Block Model" and desc:IsA("BasePart") then
-                return desc
+            if desc:IsA("BasePart") then
+                local parent = desc.Parent
+                if parent and parent:FindFirstChild("Size") and not parent:FindFirstChild("Humanoid") then
+                    return desc
+                end
             end
         end
     end
@@ -295,7 +287,7 @@ task.spawn(function()
         
         sweepCubes()
         
-        -- CEK JUAL DULU
+        -- CEK JUAL
         local isFull = false
         pcall(function()
             local warningUI = PlayerGui.ScreenGui.Sell.WarningText
@@ -312,7 +304,7 @@ task.spawn(function()
         
         if isSellingCooldown then continue end
         
-        -- CEK MAKAN (Menggunakan deteksi Owner di Workspace.Chunks)
+        -- CEK MAKAN 
         local holding = isHoldingFood()
         if settings.AutoEat and holding then
             pcall(function() Events:WaitForChild("Eat"):FireServer() end)
@@ -327,17 +319,17 @@ task.spawn(function()
                 grabFails = 0
             end
 
-            -- LOGIKA GRAB & STRIKE SYSTEM
+            -- LOGIKA GRAB 
             if settings.AutoGrab and (tick() - lastGrabTick > 0.3) then
                 local distToPart = (RootPart.Position - targetPart.Position).Magnitude
                 local dynamicGrabRange = 15 + (RootPart.Size.Y * 1.8) 
                 
                 if distToPart <= dynamicGrabRange then
-                    pcall(function() Events:WaitForChild("Grab"):FireServer(false, false, false) end)
+                    -- UPDATE PENTING: MENGIRIM ARGUMEN SEPERTI SCRIPT ASLI (true, false, true)
+                    pcall(function() Events:WaitForChild("Grab"):FireServer(true, false, true) end)
                     lastGrabTick = tick()
                     
                     task.wait(0.15)
-                    -- Jika setelah Grab, namamu tidak ada di Workspace.Chunks, berarti gagal
                     if not isHoldingFood() then
                         grabFails = grabFails + 1
                         
@@ -345,7 +337,6 @@ task.spawn(function()
                             blacklistedTargets[targetPart] = tick()
                             currentTargetPart = nil
                             grabFails = 0
-                            
                             Humanoid.Jump = true
                             continue
                         end
@@ -353,7 +344,7 @@ task.spawn(function()
                 end
             end
             
-            -- LOGIKA PERGERAKAN (Hanya jalan/TP jika tidak punya Chunk)
+            -- LOGIKA PERGERAKAN
             if not holding then
                 if settings.AutoTP then
                     RootPart.CFrame = CFrame.new(targetPos)
@@ -375,7 +366,7 @@ task.spawn(function()
             end
         else
             if settings.AutoMove or settings.AutoTP then
-                local fallbackPart = getFallbackSmoothBlock()
+                local fallbackPart = getFallbackTarget()
                 if fallbackPart then
                     RootPart.CFrame = CFrame.new(fallbackPart.Position) + Vector3.new(0, fallbackPart.Size.Y + 10, 0)
                     task.wait(0.5)
