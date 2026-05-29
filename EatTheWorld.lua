@@ -1,186 +1,292 @@
--- SERVICES
+-- ==========================================
+-- EAT THE WORLD - LIGHTWEIGHT HUB V2
+-- ==========================================
+
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
+local CoreGui = game:GetService("CoreGui")
+
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- STATE VARIABLES
-local autoMoveActive = false
-local uiScreen = nil
+-- File untuk Auto Save Settings
+local settingsFile = "ETW_Settings_V2.json"
+local settings = {
+    AutoFarm = false,
+    AutoSell = false,
+    AutoReward = false,
+    AutoMove = false,
+    AutoTP = false
+}
 
--- HAPUS PANEL LAMA JIKA ADA (Biar gak tumpang tindih saat di-execute ulang)
-if PlayerGui:FindFirstChild("ETW_TestPanel") then
-    PlayerGui["ETW_TestPanel"]:Destroy()
+-- Fungsi Load & Save Settings
+local function saveSettings()
+    if writefile then
+        writefile(settingsFile, HttpService:JSONEncode(settings))
+    end
 end
 
--- ==========================================
--- 1. SEKTOR PEMBUATAN UI (LIGHTWEIGHT)
--- ==========================================
-uiScreen = Instance.new("ScreenGui")
-uiScreen.Name = "ETW_TestPanel"
-uiScreen.ResetOnSpawn = false
-uiScreen.Parent = PlayerGui
+local function loadSettings()
+    if readfile and isfile and isfile(settingsFile) then
+        local success, decoded = pcall(function()
+            return HttpService:JSONDecode(readfile(settingsFile))
+        end)
+        if success and type(decoded) == "table" then
+            for k, v in pairs(decoded) do settings[k] = v end
+        end
+    end
+end
+loadSettings()
 
--- MAIN PANEL
+-- Hapus UI lama jika execute ulang
+local uiName = "ETW_LightPanel_V2"
+local parentGui = (gethui and gethui()) or CoreGui
+if parentGui:FindFirstChild(uiName) then parentGui[uiName]:Destroy() end
+
+-- ==========================================
+-- 1. PEMBUATAN UI (Ringan & Responsive)
+-- ==========================================
+local uiScreen = Instance.new("ScreenGui")
+uiScreen.Name = uiName
+uiScreen.ResetOnSpawn = false
+uiScreen.Parent = parentGui
+
 local MainFrame = Instance.new("Frame")
-MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 220, 0, 140)
-MainFrame.Position = UDim2.new(0.1, 0, 0.3, 0)
-MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-MainFrame.BorderSizePixel = 0
+MainFrame.Size = UDim2.new(0, 220, 0, 280) -- Ditambah tingginya untuk tombol TP
+MainFrame.Position = UDim2.new(0, 20, 0, 20)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MainFrame.Active = true
-MainFrame.Draggable = true -- Fitur drag bawaan biar bisa digeser
+MainFrame.Draggable = true
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
 MainFrame.Parent = uiScreen
 
-local mainCorner = Instance.new("UICorner")
-mainCorner.CornerRadius = UDim.new(0, 8)
-mainCorner.Parent = MainFrame
-
--- TITLE BAR
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(0, 140, 0, 30)
+local Title = Instance.new("TextLabel", MainFrame)
+Title.Size = UDim2.new(1, -60, 0, 30)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "ETW Tool - Test"
+Title.Text = "ETW Tool - V2"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 16
 Title.TextXAlignment = Enum.TextXAlignment.Left
-Title.Parent = MainFrame
 
--- MINIMIZE BUTTON (_)
-local MinBtn = Instance.new("TextButton")
+local MinBtn = Instance.new("TextButton", MainFrame)
 MinBtn.Size = UDim2.new(0, 30, 0, 30)
 MinBtn.Position = UDim2.new(1, -60, 0, 0)
 MinBtn.BackgroundTransparency = 1
 MinBtn.Text = "_"
 MinBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-MinBtn.Font = Enum.Font.SourceSansBold
 MinBtn.TextSize = 18
-MinBtn.Parent = MainFrame
 
--- CLOSE BUTTON (X)
-local CloseBtn = Instance.new("TextButton")
+local CloseBtn = Instance.new("TextButton", MainFrame)
 CloseBtn.Size = UDim2.new(0, 30, 0, 30)
 CloseBtn.Position = UDim2.new(1, -30, 0, 0)
 CloseBtn.BackgroundTransparency = 1
 CloseBtn.Text = "X"
-CloseBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
-CloseBtn.Font = Enum.Font.SourceSansBold
+CloseBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
 CloseBtn.TextSize = 16
-CloseBtn.Parent = MainFrame
 
--- TOGGLE AUTO MOVE BUTTON
-local ToggleBtn = Instance.new("TextButton")
-ToggleBtn.Size = UDim2.new(0, 180, 0, 40)
-ToggleBtn.Position = UDim2.new(0, 20, 0, 60)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-ToggleBtn.Text = "Auto Move: OFF"
-ToggleBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
-ToggleBtn.Font = Enum.Font.SourceSansBold
-ToggleBtn.TextSize = 16
-ToggleBtn.Parent = MainFrame
-
-local btnCorner = Instance.new("UICorner")
-btnCorner.CornerRadius = UDim.new(0, 6)
-btnCorner.Parent = ToggleBtn
-
--- SMALL MINIMIZE ICON (Muncul saat di-minimize)
 local MinIcon = Instance.new("TextButton")
-MinIcon.Name = "MinIcon"
 MinIcon.Size = UDim2.new(0, 40, 0, 40)
-MinIcon.Position = UDim2.new(0.1, 0, 0.3, 0) -- Posisi awal sama dengan panel
-MinIcon.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MinIcon.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MinIcon.Text = "ETW"
-MinIcon.TextColor3 = Color3.fromRGB(0, 255, 150)
+MinIcon.TextColor3 = Color3.fromRGB(0, 200, 255)
 MinIcon.Font = Enum.Font.SourceSansBold
 MinIcon.TextSize = 14
 MinIcon.Visible = false
 MinIcon.Active = true
 MinIcon.Draggable = true
+Instance.new("UICorner", MinIcon).CornerRadius = UDim.new(1, 0)
 MinIcon.Parent = uiScreen
 
-local iconCorner = Instance.new("UICorner")
-iconCorner.CornerRadius = UDim.new(0, 20) -- Bikin bentuk bulat lingkaran
-iconCorner.Parent = MinIcon
+-- Penyimpanan referensi tombol untuk logika eksklusif (Move vs TP)
+local buttonRefs = {}
 
-
--- ==========================================
--- 2. LOGIKA FITUR UI (MINIMIZE & CLOSE)
--- ==========================================
-MinBtn.MouseButton1Click:Connect(function()
-    MainFrame.Visible = false
-    MinIcon.Position = MainFrame.Position -- Mengikuti posisi terakhir panel
-    MinIcon.Visible = true
-end)
-
-MinIcon.MouseButton1Click:Connect(function()
-    MinIcon.Visible = false
-    MainFrame.Position = MinIcon.Position -- Mengikuti posisi terakhir ikon
-    MainFrame.Visible = true
-end)
-
-CloseBtn.MouseButton1Click:Connect(function()
-    autoMoveActive = false -- Matikan loop pergerakan
-    uiScreen:Destroy() -- Hapus UI total dari game
-end)
-
-
--- ==========================================
--- 3. LOGIKA TOGGLE & AUTO MOVE TEST
--- ==========================================
-ToggleBtn.MouseButton1Click:Connect(function()
-    autoMoveActive = not autoMoveActive
+local function createToggle(text, yPos, settingKey)
+    local btn = Instance.new("TextButton", MainFrame)
+    btn.Size = UDim2.new(0, 180, 0, 35)
+    btn.Position = UDim2.new(0, 20, 0, yPos)
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    buttonRefs[settingKey] = btn
     
-    if autoMoveActive then
-        ToggleBtn.Text = "Auto Move: ON"
-        ToggleBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
-        ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 70, 40)
-    else
-        ToggleBtn.Text = "Auto Move: OFF"
-        ToggleBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
-        ToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    local function updateVisual()
+        if settings[settingKey] then
+            btn.Text = text .. ": ON"
+            btn.BackgroundColor3 = Color3.fromRGB(40, 80, 40)
+            btn.TextColor3 = Color3.fromRGB(150, 255, 150)
+        else
+            btn.Text = text .. ": OFF"
+            btn.BackgroundColor3 = Color3.fromRGB(60, 40, 40)
+            btn.TextColor3 = Color3.fromRGB(255, 150, 150)
+        end
+    end
+    
+    updateVisual()
+    
+    btn.MouseButton1Click:Connect(function()
+        settings[settingKey] = not settings[settingKey]
+        
+        -- Logika Proteksi: Jika Move ON, maka TP harus OFF (dan sebaliknya)
+        if settingKey == "AutoMove" and settings.AutoMove then
+            settings.AutoTP = false
+            if buttonRefs["AutoTP"] then
+                buttonRefs["AutoTP"].Text = "Auto TP Farm: OFF"
+                buttonRefs["AutoTP"].BackgroundColor3 = Color3.fromRGB(60, 40, 40)
+                buttonRefs["AutoTP"].TextColor3 = Color3.fromRGB(255, 150, 150)
+            end
+        elseif settingKey == "AutoTP" and settings.AutoTP then
+            settings.AutoMove = false
+            if buttonRefs["AutoMove"] then
+                buttonRefs["AutoMove"].Text = "Auto Move: OFF"
+                buttonRefs["AutoMove"].BackgroundColor3 = Color3.fromRGB(60, 40, 40)
+                buttonRefs["AutoMove"].TextColor3 = Color3.fromRGB(255, 150, 150)
+            end
+        end
+        
+        updateVisual()
+        saveSettings()
+    end)
+end
+
+createToggle("Auto Farm (Grab+Eat)", 40, "AutoFarm")
+createToggle("Auto Sell (Max)", 85, "AutoSell")
+createToggle("Auto Move (Jalan)", 130, "AutoMove")
+createToggle("Auto TP Farm (Teleport)", 175, "AutoTP")
+createToggle("Auto Timed Reward", 220, "AutoReward")
+
+MinBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false; MinIcon.Position = MainFrame.Position; MinIcon.Visible = true end)
+MinIcon.MouseButton1Click:Connect(function() MinIcon.Visible = false; MainFrame.Position = MinIcon.Position; MainFrame.Visible = true end)
+CloseBtn.MouseButton1Click:Connect(function() uiScreen:Destroy() end)
+
+
+-- ==========================================
+-- 2. LOGIKA UTAMA SINKRONISASI GAME
+-- ==========================================
+
+-- Fungsi Deteksi Pegang Makanan (Real-time di skrip)
+local function isHoldingFood()
+    local chunksFolder = Workspace:FindFirstChild("Chunks")
+    if not chunksFolder then return false end
+    
+    for _, chunk in pairs(chunksFolder:GetChildren()) do
+        local ownerTag = chunk:FindFirstChild("Owner")
+        if ownerTag and ownerTag.Value == LocalPlayer.Name then
+            return true
+        end
+    end
+    return false
+end
+
+-- Fungsi Eksekusi Perpindahan Tempat (Jalan kaki cepat / Teleport)
+local function relocateCharacter()
+    local Character = LocalPlayer.Character
+    if not Character then return end
+    local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+    local RootPart = Character:FindFirstChild("HumanoidRootPart")
+    
+    if Humanoid and RootPart and Humanoid.Health > 0 then
+        -- Tentukan koordinat acak baru (jarak 20-30 stud)
+        local rx = math.random(-25, 25)
+        local rz = math.random(-25, 25)
+        local targetPosition = RootPart.Position + Vector3.new(rx, 0, rz)
+        
+        -- JIKA AUTO TP AKTIF
+        if settings.AutoTP then
+            RootPart.CFrame = CFrame.new(targetPosition)
+            task.wait(0.2) -- Jeda instan setelah TP
+            
+        -- JIKA AUTO MOVE AKTIF
+        表达elseif settings.AutoMove then
+            -- Ambil kecepatan lari asli kamu biar tidak melambat saat diperintah skrip
+            local currentSpeed = Humanoid.WalkSpeed
+            if currentSpeed < 16 then currentSpeed = 16 end -- Jaga-jaga standar minimal
+            
+            Humanoid:MoveTo(targetPosition)
+            
+            -- Loop penunggu jalan selesai (Hanya berjalan sekali sampai tujuan selesai)
+            local t = tick()
+            repeat 
+                -- Jaga agar kecepatannya tetap stabil mengikuti kecepatan asli karaktermu
+                Humanoid.WalkSpeed = currentSpeed 
+                task.wait(0.1) 
+            until (tick() - t > 3) or (RootPart.Position - targetPosition).Magnitude < 4 or not settings.AutoMove
+        end
+    end
+end
+
+-- MAIN LOOP: KONTROL UTAMA GRINDING
+task.spawn(function()
+    while task.wait(0.05) do
+        if not uiScreen.Parent then break end
+        
+        local Character = LocalPlayer.Character
+        local Events = Character and Character:FindFirstChild("Events")
+        
+        if Character and Events then
+            -- 1. CEK AUTO SELL
+            local isFull = false
+            pcall(function()
+                local warningUI = PlayerGui.ScreenGui.Sell.WarningText
+                if warningUI and warningUI.Visible then isFull = true end
+            end)
+            
+            if settings.AutoSell and isFull then
+                Events:WaitForChild("Sell"):FireServer()
+                task.wait(0.5)
+                
+            -- 2. CEK AUTO FARM
+            elseif settings.AutoFarm and not isFull then
+                if isHoldingFood() then
+                    -- DIAM DI TEMPAT & SPAM MAKAN SAMPAI HABIS
+                    Events:WaitForChild("Eat"):FireServer()
+                    task.wait(0.05) -- Kecepatan spam makan
+                else
+                    -- TANGAN KOSONG: Coba Ambil (Grab) sekali
+                    Events:WaitForChild("Grab"):FireServer(false, false, false)
+                    task.wait(0.3) -- Tunggu konfirmasi server apakah dapat makanan atau zonk
+                    
+                    -- JIKA SETELAH DI-GRAB TETAP KOSONG (Berarti tanahnya habis / tidak ada makanan)
+                    if not isHoldingFood() then
+                        -- TRIGGER PINDAH TEMPAT (Jalan / TP tergantung mana yang ON)
+                        if settings.AutoMove or settings.AutoTP then
+                            relocateCharacter()
+                        end
+                    end
+                end
+            end
+        end
     end
 end)
 
--- LOOP UTAMA UNTUK TES PERGERAKAN ALAMI
+-- LOOP 3: AUTO TIMED REWARDS
 task.spawn(function()
-    while uiScreen and uiScreen.Parent do
-        task.wait(0.5)
-        
-        if autoMoveActive then
-            local Character = LocalPlayer.Character
-            if Character then
-                local Humanoid = Character:FindFirstChildOfClass("Humanoid")
-                local RootPart = Character:FindFirstChild("HumanoidRootPart")
+    while task.wait(3) do
+        if not uiScreen.Parent then break end
+        if settings.AutoReward then
+            pcall(function()
+                local rewardGrid = PlayerGui.ScreenGui.Rewards.TimedRewards.RewardGrid
+                local canClaim = false
                 
-                if Humanoid and RootPart and Humanoid.Health > 0 then
-                    -- Membuat koordinat acak berjarak sekitar 15-20 stud dari posisi karakter saat ini
-                    local randomX = math.random(-20, 20)
-                    local randomZ = math.random(-20, 20)
-                    local targetPosition = RootPart.Position + Vector3.new(randomX, 0, randomZ)
-                    
-                    -- Perintahkan karakter berjalan ke titik tersebut
-                    Humanoid:MoveTo(targetPosition)
-                    
-                    -- Tunggu sampai karakter sampai atau macet selama maksimal 5 detik sebelum mencari titik baru
-                    local arrived = false
-                    local connection
-                    
-                    connection = Humanoid.MoveToFinished:Connect(function()
-                        arrived = true
-                    end)
-                    
-                    -- Timeout guard (biar gak nyangkut selamanya kalau nabrak tembok)
-                    local startTime = tick()
-                    while not arrived and autoMoveActive do
-                        task.wait(0.1)
-                        if tick() - startTime > 5 then break end
+                for _, template in pairs(rewardGrid:GetChildren()) do
+                    if template.Name == "Template" and template:FindFirstChild("Time") then
+                        if template.Time.Text == "Tap to claim!" then
+                            canClaim = true
+                            break
+                        end
                     end
-                    
-                    if connection then connection:Disconnect() end
                 end
-            end
+                
+                if canClaim then
+                    local rewardFolder = LocalPlayer:WaitForChild("TimedRewards")
+                    local rewardEvent = ReplicatedStorage:WaitForChild("Events"):WaitForChild("RewardEvent")
+                    for _, rewardItem in pairs(rewardFolder:GetChildren()) do
+                        rewardEvent:FireServer(rewardItem)
+                        task.wait(0.1)
+                    end
+                end
+            end)
         end
     end
 end)
