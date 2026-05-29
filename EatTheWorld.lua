@@ -1,5 +1,5 @@
 -- ==========================================
--- EAT THE WORLD - LIGHTWEIGHT HUB V4 (FIXED)
+-- EAT THE WORLD - LIGHTWEIGHT HUB V5 (SMART RADAR)
 -- ==========================================
 
 local Players = game:GetService("Players")
@@ -12,7 +12,7 @@ local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 -- 1. SISTEM AUTO SAVE
-local settingsFile = "ETW_Settings_V4.json"
+local settingsFile = "ETW_Settings_V5.json"
 local settings = {
     AutoGrab = false,
     AutoEat = false,
@@ -43,11 +43,9 @@ loadSettings()
 
 -- 2. PENEMPATAN GUI
 local parentGui = PlayerGui
-pcall(function()
-    if gethui then parentGui = gethui() else parentGui = CoreGui end
-end)
+pcall(function() if gethui then parentGui = gethui() else parentGui = CoreGui end end)
 
-local uiName = "ETW_LightPanel_V4"
+local uiName = "ETW_LightPanel_V5"
 if parentGui:FindFirstChild(uiName) then parentGui[uiName]:Destroy() end
 
 -- ==========================================
@@ -59,7 +57,7 @@ uiScreen.ResetOnSpawn = false
 uiScreen.Parent = parentGui
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 220, 0, 320) -- Tinggi ditambah agar muat 6 tombol
+MainFrame.Size = UDim2.new(0, 220, 0, 320)
 MainFrame.Position = UDim2.new(0, 20, 0, 20)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MainFrame.Active = true
@@ -71,8 +69,8 @@ local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, -60, 0, 30)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "ETW Tool - V4"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Text = "ETW Tool - V5"
+Title.TextColor3 = Color3.fromRGB(0, 255, 150)
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 16
 Title.TextXAlignment = Enum.TextXAlignment.Left
@@ -115,51 +113,57 @@ local function createToggle(text, yPos, settingKey)
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
     buttonRefs[settingKey] = btn
     
-    local function updateVisual()
-        if settings[settingKey] then
-            btn.Text = text .. ": ON"
-            btn.BackgroundColor3 = Color3.fromRGB(40, 80, 40)
-            btn.TextColor3 = Color3.fromRGB(150, 255, 150)
+    local function updateVisual(buttonToUpdate)
+        local b = buttonToUpdate or btn
+        -- Ambil Key dari tabel berdasarkan referensi tombol
+        local sKey = nil
+        for k, v in pairs(buttonRefs) do if v == b then sKey = k; break end end
+        if not sKey then return end
+
+        if settings[sKey] then
+            b.Text = string.gsub(b.Text, ": OFF", ": ON")
+            b.BackgroundColor3 = Color3.fromRGB(40, 80, 40)
+            b.TextColor3 = Color3.fromRGB(150, 255, 150)
         else
-            btn.Text = text .. ": OFF"
-            btn.BackgroundColor3 = Color3.fromRGB(60, 40, 40)
-            btn.TextColor3 = Color3.fromRGB(255, 150, 150)
+            b.Text = string.gsub(b.Text, ": ON", ": OFF")
+            b.BackgroundColor3 = Color3.fromRGB(60, 40, 40)
+            b.TextColor3 = Color3.fromRGB(255, 150, 150)
         end
     end
-    
-    updateVisual()
     
     btn.MouseButton1Click:Connect(function()
         settings[settingKey] = not settings[settingKey]
         
-        -- Proteksi Move vs TP
+        -- Proteksi Tabrakan Move & TP
         if settingKey == "AutoMove" and settings.AutoMove then
             settings.AutoTP = false
+            updateVisual(buttonRefs["AutoTP"])
         elseif settingKey == "AutoTP" and settings.AutoTP then
             settings.AutoMove = false
+            updateVisual(buttonRefs["AutoMove"])
         end
         
-        for key, button in pairs(buttonRefs) do
-            if settings[key] then
-                button.Text = string.gsub(button.Text, ": OFF", ": ON")
-                button.BackgroundColor3 = Color3.fromRGB(40, 80, 40)
-                button.TextColor3 = Color3.fromRGB(150, 255, 150)
-            else
-                button.Text = string.gsub(button.Text, ": ON", ": OFF")
-                button.BackgroundColor3 = Color3.fromRGB(60, 40, 40)
-                button.TextColor3 = Color3.fromRGB(255, 150, 150)
-            end
-        end
+        updateVisual(btn)
         saveSettings()
     end)
+    
+    -- Inisialisasi awal agar teks sesuai JSON
+    if settings[settingKey] then
+        btn.Text = text .. ": ON"
+        btn.BackgroundColor3 = Color3.fromRGB(40, 80, 40)
+        btn.TextColor3 = Color3.fromRGB(150, 255, 150)
+    else
+        btn.Text = text .. ": OFF"
+        btn.BackgroundColor3 = Color3.fromRGB(60, 40, 40)
+        btn.TextColor3 = Color3.fromRGB(255, 150, 150)
+    end
 end
 
--- Susunan tombol yang baru (Dipisah)
 createToggle("Auto Grab (Ambil)", 40, "AutoGrab")
 createToggle("Auto Eat (Makan)", 85, "AutoEat")
 createToggle("Auto Sell (Max)", 130, "AutoSell")
-createToggle("Auto Move (Jalan)", 175, "AutoMove")
-createToggle("Auto TP Farm", 220, "AutoTP")
+createToggle("Auto Move (Smart)", 175, "AutoMove")
+createToggle("Auto TP (Di Atas)", 220, "AutoTP")
 createToggle("Auto Timed Reward", 265, "AutoReward")
 
 MinBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false; MinIcon.Position = MainFrame.Position; MinIcon.Visible = true end)
@@ -167,98 +171,136 @@ MinIcon.MouseButton1Click:Connect(function() MinIcon.Visible = false; MainFrame.
 CloseBtn.MouseButton1Click:Connect(function() uiScreen:Destroy() end)
 
 -- ==========================================
--- 4. LOGIKA PERMAINAN
+-- 4. LOGIKA PERMAINAN (RADAR & SMART TARGET)
 -- ==========================================
 
--- MEMBACA OBJECTVALUE DARI DEX EXPLORER
+-- Cek apakah kita menggenggam sesuatu
 local function isHoldingFood()
     local chunksFolder = Workspace:FindFirstChild("Chunks")
     if not chunksFolder then return false end
     for _, chunk in pairs(chunksFolder:GetChildren()) do
         local ownerTag = chunk:FindFirstChild("Owner")
-        if ownerTag then
-            -- Fix: Cek apakah class-nya ObjectValue (karena ini yang menunjuk langsung ke karakter/player)
-            if ownerTag:IsA("ObjectValue") and ownerTag.Value and ownerTag.Value.Name == LocalPlayer.Name then 
-                return true 
-            elseif ownerTag:IsA("StringValue") and ownerTag.Value == LocalPlayer.Name then
-                return true
-            end
+        if ownerTag and ((ownerTag:IsA("ObjectValue") and ownerTag.Value and ownerTag.Value.Name == LocalPlayer.Name) or (ownerTag:IsA("StringValue") and ownerTag.Value == LocalPlayer.Name)) then 
+            return true 
         end
     end
     return false
 end
 
--- FUNGSI RELOKASI TANPA MENGGANGGU KECEPATAN (WALKSPEED) ASLI
-local function relocateCharacter()
+-- RADAR PENCARI MAKANAN
+local function getSmartTarget()
     local Character = LocalPlayer.Character
-    if not Character then return end
-    local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+    if not Character then return nil end
     local RootPart = Character:FindFirstChild("HumanoidRootPart")
-    
-    if Humanoid and RootPart and Humanoid.Health > 0 then
-        local rx = math.random(-35, 35) -- Radius dilebarkan sedikit
-        local rz = math.random(-35, 35)
-        local targetPosition = RootPart.Position + Vector3.new(rx, 0, rz)
-        
-        if settings.AutoTP then
-            RootPart.CFrame = CFrame.new(targetPosition)
-            task.wait(0.2)
-        elseif settings.AutoMove then
-            -- Murni memanggil fungsi bergerak satu kali, tanpa manipulasi WalkSpeed
-            Humanoid:MoveTo(targetPosition)
-            local t = tick()
-            -- Tunggu sampai bergerak selesai, atau maksimal 2 detik agar tidak nyangkut
-            repeat 
-                task.wait(0.1) 
-            until (tick() - t > 2) or (RootPart.Position - targetPosition).Magnitude < 4 or not settings.AutoMove
+    local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+    if not RootPart or not Humanoid then return nil end
+
+    local mapFolder = Workspace:FindFirstChild("Map")
+    if not mapFolder then return nil end
+
+    -- Konfigurasi radar untuk mencari block di Workspace.Map
+    local params = OverlapParams.new()
+    params.FilterDescendantsInstances = {mapFolder}
+    params.FilterType = Enum.RaycastFilterType.Include
+
+    -- Ambil semua part makanan terdekat dalam radius 50 Studs
+    local parts = Workspace:GetPartBoundsInRadius(RootPart.Position, 50, params)
+
+    local nearestPart = nil
+    local shortestDist = math.huge
+
+    for _, part in ipairs(parts) do
+        if part:IsA("BasePart") and part.CanCollide and part.Transparency < 1 then
+            local dist = (RootPart.Position - part.Position).Magnitude
+            -- Abaikan balok yang terlalu dekat (misal di bawah kaki persis saat kita nyangkut)
+            if dist > 3 and dist < shortestDist then
+                shortestDist = dist
+                nearestPart = part
+            end
         end
     end
+
+    if nearestPart then
+        -- KALKULASI PENTING: Mendarat DI ATAS balok berdasarkan skala karaktermu
+        local characterHeightOffset = Humanoid.HipHeight + (RootPart.Size.Y / 2)
+        local targetPosition = Vector3.new(
+            nearestPart.Position.X,
+            nearestPart.Position.Y + (nearestPart.Size.Y / 2) + characterHeightOffset + 0.5, -- +0.5 batas toleransi
+            nearestPart.Position.Z
+        )
+        return targetPosition
+    end
+    
+    return nil
 end
 
--- LOOP GRINDING UTAMA (TERPISAH GRAB & EAT)
+-- LOOP UTAMA
 task.spawn(function()
+    local lastStuckPos = Vector3.zero
+    local lastStuckTick = tick()
+
     while task.wait(0.05) do
         if not uiScreen.Parent then break end
         
         local Character = LocalPlayer.Character
         local Events = Character and Character:FindFirstChild("Events")
+        if not Character or not Events then continue end
         
-        if Character and Events then
-            local isFull = false
-            pcall(function()
-                local warningUI = PlayerGui.ScreenGui.Sell.WarningText
-                if warningUI and warningUI.Visible then isFull = true end
-            end)
+        local RootPart = Character:FindFirstChild("HumanoidRootPart")
+        local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+        if not RootPart or not Humanoid then continue end
+        
+        local isFull = false
+        pcall(function()
+            local warningUI = PlayerGui.ScreenGui.Sell.WarningText
+            if warningUI and warningUI.Visible then isFull = true end
+        end)
+        
+        if settings.AutoSell and isFull then
+            Events:WaitForChild("Sell"):FireServer()
+            task.wait(0.5)
+        elseif not isFull then
             
-            if settings.AutoSell and isFull then
-                Events:WaitForChild("Sell"):FireServer()
-                task.wait(0.5)
-            elseif not isFull then
+            -- Jika tangan sudah isi makanan, langsung makan
+            if isHoldingFood() then
+                if settings.AutoEat then
+                    Events:WaitForChild("Eat"):FireServer()
+                end
+            else
+                -- Jika tangan kosong, coba ambil makanan di depan/bawah
+                if settings.AutoGrab then
+                    Events:WaitForChild("Grab"):FireServer(false, false, false)
+                    task.wait(0.2) -- Beri waktu sedikit untuk efek grab ke-register
+                end
                 
-                -- Cek apakah kita sedang memegang makanan saat ini
-                if isHoldingFood() then
-                    -- Tangan ada isinya -> Eksekusi Auto Eat
-                    if settings.AutoEat then
-                        Events:WaitForChild("Eat"):FireServer()
-                        task.wait(0.05)
-                    end
-                else
-                    -- Tangan kosong -> Eksekusi Auto Grab
-                    if settings.AutoGrab then
-                        Events:WaitForChild("Grab"):FireServer(false, false, false)
-                        task.wait(0.3) -- Jeda untuk melihat hasil grab
+                -- Jika ternyata masih kosong juga (artinya kita di tempat kosong/lubang)
+                if not isHoldingFood() then
+                    if settings.AutoTP or settings.AutoMove then
+                        local targetPos = getSmartTarget()
                         
-                        -- Cek ulang setelah grab, jika tetap kosong = tanah habis!
-                        if not isHoldingFood() then
-                            -- Saatnya pindah tempat
-                            if settings.AutoMove or settings.AutoTP then
-                                relocateCharacter()
+                        if targetPos then
+                            if settings.AutoTP then
+                                RootPart.CFrame = CFrame.new(targetPos)
+                                task.wait(0.1) -- Jeda TP agar tidak pusing dan glitch
+                            elseif settings.AutoMove then
+                                -- Murni menyuruh jalan mengikuti WalkSpeed karaktermu!
+                                Humanoid:MoveTo(targetPos)
+                                
+                                -- LOGIKA ANTI-STUCK (LOMPAT)
+                                if tick() - lastStuckTick > 0.8 then
+                                    local moveDist = (RootPart.Position - lastStuckPos).Magnitude
+                                    if moveDist < 1.5 then -- Jika dlm 0.8 detik gerak kurang dari 1.5 stud = Nyangkut
+                                        Humanoid.Jump = true 
+                                    end
+                                    lastStuckPos = RootPart.Position
+                                    lastStuckTick = tick()
+                                end
                             end
                         end
                     end
                 end
-                
             end
+            
         end
     end
 end)
