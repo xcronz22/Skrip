@@ -1,5 +1,5 @@
 -- ==========================================
--- EAT THE WORLD - LIGHTWEIGHT HUB V13 (ABSOLUTE CHUNK OWNER)
+-- EAT THE WORLD - LIGHTWEIGHT HUB V14 (UI FIXED & ABSOLUTE CHUNK OWNER)
 -- ==========================================
 
 local Players = game:GetService("Players")
@@ -12,7 +12,7 @@ local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 -- 1. SISTEM AUTO SAVE
-local settingsFile = "ETW_Settings_V13.json"
+local settingsFile = "ETW_Settings_V14.json"
 local settings = {
     AutoGrab = false,
     AutoEat = false,
@@ -46,11 +46,11 @@ loadSettings()
 local parentGui = PlayerGui
 pcall(function() if gethui then parentGui = gethui() else parentGui = CoreGui end end)
 
-local uiName = "ETW_LightPanel_V13"
+local uiName = "ETW_LightPanel_V14"
 if parentGui:FindFirstChild(uiName) then parentGui[uiName]:Destroy() end
 
 -- ==========================================
--- 3. PEMBUATAN UI
+-- 3. PEMBUATAN UI (SUDAH DIPERBAIKI)
 -- ==========================================
 local uiScreen = Instance.new("ScreenGui")
 uiScreen.Name = uiName
@@ -70,7 +70,7 @@ local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, -60, 0, 30)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "ETW Tool - V13"
+Title.Text = "ETW Tool - V14"
 Title.TextColor3 = Color3.fromRGB(0, 200, 255)
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 16
@@ -107,54 +107,63 @@ MinIcon.Parent = uiScreen
 
 local buttonRefs = {}
 
+local function updateVisual(sKey)
+    local ref = buttonRefs[sKey]
+    if not ref then return end
+    
+    local b = ref.button
+    local label = ref.label
+
+    if settings[sKey] then
+        b.Text = label .. ": ON"
+        b.BackgroundColor3 = Color3.fromRGB(40, 80, 40)
+        b.TextColor3 = Color3.fromRGB(150, 255, 150)
+    else
+        b.Text = label .. ": OFF"
+        b.BackgroundColor3 = Color3.fromRGB(60, 40, 40)
+        b.TextColor3 = Color3.fromRGB(255, 150, 150)
+    end
+end
+
 local function createToggle(text, yPos, settingKey)
     local btn = Instance.new("TextButton", MainFrame)
     btn.Size = UDim2.new(0, 180, 0, 35)
     btn.Position = UDim2.new(0, 20, 0, yPos)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 14
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-    buttonRefs[settingKey] = btn
     
-    local function updateVisual(buttonToUpdate)
-        local b = buttonToUpdate or btn
-        local sKey = nil
-        for k, v in pairs(buttonRefs) do if v == b then sKey = k; break end end
-        if not sKey then return end
-
-        if settings[sKey] then
-            b.Text = string.gsub(b.Text, ": OFF", ": ON")
-            b.BackgroundColor3 = Color3.fromRGB(40, 80, 40)
-            b.TextColor3 = Color3.fromRGB(150, 255, 150)
-        else
-            b.Text = string.gsub(b.Text, ": ON", ": OFF")
-            b.BackgroundColor3 = Color3.fromRGB(60, 40, 40)
-            b.TextColor3 = Color3.fromRGB(255, 150, 150)
-        end
-    end
+    -- Simpan referensi tombol dan nama aslinya
+    buttonRefs[settingKey] = {button = btn, label = text}
     
     btn.MouseButton1Click:Connect(function()
         settings[settingKey] = not settings[settingKey]
         
+        -- Logic eksklusif untuk Move & TP
         if settingKey == "AutoMove" and settings.AutoMove then
             settings.AutoTP = false
-            updateVisual(buttonRefs["AutoTP"])
+            updateVisual("AutoTP")
         elseif settingKey == "AutoTP" and settings.AutoTP then
             settings.AutoMove = false
-            updateVisual(buttonRefs["AutoMove"])
+            updateVisual("AutoMove")
         end
         
-        updateVisual(btn)
+        updateVisual(settingKey)
         saveSettings()
     end)
-    updateVisual(btn)
+    
+    -- Panggil pembaruan pertama kali agar teks/warna sesuai setting saat ini
+    updateVisual(settingKey)
 end
 
-createToggle("Auto Grab (Cerdas)", 40, "AutoGrab")
-createToggle("Auto Eat (Makan)", 85, "AutoEat")
-createToggle("Auto Sell (Max)", 130, "AutoSell")
-createToggle("Auto Move (Jalan)", 175, "AutoMove")
-createToggle("Auto TP (Di Atas)", 220, "AutoTP")
-createToggle("Auto Timed Reward", 265, "AutoReward")
-createToggle("Auto Cube (Instan)", 310, "AutoCube")
+-- Membuat tombol-tombol
+createToggle("Auto Grab", 40, "AutoGrab")
+createToggle("Auto Eat", 85, "AutoEat")
+createToggle("Auto Sell", 130, "AutoSell")
+createToggle("Auto Move", 175, "AutoMove")
+createToggle("Auto TP", 220, "AutoTP")
+createToggle("Auto Reward", 265, "AutoReward")
+createToggle("Auto Cube", 310, "AutoCube")
 
 MinBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false; MinIcon.Position = MainFrame.Position; MinIcon.Visible = true end)
 MinIcon.MouseButton1Click:Connect(function() MinIcon.Visible = false; MainFrame.Position = MinIcon.Position; MainFrame.Visible = true end)
@@ -186,10 +195,10 @@ local function sweepCubes()
 end
 
 -- ==========================================
--- 5. LOGIKA PERMAINAN (V13 - WORKSPACE.CHUNKS OWNER TAG)
+-- 5. LOGIKA PERMAINAN (V14 - WORKSPACE.CHUNKS OWNER TAG)
 -- ==========================================
 
--- LOGIKA BARU: Scan Workspace.Chunks untuk tag Owner
+-- LOGIKA: Scan Workspace.Chunks untuk tag Owner
 local function isHoldingFood()
     local chunksFolder = Workspace:FindFirstChild("Chunks")
     if not chunksFolder then return false end
@@ -197,7 +206,6 @@ local function isHoldingFood()
     for _, chunk in ipairs(chunksFolder:GetChildren()) do
         local ownerTag = chunk:FindFirstChild("Owner")
         if ownerTag then
-            -- Mendukung ObjectValue (Player) atau StringValue (Nama)
             if (ownerTag:IsA("ObjectValue") and ownerTag.Value == LocalPlayer) or 
                (ownerTag:IsA("StringValue") and ownerTag.Value == LocalPlayer.Name) then
                 return true
@@ -224,6 +232,7 @@ local function getSmartTarget(RootPart, Humanoid)
     local shortestDist = math.huge
 
     for _, part in ipairs(parts) do
+        -- HANYA MENCARI SMOOTH BLOCK MODEL
         if part.Name == "Smooth Block Model" and part:IsA("BasePart") and part.CanCollide then
             
             if blacklistedTargets[part] and (tick() - blacklistedTargets[part] < 10) then
@@ -307,7 +316,7 @@ task.spawn(function()
         local holding = isHoldingFood()
         if settings.AutoEat and holding then
             pcall(function() Events:WaitForChild("Eat"):FireServer() end)
-            grabFails = 0 -- Reset blacklist strike
+            grabFails = 0 
         end
             
         local targetPos, targetPart = getSmartTarget(RootPart, Humanoid)
