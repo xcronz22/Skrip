@@ -1,5 +1,5 @@
 -- ==========================================
--- EAT THE WORLD - LIGHTWEIGHT HUB V18 (RADAR-LESS & SMART MOVEMENT)
+-- EAT THE WORLD - LIGHTWEIGHT HUB V19 (RANDOM TP & NO-RADAR EDITION)
 -- ==========================================
 
 local Players = game:GetService("Players")
@@ -12,12 +12,11 @@ local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 -- 1. SISTEM AUTO SAVE
-local settingsFile = "ETW_Settings_V18.json"
+local settingsFile = "ETW_Settings_V19.json"
 local settings = {
     AutoGrab = false,
     AutoEat = false,
     AutoSell = false,
-    AutoMove = false,
     AutoTP = false,
     AutoReward = false,
     AutoCube = false
@@ -46,7 +45,7 @@ loadSettings()
 local parentGui = PlayerGui
 pcall(function() if gethui then parentGui = gethui() else parentGui = CoreGui end end)
 
-local uiName = "ETW_LightPanel_V18"
+local uiName = "ETW_LightPanel_V19"
 if parentGui:FindFirstChild(uiName) then parentGui[uiName]:Destroy() end
 
 -- ==========================================
@@ -58,7 +57,7 @@ uiScreen.ResetOnSpawn = false
 uiScreen.Parent = parentGui
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 220, 0, 365)
+MainFrame.Size = UDim2.new(0, 220, 0, 320) -- Diperpendek karena Auto Move dihapus
 MainFrame.Position = UDim2.new(0, 20, 0, 20)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 MainFrame.Active = true
@@ -70,8 +69,8 @@ local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, -60, 0, 30)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "ETW Tool - V18"
-Title.TextColor3 = Color3.fromRGB(200, 150, 255)
+Title.Text = "ETW Tool - V19"
+Title.TextColor3 = Color3.fromRGB(0, 255, 255)
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 16
 Title.TextXAlignment = Enum.TextXAlignment.Left
@@ -96,7 +95,7 @@ local MinIcon = Instance.new("TextButton")
 MinIcon.Size = UDim2.new(0, 40, 0, 40)
 MinIcon.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 MinIcon.Text = "ETW"
-MinIcon.TextColor3 = Color3.fromRGB(200, 150, 255)
+MinIcon.TextColor3 = Color3.fromRGB(0, 255, 255)
 MinIcon.Font = Enum.Font.SourceSansBold
 MinIcon.TextSize = 14
 MinIcon.Visible = false
@@ -134,11 +133,6 @@ local function createToggle(text, yPos, settingKey)
     
     btn.MouseButton1Click:Connect(function()
         settings[settingKey] = not settings[settingKey]
-        if settingKey == "AutoMove" and settings.AutoMove then
-            settings.AutoTP = false; updateVisual("AutoTP")
-        elseif settingKey == "AutoTP" and settings.AutoTP then
-            settings.AutoMove = false; updateVisual("AutoMove")
-        end
         updateVisual(settingKey); saveSettings()
     end)
     updateVisual(settingKey)
@@ -147,10 +141,9 @@ end
 createToggle("Auto Grab", 40, "AutoGrab")
 createToggle("Auto Eat", 85, "AutoEat")
 createToggle("Auto Sell", 130, "AutoSell")
-createToggle("Auto Move (All)", 175, "AutoMove")
-createToggle("Auto TP (Fragment Only)", 220, "AutoTP")
-createToggle("Auto Reward", 265, "AutoReward")
-createToggle("Auto Cube", 310, "AutoCube")
+createToggle("Auto TP (Random)", 175, "AutoTP")
+createToggle("Auto Reward", 220, "AutoReward")
+createToggle("Auto Cube", 265, "AutoCube")
 
 MinBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false; MinIcon.Position = MainFrame.Position; MinIcon.Visible = true end)
 MinIcon.MouseButton1Click:Connect(function() MinIcon.Visible = false; MainFrame.Position = MinIcon.Position; MainFrame.Visible = true end)
@@ -181,73 +174,44 @@ local function sweepCubes()
 end
 
 -- ==========================================
--- 5. LOGIKA PERMAINAN (V18 - TARGETING TANPA RADAR)
+-- 5. LOGIKA PERMAINAN (V19 - ZERO LAG RANDOM TP)
 -- ==========================================
 
-local mapDescendantsCache = {}
-local lastCacheTick = 0
+-- Cache untuk menyimpan daftar makanan di map
+local mapItemsCache = {}
+local lastCacheUpdate = 0
 
--- Mencari target dengan menghitung jarak matematis saja (Sangat ringan, 0% physics lag)
-local function getLightweightTarget(RootPart, onlyFragmentable)
+local function refreshMapCache()
+    mapItemsCache = {}
     local mapFolder = Workspace:FindFirstChild("Map")
-    if not mapFolder then return nil end
-
-    -- Update cache setiap 10 detik agar tidak usah membaca Workspace terus-menerus
-    if tick() - lastCacheTick > 10 or #mapDescendantsCache == 0 then
-        mapDescendantsCache = mapFolder:GetDescendants()
-        lastCacheTick = tick()
-    end
-
-    local nearestPart = nil
-    local shortestDist = math.huge
-
-    for _, obj in ipairs(mapDescendantsCache) do
-        if obj:IsA("BasePart") and obj.CanCollide and obj.Name ~= "Baseplate" then
-            local parent = obj.Parent
-            -- Pastikan ini objek valid (punya Size, bukan Player/Humanoid)
-            if parent and parent:FindFirstChild("Size") and not parent:FindFirstChild("Humanoid") then
-                
-                local isValidTarget = false
-                if onlyFragmentable then
-                    -- KHUSUS AUTO TP: Hanya incar yang berada di dalam folder "fragmentable"
-                    if string.find(string.lower(parent.Name), "fragment") then
-                        isValidTarget = true
-                    end
-                else
-                    -- UNTUK AUTO MOVE: Bebas (Building / Fragmentable)
-                    isValidTarget = true
-                end
-
-                if isValidTarget then
-                    local dist = (RootPart.Position - obj.Position).Magnitude
-                    if dist > 2 and dist < shortestDist then
-                        shortestDist = dist
-                        nearestPart = obj
-                    end
+    if mapFolder then
+        -- Kumpulkan semua part (Building & Fragmentable)
+        for _, obj in ipairs(mapFolder:GetDescendants()) do
+            if obj:IsA("BasePart") and obj.Name ~= "Baseplate" then
+                local parent = obj.Parent
+                if parent and parent:FindFirstChild("Size") and not parent:FindFirstChild("Humanoid") then
+                    table.insert(mapItemsCache, obj)
                 end
             end
         end
     end
-
-    return nearestPart
+    lastCacheUpdate = tick()
 end
 
 -- LOOP UTAMA
 task.spawn(function()
-    local lastStuckPos = Vector3.zero
-    local lastStuckTick = tick()
     local lastGrabTick = 0
     local lastEatTick = 0
+    local lastTPTick = 0
     
-    local moveTarget = nil
-    local tpTarget = nil
     local isSellingCooldown = false
+    local lastTpTarget = nil
 
     while task.wait(0.05) do
         if not uiScreen.Parent then break end
         
-        -- SISTEM IDLE SLEEP: Jika tidak ada yang nyala, skrip tidur total.
-        if not (settings.AutoGrab or settings.AutoEat or settings.AutoSell or settings.AutoMove or settings.AutoTP or settings.AutoCube) then
+        -- SISTEM IDLE SLEEP
+        if not (settings.AutoGrab or settings.AutoEat or settings.AutoSell or settings.AutoTP or settings.AutoCube) then
             continue
         end
         
@@ -279,11 +243,11 @@ task.spawn(function()
         end
         if isSellingCooldown then continue end
         
-        -- CEK APAKAH SEDANG MEMEGANG CHUNK
+        -- CEK STATUS TANGAN (Pegang Chunk atau Tidak)
         local chunkValueObj = Character:FindFirstChild("CurrentChunk")
         local isHoldingChunk = (chunkValueObj and chunkValueObj.Value ~= nil)
         
-        -- 1. AUTO EAT (Hanya jika memegang)
+        -- 1. AUTO EAT
         if settings.AutoEat and isHoldingChunk then
             if tick() - lastEatTick > 0.1 then 
                 pcall(function() Events:WaitForChild("Eat"):FireServer() end)
@@ -291,63 +255,52 @@ task.spawn(function()
             end
         end
             
-        -- 2. AUTO GRAB (Hanya jika tidak memegang)
+        -- 2. AUTO GRAB (Anti-Spam Parah)
+        -- Hanya grab jika tangan kosong, dan dibatasi 0.8 detik agar tidak error
         if settings.AutoGrab and not isHoldingChunk then
-            if tick() - lastGrabTick > 0.2 then
-                -- Coba Grab dulu sebelum bergerak
+            if tick() - lastGrabTick > 0.8 then
                 pcall(function() Events:WaitForChild("Grab"):FireServer(false, false, false) end)
                 lastGrabTick = tick()
-                
-                -- Tunggu sebentar untuk membiarkan server memproses Grab
-                task.wait(0.15)
-                
-                -- Cek ulang apakah Grab berhasil mendapatkan sesuatu
-                local recheckChunk = Character:FindFirstChild("CurrentChunk")
-                isHoldingChunk = (recheckChunk and recheckChunk.Value ~= nil)
             end
         end
         
-        -- 3. PERGERAKAN PINTAR (HANYA BERGERAK JIKA GRAB GAGAL / TANGAN MASIH KOSONG)
-        if not isHoldingChunk then
-            if settings.AutoTP then
-                -- Cari target KHUSUS Fragmentable
-                if not tpTarget or not tpTarget.Parent then
-                    tpTarget = getLightweightTarget(RootPart, true)
+        -- 3. AUTO TP RANDOM (0% Lag)
+        if settings.AutoTP then
+            -- TP setiap 0.5 detik (jangan terlalu cepat agar tidak nyangkut/kick)
+            if tick() - lastTPTick > 0.5 then
+                
+                -- Update cache makanan setiap 15 detik atau jika kosong
+                if tick() - lastCacheUpdate > 15 or #mapItemsCache == 0 then
+                    refreshMapCache()
                 end
                 
-                if tpTarget then
-                    -- TP tepat ke objek tersebut (sedikit di atasnya)
-                    RootPart.CFrame = tpTarget.CFrame + Vector3.new(0, (tpTarget.Size.Y / 2) + Humanoid.HipHeight + 2, 0)
-                    task.wait(0.2) -- Jeda TP agar tidak brutal
-                end
-
-            elseif settings.AutoMove then
-                -- Cari target BEBAS (Building / Fragmentable)
-                if not moveTarget or not moveTarget.Parent then
-                    moveTarget = getLightweightTarget(RootPart, false)
-                end
-                
-                if moveTarget then
-                    Humanoid:MoveTo(moveTarget.Position)
+                if #mapItemsCache > 0 then
+                    -- Pilih target secara acak (Kocok Dadu)
+                    local randomIndex = math.random(1, #mapItemsCache)
+                    local randomTarget = mapItemsCache[randomIndex]
                     
-                    -- Anti nyangkut (Stuck Detector)
-                    if tick() - lastStuckTick > 1 then
-                        local moveDist = (RootPart.Position - lastStuckPos).Magnitude
-                        if moveDist < 1.5 then 
-                            Humanoid.Jump = true
-                            moveTarget = nil -- Reset target jika terlanjur nyangkut
-                        end
-                        lastStuckPos = RootPart.Position
-                        lastStuckTick = tick()
+                    -- Pastikan tidak TP ke tempat yang sama 2x berturut-turut
+                    if randomTarget == lastTpTarget and #mapItemsCache > 1 then
+                        randomIndex = (randomIndex % #mapItemsCache) + 1
+                        randomTarget = mapItemsCache[randomIndex]
+                    end
+                    
+                    if randomTarget and randomTarget.Parent then
+                        -- TP ke atas makanan dengan aman
+                        RootPart.CFrame = randomTarget.CFrame + Vector3.new(0, (randomTarget.Size.Y / 2) + Humanoid.HipHeight + 3, 0)
+                        lastTpTarget = randomTarget
+                        lastTPTick = tick()
+                        
+                        -- Supaya tidak nyangkut di udara (jatuh natural)
+                        RootPart.Velocity = Vector3.new(0, -10, 0)
+                    else
+                        -- Jika part tiba-tiba hilang/rusak, paksa update cache
+                        refreshMapCache()
                     end
                 end
             end
-        else
-            -- Jika sudah memegang barang, lupakan target lama. 
-            -- Berdiri santai sambil makan (Auto Eat mengambil alih).
-            moveTarget = nil
-            tpTarget = nil
         end
+        
     end
 end)
 
