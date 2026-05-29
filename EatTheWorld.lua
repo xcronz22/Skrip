@@ -1,5 +1,5 @@
 -- ==========================================
--- EAT THE WORLD - LIGHTWEIGHT HUB V19 (RANDOM TP & NO-RADAR EDITION)
+-- EAT THE WORLD - LIGHTWEIGHT HUB V20 (TRUE RANDOM TP - ZERO LAG)
 -- ==========================================
 
 local Players = game:GetService("Players")
@@ -12,7 +12,7 @@ local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 -- 1. SISTEM AUTO SAVE
-local settingsFile = "ETW_Settings_V19.json"
+local settingsFile = "ETW_Settings_V20.json"
 local settings = {
     AutoGrab = false,
     AutoEat = false,
@@ -45,7 +45,7 @@ loadSettings()
 local parentGui = PlayerGui
 pcall(function() if gethui then parentGui = gethui() else parentGui = CoreGui end end)
 
-local uiName = "ETW_LightPanel_V19"
+local uiName = "ETW_LightPanel_V20"
 if parentGui:FindFirstChild(uiName) then parentGui[uiName]:Destroy() end
 
 -- ==========================================
@@ -57,9 +57,9 @@ uiScreen.ResetOnSpawn = false
 uiScreen.Parent = parentGui
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 220, 0, 320) -- Diperpendek karena Auto Move dihapus
+MainFrame.Size = UDim2.new(0, 220, 0, 320)
 MainFrame.Position = UDim2.new(0, 20, 0, 20)
-MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 MainFrame.Active = true
 MainFrame.Draggable = true
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
@@ -69,8 +69,8 @@ local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, -60, 0, 30)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "ETW Tool - V19"
-Title.TextColor3 = Color3.fromRGB(0, 255, 255)
+Title.Text = "ETW Tool - V20"
+Title.TextColor3 = Color3.fromRGB(255, 100, 100)
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 16
 Title.TextXAlignment = Enum.TextXAlignment.Left
@@ -93,9 +93,9 @@ CloseBtn.TextSize = 16
 
 local MinIcon = Instance.new("TextButton")
 MinIcon.Size = UDim2.new(0, 40, 0, 40)
-MinIcon.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+MinIcon.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 MinIcon.Text = "ETW"
-MinIcon.TextColor3 = Color3.fromRGB(0, 255, 255)
+MinIcon.TextColor3 = Color3.fromRGB(255, 100, 100)
 MinIcon.Font = Enum.Font.SourceSansBold
 MinIcon.TextSize = 14
 MinIcon.Visible = false
@@ -174,28 +174,45 @@ local function sweepCubes()
 end
 
 -- ==========================================
--- 5. LOGIKA PERMAINAN (V19 - ZERO LAG RANDOM TP)
+-- 5. LOGIKA PERMAINAN (V20 - TRUE RANDOM, 0% LAG)
 -- ==========================================
 
--- Cache untuk menyimpan daftar makanan di map
-local mapItemsCache = {}
-local lastCacheUpdate = 0
+local lastTpTarget = nil
 
-local function refreshMapCache()
-    mapItemsCache = {}
+-- Fungsi untuk mengambil target murni secara acak tanpa scan berat
+local function getFastRandomTarget()
     local mapFolder = Workspace:FindFirstChild("Map")
-    if mapFolder then
-        -- Kumpulkan semua part (Building & Fragmentable)
-        for _, obj in ipairs(mapFolder:GetDescendants()) do
-            if obj:IsA("BasePart") and obj.Name ~= "Baseplate" then
-                local parent = obj.Parent
-                if parent and parent:FindFirstChild("Size") and not parent:FindFirstChild("Humanoid") then
-                    table.insert(mapItemsCache, obj)
-                end
-            end
+    if not mapFolder then return nil end
+
+    -- Ambil semua anak di dalam folder Map (biasanya folder "building", "fragmentable", dll)
+    local categories = mapFolder:GetChildren()
+    if #categories == 0 then return nil end
+
+    -- Acak 1: Pilih folder kategori secara acak
+    local randomCategory = categories[math.random(1, #categories)]
+    
+    local items = randomCategory:GetChildren()
+    if #items == 0 then return nil end
+    
+    -- Acak 2: Pilih objek di dalam folder secara acak
+    local randomItem = items[math.random(1, #items)]
+    
+    -- Jika objek itu adalah part, langsung kembalikan
+    if randomItem:IsA("BasePart") then return randomItem end
+    
+    -- Jika objek itu berupa Model/Folder yang berisi potongan-potongan part
+    local parts = {}
+    for _, child in ipairs(randomItem:GetChildren()) do
+        if child:IsA("BasePart") and child.CanCollide then
+            table.insert(parts, child)
         end
     end
-    lastCacheUpdate = tick()
+    
+    if #parts > 0 then
+        return parts[math.random(1, #parts)]
+    end
+
+    return nil
 end
 
 -- LOOP UTAMA
@@ -203,14 +220,12 @@ task.spawn(function()
     local lastGrabTick = 0
     local lastEatTick = 0
     local lastTPTick = 0
-    
     local isSellingCooldown = false
-    local lastTpTarget = nil
 
     while task.wait(0.05) do
         if not uiScreen.Parent then break end
         
-        -- SISTEM IDLE SLEEP
+        -- SISTEM IDLE SLEEP (Skrip tertidur jika semua fitur mati)
         if not (settings.AutoGrab or settings.AutoEat or settings.AutoSell or settings.AutoTP or settings.AutoCube) then
             continue
         end
@@ -243,11 +258,11 @@ task.spawn(function()
         end
         if isSellingCooldown then continue end
         
-        -- CEK STATUS TANGAN (Pegang Chunk atau Tidak)
+        -- CEK STATUS CHUNK
         local chunkValueObj = Character:FindFirstChild("CurrentChunk")
         local isHoldingChunk = (chunkValueObj and chunkValueObj.Value ~= nil)
         
-        -- 1. AUTO EAT
+        -- AUTO EAT
         if settings.AutoEat and isHoldingChunk then
             if tick() - lastEatTick > 0.1 then 
                 pcall(function() Events:WaitForChild("Eat"):FireServer() end)
@@ -255,8 +270,7 @@ task.spawn(function()
             end
         end
             
-        -- 2. AUTO GRAB (Anti-Spam Parah)
-        -- Hanya grab jika tangan kosong, dan dibatasi 0.8 detik agar tidak error
+        -- AUTO GRAB (Anti-Spam: Jeda 0.8 detik)
         if settings.AutoGrab and not isHoldingChunk then
             if tick() - lastGrabTick > 0.8 then
                 pcall(function() Events:WaitForChild("Grab"):FireServer(false, false, false) end)
@@ -264,47 +278,34 @@ task.spawn(function()
             end
         end
         
-        -- 3. AUTO TP RANDOM (0% Lag)
+        -- AUTO TP (Random & Bebas, tidak peduli bawa makanan atau tidak)
         if settings.AutoTP then
-            -- TP setiap 0.5 detik (jangan terlalu cepat agar tidak nyangkut/kick)
+            -- TP setiap 0.5 detik (menghindari game nge-freeze atau nyangkut)
             if tick() - lastTPTick > 0.5 then
                 
-                -- Update cache makanan setiap 15 detik atau jika kosong
-                if tick() - lastCacheUpdate > 15 or #mapItemsCache == 0 then
-                    refreshMapCache()
+                local target = getFastRandomTarget()
+                
+                -- Cegah TP ke tempat yang persis sama dua kali
+                local attempts = 0
+                while target == lastTpTarget and attempts < 3 do
+                    target = getFastRandomTarget()
+                    attempts = attempts + 1
                 end
                 
-                if #mapItemsCache > 0 then
-                    -- Pilih target secara acak (Kocok Dadu)
-                    local randomIndex = math.random(1, #mapItemsCache)
-                    local randomTarget = mapItemsCache[randomIndex]
+                if target then
+                    RootPart.CFrame = target.CFrame + Vector3.new(0, (target.Size.Y / 2) + Humanoid.HipHeight + 3, 0)
+                    -- Memberi sedikit dorongan gravitasi ke bawah agar karakter menapak wajar
+                    RootPart.Velocity = Vector3.new(0, -10, 0)
                     
-                    -- Pastikan tidak TP ke tempat yang sama 2x berturut-turut
-                    if randomTarget == lastTpTarget and #mapItemsCache > 1 then
-                        randomIndex = (randomIndex % #mapItemsCache) + 1
-                        randomTarget = mapItemsCache[randomIndex]
-                    end
-                    
-                    if randomTarget and randomTarget.Parent then
-                        -- TP ke atas makanan dengan aman
-                        RootPart.CFrame = randomTarget.CFrame + Vector3.new(0, (randomTarget.Size.Y / 2) + Humanoid.HipHeight + 3, 0)
-                        lastTpTarget = randomTarget
-                        lastTPTick = tick()
-                        
-                        -- Supaya tidak nyangkut di udara (jatuh natural)
-                        RootPart.Velocity = Vector3.new(0, -10, 0)
-                    else
-                        -- Jika part tiba-tiba hilang/rusak, paksa update cache
-                        refreshMapCache()
-                    end
+                    lastTpTarget = target
+                    lastTPTick = tick()
                 end
             end
         end
-        
     end
 end)
 
--- LOOP AUTO REWARD (Terpisah agar aman)
+-- LOOP AUTO REWARD
 task.spawn(function()
     while task.wait(3) do
         if not uiScreen.Parent then break end
