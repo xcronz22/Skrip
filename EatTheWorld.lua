@@ -1,5 +1,5 @@
 -- ==========================================
--- EAT THE WORLD - LIGHTWEIGHT HUB V16 (ULTRA OPTIMIZED & LAG FIXED)
+-- EAT THE WORLD - LIGHTWEIGHT HUB V18 (RADAR-LESS & SMART MOVEMENT)
 -- ==========================================
 
 local Players = game:GetService("Players")
@@ -12,7 +12,7 @@ local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 -- 1. SISTEM AUTO SAVE
-local settingsFile = "ETW_Settings_V16.json"
+local settingsFile = "ETW_Settings_V18.json"
 local settings = {
     AutoGrab = false,
     AutoEat = false,
@@ -46,7 +46,7 @@ loadSettings()
 local parentGui = PlayerGui
 pcall(function() if gethui then parentGui = gethui() else parentGui = CoreGui end end)
 
-local uiName = "ETW_LightPanel_V16"
+local uiName = "ETW_LightPanel_V18"
 if parentGui:FindFirstChild(uiName) then parentGui[uiName]:Destroy() end
 
 -- ==========================================
@@ -60,7 +60,7 @@ uiScreen.Parent = parentGui
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 220, 0, 365)
 MainFrame.Position = UDim2.new(0, 20, 0, 20)
-MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 MainFrame.Active = true
 MainFrame.Draggable = true
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
@@ -70,8 +70,8 @@ local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, -60, 0, 30)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "ETW Tool - V16"
-Title.TextColor3 = Color3.fromRGB(0, 255, 150)
+Title.Text = "ETW Tool - V18"
+Title.TextColor3 = Color3.fromRGB(200, 150, 255)
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 16
 Title.TextXAlignment = Enum.TextXAlignment.Left
@@ -94,9 +94,9 @@ CloseBtn.TextSize = 16
 
 local MinIcon = Instance.new("TextButton")
 MinIcon.Size = UDim2.new(0, 40, 0, 40)
-MinIcon.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MinIcon.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 MinIcon.Text = "ETW"
-MinIcon.TextColor3 = Color3.fromRGB(0, 255, 150)
+MinIcon.TextColor3 = Color3.fromRGB(200, 150, 255)
 MinIcon.Font = Enum.Font.SourceSansBold
 MinIcon.TextSize = 14
 MinIcon.Visible = false
@@ -144,11 +144,11 @@ local function createToggle(text, yPos, settingKey)
     updateVisual(settingKey)
 end
 
-createToggle("Auto Grab (Cerdas)", 40, "AutoGrab")
-createToggle("Auto Eat (Makan)", 85, "AutoEat")
-createToggle("Auto Sell (Max)", 130, "AutoSell")
-createToggle("Auto Move (Jalan)", 175, "AutoMove")
-createToggle("Auto TP (Di Atas)", 220, "AutoTP")
+createToggle("Auto Grab", 40, "AutoGrab")
+createToggle("Auto Eat", 85, "AutoEat")
+createToggle("Auto Sell", 130, "AutoSell")
+createToggle("Auto Move (All)", 175, "AutoMove")
+createToggle("Auto TP (Fragment Only)", 220, "AutoTP")
 createToggle("Auto Reward", 265, "AutoReward")
 createToggle("Auto Cube", 310, "AutoCube")
 
@@ -181,83 +181,75 @@ local function sweepCubes()
 end
 
 -- ==========================================
--- 5. LOGIKA PERMAINAN (V16 - NO LAG & BROAD TARGETING)
+-- 5. LOGIKA PERMAINAN (V18 - TARGETING TANPA RADAR)
 -- ==========================================
 
-local blacklistedTargets = {} 
+local mapDescendantsCache = {}
+local lastCacheTick = 0
 
-local function getSmartTarget(RootPart, Humanoid)
+-- Mencari target dengan menghitung jarak matematis saja (Sangat ringan, 0% physics lag)
+local function getLightweightTarget(RootPart, onlyFragmentable)
     local mapFolder = Workspace:FindFirstChild("Map")
-    if not mapFolder then return nil, nil end
+    if not mapFolder then return nil end
 
-    local params = OverlapParams.new()
-    params.FilterDescendantsInstances = {mapFolder}
-    params.FilterType = Enum.RaycastFilterType.Include
-
-    local searchRadius = 150 + (RootPart.Size.Y * 2) 
-    local parts = Workspace:GetPartBoundsInRadius(RootPart.Position, searchRadius, params)
+    -- Update cache setiap 10 detik agar tidak usah membaca Workspace terus-menerus
+    if tick() - lastCacheTick > 10 or #mapDescendantsCache == 0 then
+        mapDescendantsCache = mapFolder:GetDescendants()
+        lastCacheTick = tick()
+    end
 
     local nearestPart = nil
     local shortestDist = math.huge
 
-    for _, part in ipairs(parts) do
-        -- TARGET LEBIH LUAS: Segala macam BasePart (termasuk folder building/fragmentable)
-        if part:IsA("BasePart") and part.CanCollide and part.Transparency < 1 and part.Name ~= "Baseplate" then
-            if part.Parent and not part.Parent:FindFirstChild("Humanoid") then
+    for _, obj in ipairs(mapDescendantsCache) do
+        if obj:IsA("BasePart") and obj.CanCollide and obj.Name ~= "Baseplate" then
+            local parent = obj.Parent
+            -- Pastikan ini objek valid (punya Size, bukan Player/Humanoid)
+            if parent and parent:FindFirstChild("Size") and not parent:FindFirstChild("Humanoid") then
                 
-                if blacklistedTargets[part] and (tick() - blacklistedTargets[part] < 10) then
-                    continue 
+                local isValidTarget = false
+                if onlyFragmentable then
+                    -- KHUSUS AUTO TP: Hanya incar yang berada di dalam folder "fragmentable"
+                    if string.find(string.lower(parent.Name), "fragment") then
+                        isValidTarget = true
+                    end
+                else
+                    -- UNTUK AUTO MOVE: Bebas (Building / Fragmentable)
+                    isValidTarget = true
                 end
 
-                local dist = (RootPart.Position - part.Position).Magnitude
-                if dist > 1 and dist < shortestDist then
-                    shortestDist = dist
-                    nearestPart = part
-                end
-            end
-        end
-    end
-
-    if nearestPart then
-        local characterHeightOffset = Humanoid.HipHeight + (RootPart.Size.Y / 2)
-        local targetPosition = Vector3.new(
-            nearestPart.Position.X,
-            nearestPart.Position.Y + (nearestPart.Size.Y / 2) + characterHeightOffset + 2,
-            nearestPart.Position.Z
-        )
-        return targetPosition, nearestPart
-    end
-    
-    return nil, nil
-end
-
-local function getFallbackTarget()
-    local mapFolder = Workspace:FindFirstChild("Map")
-    if mapFolder then
-        for _, desc in ipairs(mapFolder:GetDescendants()) do
-            if desc:IsA("BasePart") and desc.Name ~= "Baseplate" then
-                if desc.Parent and not desc.Parent:FindFirstChild("Humanoid") then
-                    return desc
+                if isValidTarget then
+                    local dist = (RootPart.Position - obj.Position).Magnitude
+                    if dist > 2 and dist < shortestDist then
+                        shortestDist = dist
+                        nearestPart = obj
+                    end
                 end
             end
         end
     end
-    return nil
+
+    return nearestPart
 end
 
 -- LOOP UTAMA
 task.spawn(function()
     local lastStuckPos = Vector3.zero
     local lastStuckTick = tick()
-    local lastGrabTick = tick()
-    local lastEatTick = tick()
+    local lastGrabTick = 0
+    local lastEatTick = 0
     
-    local currentTargetPart = nil
-    local grabFails = 0 
+    local moveTarget = nil
+    local tpTarget = nil
     local isSellingCooldown = false
 
     while task.wait(0.05) do
         if not uiScreen.Parent then break end
+        
+        -- SISTEM IDLE SLEEP: Jika tidak ada yang nyala, skrip tidur total.
+        if not (settings.AutoGrab or settings.AutoEat or settings.AutoSell or settings.AutoMove or settings.AutoTP or settings.AutoCube) then
+            continue
+        end
         
         local Character = LocalPlayer.Character
         local Events = Character and Character:FindFirstChild("Events")
@@ -269,89 +261,81 @@ task.spawn(function()
         
         sweepCubes()
         
-        -- CEK JUAL
-        local isFull = false
-        pcall(function()
-            local warningUI = PlayerGui.ScreenGui.Sell.WarningText
-            if warningUI and warningUI.Visible then isFull = true end
-        end)
-        
-        if settings.AutoSell and isFull and not isSellingCooldown then
-            isSellingCooldown = true
-            Events:WaitForChild("Sell"):FireServer()
-            task.wait(1.5) 
-            isSellingCooldown = false
-            continue 
+        -- AUTO SELL
+        if settings.AutoSell and not isSellingCooldown then
+            local isFull = false
+            pcall(function()
+                local warningUI = PlayerGui.ScreenGui.Sell.WarningText
+                if warningUI and warningUI.Visible then isFull = true end
+            end)
+            
+            if isFull then
+                isSellingCooldown = true
+                Events:WaitForChild("Sell"):FireServer()
+                task.wait(1.5) 
+                isSellingCooldown = false
+                continue 
+            end
         end
-        
         if isSellingCooldown then continue end
         
-        -- CEK MAKAN (ANTI-LAG: Cek langsung dari nilai karakter)
+        -- CEK APAKAH SEDANG MEMEGANG CHUNK
         local chunkValueObj = Character:FindFirstChild("CurrentChunk")
-        local holding = false
-        if chunkValueObj and chunkValueObj:IsA("ObjectValue") and chunkValueObj.Value ~= nil then
-            holding = true
-        end
+        local isHoldingChunk = (chunkValueObj and chunkValueObj.Value ~= nil)
         
-        -- AUTO EAT (Dengan Anti-Spam Debounce supaya tidak ngelag!)
-        if settings.AutoEat and holding then
+        -- 1. AUTO EAT (Hanya jika memegang)
+        if settings.AutoEat and isHoldingChunk then
             if tick() - lastEatTick > 0.1 then 
                 pcall(function() Events:WaitForChild("Eat"):FireServer() end)
                 lastEatTick = tick()
             end
-            grabFails = 0 
         end
             
-        local targetPos, targetPart = getSmartTarget(RootPart, Humanoid)
-        
-        if targetPart then
-            if targetPart ~= currentTargetPart then
-                currentTargetPart = targetPart
-                grabFails = 0
-            end
-
-            -- LOGIKA GRAB 
-            if settings.AutoGrab and not holding and (tick() - lastGrabTick > 0.3) then
-                local distToPart = (RootPart.Position - targetPart.Position).Magnitude
-                local dynamicGrabRange = 15 + (RootPart.Size.Y * 1.8) 
+        -- 2. AUTO GRAB (Hanya jika tidak memegang)
+        if settings.AutoGrab and not isHoldingChunk then
+            if tick() - lastGrabTick > 0.2 then
+                -- Coba Grab dulu sebelum bergerak
+                pcall(function() Events:WaitForChild("Grab"):FireServer(false, false, false) end)
+                lastGrabTick = tick()
                 
-                if distToPart <= dynamicGrabRange then
-                    -- KEMBALI KE ASAL SESUAI PERMINTAAN USER: (false, false, false)
-                    pcall(function() Events:WaitForChild("Grab"):FireServer(false, false, false) end)
-                    lastGrabTick = tick()
-                    
-                    task.wait(0.15)
-                    
-                    -- Cek ulang kalau masih belum holding berarti fail
-                    local cChunk = Character:FindFirstChild("CurrentChunk")
-                    if not (cChunk and cChunk.Value ~= nil) then
-                        grabFails = grabFails + 1
-                        
-                        if grabFails >= 4 then
-                            blacklistedTargets[targetPart] = tick()
-                            currentTargetPart = nil
-                            grabFails = 0
-                            Humanoid.Jump = true
-                            continue
-                        end
-                    end
-                end
+                -- Tunggu sebentar untuk membiarkan server memproses Grab
+                task.wait(0.15)
+                
+                -- Cek ulang apakah Grab berhasil mendapatkan sesuatu
+                local recheckChunk = Character:FindFirstChild("CurrentChunk")
+                isHoldingChunk = (recheckChunk and recheckChunk.Value ~= nil)
             end
-            
-            -- LOGIKA PERGERAKAN
-            if not holding then
-                if settings.AutoTP then
-                    RootPart.CFrame = CFrame.new(targetPos)
-                    task.wait(0.1)
-                elseif settings.AutoMove then
-                    if (Humanoid.WalkToPoint - targetPos).Magnitude > 3 then
-                        Humanoid:MoveTo(targetPos)
-                    end
+        end
+        
+        -- 3. PERGERAKAN PINTAR (HANYA BERGERAK JIKA GRAB GAGAL / TANGAN MASIH KOSONG)
+        if not isHoldingChunk then
+            if settings.AutoTP then
+                -- Cari target KHUSUS Fragmentable
+                if not tpTarget or not tpTarget.Parent then
+                    tpTarget = getLightweightTarget(RootPart, true)
+                end
+                
+                if tpTarget then
+                    -- TP tepat ke objek tersebut (sedikit di atasnya)
+                    RootPart.CFrame = tpTarget.CFrame + Vector3.new(0, (tpTarget.Size.Y / 2) + Humanoid.HipHeight + 2, 0)
+                    task.wait(0.2) -- Jeda TP agar tidak brutal
+                end
+
+            elseif settings.AutoMove then
+                -- Cari target BEBAS (Building / Fragmentable)
+                if not moveTarget or not moveTarget.Parent then
+                    moveTarget = getLightweightTarget(RootPart, false)
+                end
+                
+                if moveTarget then
+                    Humanoid:MoveTo(moveTarget.Position)
                     
-                    if tick() - lastStuckTick > 0.8 then
+                    -- Anti nyangkut (Stuck Detector)
+                    if tick() - lastStuckTick > 1 then
                         local moveDist = (RootPart.Position - lastStuckPos).Magnitude
                         if moveDist < 1.5 then 
-                            Humanoid.Jump = true 
+                            Humanoid.Jump = true
+                            moveTarget = nil -- Reset target jika terlanjur nyangkut
                         end
                         lastStuckPos = RootPart.Position
                         lastStuckTick = tick()
@@ -359,19 +343,15 @@ task.spawn(function()
                 end
             end
         else
-            -- FALLBACK JIKA TIDAK ADA TARGET DEKAT
-            if (settings.AutoMove or settings.AutoTP) and not holding then
-                local fallbackPart = getFallbackTarget()
-                if fallbackPart then
-                    RootPart.CFrame = CFrame.new(fallbackPart.Position) + Vector3.new(0, fallbackPart.Size.Y + 10, 0)
-                    task.wait(0.5)
-                end
-            end
+            -- Jika sudah memegang barang, lupakan target lama. 
+            -- Berdiri santai sambil makan (Auto Eat mengambil alih).
+            moveTarget = nil
+            tpTarget = nil
         end
     end
 end)
 
--- LOOP AUTO REWARD
+-- LOOP AUTO REWARD (Terpisah agar aman)
 task.spawn(function()
     while task.wait(3) do
         if not uiScreen.Parent then break end
