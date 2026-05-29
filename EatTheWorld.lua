@@ -1,5 +1,5 @@
 -- ==========================================
--- EAT THE WORLD - LIGHTWEIGHT HUB V15 (NATIVE SCRIPT LOGIC)
+-- EAT THE WORLD - LIGHTWEIGHT HUB V16 (ULTRA OPTIMIZED & LAG FIXED)
 -- ==========================================
 
 local Players = game:GetService("Players")
@@ -12,7 +12,7 @@ local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 -- 1. SISTEM AUTO SAVE
-local settingsFile = "ETW_Settings_V15.json"
+local settingsFile = "ETW_Settings_V16.json"
 local settings = {
     AutoGrab = false,
     AutoEat = false,
@@ -46,7 +46,7 @@ loadSettings()
 local parentGui = PlayerGui
 pcall(function() if gethui then parentGui = gethui() else parentGui = CoreGui end end)
 
-local uiName = "ETW_LightPanel_V15"
+local uiName = "ETW_LightPanel_V16"
 if parentGui:FindFirstChild(uiName) then parentGui[uiName]:Destroy() end
 
 -- ==========================================
@@ -70,8 +70,8 @@ local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, -60, 0, 30)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "ETW Tool - V15"
-Title.TextColor3 = Color3.fromRGB(0, 200, 255)
+Title.Text = "ETW Tool - V16"
+Title.TextColor3 = Color3.fromRGB(0, 255, 150)
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 16
 Title.TextXAlignment = Enum.TextXAlignment.Left
@@ -96,7 +96,7 @@ local MinIcon = Instance.new("TextButton")
 MinIcon.Size = UDim2.new(0, 40, 0, 40)
 MinIcon.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MinIcon.Text = "ETW"
-MinIcon.TextColor3 = Color3.fromRGB(0, 200, 255)
+MinIcon.TextColor3 = Color3.fromRGB(0, 255, 150)
 MinIcon.Font = Enum.Font.SourceSansBold
 MinIcon.TextSize = 14
 MinIcon.Visible = false
@@ -181,27 +181,11 @@ local function sweepCubes()
 end
 
 -- ==========================================
--- 5. LOGIKA PERMAINAN (V15 - NATIVE LOGIC TARGETING)
+-- 5. LOGIKA PERMAINAN (V16 - NO LAG & BROAD TARGETING)
 -- ==========================================
-
-local function isHoldingFood()
-    local chunksFolder = Workspace:FindFirstChild("Chunks")
-    if not chunksFolder then return false end
-    for _, chunk in ipairs(chunksFolder:GetChildren()) do
-        local ownerTag = chunk:FindFirstChild("Owner")
-        if ownerTag then
-            if (ownerTag:IsA("ObjectValue") and ownerTag.Value == LocalPlayer) or 
-               (ownerTag:IsA("StringValue") and ownerTag.Value == LocalPlayer.Name) then
-                return true
-            end
-        end
-    end
-    return false
-end
 
 local blacklistedTargets = {} 
 
--- 100% MENIRU DETEKSI DARI SCRIPT DEVELOPER
 local function getSmartTarget(RootPart, Humanoid)
     local mapFolder = Workspace:FindFirstChild("Map")
     if not mapFolder then return nil, nil end
@@ -217,11 +201,9 @@ local function getSmartTarget(RootPart, Humanoid)
     local shortestDist = math.huge
 
     for _, part in ipairs(parts) do
-        if part:IsA("BasePart") and part.CanCollide and part.Transparency < 1 then
-            local parent = part.Parent
-            
-            -- LOGIKA ASLI GAME: Punya 'Size', tidak punya 'Humanoid'
-            if parent and parent:FindFirstChild("Size") and not parent:FindFirstChild("Humanoid") then
+        -- TARGET LEBIH LUAS: Segala macam BasePart (termasuk folder building/fragmentable)
+        if part:IsA("BasePart") and part.CanCollide and part.Transparency < 1 and part.Name ~= "Baseplate" then
+            if part.Parent and not part.Parent:FindFirstChild("Humanoid") then
                 
                 if blacklistedTargets[part] and (tick() - blacklistedTargets[part] < 10) then
                     continue 
@@ -253,9 +235,8 @@ local function getFallbackTarget()
     local mapFolder = Workspace:FindFirstChild("Map")
     if mapFolder then
         for _, desc in ipairs(mapFolder:GetDescendants()) do
-            if desc:IsA("BasePart") then
-                local parent = desc.Parent
-                if parent and parent:FindFirstChild("Size") and not parent:FindFirstChild("Humanoid") then
+            if desc:IsA("BasePart") and desc.Name ~= "Baseplate" then
+                if desc.Parent and not desc.Parent:FindFirstChild("Humanoid") then
                     return desc
                 end
             end
@@ -269,6 +250,7 @@ task.spawn(function()
     local lastStuckPos = Vector3.zero
     local lastStuckTick = tick()
     local lastGrabTick = tick()
+    local lastEatTick = tick()
     
     local currentTargetPart = nil
     local grabFails = 0 
@@ -304,10 +286,19 @@ task.spawn(function()
         
         if isSellingCooldown then continue end
         
-        -- CEK MAKAN 
-        local holding = isHoldingFood()
+        -- CEK MAKAN (ANTI-LAG: Cek langsung dari nilai karakter)
+        local chunkValueObj = Character:FindFirstChild("CurrentChunk")
+        local holding = false
+        if chunkValueObj and chunkValueObj:IsA("ObjectValue") and chunkValueObj.Value ~= nil then
+            holding = true
+        end
+        
+        -- AUTO EAT (Dengan Anti-Spam Debounce supaya tidak ngelag!)
         if settings.AutoEat and holding then
-            pcall(function() Events:WaitForChild("Eat"):FireServer() end)
+            if tick() - lastEatTick > 0.1 then 
+                pcall(function() Events:WaitForChild("Eat"):FireServer() end)
+                lastEatTick = tick()
+            end
             grabFails = 0 
         end
             
@@ -320,17 +311,20 @@ task.spawn(function()
             end
 
             -- LOGIKA GRAB 
-            if settings.AutoGrab and (tick() - lastGrabTick > 0.3) then
+            if settings.AutoGrab and not holding and (tick() - lastGrabTick > 0.3) then
                 local distToPart = (RootPart.Position - targetPart.Position).Magnitude
                 local dynamicGrabRange = 15 + (RootPart.Size.Y * 1.8) 
                 
                 if distToPart <= dynamicGrabRange then
-                    -- UPDATE PENTING: MENGIRIM ARGUMEN SEPERTI SCRIPT ASLI (true, false, true)
-                    pcall(function() Events:WaitForChild("Grab"):FireServer(true, false, true) end)
+                    -- KEMBALI KE ASAL SESUAI PERMINTAAN USER: (false, false, false)
+                    pcall(function() Events:WaitForChild("Grab"):FireServer(false, false, false) end)
                     lastGrabTick = tick()
                     
                     task.wait(0.15)
-                    if not isHoldingFood() then
+                    
+                    -- Cek ulang kalau masih belum holding berarti fail
+                    local cChunk = Character:FindFirstChild("CurrentChunk")
+                    if not (cChunk and cChunk.Value ~= nil) then
                         grabFails = grabFails + 1
                         
                         if grabFails >= 4 then
@@ -365,7 +359,8 @@ task.spawn(function()
                 end
             end
         else
-            if settings.AutoMove or settings.AutoTP then
+            -- FALLBACK JIKA TIDAK ADA TARGET DEKAT
+            if (settings.AutoMove or settings.AutoTP) and not holding then
                 local fallbackPart = getFallbackTarget()
                 if fallbackPart then
                     RootPart.CFrame = CFrame.new(fallbackPart.Position) + Vector3.new(0, fallbackPart.Size.Y + 10, 0)
