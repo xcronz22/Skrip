@@ -1,5 +1,5 @@
 -- ==========================================
--- EAT THE WORLD - LIGHTWEIGHT HUB V3 (BUG FIX)
+-- EAT THE WORLD - LIGHTWEIGHT HUB V4 (FIXED)
 -- ==========================================
 
 local Players = game:GetService("Players")
@@ -11,21 +11,20 @@ local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- 1. SISTEM AUTO SAVE (Aman untuk semua executor)
-local settingsFile = "ETW_Settings_V3.json"
+-- 1. SISTEM AUTO SAVE
+local settingsFile = "ETW_Settings_V4.json"
 local settings = {
-    AutoFarm = false,
+    AutoGrab = false,
+    AutoEat = false,
     AutoSell = false,
-    AutoReward = false,
     AutoMove = false,
-    AutoTP = false
+    AutoTP = false,
+    AutoReward = false
 }
 
 local function saveSettings()
     if writefile then
-        pcall(function()
-            writefile(settingsFile, HttpService:JSONEncode(settings))
-        end)
+        pcall(function() writefile(settingsFile, HttpService:JSONEncode(settings)) end)
     end
 end
 
@@ -33,9 +32,7 @@ local function loadSettings()
     if isfile and readfile then
         local success, hasFile = pcall(function() return isfile(settingsFile) end)
         if success and hasFile then
-            local s2, decoded = pcall(function()
-                return HttpService:JSONDecode(readfile(settingsFile))
-            end)
+            local s2, decoded = pcall(function() return HttpService:JSONDecode(readfile(settingsFile)) end)
             if s2 and type(decoded) == "table" then
                 for k, v in pairs(decoded) do settings[k] = v end
             end
@@ -44,19 +41,13 @@ local function loadSettings()
 end
 loadSettings()
 
--- 2. PENEMPATAN GUI YANG AMAN
+-- 2. PENEMPATAN GUI
 local parentGui = PlayerGui
 pcall(function()
-    -- Coba gunakan gethui() atau CoreGui agar tidak terdeteksi game
-    if gethui then
-        parentGui = gethui()
-    else
-        local testAccess = CoreGui.Name -- Tes izin akses CoreGui
-        parentGui = CoreGui
-    end
+    if gethui then parentGui = gethui() else parentGui = CoreGui end
 end)
 
-local uiName = "ETW_LightPanel_V3"
+local uiName = "ETW_LightPanel_V4"
 if parentGui:FindFirstChild(uiName) then parentGui[uiName]:Destroy() end
 
 -- ==========================================
@@ -68,7 +59,7 @@ uiScreen.ResetOnSpawn = false
 uiScreen.Parent = parentGui
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 220, 0, 280)
+MainFrame.Size = UDim2.new(0, 220, 0, 320) -- Tinggi ditambah agar muat 6 tombol
 MainFrame.Position = UDim2.new(0, 20, 0, 20)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MainFrame.Active = true
@@ -80,7 +71,7 @@ local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, -60, 0, 30)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "ETW Tool - V3"
+Title.Text = "ETW Tool - V4"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 16
@@ -141,13 +132,11 @@ local function createToggle(text, yPos, settingKey)
     btn.MouseButton1Click:Connect(function()
         settings[settingKey] = not settings[settingKey]
         
-        -- Proteksi tabrakan Move vs TP
+        -- Proteksi Move vs TP
         if settingKey == "AutoMove" and settings.AutoMove then
             settings.AutoTP = false
-            if buttonRefs["AutoTP"] then updateVisual(buttonRefs["AutoTP"]) end
         elseif settingKey == "AutoTP" and settings.AutoTP then
             settings.AutoMove = false
-            if buttonRefs["AutoMove"] then updateVisual(buttonRefs["AutoMove"]) end
         end
         
         for key, button in pairs(buttonRefs) do
@@ -161,16 +150,17 @@ local function createToggle(text, yPos, settingKey)
                 button.TextColor3 = Color3.fromRGB(255, 150, 150)
             end
         end
-        
         saveSettings()
     end)
 end
 
-createToggle("Auto Farm (Grab+Eat)", 40, "AutoFarm")
-createToggle("Auto Sell (Max)", 85, "AutoSell")
-createToggle("Auto Move (Jalan)", 130, "AutoMove")
-createToggle("Auto TP Farm", 175, "AutoTP")
-createToggle("Auto Timed Reward", 220, "AutoReward")
+-- Susunan tombol yang baru (Dipisah)
+createToggle("Auto Grab (Ambil)", 40, "AutoGrab")
+createToggle("Auto Eat (Makan)", 85, "AutoEat")
+createToggle("Auto Sell (Max)", 130, "AutoSell")
+createToggle("Auto Move (Jalan)", 175, "AutoMove")
+createToggle("Auto TP Farm", 220, "AutoTP")
+createToggle("Auto Timed Reward", 265, "AutoReward")
 
 MinBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false; MinIcon.Position = MainFrame.Position; MinIcon.Visible = true end)
 MinIcon.MouseButton1Click:Connect(function() MinIcon.Visible = false; MainFrame.Position = MinIcon.Position; MainFrame.Visible = true end)
@@ -180,16 +170,25 @@ CloseBtn.MouseButton1Click:Connect(function() uiScreen:Destroy() end)
 -- 4. LOGIKA PERMAINAN
 -- ==========================================
 
+-- MEMBACA OBJECTVALUE DARI DEX EXPLORER
 local function isHoldingFood()
     local chunksFolder = Workspace:FindFirstChild("Chunks")
     if not chunksFolder then return false end
     for _, chunk in pairs(chunksFolder:GetChildren()) do
         local ownerTag = chunk:FindFirstChild("Owner")
-        if ownerTag and ownerTag.Value == LocalPlayer.Name then return true end
+        if ownerTag then
+            -- Fix: Cek apakah class-nya ObjectValue (karena ini yang menunjuk langsung ke karakter/player)
+            if ownerTag:IsA("ObjectValue") and ownerTag.Value and ownerTag.Value.Name == LocalPlayer.Name then 
+                return true 
+            elseif ownerTag:IsA("StringValue") and ownerTag.Value == LocalPlayer.Name then
+                return true
+            end
+        end
     end
     return false
 end
 
+-- FUNGSI RELOKASI TANPA MENGGANGGU KECEPATAN (WALKSPEED) ASLI
 local function relocateCharacter()
     local Character = LocalPlayer.Character
     if not Character then return end
@@ -197,27 +196,26 @@ local function relocateCharacter()
     local RootPart = Character:FindFirstChild("HumanoidRootPart")
     
     if Humanoid and RootPart and Humanoid.Health > 0 then
-        local rx = math.random(-25, 25)
-        local rz = math.random(-25, 25)
+        local rx = math.random(-35, 35) -- Radius dilebarkan sedikit
+        local rz = math.random(-35, 35)
         local targetPosition = RootPart.Position + Vector3.new(rx, 0, rz)
         
         if settings.AutoTP then
             RootPart.CFrame = CFrame.new(targetPosition)
             task.wait(0.2)
         elseif settings.AutoMove then
-            local currentSpeed = Humanoid.WalkSpeed
-            if currentSpeed < 16 then currentSpeed = 16 end
-            
+            -- Murni memanggil fungsi bergerak satu kali, tanpa manipulasi WalkSpeed
             Humanoid:MoveTo(targetPosition)
             local t = tick()
+            -- Tunggu sampai bergerak selesai, atau maksimal 2 detik agar tidak nyangkut
             repeat 
-                Humanoid.WalkSpeed = currentSpeed 
                 task.wait(0.1) 
-            until (tick() - t > 3) or (RootPart.Position - targetPosition).Magnitude < 4 or not settings.AutoMove
+            until (tick() - t > 2) or (RootPart.Position - targetPosition).Magnitude < 4 or not settings.AutoMove
         end
     end
 end
 
+-- LOOP GRINDING UTAMA (TERPISAH GRAB & EAT)
 task.spawn(function()
     while task.wait(0.05) do
         if not uiScreen.Parent then break end
@@ -235,24 +233,37 @@ task.spawn(function()
             if settings.AutoSell and isFull then
                 Events:WaitForChild("Sell"):FireServer()
                 task.wait(0.5)
-            elseif settings.AutoFarm and not isFull then
+            elseif not isFull then
+                
+                -- Cek apakah kita sedang memegang makanan saat ini
                 if isHoldingFood() then
-                    Events:WaitForChild("Eat"):FireServer()
-                    task.wait(0.05)
+                    -- Tangan ada isinya -> Eksekusi Auto Eat
+                    if settings.AutoEat then
+                        Events:WaitForChild("Eat"):FireServer()
+                        task.wait(0.05)
+                    end
                 else
-                    Events:WaitForChild("Grab"):FireServer(false, false, false)
-                    task.wait(0.3)
-                    if not isHoldingFood() then
-                        if settings.AutoMove or settings.AutoTP then
-                            relocateCharacter()
+                    -- Tangan kosong -> Eksekusi Auto Grab
+                    if settings.AutoGrab then
+                        Events:WaitForChild("Grab"):FireServer(false, false, false)
+                        task.wait(0.3) -- Jeda untuk melihat hasil grab
+                        
+                        -- Cek ulang setelah grab, jika tetap kosong = tanah habis!
+                        if not isHoldingFood() then
+                            -- Saatnya pindah tempat
+                            if settings.AutoMove or settings.AutoTP then
+                                relocateCharacter()
+                            end
                         end
                     end
                 end
+                
             end
         end
     end
 end)
 
+-- LOOP AUTO REWARD
 task.spawn(function()
     while task.wait(3) do
         if not uiScreen.Parent then break end
