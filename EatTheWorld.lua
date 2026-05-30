@@ -330,37 +330,46 @@ end
 game:GetService("CoreGui").ChildAdded:Connect(function(child) if child:IsA("ScreenGui") and child.Name == "ErrorPrompt" then handleDisconnect() end end)
 
 -- ==========================================
--- MESIN FARMING UTAMA LOOPS
+-- MESIN FARMING UTAMA LOOPS (UPDATED)
 -- ==========================================
 task.spawn(function()
-    while task.wait(0.3) do
-        if settings.AutoGrab then
-            local Char = LocalPlayer.Character
-            if Char and Char:FindFirstChild("Events") and Char:FindFirstChild("HumanoidRootPart") then
-                local currentChunk = Char:FindFirstChild("CurrentChunk")
-                if not currentChunk or currentChunk.Value == nil then pcall(function() Char.Events.Grab:FireServer(false, false, false) end) end
+    while task.wait(0.1) do -- Jeda kecil agar game tidak lag, tapi responsif
+        local Char = LocalPlayer.Character
+        if Char and Char:FindFirstChild("Events") then
+            local currentChunk = Char:FindFirstChild("CurrentChunk")
+            local isHoldingChunk = (currentChunk and currentChunk.Value ~= nil)
+
+            -- 1. AUTO EAT (HANYA menembak jika SEDANG memegang makanan)
+            if settings.AutoEat and isHoldingChunk then
+                pcall(function() 
+                    Char.Events.Eat:FireServer() 
+                end)
+            end
+
+            -- 2. AUTO GRAB (HANYA menembak jika TIDAK sedang memegang makanan)
+            if settings.AutoGrab and not isHoldingChunk then
+                pcall(function() 
+                    Char.Events.Grab:FireServer(false, false, false) 
+                end)
             end
         end
+    end
+end)
+
+-- Loop Auto Sell (Dipisah agar tidak mengganggu kecepatan Grab/Eat)
+task.spawn(function()
+    while task.wait(0.5) do
         if settings.AutoSell then
             pcall(function()
                 local warn = PlayerGui.ScreenGui.Sell.WarningText
-                if warn and warn.Visible and LocalPlayer.Character then LocalPlayer.Character.Events.Sell:FireServer(); task.wait(1.5) end
+                if warn and warn.Visible and LocalPlayer.Character then 
+                    LocalPlayer.Character.Events.Sell:FireServer()
+                end
             end)
         end
     end
 end)
 
-task.spawn(function()
-    while task.wait() do 
-        if settings.AutoEat then
-            local Char = LocalPlayer.Character
-            if Char and Char:FindFirstChild("Events") then
-                local currentChunk = Char:FindFirstChild("CurrentChunk")
-                if currentChunk and currentChunk.Value ~= nil then pcall(function() Char.Events.Eat:FireServer() end) end
-            end
-        end
-    end
-end)
 
 -- MULTI-MODE MOVEMENT & FIX ROTATION SYSTEM
 local function moveToTarget(targetPos)
