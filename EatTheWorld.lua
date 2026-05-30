@@ -1,5 +1,5 @@
 -- ==========================================
--- EAT THE WORLD - V48 (SAFE FARM & FPS BOOSTER INTEGRATION)
+-- EAT THE WORLD - V49 (SKY WALK FARM DETECTOR)
 -- ==========================================
 
 -- 1. LOGIKA AUTO EXECUTE SETELAH REJOIN
@@ -36,7 +36,7 @@ end)
 -- ==========================================
 -- PENGATURAN & PENYIMPANAN
 -- ==========================================
-local settingsFile = "ETW_Settings_V48.json"
+local settingsFile = "ETW_Settings_V49.json"
 local settings = {
     AutoGrab = false, AutoEat = false, AutoSell = false,
     WalkSpeedToggle = false, WalkSpeedValue = 16,
@@ -44,11 +44,11 @@ local settings = {
     AutoTween = false, Noclip = false, 
     SmartAutoRejoin = false, AutoAllRewards = false, AutoCube = false,
     AntiRagdoll = false, AntiChunk = false,
-    AutoTargetThrow = false,
-    SafeUnowned = false,  -- Fitur Baru dari Temuan User
-    FPSBooster = false    -- Fitur Baru dari Temuan User
+    AutoTargetThrow = false, SafeUnowned = false, FPSBooster = false,
+    SkyWalkFarm = false -- Fitur Baru Request User V49
 }
 local CurrentTarget = nil
+local skyFloorPart = nil
 
 local function saveSettings()
     if writefile then pcall(function() writefile(settingsFile, HttpService:JSONEncode(settings)) end) end
@@ -69,7 +69,7 @@ loadSettings()
 -- ==========================================
 local parentGui = PlayerGui
 pcall(function() if gethui then parentGui = gethui() else parentGui = CoreGui end end)
-local uiName = "ETW_LightPanel_V48"
+local uiName = "ETW_LightPanel_V49"
 if parentGui:FindFirstChild(uiName) then parentGui[uiName]:Destroy() end
 
 local uiScreen = Instance.new("ScreenGui", parentGui)
@@ -77,7 +77,7 @@ uiScreen.Name = uiName
 uiScreen.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame", uiScreen)
-MainFrame.Size = UDim2.new(0, 240, 0, 400) 
+MainFrame.Size = UDim2.new(0, 240, 0, 420) 
 MainFrame.Position = UDim2.new(0, 20, 0, 20)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 15, 20)
 MainFrame.Active = true; MainFrame.Draggable = true
@@ -87,7 +87,7 @@ local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, -60, 0, 35)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "ETW Tool - V48"
+Title.Text = "ETW Tool - V49"
 Title.TextColor3 = Color3.fromRGB(255, 200, 100)
 Title.Font = Enum.Font.SourceSansBold; Title.TextSize = 18
 Title.TextXAlignment = Enum.TextXAlignment.Left
@@ -284,12 +284,32 @@ end)
 
 createToggle("No Anim (Brutal)", "NoAnimation")
 createToggle("Stealth Mode", "StealthMode")
-createToggle("Auto Tween (Safe)", "AutoTween") 
 
--- TOMBOL FITUR BARU BERDASARKAN ANALISIS USER
+-- NEW REQUESTED FEATURE USER V49: SKY WALK FARM
+createToggle("Sky Walk Farm (Safe Zone)", "SkyWalkFarm", function(state)
+    if state then
+        if not skyFloorPart then
+            skyFloorPart = Instance.new("Part")
+            skyFloorPart.Name = "ETW_SkyFloor"
+            skyFloorPart.Size = Vector3.new(1500, 2, 1500)
+            skyFloorPart.Position = Vector3.new(0, 500, 0) -- Ketinggian aman di awan
+            skyFloorPart.Anchored = true
+            skyFloorPart.Transparency = 0.7 -- Transparan agar tidak mengganggu pandangan
+            skyFloorPart.Color = Color3.fromRGB(255, 100, 255)
+            skyFloorPart.Material = Enum.Material.Neon
+            skyFloorPart.Parent = Workspace
+        end
+        -- Teleport langsung ke atas platform awan saat diaktifkan
+        local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if root then root.CFrame = CFrame.new(root.Position.X, 505, root.Position.Z) end
+    else
+        if skyFloorPart then skyFloorPart:Destroy(); skyFloorPart = nil end
+    end
+end)
+
+createToggle("Auto Tween (Horizontal)", "AutoTween") 
 createToggle("Safe Unowned Farm", "SafeUnowned")
 createToggle("FPS Booster (Clean Trash)", "FPSBooster")
-
 createToggle("Noclip (Matikan!)", "Noclip") 
 createToggle("Smart Rejoin (All)", "SmartAutoRejoin") 
 createToggle("Auto All Rewards", "AutoAllRewards")
@@ -299,6 +319,23 @@ MinBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false; MinIcon.V
 MinIcon.MouseButton1Click:Connect(function() MinIcon.Visible = false; MainFrame.Visible = true end)
 CloseBtn.MouseButton1Click:Connect(function() uiScreen:Destroy() end)
 updateCanvas()
+
+-- Memastikan part awan tetap ada jika player mati/respawn saat fitur aktif
+if settings.SkyWalkFarm then
+    task.spawn(function()
+        if not skyFloorPart then
+            skyFloorPart = Instance.new("Part")
+            skyFloorPart.Name = "ETW_SkyFloor"
+            skyFloorPart.Size = Vector3.new(1500, 2, 1500)
+            skyFloorPart.Position = Vector3.new(0, 500, 0)
+            skyFloorPart.Anchored = true
+            skyFloorPart.Transparency = 0.7
+            skyFloorPart.Color = Color3.fromRGB(255, 100, 255)
+            skyFloorPart.Material = Enum.Material.Neon
+            skyFloorPart.Parent = Workspace
+        end
+    end)
+end
 
 -- ==========================================
 -- SMART REJOIN SYSTEM
@@ -324,7 +361,6 @@ game:GetService("CoreGui").ChildAdded:Connect(function(child) if child:IsA("Scre
 -- ==========================================
 task.spawn(function()
     while task.wait(0.3) do
-        -- A. LOGIKA AUTO TARGET THROW
         if settings.AutoTargetThrow and CurrentTarget and CurrentTarget.Character and CurrentTarget.Character:FindFirstChild("HumanoidRootPart") then
             local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
             local targetRoot = CurrentTarget.Character.HumanoidRootPart
@@ -338,7 +374,6 @@ task.spawn(function()
             end
         end
         
-        -- B. LOGIKA AUTO GRAB
         if settings.AutoGrab then
             local Char = LocalPlayer.Character
             if Char and Char:FindFirstChild("Events") and Char:FindFirstChild("HumanoidRootPart") then
@@ -349,7 +384,6 @@ task.spawn(function()
             end
         end
         
-        -- C. AUTO SELL
         if settings.AutoSell then
             pcall(function()
                 local warn = PlayerGui.ScreenGui.Sell.WarningText
@@ -362,7 +396,6 @@ task.spawn(function()
     end
 end)
 
--- AUTO EAT LOOP
 task.spawn(function()
     while task.wait() do 
         if settings.AutoEat then
@@ -377,15 +410,22 @@ task.spawn(function()
     end
 end)
 
--- LOGIKA AUTO TWEEN DENGAN FILTER FILTERING 'SAFE UNOWNED'
+-- LOGIKA TWEEN DENGAN MODIFIKASI DUA AXIS (UNTUK SKY FARM)
 local function tweenTo(targetPos)
     local char = LocalPlayer.Character
     if not char then return end
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return end
-    local distance = (root.Position - targetPos).Magnitude
+    
+    -- JIKA SKY WALK FARM AKTIF, PAKSA TWEEN HANYA BERGERAK SECARA HORIZONTAL DI KETINGGIAN AWAN (Y=500)
+    local finalPosition = targetPos
+    if settings.SkyWalkFarm then
+        finalPosition = Vector3.new(targetPos.X, 503, targetPos.Z)
+    end
+    
+    local distance = (root.Position - finalPosition).Magnitude
     local info = TweenInfo.new(distance / 55, Enum.EasingStyle.Linear)
-    local tween = TweenService:Create(root, info, {CFrame = CFrame.new(targetPos)})
+    local tween = TweenService:Create(root, info, {CFrame = CFrame.new(finalPosition)})
     tween:Play()
 end
 
@@ -404,7 +444,6 @@ task.spawn(function()
                     for _, obj in pairs(folder:GetChildren()) do
                         local isAllowed = true
                         
-                        -- OPTIMASI TEMUAN USER: Jika SafeUnowned aktif, abaikan chunk yang sudah ada pemiliknya
                         if settings.SafeUnowned and folder.Name == "Chunks" and obj.Name == "TemplateChunk" then
                             local owner = obj:FindFirstChild("Owner")
                             if owner and owner.Value ~= nil then
@@ -416,7 +455,9 @@ task.spawn(function()
                             local pos = nil
                             if obj:IsA("BasePart") then pos = obj.Position elseif obj:IsA("Model") and obj.PrimaryPart then pos = obj.PrimaryPart.Position end
                             if pos then
-                                local dist = (root.Position - pos).Magnitude
+                                -- Bandingkan jarak horizontal saja jika berada di langit agar pencarian tetap akurat
+                                local basePos = settings.SkyWalkFarm and Vector3.new(root.Position.X, pos.Y, root.Position.Z) or root.Position
+                                local dist = (basePos - pos).Magnitude
                                 if dist < shortestDist then shortestDist = dist; targetPos = pos end
                             end
                         end
@@ -441,9 +482,7 @@ task.spawn(function()
     end
 end)
 
--- ==========================================
--- OPTIMASI TEMUAN USER: BACKGROUND CHUNK GARBAGE COLLECTOR
--- ==========================================
+-- CLEAN TRASH LOOP
 task.spawn(function()
     while task.wait(2) do
         if settings.FPSBooster and Workspace:FindFirstChild("Chunks") then
@@ -452,12 +491,13 @@ task.spawn(function()
                 for _, obj in ipairs(Workspace.Chunks:GetChildren()) do
                     if obj.Name == "TemplateChunk" then
                         local owner = obj:FindFirstChild("Owner")
-                        -- Jika chunk tidak punya owner (sampah sisa ledakan)
                         if owner and owner.Value == nil then
                             local pos = obj:IsA("BasePart") and obj.Position or (obj:IsA("Model") and obj.PrimaryPart and obj.PrimaryPart.Position)
-                            -- Hapus jika jaraknya jauh (> 150 studs) agar tidak membebani render device kita
-                            if pos and (root.Position - pos).Magnitude > 150 then
-                                pcall(function() obj:Destroy() end)
+                            if pos then
+                                local basePos = settings.SkyWalkFarm and Vector3.new(root.Position.X, pos.Y, root.Position.Z) or root.Position
+                                if (basePos - pos).Magnitude > 150 then
+                                    pcall(function() obj:Destroy() end)
+                                end
                             end
                         end
                     end
@@ -467,9 +507,7 @@ task.spawn(function()
     end
 end)
 
--- ==========================================
--- STEPPED COROUTINE (GOD MODE & PHYSICS)
--- ==========================================
+-- STEPPED SERVICES
 local PlayerModule, Controls
 pcall(function() PlayerModule = require(LocalPlayer.PlayerScripts:WaitForChild("PlayerModule")); Controls = PlayerModule:GetControls() end)
 
@@ -490,7 +528,8 @@ RunService.Stepped:Connect(function()
     if settings.AntiChunk and RootPart then
         for _, obj in pairs(Workspace:GetChildren()) do
             if obj:IsA("BasePart") and (obj.Name == "Chunk" or obj.Name == "ExplodeChunk") then
-                if (obj.Position - RootPart.Position).Magnitude <= 15 then
+                local basePos = settings.SkyWalkFarm and Vector3.new(RootPart.Position.X, obj.Position.Y, RootPart.Position.Z) or RootPart.Position
+                if (obj.Position - basePos).Magnitude <= 15 then
                     obj.CanCollide = false
                     obj.Velocity = Vector3.new(0,0,0) 
                 end
@@ -528,9 +567,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- ==========================================
 -- AUTO CUBE & TIMED REWARDS LOOP
--- ==========================================
 task.spawn(function()
     while task.wait(1) do
         if settings.AutoCube then
