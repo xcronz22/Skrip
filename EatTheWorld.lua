@@ -283,7 +283,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 createToggle("No Anim (Brutal)", "NoAnimation")
-createToggle("Stealth Mode", "StealthMode")
+createToggle("No Anim V2", "StealthMode")
 
 -- NEW REQUESTED FEATURE USER V49: SKY WALK FARM
 createToggle("Sky Walk Farm (Safe Zone)", "SkyWalkFarm", function(state)
@@ -292,7 +292,7 @@ createToggle("Sky Walk Farm (Safe Zone)", "SkyWalkFarm", function(state)
             skyFloorPart = Instance.new("Part")
             skyFloorPart.Name = "ETW_SkyFloor"
             skyFloorPart.Size = Vector3.new(1500, 2, 1500)
-            skyFloorPart.Position = Vector3.new(0, 500, 0) -- Ketinggian aman di awan
+            skyFloorPart.Position = Vector3.new(0, 1000, 0) -- Ketinggian aman di awan
             skyFloorPart.Anchored = true
             skyFloorPart.Transparency = 0.7 -- Transparan agar tidak mengganggu pandangan
             skyFloorPart.Color = Color3.fromRGB(255, 100, 255)
