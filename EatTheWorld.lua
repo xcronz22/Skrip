@@ -1,5 +1,5 @@
 -- ==========================================
--- EAT THE WORLD - LIGHTWEIGHT HUB V29 (INFINITE RANGE GRAB)
+-- EAT THE WORLD - LIGHTWEIGHT HUB V30 (BARRIER EXPANDER)
 -- ==========================================
 
 local Players = game:GetService("Players")
@@ -13,9 +13,10 @@ local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 -- 1. SISTEM AUTO SAVE
-local settingsFile = "ETW_Settings_V29.json"
+local settingsFile = "ETW_Settings_V30.json"
 local settings = {
     AutoGrab = false,
+    ExpandBarrier = false, -- FITUR BARU BERDASARKAN TEMUANMU
     AutoEat = false,
     AutoSell = false,
     WalkSpeedToggle = false,
@@ -48,7 +49,7 @@ loadSettings()
 local parentGui = PlayerGui
 pcall(function() if gethui then parentGui = gethui() else parentGui = CoreGui end end)
 
-local uiName = "ETW_LightPanel_V29"
+local uiName = "ETW_LightPanel_V30"
 if parentGui:FindFirstChild(uiName) then parentGui[uiName]:Destroy() end
 
 -- ==========================================
@@ -60,7 +61,7 @@ uiScreen.ResetOnSpawn = false
 uiScreen.Parent = parentGui
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 220, 0, 365)
+MainFrame.Size = UDim2.new(0, 220, 0, 410) -- Diperpanjang untuk muat tombol baru
 MainFrame.Position = UDim2.new(0, 20, 0, 20)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 15, 20)
 MainFrame.Active = true
@@ -72,7 +73,7 @@ local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, -60, 0, 30)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "ETW Tool - V29"
+Title.Text = "ETW Tool - V30"
 Title.TextColor3 = Color3.fromRGB(255, 200, 100)
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 16
@@ -142,16 +143,17 @@ local function createToggle(text, yPos, settingKey)
     updateVisual(settingKey)
 end
 
-createToggle("Inf Range Grab", 40, "AutoGrab") -- DIUBAH MENJADI INF RANGE
-createToggle("Auto Eat (Instant)", 85, "AutoEat")
-createToggle("Auto Sell", 130, "AutoSell")
+createToggle("Auto Grab (Normal)", 40, "AutoGrab")
+createToggle("Expand Hitbox (Barrier)", 85, "ExpandBarrier")
+createToggle("Auto Eat (Instant)", 130, "AutoEat")
+createToggle("Auto Sell", 175, "AutoSell")
 
 -- ====================================================
 -- CUSTOM INPUT WALK SPEED UI
 -- ====================================================
 local wsBtn = Instance.new("TextButton", MainFrame)
 wsBtn.Size = UDim2.new(0, 120, 0, 35)
-wsBtn.Position = UDim2.new(0, 20, 0, 175)
+wsBtn.Position = UDim2.new(0, 20, 0, 220)
 wsBtn.Font = Enum.Font.SourceSansBold
 wsBtn.TextSize = 14
 Instance.new("UICorner", wsBtn).CornerRadius = UDim.new(0, 6)
@@ -165,7 +167,7 @@ updateVisual("WalkSpeedToggle")
 
 local wsInput = Instance.new("TextBox", MainFrame)
 wsInput.Size = UDim2.new(0, 55, 0, 35)
-wsInput.Position = UDim2.new(0, 145, 0, 175)
+wsInput.Position = UDim2.new(0, 145, 0, 220)
 wsInput.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 wsInput.TextColor3 = Color3.fromRGB(255, 255, 255)
 wsInput.Font = Enum.Font.SourceSansBold
@@ -180,9 +182,9 @@ wsInput.FocusLost:Connect(function()
 end)
 -- ====================================================
 
-createToggle("Anti-Freeze (Move)", 220, "AntiFreeze")
-createToggle("Auto All Rewards", 265, "AutoAllRewards")
-createToggle("Auto Cube", 310, "AutoCube")
+createToggle("Anti-Freeze (Move)", 265, "AntiFreeze")
+createToggle("Auto All Rewards", 310, "AutoAllRewards")
+createToggle("Auto Cube", 355, "AutoCube")
 
 MinBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false; MinIcon.Position = MainFrame.Position; MinIcon.Visible = true end)
 MinIcon.MouseButton1Click:Connect(function() MinIcon.Visible = false; MainFrame.Position = MinIcon.Position; MainFrame.Visible = true end)
@@ -192,9 +194,9 @@ CloseBtn.MouseButton1Click:Connect(function() uiScreen:Destroy() end)
 -- 4. MESIN UTAMA
 -- ==========================================
 
--- LOOP 1: BYPASS DISTANCE AUTO GRAB (Mencari Objek & Tembak Langsung)
+-- LOOP 1: AUTO GRAB (Dikembalikan ke Normal 0.5s)
 task.spawn(function()
-    while task.wait(0.3) do -- Kecepatan dioptimalkan agar tidak lag
+    while task.wait(0.5) do
         if not settings.AutoGrab then continue end
         local Char = LocalPlayer.Character
         if not Char then continue end
@@ -204,17 +206,32 @@ task.spawn(function()
         local chunkValueObj = Char:FindFirstChild("CurrentChunk")
         local isHoldingChunk = (chunkValueObj and chunkValueObj.Value ~= nil)
 
-        -- Jika tangan kosong, langsung paksa panggil fungsi Grab game
         if not isHoldingChunk then
-            pcall(function() 
-                -- Trik memicu remote Grab tanpa peduli posisi karakter
-                Events.Grab:FireServer(false, false, false) 
-            end)
+            pcall(function() Events.Grab:FireServer(false, false, false) end)
         end
     end
 end)
 
--- LOOP 2: AUTO EAT (Instan)
+-- LOOP 2: EXPAND BARRIER (Hack Hitbox)
+task.spawn(function()
+    while task.wait(0.5) do
+        if not settings.ExpandBarrier then continue end
+        local Char = LocalPlayer.Character
+        if Char then
+            local barrier = Char:FindFirstChild("Barrier")
+            if barrier and barrier:IsA("BasePart") then
+                pcall(function()
+                    barrier.Size = Vector3.new(200, 1, 200) -- Ubah angka ini jika ingin lebih besar/kecil
+                    barrier.Transparency = 0.8 -- Dibuat transparan agar layar tidak terhalang
+                    barrier.BrickColor = BrickColor.new("Bright cyan")
+                    barrier.CanCollide = false
+                end)
+            end
+        end
+    end
+end)
+
+-- LOOP 3: AUTO EAT (Instan)
 task.spawn(function()
     while task.wait() do 
         if not settings.AutoEat then continue end
@@ -232,7 +249,7 @@ task.spawn(function()
     end
 end)
 
--- LOOP 3: AGGRESSIVE WALK SPEED & ANTI-FREEZE 
+-- LOOP 4: AGGRESSIVE WALK SPEED & ANTI-FREEZE 
 local PlayerModule, Controls
 pcall(function()
     PlayerModule = require(LocalPlayer.PlayerScripts:WaitForChild("PlayerModule"))
@@ -259,7 +276,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- LOOP 4: AUTO SELL
+-- LOOP 5: AUTO SELL
 task.spawn(function()
     while task.wait(0.5) do
         if not settings.AutoSell then continue end
@@ -279,7 +296,7 @@ task.spawn(function()
     end
 end)
 
--- LOOP 5: AUTO CUBE
+-- LOOP 6: AUTO CUBE
 task.spawn(function()
     while task.wait(1) do
         if settings.AutoCube then
@@ -296,7 +313,7 @@ task.spawn(function()
     end
 end)
 
--- LOOP 6: AUTO ALL REWARDS (GABUNGAN TIME & SPIN)
+-- LOOP 7: AUTO ALL REWARDS (GABUNGAN TIME & SPIN)
 task.spawn(function()
     while task.wait(1) do
         if not settings.AutoAllRewards then continue end
