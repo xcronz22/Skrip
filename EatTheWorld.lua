@@ -1,15 +1,13 @@
 -- =======================================================================
--- EAT THE WORLD - V53 ULTIMATE EDITION (100% ANTI-YIELD / FIXED)
+-- EAT THE WORLD - V53 ULTIMATE (DELTA EXECUTOR / ORION UI VERSION)
 -- =======================================================================
 
--- 1. AUTO EXECUTE (REJOIN / HOP)
 local execCmd = [[task.wait(3); loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/EatTheWorld.lua"))()]]
 pcall(function()
     if queue_on_teleport then queue_on_teleport(execCmd)
     elseif syn and syn.queue_on_teleport then syn.queue_on_teleport(execCmd) end
 end)
 
--- 2. SERVICES & VARIABLES (NO WAITING/YIELDING)
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -17,10 +15,8 @@ local TeleportService = game:GetService("TeleportService")
 local VirtualUser = game:GetService("VirtualUser")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
-
 local LocalPlayer = Players.LocalPlayer
 
--- GLOBAL SETTINGS
 local settings = {
     AutoFarm = false, AutoEat = false, AutoGrab = false, AutoSell = false,
     FarmMode = "Tween", LayDownMode = false, SafeZoneFarm = false, SafeZoneYValue = 0,
@@ -34,7 +30,6 @@ local safeZoneFloorPart = nil
 local activeTween = nil
 local originalC0 = nil
 
--- ANTI-AFK
 task.spawn(function()
     pcall(function()
         LocalPlayer.Idled:Connect(function()
@@ -46,60 +41,69 @@ task.spawn(function()
 end)
 
 -- =======================================================================
--- FLUENT UI (LOAD PALING AWAL)
+-- ORION UI (RINGAN & STABIL UNTUK DELTA EXECUTOR)
 -- =======================================================================
-local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
-local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/main/Addons/SaveManager.lua"))()
-local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/main/Addons/InterfaceManager.lua"))()
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
 
-local Window = Fluent:CreateWindow({
-    Title = "Eat The World - Ultimate V53", SubTitle = "by AI",
-    TabWidth = 160, Size = UDim2.new(0, 520, 0, 420),
-    Acrylic = true, Theme = "Darker", MinimizeKey = Enum.KeyCode.LeftControl
+local Window = OrionLib:MakeWindow({
+    Name = "Eat The World - Ultimate V53",
+    HidePremium = true,
+    SaveConfig = true,
+    ConfigFolder = "ETW_Ultimate_Config"
 })
 
-local Tabs = {
-    Main = Window:AddTab({ Title = "Main Farm", Icon = "home" }),
-    Move = Window:AddTab({ Title = "Movement & Z", Icon = "move" }),
-    Combat = Window:AddTab({ Title = "Combat & Rewards", Icon = "swords" }),
-    Misc = Window:AddTab({ Title = "Protections", Icon = "shield" }),
-    Settings = Window:AddTab({ Title = "Settings & Save", Icon = "settings" })
-}
+local TabMain = Window:MakeTab({Name = "Main Farm", Icon = "rbxassetid://4483345998", PremiumOnly = false})
+local TabMove = Window:MakeTab({Name = "Move & Z", Icon = "rbxassetid://4483345998", PremiumOnly = false})
+local TabCombat = Window:MakeTab({Name = "Combat & Rewards", Icon = "rbxassetid://4483345998", PremiumOnly = false})
+local TabMisc = Window:MakeTab({Name = "Protections", Icon = "rbxassetid://4483345998", PremiumOnly = false})
 
--- TAB: MAIN FARM
-Tabs.Main:AddToggle("T_AutoFarm", {Title = "Auto Farm (Multi-Mode)", Default = false}):OnChanged(function(v) settings.AutoFarm = v end)
-Tabs.Main:AddToggle("T_AutoGrab", {Title = "Auto Grab (Ambil)", Default = false}):OnChanged(function(v) settings.AutoGrab = v end)
-Tabs.Main:AddToggle("T_AutoEat", {Title = "Auto Eat (Makan)", Default = false}):OnChanged(function(v) settings.AutoEat = v end)
-Tabs.Main:AddToggle("T_AutoSell", {Title = "Auto Sell", Default = false}):OnChanged(function(v) settings.AutoSell = v end)
+-- TAB: MAIN
+TabMain:AddToggle({Name = "Auto Farm (Multi-Mode)", Default = false, Callback = function(v) settings.AutoFarm = v end})
+TabMain:AddToggle({Name = "Auto Grab (Ambil)", Default = false, Callback = function(v) settings.AutoGrab = v end})
+TabMain:AddToggle({Name = "Auto Eat (Makan)", Default = false, Callback = function(v) settings.AutoEat = v end})
+TabMain:AddToggle({Name = "Auto Sell", Default = false, Callback = function(v) settings.AutoSell = v end})
 
--- TAB: MOVEMENT & Z
-Tabs.Move:AddDropdown("D_Mode", {Title = "Mode", Values = {"Tween", "Walk", "TP"}, CurrentValue = "Tween"}):OnChanged(function(v) settings.FarmMode = v end)
-Tabs.Move:AddToggle("T_LayDown", {Title = "Sleep Free-Walk Mode (Tidur)", Default = false}):OnChanged(function(v) settings.LayDownMode = v end)
-Tabs.Move:AddToggle("T_SafeZone", {Title = "Safe Zone Floor", Default = false}):OnChanged(function(v) settings.SafeZoneFarm = v end)
-Tabs.Move:AddInput("I_SafeY", {Title = "Safe Zone Height (Y)", Default = "0", Numeric = true, Finished = true, Callback = function(v)
+-- TAB: MOVE & Z
+TabMove:AddDropdown({Name = "Movement Mode", Default = "Tween", Options = {"Tween", "Walk", "TP"}, Callback = function(v) settings.FarmMode = v end})
+TabMove:AddToggle({Name = "Sleep Free-Walk Mode (Tidur)", Default = false, Callback = function(v) settings.LayDownMode = v end})
+TabMove:AddToggle({Name = "Safe Zone Floor", Default = false, Callback = function(v) settings.SafeZoneFarm = v end})
+TabMove:AddTextbox({Name = "Safe Zone Height (Y)", Default = "0", TextDisappear = false, Callback = function(v)
     if tonumber(v) then settings.SafeZoneYValue = tonumber(v) end
 end})
 
--- TAB: COMBAT & REWARDS
-Tabs.Combat:AddToggle("T_AutoRewards", {Title = "Auto All Rewards & Spin", Default = false}):OnChanged(function(v) settings.AutoRewards = v end)
-Tabs.Combat:AddToggle("T_AutoCube", {Title = "Auto Collect Cubes", Default = false}):OnChanged(function(v) settings.AutoCube = v end)
-Tabs.Combat:AddToggle("T_RejoinReward", {Title = "Auto Rejoin If All Rewards Claimed", Default = false}):OnChanged(function(v) settings.RejoinAfterRewards = v end)
+-- TAB: COMBAT
+TabCombat:AddToggle({Name = "Auto All Rewards & Spin", Default = false, Callback = function(v) settings.AutoRewards = v end})
+TabCombat:AddToggle({Name = "Auto Collect Cubes", Default = false, Callback = function(v) settings.AutoCube = v end})
+TabCombat:AddToggle({Name = "Auto Rejoin (All Rewards Claimed)", Default = false, Callback = function(v) settings.RejoinAfterRewards = v end})
 
-Tabs.Combat:AddToggle("T_AutoThrow", {Title = "Enable Auto Throw", Default = false}):OnChanged(function(v) settings.AutoThrow = v end)
-local pList = {"None"}; for _, p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer then table.insert(pList, p.Name) end end
-local DropdownTarget = Tabs.Combat:AddDropdown("D_Target", {Title = "Select Player Target", Values = pList, Multi = false, Default = "None"})
-DropdownTarget:OnChanged(function(v) settings.ThrowTarget = (v == "None" and nil or v) end)
-Tabs.Combat:AddButton({Title = "Refresh Players", Callback = function()
-    local nl = {"None"}; for _, p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer then table.insert(nl, p.Name) end end
-    DropdownTarget:SetValues(nl)
-end})
+TabCombat:AddToggle({Name = "Enable Auto Throw", Default = false, Callback = function(v) settings.AutoThrow = v end})
 
--- TAB: PROTECTIONS (MISC)
-Tabs.Misc:AddToggle("T_AntiRag", {Title = "Anti-Ragdoll (Anti Ledakan Chunk)", Default = false}):OnChanged(function(v) settings.AntiRagdoll = v end)
-Tabs.Misc:AddToggle("T_AntiFreeze", {Title = "Anti-Freeze (Anti Nyangkut)", Default = false}):OnChanged(function(v) settings.AntiFreeze = v end)
-Tabs.Misc:AddToggle("T_CleanTrash", {Title = "Aggressive Clean Trash (FPS Boost)", Default = false}):OnChanged(function(v) settings.CleanTrash = v end)
-Tabs.Misc:AddToggle("T_NoAnimBrutal", {Title = "No Animation (Brutal)", Default = false}):OnChanged(function(v) settings.NoAnimBrutal = v end)
-Tabs.Misc:AddToggle("T_NoAnimV2", {Title = "No Animation V2 (Bisa Jalan/Idle)", Default = false}):OnChanged(function(v) settings.NoAnimV2 = v end)
+local pList = {"None"}
+for _, p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer then table.insert(pList, p.Name) end end
+local targetDropdown = TabCombat:AddDropdown({
+    Name = "Select Player Target",
+    Default = "None",
+    Options = pList,
+    Callback = function(v) settings.ThrowTarget = (v == "None" and nil or v) end
+})
+
+TabCombat:AddButton({
+    Name = "Refresh Players",
+    Callback = function()
+        local nl = {"None"}
+        for _, p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer then table.insert(nl, p.Name) end end
+        targetDropdown:Refresh(nl, true)
+    end
+})
+
+-- TAB: MISC
+TabMisc:AddToggle({Name = "Anti-Ragdoll (Anti Ledakan)", Default = false, Callback = function(v) settings.AntiRagdoll = v end})
+TabMisc:AddToggle({Name = "Anti-Freeze (Anti Nyangkut)", Default = false, Callback = function(v) settings.AntiFreeze = v end})
+TabMisc:AddToggle({Name = "Aggressive Clean Trash (FPS)", Default = false, Callback = function(v) settings.CleanTrash = v end})
+TabMisc:AddToggle({Name = "No Animation (Brutal)", Default = false, Callback = function(v) settings.NoAnimBrutal = v end})
+TabMisc:AddToggle({Name = "No Animation V2", Default = false, Callback = function(v) settings.NoAnimV2 = v end})
+
+OrionLib:Init()
 
 -- =======================================================================
 -- NON-BLOCKING CONTROLS SETUP
@@ -124,7 +128,7 @@ RunService.Stepped:Connect(function()
     local humanoid = char:FindFirstChildOfClass("Humanoid")
     local root = char:FindFirstChild("HumanoidRootPart")
     
-    -- 1. Trik RootJoint (Sleep Free-Walk)
+    -- Trik RootJoint (Sleep Free-Walk)
     local lowerTorso = char:FindFirstChild("LowerTorso")
     local joint = (root and root:FindFirstChild("RootJoint")) or (lowerTorso and lowerTorso:FindFirstChild("Root"))
     if joint then
@@ -136,7 +140,6 @@ RunService.Stepped:Connect(function()
         end
     end
     
-    -- 2. Anti Ragdoll (Explosive Chunk)
     if settings.AntiRagdoll and humanoid then
         if humanoid:GetState() == Enum.HumanoidStateType.Ragdoll or humanoid:GetState() == Enum.HumanoidStateType.Physics then
             humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
@@ -144,13 +147,11 @@ RunService.Stepped:Connect(function()
         end
     end
     
-    -- 3. Anti Freeze
     if settings.AntiFreeze then
         if root and root.Anchored then root.Anchored = false end
         if Controls then pcall(function() Controls:Enable() end) end
     end
     
-    -- 4. No Animation
     if humanoid then
         local animator = humanoid:FindFirstChildOfClass("Animator")
         if animator then
@@ -413,20 +414,3 @@ task.spawn(function()
         end
     end
 end)
-
--- =======================================================================
--- SAVE & LOAD MANAGER (FLUENT)
--- =======================================================================
-SaveManager:SetLibrary(Fluent)
-InterfaceManager:SetLibrary(Fluent)
-SaveManager:IgnoreThemeSettings()
-SaveManager:SetIgnoreIndexes({})
-InterfaceManager:SetFolder("ETW_Ultimate")
-SaveManager:SetFolder("ETW_Ultimate/configs")
-
-Tabs.Settings:AddButton({Title = "Save Configuration", Callback = function() SaveManager:Save("AutoSave") end})
-Tabs.Settings:AddButton({Title = "Load Configuration", Callback = function() SaveManager:Load("AutoSave") end})
-
-pcall(function() SaveManager:Load("AutoSave") end)
-Fluent:Notify({Title = "V53 Ultimate Active", Content = "Siap Farming! (Anti-Macat Edition)", Duration = 5})
-Window:SelectTab(Tabs.Main)
