@@ -1,12 +1,11 @@
 -- =======================================================================
--- EAT THE WORLD - V53 ULTIMATE EDITION
--- Fitur: Sleep Free-Walk, Anti-Ragdoll, Auto All Rewards, Anti-Freeze
+-- EAT THE WORLD - V53 ULTIMATE EDITION (ANTI-YIELD / BUG FIX)
 -- =======================================================================
 
 -- 1. AUTO EXECUTE (REJOIN / HOP)
-local execCmd = [[task.wait(2); loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/EatTheWorld.lua"))()]]
-if queue_on_teleport then queue_on_teleport(execCmd)
-elseif syn and syn.queue_on_teleport then syn.queue_on_teleport(execCmd) end
+local execCmd = [[task.wait(3); loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/EatTheWorld.lua"))()]]
+if queue_on_teleport then pcall(function() queue_on_teleport(execCmd) end)
+elseif syn and syn.queue_on_teleport then pcall(function() syn.queue_on_teleport(execCmd) end) end
 
 -- 2. SERVICES & VARIABLES
 local Players = game:GetService("Players")
@@ -18,14 +17,8 @@ local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
-LocalPlayer.Idled:Connect(function()
-    VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-    task.wait(1)
-    VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-end)
-
+-- GLOBAL SETTINGS
 local settings = {
     AutoFarm = false, AutoEat = false, AutoGrab = false, AutoSell = false,
     FarmMode = "Tween", LayDownMode = false, SafeZoneFarm = false, SafeZoneYValue = 0,
@@ -37,10 +30,21 @@ local settings = {
 
 local safeZoneFloorPart = nil
 local activeTween = nil
-local originalC0 = nil -- Untuk menyimpan engsel asli karakter (Mode Tidur)
+local originalC0 = nil
+
+-- ANTI-AFK (Dibungkus agar aman)
+task.spawn(function()
+    LocalPlayer.Idled:Connect(function()
+        pcall(function()
+            VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+            task.wait(1)
+            VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+        end)
+    end)
+end)
 
 -- =======================================================================
--- FLUENT UI (GITHUB)
+-- FLUENT UI (LOAD PALING AWAL AGAR TIDAK MACET)
 -- =======================================================================
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/main/Addons/SaveManager.lua"))()
@@ -95,12 +99,21 @@ Tabs.Misc:AddToggle("T_CleanTrash", {Title = "Aggressive Clean Trash (FPS Boost)
 Tabs.Misc:AddToggle("T_NoAnimBrutal", {Title = "No Animation (Brutal)", Default = false}):OnChanged(function(v) settings.NoAnimBrutal = v end)
 Tabs.Misc:AddToggle("T_NoAnimV2", {Title = "No Animation V2 (Bisa Jalan/Idle)", Default = false}):OnChanged(function(v) settings.NoAnimV2 = v end)
 
+
+-- =======================================================================
+-- NON-BLOCKING CONTROLS SETUP (MENCEGAH SKRIP NYANGKUT)
+-- =======================================================================
+local Controls = nil
+task.spawn(function()
+    pcall(function()
+        local PlayerModule = require(LocalPlayer:WaitForChild("PlayerScripts", 10):WaitForChild("PlayerModule", 10))
+        Controls = PlayerModule:GetControls()
+    end)
+end)
+
 -- =======================================================================
 -- CORE LOGIC: SLEEP HACK, ANTI-RAGDOLL, ANTI-FREEZE & ANIMATION
 -- =======================================================================
-local PlayerModule = require(LocalPlayer.PlayerScripts:WaitForChild("PlayerModule"))
-local Controls = PlayerModule:GetControls()
-
 RunService.Stepped:Connect(function()
     local char = LocalPlayer.Character
     if not char then return end
@@ -130,7 +143,7 @@ RunService.Stepped:Connect(function()
     -- 3. Anti Freeze
     if settings.AntiFreeze then
         if root and root.Anchored then root.Anchored = false end
-        pcall(function() Controls:Enable() end)
+        if Controls then pcall(function() Controls:Enable() end) end
     end
     
     -- 4. No Animation
@@ -139,7 +152,6 @@ RunService.Stepped:Connect(function()
         if animator then
             for _, anim in pairs(animator:GetPlayingAnimationTracks()) do
                 if settings.NoAnimV2 then
-                    -- Hentikan hanya animasi prioritas aksi (Makan/Grab)
                     local p = anim.Priority
                     if p == Enum.AnimationPriority.Action or p == Enum.AnimationPriority.Action2 or p == Enum.AnimationPriority.Action3 or p == Enum.AnimationPriority.Action4 then
                         anim:Stop(0)
@@ -199,7 +211,6 @@ local function moveToTarget(targetPos, targetSize)
         finalPosition = Vector3.new(finalPosition.X, settings.SafeZoneYValue + 3, finalPosition.Z)
     end
     
-    -- Putar karakter menghadap target (Meski mode tidur, sistem internal tetap melihat target)
     if not settings.LayDownMode then
         root.CFrame = CFrame.lookAt(root.Position, Vector3.new(finalPosition.X, root.Position.Y, finalPosition.Z))
     end
@@ -238,15 +249,17 @@ end)
 task.spawn(function()
     while task.wait(0.5) do
         if settings.AutoSell then
-            pcall(function()
-                local warn = PlayerGui.ScreenGui.Sell.WarningText
-                if warn and warn.Visible and LocalPlayer.Character then LocalPlayer.Character.Events.Sell:FireServer() end
-            end)
+            local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
+            if PlayerGui then
+                pcall(function()
+                    local warn = PlayerGui.ScreenGui.Sell.WarningText
+                    if warn and warn.Visible and LocalPlayer.Character then LocalPlayer.Character.Events.Sell:FireServer() end
+                end)
+            end
         end
     end
 end)
 
--- CLEAN TRASH
 task.spawn(function()
     while task.wait(1.5) do
         if settings.CleanTrash and Workspace:FindFirstChild("Chunks") then
@@ -266,7 +279,6 @@ task.spawn(function()
     end
 end)
 
--- AUTO THROW
 task.spawn(function()
     while task.wait(0.3) do
         if settings.AutoThrow and settings.ThrowTarget then
@@ -303,34 +315,36 @@ task.spawn(function()
         end
         
         if settings.AutoRewards then
-            pcall(function()
-                local grid = PlayerGui.ScreenGui.Rewards.TimedRewards.RewardGrid
-                local allClaimed = true
-                
-                for _, t in pairs(grid:GetChildren()) do
-                    if t.Name == "Template" and t:FindFirstChild("Time") then
-                        if t.Time.Text == "Tap to claim!" then
-                            allClaimed = false
-                            local rf = LocalPlayer:WaitForChild("TimedRewards")
-                            local re = ReplicatedStorage.Events.RewardEvent
-                            for _, item in pairs(rf:GetChildren()) do re:FireServer(item) end
-                        elseif t.Time.Text ~= "Claimed!" then
-                            allClaimed = false
+            local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
+            if PlayerGui then
+                pcall(function()
+                    local grid = PlayerGui.ScreenGui.Rewards.TimedRewards.RewardGrid
+                    local allClaimed = true
+                    
+                    for _, t in pairs(grid:GetChildren()) do
+                        if t.Name == "Template" and t:FindFirstChild("Time") then
+                            if t.Time.Text == "Tap to claim!" then
+                                allClaimed = false
+                                local rf = LocalPlayer:WaitForChild("TimedRewards")
+                                local re = ReplicatedStorage.Events.RewardEvent
+                                for _, item in pairs(rf:GetChildren()) do re:FireServer(item) end
+                            elseif t.Time.Text ~= "Claimed!" then
+                                allClaimed = false
+                            end
                         end
                     end
-                end
+                    
+                    if settings.RejoinAfterRewards and allClaimed then
+                        TeleportService:Teleport(game.PlaceId, LocalPlayer)
+                    end
+                end)
                 
-                -- AUTO REJOIN JIKA SEMUA REWARD SUDAH DIAMBIL
-                if settings.RejoinAfterRewards and allClaimed then
-                    TeleportService:Teleport(game.PlaceId, LocalPlayer)
-                end
-            end)
-            
-            pcall(function() 
-                if PlayerGui.ScreenGui.Rewards.Spin.NextSpin.Visible == false then 
-                    ReplicatedStorage.Events.SpinEvent:FireServer(); task.wait(2) 
-                end 
-            end)
+                pcall(function() 
+                    if PlayerGui.ScreenGui.Rewards.Spin.NextSpin.Visible == false then 
+                        ReplicatedStorage.Events.SpinEvent:FireServer(); task.wait(2) 
+                    end 
+                end)
+            end
         end
     end
 end)
@@ -346,7 +360,6 @@ task.spawn(function()
                 local targetPos = nil; local shortestDist = math.huge; local targetObjSize = Vector3.new(4, 4, 4)
                 local foldersToSearch = {}
                 
-                -- Menargetkan Chunks (Gedung/Pohon Besar) & Fragmentable (Makanan Kecil)
                 if Workspace:FindFirstChild("Chunks") then table.insert(foldersToSearch, Workspace.Chunks) end
                 if Workspace:FindFirstChild("Map") and Workspace.Map:FindFirstChild("Fragmentable") then table.insert(foldersToSearch, Workspace.Map.Fragmentable) end
                 
@@ -409,8 +422,6 @@ SaveManager:SetFolder("ETW_Ultimate/configs")
 Tabs.Settings:AddButton({Title = "Save Configuration", Callback = function() SaveManager:Save("AutoSave") end})
 Tabs.Settings:AddButton({Title = "Load Configuration", Callback = function() SaveManager:Load("AutoSave") end})
 
--- Auto-Load saat pertama kali script jalan
 pcall(function() SaveManager:Load("AutoSave") end)
-
-Fluent:Notify({Title = "V53 Ultimate Active", Content = "Semua fitur komplit & UI telah dimuat!", Duration = 5})
+Fluent:Notify({Title = "V53 Ultimate Active", Content = "Semua fitur komplit & bebas bug macet!", Duration = 5})
 Window:SelectTab(Tabs.Main)
