@@ -1,5 +1,6 @@
 -- =======================================================================
--- EAT THE WORLD - V53 ULTIMATE (DELTA EXECUTOR / ORION UI VERSION)
+-- EAT THE WORLD - V53 ULTIMATE (STANDALONE CUSTOM UI VERSION)
+-- 100% ANTI-FAIL UNTUK DELTA & SEMUA EXECUTOR MOBILE/PC
 -- =======================================================================
 
 local execCmd = [[task.wait(3); loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/EatTheWorld.lua"))()]]
@@ -15,6 +16,7 @@ local TeleportService = game:GetService("TeleportService")
 local VirtualUser = game:GetService("VirtualUser")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 
 local settings = {
@@ -41,69 +43,221 @@ task.spawn(function()
 end)
 
 -- =======================================================================
--- ORION UI (RINGAN & STABIL UNTUK DELTA EXECUTOR)
+-- CUSTOM STANDALONE UI (100% ANTI-GAGAL LOADSTRING)
 -- =======================================================================
-local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
+local parentGui = LocalPlayer:WaitForChild("PlayerGui")
+pcall(function() if gethui then parentGui = gethui() else parentGui = CoreGui end end)
 
-local Window = OrionLib:MakeWindow({
-    Name = "Eat The World - Ultimate V53",
-    HidePremium = true,
-    SaveConfig = true,
-    ConfigFolder = "ETW_Ultimate_Config"
-})
+local uiName = "ETW_Ultimate_V53"
+if parentGui:FindFirstChild(uiName) then parentGui[uiName]:Destroy() end
 
-local TabMain = Window:MakeTab({Name = "Main Farm", Icon = "rbxassetid://4483345998", PremiumOnly = false})
-local TabMove = Window:MakeTab({Name = "Move & Z", Icon = "rbxassetid://4483345998", PremiumOnly = false})
-local TabCombat = Window:MakeTab({Name = "Combat & Rewards", Icon = "rbxassetid://4483345998", PremiumOnly = false})
-local TabMisc = Window:MakeTab({Name = "Protections", Icon = "rbxassetid://4483345998", PremiumOnly = false})
+local uiScreen = Instance.new("ScreenGui", parentGui)
+uiScreen.Name = uiName
+uiScreen.ResetOnSpawn = false
 
--- TAB: MAIN
-TabMain:AddToggle({Name = "Auto Farm (Multi-Mode)", Default = false, Callback = function(v) settings.AutoFarm = v end})
-TabMain:AddToggle({Name = "Auto Grab (Ambil)", Default = false, Callback = function(v) settings.AutoGrab = v end})
-TabMain:AddToggle({Name = "Auto Eat (Makan)", Default = false, Callback = function(v) settings.AutoEat = v end})
-TabMain:AddToggle({Name = "Auto Sell", Default = false, Callback = function(v) settings.AutoSell = v end})
+-- Ikon Minimize (Kecil)
+local MinIcon = Instance.new("TextButton", uiScreen)
+MinIcon.Size = UDim2.new(0, 45, 0, 45)
+MinIcon.Position = UDim2.new(0, 20, 0, 20)
+MinIcon.BackgroundColor3 = Color3.fromRGB(20, 15, 25)
+MinIcon.Text = "ETW"
+MinIcon.TextColor3 = Color3.fromRGB(0, 255, 150)
+MinIcon.Font = Enum.Font.SourceSansBold
+MinIcon.TextSize = 16
+MinIcon.Visible = false
+MinIcon.Active = true
+MinIcon.Draggable = true
+Instance.new("UICorner", MinIcon).CornerRadius = UDim.new(1, 0)
+Instance.new("UIStroke", MinIcon).Color = Color3.fromRGB(0, 255, 150)
 
--- TAB: MOVE & Z
-TabMove:AddDropdown({Name = "Movement Mode", Default = "Tween", Options = {"Tween", "Walk", "TP"}, Callback = function(v) settings.FarmMode = v end})
-TabMove:AddToggle({Name = "Sleep Free-Walk Mode (Tidur)", Default = false, Callback = function(v) settings.LayDownMode = v end})
-TabMove:AddToggle({Name = "Safe Zone Floor", Default = false, Callback = function(v) settings.SafeZoneFarm = v end})
-TabMove:AddTextbox({Name = "Safe Zone Height (Y)", Default = "0", TextDisappear = false, Callback = function(v)
-    if tonumber(v) then settings.SafeZoneYValue = tonumber(v) end
-end})
+-- Main Frame
+local MainFrame = Instance.new("Frame", uiScreen)
+MainFrame.Size = UDim2.new(0, 250, 0, 450)
+MainFrame.Position = UDim2.new(0, 20, 0, 20)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 20, 30)
+MainFrame.Active = true
+MainFrame.Draggable = true
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
+Instance.new("UIStroke", MainFrame).Color = Color3.fromRGB(100, 50, 150)
 
--- TAB: COMBAT
-TabCombat:AddToggle({Name = "Auto All Rewards & Spin", Default = false, Callback = function(v) settings.AutoRewards = v end})
-TabCombat:AddToggle({Name = "Auto Collect Cubes", Default = false, Callback = function(v) settings.AutoCube = v end})
-TabCombat:AddToggle({Name = "Auto Rejoin (All Rewards Claimed)", Default = false, Callback = function(v) settings.RejoinAfterRewards = v end})
+local Title = Instance.new("TextLabel", MainFrame)
+Title.Size = UDim2.new(1, -60, 0, 35)
+Title.Position = UDim2.new(0, 10, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "ETW Ultimate V53"
+Title.TextColor3 = Color3.fromRGB(0, 255, 150)
+Title.Font = Enum.Font.SourceSansBold
+Title.TextSize = 18
+Title.TextXAlignment = Enum.TextXAlignment.Left
 
-TabCombat:AddToggle({Name = "Enable Auto Throw", Default = false, Callback = function(v) settings.AutoThrow = v end})
+local MinBtn = Instance.new("TextButton", MainFrame)
+MinBtn.Size = UDim2.new(0, 30, 0, 35)
+MinBtn.Position = UDim2.new(1, -60, 0, 0)
+MinBtn.BackgroundTransparency = 1
+MinBtn.Text = "-"
+MinBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+MinBtn.TextSize = 24
 
+local CloseBtn = Instance.new("TextButton", MainFrame)
+CloseBtn.Size = UDim2.new(0, 30, 0, 35)
+CloseBtn.Position = UDim2.new(1, -30, 0, 0)
+CloseBtn.BackgroundTransparency = 1
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
+CloseBtn.TextSize = 18
+
+MinBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false; MinIcon.Visible = true end)
+MinIcon.MouseButton1Click:Connect(function() MinIcon.Visible = false; MainFrame.Visible = true end)
+CloseBtn.MouseButton1Click:Connect(function() uiScreen:Destroy() end)
+
+local ScrollFrame = Instance.new("ScrollingFrame", MainFrame)
+ScrollFrame.Size = UDim2.new(1, -10, 1, -45)
+ScrollFrame.Position = UDim2.new(0, 5, 0, 40)
+ScrollFrame.BackgroundTransparency = 1
+ScrollFrame.ScrollBarThickness = 4
+ScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(100, 50, 150)
+ScrollFrame.BorderSizePixel = 0
+
+local ListLayout = Instance.new("UIListLayout", ScrollFrame)
+ListLayout.Padding = UDim.new(0, 6)
+ListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+local function updateCanvas()
+    task.wait(0.1)
+    local h = 10
+    for _, child in ipairs(ScrollFrame:GetChildren()) do
+        if child:IsA("GuiObject") and child.Visible then h = h + child.AbsoluteSize.Y + 6 end
+    end
+    ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, h)
+end
+ScrollFrame.ChildAdded:Connect(updateCanvas)
+
+-- =======================================================================
+-- UI BUILDER FUNCTIONS
+-- =======================================================================
+local function CreateSectionTitle(text)
+    local lbl = Instance.new("TextLabel", ScrollFrame)
+    lbl.Size = UDim2.new(1, -10, 0, 25)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = "--- " .. text .. " ---"
+    lbl.TextColor3 = Color3.fromRGB(150, 150, 150)
+    lbl.Font = Enum.Font.SourceSansBold
+    lbl.TextSize = 14
+end
+
+local function CreateToggle(text, settingKey)
+    local btn = Instance.new("TextButton", ScrollFrame)
+    btn.Size = UDim2.new(1, -10, 0, 35)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 14
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    
+    local function updateVisual()
+        if settings[settingKey] then
+            btn.Text = text .. ": ON"
+            btn.BackgroundColor3 = Color3.fromRGB(0, 100, 50)
+            btn.TextColor3 = Color3.fromRGB(150, 255, 150)
+        else
+            btn.Text = text .. ": OFF"
+            btn.BackgroundColor3 = Color3.fromRGB(80, 30, 30)
+            btn.TextColor3 = Color3.fromRGB(255, 150, 150)
+        end
+    end
+    
+    btn.MouseButton1Click:Connect(function()
+        settings[settingKey] = not settings[settingKey]
+        updateVisual()
+    end)
+    updateVisual()
+    return btn
+end
+
+local function CreateDropdown(text, settingKey, options)
+    local btn = Instance.new("TextButton", ScrollFrame)
+    btn.Size = UDim2.new(1, -10, 0, 35)
+    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 14
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    
+    local currentIndex = table.find(options, settings[settingKey]) or 1
+    btn.Text = text .. ": " .. tostring(settings[settingKey] or "None")
+    
+    btn.MouseButton1Click:Connect(function()
+        currentIndex = currentIndex + 1
+        if currentIndex > #options then currentIndex = 1 end
+        settings[settingKey] = options[currentIndex]
+        btn.Text = text .. ": " .. tostring(settings[settingKey] or "None")
+    end)
+    return btn
+end
+
+-- =======================================================================
+-- MEMBANGUN MENU
+-- =======================================================================
+CreateSectionTitle("MAIN FARMING")
+CreateToggle("Auto Farm (Multi-Mode)", "AutoFarm")
+CreateToggle("Auto Grab (Ambil)", "AutoGrab")
+CreateToggle("Auto Eat (Makan)", "AutoEat")
+CreateToggle("Auto Sell", "AutoSell")
+
+CreateSectionTitle("MOVEMENT & EXPLOIT")
+CreateDropdown("Move Mode", "FarmMode", {"Tween", "Walk", "TP"})
+CreateToggle("Sleep Free-Walk (Tidur)", "LayDownMode")
+CreateToggle("Safe Zone Floor", "SafeZoneFarm")
+
+-- Input Y Sumbu Custom
+local yContainer = Instance.new("Frame", ScrollFrame)
+yContainer.Size = UDim2.new(1, -10, 0, 35)
+yContainer.BackgroundTransparency = 1
+local yLbl = Instance.new("TextLabel", yContainer)
+yLbl.Size = UDim2.new(0.6, 0, 1, 0); yLbl.BackgroundTransparency = 1
+yLbl.Text = "Safe Zone Height (Y):"; yLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
+yLbl.Font = Enum.Font.SourceSansBold; yLbl.TextSize = 14; yLbl.TextXAlignment = Enum.TextXAlignment.Left
+local yInput = Instance.new("TextBox", yContainer)
+yInput.Size = UDim2.new(0.4, 0, 1, 0); yInput.Position = UDim2.new(0.6, 0, 0, 0)
+yInput.BackgroundColor3 = Color3.fromRGB(30, 30, 40); yInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+yInput.Text = tostring(settings.SafeZoneYValue); Instance.new("UICorner", yInput)
+yInput.FocusLost:Connect(function()
+    local val = tonumber(yInput.Text)
+    if val then settings.SafeZoneYValue = val else yInput.Text = tostring(settings.SafeZoneYValue) end
+end)
+
+CreateSectionTitle("COMBAT & REWARDS")
+CreateToggle("Auto All Rewards & Spin", "AutoRewards")
+CreateToggle("Auto Collect Cubes", "AutoCube")
+CreateToggle("Auto Rejoin (Rewards Done)", "RejoinAfterRewards")
+CreateToggle("Enable Auto Throw", "AutoThrow")
+
+-- Player List untuk Auto Throw
 local pList = {"None"}
 for _, p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer then table.insert(pList, p.Name) end end
-local targetDropdown = TabCombat:AddDropdown({
-    Name = "Select Player Target",
-    Default = "None",
-    Options = pList,
-    Callback = function(v) settings.ThrowTarget = (v == "None" and nil or v) end
-})
+local targetBtn = CreateDropdown("Target", "ThrowTarget", pList)
 
-TabCombat:AddButton({
-    Name = "Refresh Players",
-    Callback = function()
-        local nl = {"None"}
-        for _, p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer then table.insert(nl, p.Name) end end
-        targetDropdown:Refresh(nl, true)
-    end
-})
+local refreshBtn = Instance.new("TextButton", ScrollFrame)
+refreshBtn.Size = UDim2.new(1, -10, 0, 25)
+refreshBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+refreshBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+refreshBtn.Text = "Refresh Player List"
+refreshBtn.Font = Enum.Font.SourceSansBold; refreshBtn.TextSize = 12
+Instance.new("UICorner", refreshBtn).CornerRadius = UDim.new(0, 6)
+refreshBtn.MouseButton1Click:Connect(function()
+    pList = {"None"}
+    for _, p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer then table.insert(pList, p.Name) end end
+    -- Update paksa dropdown (karena dropdown sederhana)
+    settings.ThrowTarget = nil
+    targetBtn.Text = "Target: None"
+end)
 
--- TAB: MISC
-TabMisc:AddToggle({Name = "Anti-Ragdoll (Anti Ledakan)", Default = false, Callback = function(v) settings.AntiRagdoll = v end})
-TabMisc:AddToggle({Name = "Anti-Freeze (Anti Nyangkut)", Default = false, Callback = function(v) settings.AntiFreeze = v end})
-TabMisc:AddToggle({Name = "Aggressive Clean Trash (FPS)", Default = false, Callback = function(v) settings.CleanTrash = v end})
-TabMisc:AddToggle({Name = "No Animation (Brutal)", Default = false, Callback = function(v) settings.NoAnimBrutal = v end})
-TabMisc:AddToggle({Name = "No Animation V2", Default = false, Callback = function(v) settings.NoAnimV2 = v end})
+CreateSectionTitle("PROTECTIONS")
+CreateToggle("Anti-Ragdoll (Ledakan)", "AntiRagdoll")
+CreateToggle("Anti-Freeze (Nyangkut)", "AntiFreeze")
+CreateToggle("Aggressive Clean Trash", "CleanTrash")
+CreateToggle("No Animation (Brutal)", "NoAnimBrutal")
+CreateToggle("No Animation V2 (Jalan)", "NoAnimV2")
 
-OrionLib:Init()
+updateCanvas()
 
 -- =======================================================================
 -- NON-BLOCKING CONTROLS SETUP
@@ -414,3 +568,72 @@ task.spawn(function()
         end
     end
 end)
+
+-- =======================================================================
+-- SAVE & LOAD CONFIGURATION (NATIVE SYSTEM)
+-- =======================================================================
+local HttpService = game:GetService("HttpService")
+local fileName = "ETW_Ultimate_V53_Settings.json"
+
+local function SaveSettings()
+    if writefile then
+        pcall(function()
+            local json = HttpService:JSONEncode(settings)
+            writefile(fileName, json)
+        end)
+    end
+end
+
+local function LoadSettings()
+    if readfile and isfile then
+        pcall(function()
+            if isfile(fileName) then
+                local data = readfile(fileName)
+                local decoded = HttpService:JSONDecode(data)
+                if type(decoded) == "table" then
+                    for key, value in pairs(decoded) do
+                        settings[key] = value
+                    end
+                end
+            end
+        end)
+    end
+end
+
+-- Membuat Tombol Save & Load di UI
+CreateSectionTitle("CONFIGURATION")
+
+local SaveBtn = Instance.new("TextButton", ScrollFrame)
+SaveBtn.Size = UDim2.new(1, -10, 0, 35)
+SaveBtn.BackgroundColor3 = Color3.fromRGB(30, 80, 150)
+SaveBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+SaveBtn.Font = Enum.Font.SourceSansBold
+SaveBtn.TextSize = 14
+SaveBtn.Text = "Save Settings"
+Instance.new("UICorner", SaveBtn).CornerRadius = UDim.new(0, 6)
+
+local LoadBtn = Instance.new("TextButton", ScrollFrame)
+LoadBtn.Size = UDim2.new(1, -10, 0, 35)
+LoadBtn.BackgroundColor3 = Color3.fromRGB(150, 80, 30)
+LoadBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+LoadBtn.Font = Enum.Font.SourceSansBold
+LoadBtn.TextSize = 14
+LoadBtn.Text = "Load Settings (Visual update on rejoin)"
+Instance.new("UICorner", LoadBtn).CornerRadius = UDim.new(0, 6)
+
+SaveBtn.MouseButton1Click:Connect(function()
+    SaveSettings()
+    SaveBtn.Text = "Settings Saved Successfully!"
+    task.wait(1.5)
+    SaveBtn.Text = "Save Settings"
+end)
+
+LoadBtn.MouseButton1Click:Connect(function()
+    LoadSettings()
+    LoadBtn.Text = "Settings Loaded!"
+    task.wait(1.5)
+    LoadBtn.Text = "Load Settings (Visual update on rejoin)"
+end)
+
+-- Panggil Auto-Load saat skrip pertama kali dijalankan
+LoadSettings()
