@@ -1,5 +1,6 @@
 -- ==========================================
--- EAT THE WORLD - V51 (UNIVERSAL SAFE ZONE)
+-- EAT THE WORLD - V52 (FULL COMPLETE VERSION)
+-- Fix Rotation, Multi-Movement, Solid Safe Zone
 -- ==========================================
 
 -- 1. LOGIKA AUTO EXECUTE SETELAH REJOIN
@@ -36,17 +37,17 @@ end)
 -- ==========================================
 -- PENGATURAN & PENYIMPANAN DATA
 -- ==========================================
-local settingsFile = "ETW_Settings_V51.json"
+local settingsFile = "ETW_Settings_V52.json"
 local settings = {
     AutoGrab = false, AutoEat = false, AutoSell = false,
     WalkSpeedToggle = false, WalkSpeedValue = 16,
     AntiFreeze = false, NoAnimation = false, NoAnimV2 = false,
-    AutoTween = false, Noclip = false, 
+    AutoFarm = false, FarmMode = "Tween", -- Pilihan: "Tween", "Walk", "TP"
     SmartAutoRejoin = false, AutoAllRewards = false, AutoCube = false,
     AntiRagdoll = false, AntiChunk = false,
     AutoTargetThrow = false, SafeUnowned = false, FPSBooster = false,
-    SafeZoneFarm = false,   -- Fitur Utama Dynamic Safe Zone V51
-    SafeZoneYValue = -30    -- Default koordinat Y (bawah tanah)
+    SafeZoneFarm = false, 
+    SafeZoneYValue = 500  -- Default ke 500
 }
 local CurrentTarget = nil
 local safeZoneFloorPart = nil
@@ -67,11 +68,11 @@ end
 loadSettings()
 
 -- ==========================================
--- PEMBUATAN ANTARMUKA UI LENGKAP
+-- PEMBUATAN ANTARMUKA UI
 -- ==========================================
 local parentGui = PlayerGui
 pcall(function() if gethui then parentGui = gethui() else parentGui = CoreGui end end)
-local uiName = "ETW_LightPanel_V51"
+local uiName = "ETW_LightPanel_V52"
 if parentGui:FindFirstChild(uiName) then parentGui[uiName]:Destroy() end
 
 local uiScreen = Instance.new("ScreenGui", parentGui)
@@ -89,7 +90,7 @@ local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, -60, 0, 35)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "ETW Tool - V51"
+Title.Text = "ETW Tool - V52"
 Title.TextColor3 = Color3.fromRGB(200, 150, 255)
 Title.Font = Enum.Font.SourceSansBold; Title.TextSize = 18
 Title.TextXAlignment = Enum.TextXAlignment.Left
@@ -175,7 +176,9 @@ local function createToggle(text, settingKey, onToggleCallback)
     return btn
 end
 
--- FUNGSIONALITAS PEMBARUAN PLATFORM SAFE ZONE SECARA REAL-TIME
+-- ==========================================
+-- SOLID SAFE ZONE V52 LOGIC
+-- ==========================================
 local function updateSafeZonePlatform()
     if settings.SafeZoneFarm then
         if not safeZoneFloorPart then
@@ -183,17 +186,15 @@ local function updateSafeZonePlatform()
             safeZoneFloorPart.Name = "ETW_UniversalSafeZone"
             safeZoneFloorPart.Size = Vector3.new(2000, 2, 2000)
             safeZoneFloorPart.Anchored = true
-            safeZoneFloorPart.Transparency = 0.8
-            safeZoneFloorPart.Color = Color3.fromRGB(180, 100, 255)
-            safeZoneFloorPart.Material = Enum.Material.Neon
+            safeZoneFloorPart.CanCollide = true -- Dibuat Solid agar tidak jatuh
+            safeZoneFloorPart.Transparency = 0.5
+            safeZoneFloorPart.Color = Color3.fromRGB(100, 255, 100)
+            safeZoneFloorPart.Material = Enum.Material.SmoothPlastic
             safeZoneFloorPart.Parent = Workspace
         end
         safeZoneFloorPart.Position = Vector3.new(0, settings.SafeZoneYValue, 0)
         
-        -- Paksa noclip hidup otomatis demi keamanan perpindahan axis Y
-        settings.Noclip = true
-        updateVisual("Noclip")
-        
+        -- Kunci Karakter di atas platform saat diaktifkan/diubah angkanya
         local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
         if root then root.CFrame = CFrame.new(root.Position.X, settings.SafeZoneYValue + 4, root.Position.Z) end
     else
@@ -232,75 +233,7 @@ wsInput.Text = tostring(settings.WalkSpeedValue)
 Instance.new("UICorner", wsInput).CornerRadius = UDim.new(0, 6)
 wsInput.FocusLost:Connect(function() local val = tonumber(wsInput.Text); if val then settings.WalkSpeedValue = val; saveSettings() else wsInput.Text = tostring(settings.WalkSpeedValue) end end)
 
-createToggle("Anti-Freeze", "AntiFreeze")
-createToggle("Anti-Ragdoll (God)", "AntiRagdoll")
-createToggle("Anti-Chunk Aura", "AntiChunk")
-
--- SETUP DROPDOWN UNTUK AUTO TARGET THROW
-local DropdownBtn = Instance.new("TextButton", ScrollFrame)
-local DropdownList = Instance.new("ScrollingFrame", ScrollFrame)
-
-createToggle("Auto Target Throw", "AutoTargetThrow", function(state)
-    DropdownBtn.Visible = state
-    if not state then DropdownList.Visible = false end
-    updateCanvas()
-end)
-
-DropdownBtn.Size = UDim2.new(0, 210, 0, 30)
-DropdownBtn.BackgroundColor3 = Color3.fromRGB(50, 40, 60)
-DropdownBtn.TextColor3 = Color3.fromRGB(230, 200, 255)
-DropdownBtn.Font = Enum.Font.SourceSansBold; DropdownBtn.TextSize = 14
-DropdownBtn.Text = "Pilih Target: None ▼"
-DropdownBtn.Visible = settings.AutoTargetThrow
-DropdownBtn.LayoutOrder = layoutOrderCounter; layoutOrderCounter = layoutOrderCounter + 1
-Instance.new("UICorner", DropdownBtn).CornerRadius = UDim.new(0, 6)
-
-if CurrentTarget and CurrentTarget.Parent then DropdownBtn.Text = "Target: " .. CurrentTarget.Name .. " ▼" end
-
-DropdownList.Size = UDim2.new(0, 210, 0, 110)
-DropdownList.BackgroundColor3 = Color3.fromRGB(30, 25, 35)
-DropdownList.Visible = false
-DropdownList.ScrollBarThickness = 4
-DropdownList.LayoutOrder = layoutOrderCounter; layoutOrderCounter = layoutOrderCounter + 1
-Instance.new("UICorner", DropdownList).CornerRadius = UDim.new(0, 6)
-local DropdownLayout = Instance.new("UIListLayout", DropdownList)
-DropdownLayout.SortOrder = Enum.SortOrder.LayoutOrder
-
-local function refreshDropdown()
-    for _, child in pairs(DropdownList:GetChildren()) do if child:IsA("TextButton") then child:Destroy() end end
-    local ySize = 0
-    local players = Players:GetPlayers()
-    for i, p in ipairs(players) do
-        if p ~= LocalPlayer then
-            local btn = Instance.new("TextButton", DropdownList)
-            btn.Size = UDim2.new(1, 0, 0, 25)
-            btn.BackgroundTransparency = (i % 2 == 0) and 0.8 or 1
-            btn.BackgroundColor3 = Color3.fromRGB(60, 50, 70)
-            btn.TextColor3 = Color3.fromRGB(240, 220, 255)
-            btn.Font = Enum.Font.SourceSans; btn.TextSize = 14
-            btn.Text = "  " .. p.Name
-            btn.TextXAlignment = Enum.TextXAlignment.Left
-            btn.LayoutOrder = i
-            
-            btn.MouseButton1Click:Connect(function()
-                CurrentTarget = p; DropdownBtn.Text = "Target: " .. p.Name .. " ▼"; DropdownList.Visible = false; updateCanvas()
-            end)
-            ySize = ySize + 25
-        end
-    end
-    DropdownList.CanvasSize = UDim2.new(0, 0, 0, ySize)
-end
-
-DropdownBtn.MouseButton1Click:Connect(function() DropdownList.Visible = not DropdownList.Visible; if DropdownList.Visible then refreshDropdown() end; updateCanvas() end)
-Players.PlayerAdded:Connect(function() if DropdownList.Visible then refreshDropdown() end end)
-Players.PlayerRemoving:Connect(function(player) if CurrentTarget == player then CurrentTarget = nil; DropdownBtn.Text = "Pilih Target: None ▼" end; if DropdownList.Visible then refreshDropdown() end end)
-
-createToggle("No Anim (Brutal)", "NoAnimation")
-createToggle("No Anim V2", "NoAnimV2")
-
--- ==========================================
--- NEW REVOLUTIONARY FITUR V51: SAFE ZONE DYNAMIC Y AXIS
--- ==========================================
+-- SAFE ZONE Y-AXIS INPUT
 local sfContainer = Instance.new("Frame", ScrollFrame)
 sfContainer.Size = UDim2.new(0, 210, 0, 35)
 sfContainer.BackgroundTransparency = 1
@@ -311,7 +244,6 @@ sfBtn.Size = UDim2.new(0, 140, 1, 0)
 sfBtn.Font = Enum.Font.SourceSansBold; sfBtn.TextSize = 15
 Instance.new("UICorner", sfBtn).CornerRadius = UDim.new(0, 6)
 buttonRefs["SafeZoneFarm"] = {button = sfBtn, label = "Safe Zone Farm"}
-
 sfBtn.MouseButton1Click:Connect(function() 
     settings["SafeZoneFarm"] = not settings["SafeZoneFarm"]
     updateVisual("SafeZoneFarm"); saveSettings()
@@ -327,21 +259,46 @@ sfInput.TextColor3 = Color3.fromRGB(255, 255, 255)
 sfInput.Font = Enum.Font.SourceSansBold; sfInput.TextSize = 15
 sfInput.Text = tostring(settings.SafeZoneYValue)
 Instance.new("UICorner", sfInput).CornerRadius = UDim.new(0, 6)
-
 sfInput.FocusLost:Connect(function() 
     local val = tonumber(sfInput.Text)
     if val then 
         settings.SafeZoneYValue = val; saveSettings()
-        updateSafeZonePlatform() -- Perbarui letak platform saat angka Y diubah
+        updateSafeZonePlatform()
     else 
         sfInput.Text = tostring(settings.SafeZoneYValue) 
     end 
 end)
 
-createToggle("Auto Tween (2Axis Smooth)", "AutoTween") 
+-- MULTI-MOVEMENT FARM MODE (TWEEN / WALK / TP)
+createToggle("Auto Farm (Multi-Mode)", "AutoFarm") 
+
+local ModeBtn = Instance.new("TextButton", ScrollFrame)
+ModeBtn.Size = UDim2.new(0, 210, 0, 35)
+ModeBtn.BackgroundColor3 = Color3.fromRGB(30, 80, 100)
+ModeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ModeBtn.Font = Enum.Font.SourceSansBold; ModeBtn.TextSize = 15
+ModeBtn.LayoutOrder = layoutOrderCounter; layoutOrderCounter = layoutOrderCounter + 1
+Instance.new("UICorner", ModeBtn).CornerRadius = UDim.new(0, 6)
+
+local modes = {"Tween", "Walk", "TP"}
+local currentModeIndex = table.find(modes, settings.FarmMode) or 1
+ModeBtn.Text = "Mode Gerak: " .. settings.FarmMode
+
+ModeBtn.MouseButton1Click:Connect(function()
+    currentModeIndex = currentModeIndex + 1
+    if currentModeIndex > #modes then currentModeIndex = 1 end
+    settings.FarmMode = modes[currentModeIndex]
+    ModeBtn.Text = "Mode Gerak: " .. settings.FarmMode
+    saveSettings()
+end)
+
+createToggle("Anti-Freeze", "AntiFreeze")
+createToggle("Anti-Ragdoll (God)", "AntiRagdoll")
+createToggle("Anti-Chunk Aura", "AntiChunk")
+createToggle("No Anim (Brutal)", "NoAnimation")
+createToggle("No Anim V2", "NoAnimV2")
 createToggle("Safe Unowned Farm", "SafeUnowned")
 createToggle("FPS Booster (Clean Trash)", "FPSBooster")
-createToggle("Noclip (Wajib Aktif!)", "Noclip") 
 createToggle("Smart Rejoin (All)", "SmartAutoRejoin") 
 createToggle("Auto All Rewards", "AutoAllRewards")
 createToggle("Auto Cube", "AutoCube")
@@ -377,16 +334,6 @@ game:GetService("CoreGui").ChildAdded:Connect(function(child) if child:IsA("Scre
 -- ==========================================
 task.spawn(function()
     while task.wait(0.3) do
-        if settings.AutoTargetThrow and CurrentTarget and CurrentTarget.Character and CurrentTarget.Character:FindFirstChild("HumanoidRootPart") then
-            local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            local targetRoot = CurrentTarget.Character.HumanoidRootPart
-            if myRoot then
-                myRoot.CFrame = CFrame.new(myRoot.Position, Vector3.new(targetRoot.Position.X, myRoot.Position.Y, targetRoot.Position.Z))
-                local events = LocalPlayer.Character:FindFirstChild("Events")
-                if events and events:FindFirstChild("Throw") then pcall(function() events.Throw:FireServer(targetRoot.Position + Vector3.new(0, 3, 0)) end) end
-            end
-        end
-        
         if settings.AutoGrab then
             local Char = LocalPlayer.Character
             if Char and Char:FindFirstChild("Events") and Char:FindFirstChild("HumanoidRootPart") then
@@ -394,7 +341,6 @@ task.spawn(function()
                 if not currentChunk or currentChunk.Value == nil then pcall(function() Char.Events.Grab:FireServer(false, false, false) end) end
             end
         end
-        
         if settings.AutoSell then
             pcall(function()
                 local warn = PlayerGui.ScreenGui.Sell.WarningText
@@ -416,34 +362,46 @@ task.spawn(function()
     end
 end)
 
--- LOGIKA SMOOTH TWEENING BERDASARKAN INPUT AXIS Y DYNAMIC
-local function tweenTo(targetPos)
+-- MULTI-MODE MOVEMENT & FIX ROTATION SYSTEM
+local function moveToTarget(targetPos)
     local char = LocalPlayer.Character
     if not char then return end
     local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then return end
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if not root or not humanoid then return end
     
     local finalPosition = targetPos
     if settings.SafeZoneFarm then
-        -- Kunci posisi vertical (Y) mengikuti nilai input box UI secara real-time
         finalPosition = Vector3.new(targetPos.X, settings.SafeZoneYValue + 3, targetPos.Z)
     end
+    
+    -- ==========================================
+    -- FIX STUCK: PAKSA BADAN MENGHADAP TARGET
+    -- ==========================================
+    root.CFrame = CFrame.lookAt(root.Position, Vector3.new(finalPosition.X, root.Position.Y, finalPosition.Z))
     
     local distance = (root.Position - finalPosition).Magnitude
     if distance < 1 then return end
     
-    if activeTween then activeTween:Cancel() end
-    
-    local info = TweenInfo.new(distance / 65, Enum.EasingStyle.Linear)
-    local targetCFrame = CFrame.new(finalPosition) * root.CFrame.Rotation
-    
-    activeTween = TweenService:Create(root, info, {CFrame = targetCFrame})
-    activeTween:Play()
+    -- EKSEKUSI BERDASARKAN MODE
+    if settings.FarmMode == "Tween" then
+        if activeTween then activeTween:Cancel() end
+        local info = TweenInfo.new(distance / 65, Enum.EasingStyle.Linear)
+        activeTween = TweenService:Create(root, info, {CFrame = CFrame.new(finalPosition) * root.CFrame.Rotation})
+        activeTween:Play()
+    elseif settings.FarmMode == "Walk" then
+        if activeTween then activeTween:Cancel() end
+        humanoid:MoveTo(finalPosition)
+    elseif settings.FarmMode == "TP" then
+        if activeTween then activeTween:Cancel() end
+        root.CFrame = CFrame.new(finalPosition) * root.CFrame.Rotation
+        task.wait(0.1) -- Sedikit delay agar server tidak mendeteksi kecepatan abnormal
+    end
 end
 
 task.spawn(function()
     while task.wait(0.3) do
-        if settings.AutoTween then
+        if settings.AutoFarm then
             local char = LocalPlayer.Character
             local root = char and char:FindFirstChild("HumanoidRootPart")
             if root then
@@ -493,14 +451,14 @@ task.spawn(function()
                     else
                         safeX = math.clamp(safeX, -144, 144); safeZ = math.clamp(safeZ, -144, 144)
                     end
-                    tweenTo(Vector3.new(safeX, targetPos.Y, safeZ))
+                    moveToTarget(Vector3.new(safeX, targetPos.Y, safeZ))
                 end
             end
         end
     end
 end)
 
--- AGGRESSIVE CLEAN TRASH (BERDASARKAN POSISI HORIZONTAL DYNAMIC AXIS Y)
+-- AGGRESSIVE CLEAN TRASH
 task.spawn(function()
     while task.wait(1.5) do
         if settings.FPSBooster and Workspace:FindFirstChild("Chunks") then
@@ -532,11 +490,6 @@ RunService.Stepped:Connect(function()
     if not Char then return end
     local Humanoid = Char:FindFirstChildOfClass("Humanoid")
     local RootPart = Char:FindFirstChild("HumanoidRootPart")
-    
-    if RootPart then
-        local _, yRotation, _ = RootPart.CFrame:ToOrientation()
-        RootPart.CFrame = CFrame.new(RootPart.Position) * CFrame.fromOrientation(0, yRotation, 0)
-    end
     
     if settings.AntiRagdoll and Humanoid then
         if Humanoid:GetState() == Enum.HumanoidStateType.Physics or Humanoid:GetState() == Enum.HumanoidStateType.Ragdoll then
@@ -573,12 +526,6 @@ RunService.Stepped:Connect(function()
     if settings.AntiFreeze then
         if RootPart and RootPart.Anchored then RootPart.Anchored = false end
         if Controls then pcall(function() Controls:Enable() end) end
-    end
-    
-    if settings.Noclip then
-        for _, part in pairs(Char:GetDescendants()) do
-            if part:IsA("BasePart") and part.CanCollide == true then part.CanCollide = false end
-        end
     end
 end)
 
