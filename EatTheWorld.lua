@@ -177,16 +177,19 @@ local function createToggle(text, settingKey, onToggleCallback)
 end
 
 -- ==========================================
--- SOLID SAFE ZONE V52 LOGIC
+-- SOLID SAFE ZONE V52 LOGIC (UPDATED FIX MAP CHANGE)
 -- ==========================================
-local function updateSafeZonePlatform()
+local function updateSafeZonePlatform(teleportPlayer)
+    if teleportPlayer == nil then teleportPlayer = true end -- Default true jika ditekan dari UI
+    
     if settings.SafeZoneFarm then
-        if not safeZoneFloorPart then
+        -- 1. Buat ulang jika dihapus oleh server saat pindah map
+        if not safeZoneFloorPart or not safeZoneFloorPart.Parent then
             safeZoneFloorPart = Instance.new("Part")
             safeZoneFloorPart.Name = "ETW_UniversalSafeZone"
-            safeZoneFloorPart.Size = Vector3.new(2000, 2, 2000)
+            safeZoneFloorPart.Size = Vector3.new(10000, 2, 10000) -- Diperbesar jadi 10000 agar mencakup map baru
             safeZoneFloorPart.Anchored = true
-            safeZoneFloorPart.CanCollide = true -- Dibuat Solid agar tidak jatuh
+            safeZoneFloorPart.CanCollide = true
             safeZoneFloorPart.Transparency = 0.5
             safeZoneFloorPart.Color = Color3.fromRGB(100, 255, 100)
             safeZoneFloorPart.Material = Enum.Material.SmoothPlastic
@@ -194,13 +197,42 @@ local function updateSafeZonePlatform()
         end
         safeZoneFloorPart.Position = Vector3.new(0, settings.SafeZoneYValue, 0)
         
-        -- Kunci Karakter di atas platform saat diaktifkan/diubah angkanya
-        local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if root then root.CFrame = CFrame.new(root.Position.X, settings.SafeZoneYValue + 4, root.Position.Z) end
+        -- 2. Tarik karakter ke atas platform (Hanya jalan saat di-toggle atau respawn)
+        if teleportPlayer then
+            local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if root then 
+                root.CFrame = CFrame.new(root.Position.X, settings.SafeZoneYValue + 4, root.Position.Z) 
+            end
+        end
     else
-        if safeZoneFloorPart then safeZoneFloorPart:Destroy(); safeZoneFloorPart = nil end
+        if safeZoneFloorPart then 
+            safeZoneFloorPart:Destroy()
+            safeZoneFloorPart = nil 
+        end
     end
 end
+
+-- ==========================================
+-- SISTEM AUTO-REPAIR MAP CHANGE
+-- ==========================================
+-- Event: Saat karakter respawn (biasanya terjadi saat pindah map)
+LocalPlayer.CharacterAdded:Connect(function(char)
+    if settings.SafeZoneFarm then
+        char:WaitForChild("HumanoidRootPart", 5)
+        task.wait(1.5) -- Tunggu loading map baru selesai 100%
+        updateSafeZonePlatform(true) -- Otomatis buat platform & tarik karakter
+    end
+end)
+
+-- Loop: Memastikan server tidak diam-diam menghapus platform
+task.spawn(function()
+    while task.wait(2) do
+        if settings.SafeZoneFarm then
+            -- Panggil fungsi tanpa menarik karakter ke atas agar tidak nyendat saat jalan
+            updateSafeZonePlatform(false) 
+        end
+    end
+end)
 
 -- ==========================================
 -- INISIALISASI TOMBOL FITUR UI
@@ -370,8 +402,9 @@ task.spawn(function()
     end
 end)
 
-
--- MULTI-MODE MOVEMENT & FIX ROTATION SYSTEM
+-- ==========================================
+-- MULTI-MODE MOVEMENT & FIX ROTATION SYSTEM (UPDATED)
+-- ==========================================
 local function moveToTarget(targetPos)
     local char = LocalPlayer.Character
     if not char then return end
@@ -379,18 +412,30 @@ local function moveToTarget(targetPos)
     local humanoid = char:FindFirstChildOfClass("Humanoid")
     if not root or not humanoid then return end
     
-    local finalPosition = targetPos
-    if settings.SafeZoneFarm then
-        finalPosition = Vector3.new(targetPos.X, settings.SafeZoneYValue + 3, targetPos.Z)
+    -- 1. Kunci Sumbu Y (Ketinggian) agar sejajar dengan kaki karakter saat ini.
+    -- Ini mencegah karakter mencoba memanjat ke atas gedung/chunk yang tinggi.
+    local flatTarget = Vector3.new(targetPos.X, root.Position.Y, targetPos.Z)
+    
+    -- 2. Kalkulasi Arah & Jarak Berhenti (Offset)
+    local diff = root.Position - flatTarget
+    local direction = Vector3.new(0, 0, 1) -- Default arah jika sudah tepat di tengah
+    if diff.Magnitude > 0.1 then
+        direction = diff.Unit
     end
     
-    -- ==========================================
-    -- FIX STUCK: PAKSA BADAN MENGHADAP TARGET
-    -- ==========================================
+    local stopDistance = 4 -- Karakter akan berhenti 4 stud sebelum titik tengah chunk
+    local finalPosition = flatTarget + (direction * stopDistance)
+    
+    -- Jika Safe Zone aktif, timpa Y-nya ke ketinggian Safe Zone
+    if settings.SafeZoneFarm then
+        finalPosition = Vector3.new(finalPosition.X, settings.SafeZoneYValue + 3, finalPosition.Z)
+    end
+    
+    -- 3. Putar badan menghadap target final
     root.CFrame = CFrame.lookAt(root.Position, Vector3.new(finalPosition.X, root.Position.Y, finalPosition.Z))
     
     local distance = (root.Position - finalPosition).Magnitude
-    if distance < 1 then return end
+    if distance < 1 then return end -- Jika sudah sangat dekat, tidak perlu jalan lagi
     
     -- EKSEKUSI BERDASARKAN MODE
     if settings.FarmMode == "Tween" then
@@ -404,10 +449,13 @@ local function moveToTarget(targetPos)
     elseif settings.FarmMode == "TP" then
         if activeTween then activeTween:Cancel() end
         root.CFrame = CFrame.new(finalPosition) * root.CFrame.Rotation
-        task.wait(0.1) -- Sedikit delay agar server tidak mendeteksi kecepatan abnormal
+        task.wait(0.1)
     end
 end
 
+-- ==========================================
+-- AUTO FARM (MULTI MODE)
+-- ==========================================
 task.spawn(function()
     while task.wait(0.3) do
         if settings.AutoFarm then
