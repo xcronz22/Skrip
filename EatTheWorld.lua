@@ -1,5 +1,5 @@
 -- ==========================================
--- EAT THE WORLD - LIGHTWEIGHT HUB V27 (STABLE & INSTANT EAT)
+-- EAT THE WORLD - LIGHTWEIGHT HUB V29 (INFINITE RANGE GRAB)
 -- ==========================================
 
 local Players = game:GetService("Players")
@@ -13,7 +13,7 @@ local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 -- 1. SISTEM AUTO SAVE
-local settingsFile = "ETW_Settings_V27.json"
+local settingsFile = "ETW_Settings_V29.json"
 local settings = {
     AutoGrab = false,
     AutoEat = false,
@@ -21,7 +21,7 @@ local settings = {
     WalkSpeedToggle = false,
     WalkSpeedValue = 16,
     AntiFreeze = false,
-    AutoReward = false,
+    AutoAllRewards = false,
     AutoCube = false
 }
 
@@ -48,7 +48,7 @@ loadSettings()
 local parentGui = PlayerGui
 pcall(function() if gethui then parentGui = gethui() else parentGui = CoreGui end end)
 
-local uiName = "ETW_LightPanel_V27"
+local uiName = "ETW_LightPanel_V29"
 if parentGui:FindFirstChild(uiName) then parentGui[uiName]:Destroy() end
 
 -- ==========================================
@@ -60,7 +60,7 @@ uiScreen.ResetOnSpawn = false
 uiScreen.Parent = parentGui
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 220, 0, 365) -- Ukuran disesuaikan agar pas
+MainFrame.Size = UDim2.new(0, 220, 0, 365)
 MainFrame.Position = UDim2.new(0, 20, 0, 20)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 15, 20)
 MainFrame.Active = true
@@ -72,7 +72,7 @@ local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, -60, 0, 30)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "ETW Tool - V27"
+Title.Text = "ETW Tool - V29"
 Title.TextColor3 = Color3.fromRGB(255, 200, 100)
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 16
@@ -142,7 +142,7 @@ local function createToggle(text, yPos, settingKey)
     updateVisual(settingKey)
 end
 
-createToggle("Auto Grab", 40, "AutoGrab")
+createToggle("Inf Range Grab", 40, "AutoGrab") -- DIUBAH MENJADI INF RANGE
 createToggle("Auto Eat (Instant)", 85, "AutoEat")
 createToggle("Auto Sell", 130, "AutoSell")
 
@@ -181,7 +181,7 @@ end)
 -- ====================================================
 
 createToggle("Anti-Freeze (Move)", 220, "AntiFreeze")
-createToggle("Auto Reward", 265, "AutoReward")
+createToggle("Auto All Rewards", 265, "AutoAllRewards")
 createToggle("Auto Cube", 310, "AutoCube")
 
 MinBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false; MinIcon.Position = MainFrame.Position; MinIcon.Visible = true end)
@@ -192,9 +192,9 @@ CloseBtn.MouseButton1Click:Connect(function() uiScreen:Destroy() end)
 -- 4. MESIN UTAMA
 -- ==========================================
 
--- LOOP 1: AUTO GRAB (Jeda Aman 0.5 Detik)
+-- LOOP 1: BYPASS DISTANCE AUTO GRAB (Mencari Objek & Tembak Langsung)
 task.spawn(function()
-    while task.wait(0.5) do
+    while task.wait(0.3) do -- Kecepatan dioptimalkan agar tidak lag
         if not settings.AutoGrab then continue end
         local Char = LocalPlayer.Character
         if not Char then continue end
@@ -204,13 +204,17 @@ task.spawn(function()
         local chunkValueObj = Char:FindFirstChild("CurrentChunk")
         local isHoldingChunk = (chunkValueObj and chunkValueObj.Value ~= nil)
 
+        -- Jika tangan kosong, langsung paksa panggil fungsi Grab game
         if not isHoldingChunk then
-            pcall(function() Events.Grab:FireServer(false, false, false) end)
+            pcall(function() 
+                -- Trik memicu remote Grab tanpa peduli posisi karakter
+                Events.Grab:FireServer(false, false, false) 
+            end)
         end
     end
 end)
 
--- LOOP 2: AUTO EAT (Instan Tanpa Jeda)
+-- LOOP 2: AUTO EAT (Instan)
 task.spawn(function()
     while task.wait() do 
         if not settings.AutoEat then continue end
@@ -228,9 +232,7 @@ task.spawn(function()
     end
 end)
 
--- ====================================================
 -- LOOP 3: AGGRESSIVE WALK SPEED & ANTI-FREEZE 
--- ====================================================
 local PlayerModule, Controls
 pcall(function()
     PlayerModule = require(LocalPlayer.PlayerScripts:WaitForChild("PlayerModule"))
@@ -277,7 +279,7 @@ task.spawn(function()
     end
 end)
 
--- LOOP 5: AUTO CUBE & AUTO REWARD
+-- LOOP 5: AUTO CUBE
 task.spawn(function()
     while task.wait(1) do
         if settings.AutoCube then
@@ -291,20 +293,36 @@ task.spawn(function()
                 end
             end
         end
-        if settings.AutoReward then
-            pcall(function()
-                local rewardGrid = PlayerGui.ScreenGui.Rewards.TimedRewards.RewardGrid
-                for _, template in pairs(rewardGrid:GetChildren()) do
-                    if template.Name == "Template" and template:FindFirstChild("Time") then
-                        if template.Time.Text == "Tap to claim!" then
-                            local rewardFolder = LocalPlayer:WaitForChild("TimedRewards")
-                            local rewardEvent = ReplicatedStorage:WaitForChild("Events"):WaitForChild("RewardEvent")
-                            for _, rewardItem in pairs(rewardFolder:GetChildren()) do rewardEvent:FireServer(rewardItem) end
-                            break
+    end
+end)
+
+-- LOOP 6: AUTO ALL REWARDS (GABUNGAN TIME & SPIN)
+task.spawn(function()
+    while task.wait(1) do
+        if not settings.AutoAllRewards then continue end
+        
+        pcall(function()
+            local rewardGrid = PlayerGui.ScreenGui.Rewards.TimedRewards.RewardGrid
+            for _, template in pairs(rewardGrid:GetChildren()) do
+                if template.Name == "Template" and template:FindFirstChild("Time") then
+                    if template.Time.Text == "Tap to claim!" then
+                        local rewardFolder = LocalPlayer:WaitForChild("TimedRewards")
+                        local rewardEvent = ReplicatedStorage:WaitForChild("Events"):WaitForChild("RewardEvent")
+                        for _, rewardItem in pairs(rewardFolder:GetChildren()) do 
+                            rewardEvent:FireServer(rewardItem) 
                         end
+                        break
                     end
                 end
-            end)
-        end
+            end
+        end)
+        
+        pcall(function()
+            local spinUI = PlayerGui.ScreenGui.Rewards.Spin
+            if spinUI.NextSpin.Visible == false then
+                ReplicatedStorage.Events.SpinEvent:FireServer()
+                task.wait(2)
+            end
+        end)
     end
 end)
