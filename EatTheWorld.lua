@@ -1,5 +1,5 @@
 -- =======================================================================
--- EAT THE WORLD - V53 ULTIMATE (STANDALONE CUSTOM UI VERSION)
+-- EAT THE WORLD - V53 ULTIMATE EDITION (PERFECTED PHYSICS)
 -- 100% ANTI-FAIL UNTUK DELTA & SEMUA EXECUTOR MOBILE/PC
 -- =======================================================================
 
@@ -16,6 +16,7 @@ local TeleportService = game:GetService("TeleportService")
 local VirtualUser = game:GetService("VirtualUser")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
 local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 
@@ -30,7 +31,6 @@ local settings = {
 
 local safeZoneFloorPart = nil
 local activeTween = nil
-local originalC0 = nil
 
 task.spawn(function()
     pcall(function()
@@ -55,7 +55,6 @@ local uiScreen = Instance.new("ScreenGui", parentGui)
 uiScreen.Name = uiName
 uiScreen.ResetOnSpawn = false
 
--- Ikon Minimize (Kecil)
 local MinIcon = Instance.new("TextButton", uiScreen)
 MinIcon.Size = UDim2.new(0, 45, 0, 45)
 MinIcon.Position = UDim2.new(0, 20, 0, 20)
@@ -70,7 +69,6 @@ MinIcon.Draggable = true
 Instance.new("UICorner", MinIcon).CornerRadius = UDim.new(1, 0)
 Instance.new("UIStroke", MinIcon).Color = Color3.fromRGB(0, 255, 150)
 
--- Main Frame
 local MainFrame = Instance.new("Frame", uiScreen)
 MainFrame.Size = UDim2.new(0, 250, 0, 450)
 MainFrame.Position = UDim2.new(0, 20, 0, 20)
@@ -133,8 +131,10 @@ end
 ScrollFrame.ChildAdded:Connect(updateCanvas)
 
 -- =======================================================================
--- UI BUILDER FUNCTIONS
+-- UI BUILDER FUNCTIONS & UPDATERS
 -- =======================================================================
+local uiUpdaters = {}
+
 local function CreateSectionTitle(text)
     local lbl = Instance.new("TextLabel", ScrollFrame)
     lbl.Size = UDim2.new(1, -10, 0, 25)
@@ -164,6 +164,8 @@ local function CreateToggle(text, settingKey)
         end
     end
     
+    uiUpdaters[settingKey] = updateVisual
+    
     btn.MouseButton1Click:Connect(function()
         settings[settingKey] = not settings[settingKey]
         updateVisual()
@@ -181,15 +183,19 @@ local function CreateDropdown(text, settingKey, options)
     btn.TextSize = 14
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
     
-    local currentIndex = table.find(options, settings[settingKey]) or 1
-    btn.Text = text .. ": " .. tostring(settings[settingKey] or "None")
+    local function updateVisual()
+        btn.Text = text .. ": " .. tostring(settings[settingKey] or "None")
+    end
+    uiUpdaters[settingKey] = updateVisual
     
     btn.MouseButton1Click:Connect(function()
+        local currentIndex = table.find(options, settings[settingKey]) or 1
         currentIndex = currentIndex + 1
         if currentIndex > #options then currentIndex = 1 end
         settings[settingKey] = options[currentIndex]
-        btn.Text = text .. ": " .. tostring(settings[settingKey] or "None")
+        updateVisual()
     end)
+    updateVisual()
     return btn
 end
 
@@ -207,18 +213,20 @@ CreateDropdown("Move Mode", "FarmMode", {"Tween", "Walk", "TP"})
 CreateToggle("Sleep Free-Walk (Tidur)", "LayDownMode")
 CreateToggle("Safe Zone Floor", "SafeZoneFarm")
 
--- Input Y Sumbu Custom
 local yContainer = Instance.new("Frame", ScrollFrame)
 yContainer.Size = UDim2.new(1, -10, 0, 35)
 yContainer.BackgroundTransparency = 1
 local yLbl = Instance.new("TextLabel", yContainer)
 yLbl.Size = UDim2.new(0.6, 0, 1, 0); yLbl.BackgroundTransparency = 1
-yLbl.Text = "Safe Zone Height (Y):"; yLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
+yLbl.Text = "Safe Zone Y Axis:"; yLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
 yLbl.Font = Enum.Font.SourceSansBold; yLbl.TextSize = 14; yLbl.TextXAlignment = Enum.TextXAlignment.Left
 local yInput = Instance.new("TextBox", yContainer)
 yInput.Size = UDim2.new(0.4, 0, 1, 0); yInput.Position = UDim2.new(0.6, 0, 0, 0)
 yInput.BackgroundColor3 = Color3.fromRGB(30, 30, 40); yInput.TextColor3 = Color3.fromRGB(255, 255, 255)
 yInput.Text = tostring(settings.SafeZoneYValue); Instance.new("UICorner", yInput)
+
+uiUpdaters["SafeZoneYValue"] = function() yInput.Text = tostring(settings.SafeZoneYValue) end
+
 yInput.FocusLost:Connect(function()
     local val = tonumber(yInput.Text)
     if val then settings.SafeZoneYValue = val else yInput.Text = tostring(settings.SafeZoneYValue) end
@@ -230,7 +238,6 @@ CreateToggle("Auto Collect Cubes", "AutoCube")
 CreateToggle("Auto Rejoin (Rewards Done)", "RejoinAfterRewards")
 CreateToggle("Enable Auto Throw", "AutoThrow")
 
--- Player List untuk Auto Throw
 local pList = {"None"}
 for _, p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer then table.insert(pList, p.Name) end end
 local targetBtn = CreateDropdown("Target", "ThrowTarget", pList)
@@ -245,9 +252,8 @@ Instance.new("UICorner", refreshBtn).CornerRadius = UDim.new(0, 6)
 refreshBtn.MouseButton1Click:Connect(function()
     pList = {"None"}
     for _, p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer then table.insert(pList, p.Name) end end
-    -- Update paksa dropdown (karena dropdown sederhana)
     settings.ThrowTarget = nil
-    targetBtn.Text = "Target: None"
+    if uiUpdaters["ThrowTarget"] then uiUpdaters["ThrowTarget"]() end
 end)
 
 CreateSectionTitle("PROTECTIONS")
@@ -257,7 +263,58 @@ CreateToggle("Aggressive Clean Trash", "CleanTrash")
 CreateToggle("No Animation (Brutal)", "NoAnimBrutal")
 CreateToggle("No Animation V2 (Jalan)", "NoAnimV2")
 
+-- =======================================================================
+-- SAVE & LOAD MANAGER (NATIVE)
+-- =======================================================================
+local fileName = "ETW_Ultimate_V53_Settings.json"
+
+local function SaveSettings()
+    if writefile then
+        pcall(function() writefile(fileName, HttpService:JSONEncode(settings)) end)
+    end
+end
+
+local function LoadSettings()
+    if readfile and isfile then
+        pcall(function()
+            if isfile(fileName) then
+                local decoded = HttpService:JSONDecode(readfile(fileName))
+                if type(decoded) == "table" then
+                    for key, value in pairs(decoded) do
+                        settings[key] = value
+                        -- Update visual UI tombolnya langsung
+                        if uiUpdaters[key] then uiUpdaters[key]() end
+                    end
+                end
+            end
+        end)
+    end
+end
+
+CreateSectionTitle("CONFIGURATION")
+local SaveBtn = Instance.new("TextButton", ScrollFrame)
+SaveBtn.Size = UDim2.new(1, -10, 0, 35)
+SaveBtn.BackgroundColor3 = Color3.fromRGB(30, 80, 150)
+SaveBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+SaveBtn.Font = Enum.Font.SourceSansBold; SaveBtn.TextSize = 14; SaveBtn.Text = "Save Settings"
+Instance.new("UICorner", SaveBtn).CornerRadius = UDim.new(0, 6)
+
+local LoadBtn = Instance.new("TextButton", ScrollFrame)
+LoadBtn.Size = UDim2.new(1, -10, 0, 35)
+LoadBtn.BackgroundColor3 = Color3.fromRGB(150, 80, 30)
+LoadBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+LoadBtn.Font = Enum.Font.SourceSansBold; LoadBtn.TextSize = 14; LoadBtn.Text = "Load Settings"
+Instance.new("UICorner", LoadBtn).CornerRadius = UDim.new(0, 6)
+
+SaveBtn.MouseButton1Click:Connect(function()
+    SaveSettings(); SaveBtn.Text = "Saved!"; task.wait(1); SaveBtn.Text = "Save Settings"
+end)
+LoadBtn.MouseButton1Click:Connect(function()
+    LoadSettings(); LoadBtn.Text = "Loaded!"; task.wait(1); LoadBtn.Text = "Load Settings"
+end)
+
 updateCanvas()
+LoadSettings() -- Auto Load di awal eksekusi
 
 -- =======================================================================
 -- NON-BLOCKING CONTROLS SETUP
@@ -274,39 +331,45 @@ task.spawn(function()
 end)
 
 -- =======================================================================
--- CORE LOGIC: SLEEP HACK, ANTI-RAGDOLL, ANTI-FREEZE & ANIMATION
+-- CORE LOGIC: SLEEP HACK (FIXED), ANTI-RAGDOLL, ANTI-FREEZE
 -- =======================================================================
-RunService.Stepped:Connect(function()
+local defaultC0s = {}
+
+RunService.Heartbeat:Connect(function()
     local char = LocalPlayer.Character
     if not char then return end
     local humanoid = char:FindFirstChildOfClass("Humanoid")
     local root = char:FindFirstChild("HumanoidRootPart")
     
-    -- Trik RootJoint (Sleep Free-Walk)
-    local lowerTorso = char:FindFirstChild("LowerTorso")
-    local joint = (root and root:FindFirstChild("RootJoint")) or (lowerTorso and lowerTorso:FindFirstChild("Root"))
-    if joint then
-        if not originalC0 then originalC0 = joint.C0 end
-        if settings.LayDownMode then
-            joint.C0 = originalC0 * CFrame.Angles(math.rad(90), 0, 0)
-        else
-            joint.C0 = originalC0
+    if root and humanoid then
+        -- 1. Trik RootJoint (Sleep Free-Walk) yang telah di-FIX
+        local joint = root:FindFirstChild("RootJoint")
+        if not joint then
+            local lowerTorso = char:FindFirstChild("LowerTorso")
+            if lowerTorso then joint = lowerTorso:FindFirstChild("Root") end
         end
-    end
-    
-    if settings.AntiRagdoll and humanoid then
-        if humanoid:GetState() == Enum.HumanoidStateType.Ragdoll or humanoid:GetState() == Enum.HumanoidStateType.Physics then
-            humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
-            pcall(function() ReplicatedStorage.Events.unRagdoll:FireServer(char) end)
+        
+        if joint then
+            -- Simpan orientasi default tulang punggung
+            if not defaultC0s[joint] then defaultC0s[joint] = joint.C0 end
+            
+            if settings.LayDownMode then
+                -- Paksa miring -90 derajat pada sumbu X agar menunduk/tidur sempurna
+                joint.C0 = defaultC0s[joint] * CFrame.Angles(math.rad(-90), 0, 0)
+            else
+                joint.C0 = defaultC0s[joint]
+            end
         end
-    end
-    
-    if settings.AntiFreeze then
-        if root and root.Anchored then root.Anchored = false end
-        if Controls then pcall(function() Controls:Enable() end) end
-    end
-    
-    if humanoid then
+        
+        -- 2. Anti Ragdoll (Explosive Chunk)
+        if settings.AntiRagdoll then
+            if humanoid:GetState() == Enum.HumanoidStateType.Ragdoll or humanoid:GetState() == Enum.HumanoidStateType.Physics then
+                humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+                pcall(function() ReplicatedStorage.Events.unRagdoll:FireServer(char) end)
+            end
+        end
+        
+        -- 3. No Animation
         local animator = humanoid:FindFirstChildOfClass("Animator")
         if animator then
             for _, anim in pairs(animator:GetPlayingAnimationTracks()) do
@@ -320,6 +383,12 @@ RunService.Stepped:Connect(function()
                 end
             end
         end
+    end
+    
+    -- 4. Anti Freeze
+    if settings.AntiFreeze then
+        if root and root.Anchored then root.Anchored = false end
+        if Controls then pcall(function() Controls:Enable() end) end
     end
 end)
 
@@ -349,7 +418,7 @@ task.spawn(function()
 end)
 
 -- =======================================================================
--- MOVEMENT & TARGETING LOGIC
+-- MOVEMENT & TARGETING LOGIC (FIXED LOOKAT ROTATION)
 -- =======================================================================
 local function moveToTarget(targetPos, targetSize)
     local char = LocalPlayer.Character
@@ -358,21 +427,20 @@ local function moveToTarget(targetPos, targetSize)
     local humanoid = char:FindFirstChildOfClass("Humanoid")
     if not root or not humanoid then return end
     
-    local flatTarget = Vector3.new(targetPos.X, root.Position.Y, targetPos.Z)
-    local diff = root.Position - flatTarget
+    local targetPosFlat = Vector3.new(targetPos.X, root.Position.Y, targetPos.Z)
+    local diff = root.Position - targetPosFlat
     local direction = diff.Magnitude > 0.1 and diff.Unit or Vector3.new(1, 0, 0)
     
     local objectRadius = targetSize and (math.max(targetSize.X, targetSize.Z) / 2) or 4
     local stopDistance = objectRadius + 3 
-    local finalPosition = flatTarget + (direction * stopDistance)
+    local finalPosition = targetPosFlat + (direction * stopDistance)
     
     if settings.SafeZoneFarm then
         finalPosition = Vector3.new(finalPosition.X, settings.SafeZoneYValue + 3, finalPosition.Z)
     end
     
-    if not settings.LayDownMode then
-        root.CFrame = CFrame.lookAt(root.Position, Vector3.new(finalPosition.X, root.Position.Y, finalPosition.Z))
-    end
+    -- Kunci paksa rotasi agar MENATAP TARGET MAKANAN, bukan menatap offset-nya
+    local targetLookCFrame = CFrame.lookAt(root.Position, targetPosFlat)
     
     local distance = (root.Position - finalPosition).Magnitude
     if distance < 1 then return end
@@ -380,12 +448,14 @@ local function moveToTarget(targetPos, targetSize)
     if settings.FarmMode == "Tween" then
         if activeTween then activeTween:Cancel() end
         local info = TweenInfo.new(distance / 65, Enum.EasingStyle.Linear)
-        activeTween = TweenService:Create(root, info, {CFrame = CFrame.new(finalPosition) * root.CFrame.Rotation})
+        activeTween = TweenService:Create(root, info, {CFrame = CFrame.new(finalPosition) * targetLookCFrame.Rotation})
         activeTween:Play()
     elseif settings.FarmMode == "Walk" then
         humanoid:MoveTo(finalPosition)
+        -- Snap rotasi manual karena AutoRotate telat merespons
+        root.CFrame = CFrame.new(root.Position) * targetLookCFrame.Rotation
     elseif settings.FarmMode == "TP" then
-        root.CFrame = CFrame.new(finalPosition) * root.CFrame.Rotation
+        root.CFrame = CFrame.new(finalPosition) * targetLookCFrame.Rotation
         task.wait(0.1)
     end
 end
