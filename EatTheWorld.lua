@@ -1,7 +1,16 @@
 -- ==========================================
--- EAT THE WORLD - LIGHTWEIGHT HUB V42 (GOD MODE EDITION)
+-- EAT THE WORLD - V45 (ULTIMATE SELF-EXECUTE EDITION)
 -- ==========================================
 
+-- 1. LOGIKA AUTO EXECUTE SETELAH REJOIN (DITARUH PALING ATAS)
+local scriptURL = "https://raw.githubusercontent.com/xcronz22/Skrip/main/EatTheWorld.lua"
+if queue_on_teleport then
+    queue_on_teleport('task.wait(1); loadstring(game:HttpGet("' .. scriptURL .. '"))()')
+elseif syn and syn.queue_on_teleport then
+    syn.queue_on_teleport('task.wait(1); loadstring(game:HttpGet("' .. scriptURL .. '"))()')
+end
+
+-- 2. SERVICE ROBLOX
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -27,16 +36,17 @@ end)
 -- ==========================================
 -- PENGATURAN & PENYIMPANAN
 -- ==========================================
-local settingsFile = "ETW_Settings_V42.json"
+local settingsFile = "ETW_Settings_V45.json"
 local settings = {
     AutoGrab = false, AutoEat = false, AutoSell = false,
     WalkSpeedToggle = false, WalkSpeedValue = 16,
     AntiFreeze = false, NoAnimation = false, StealthMode = false,
     AutoTween = false, Noclip = false, 
     SmartAutoRejoin = false, AutoAllRewards = false, AutoCube = false,
-    AntiRagdoll = false,  -- FITUR BARU: ANTI RAGDOLL
-    AntiChunk = false     -- FITUR BARU: ANTI HIT/CHUNK AURA
+    AntiRagdoll = false, AntiChunk = false,
+    AutoTargetThrow = false
 }
+local CurrentTarget = nil
 
 local function saveSettings()
     if writefile then pcall(function() writefile(settingsFile, HttpService:JSONEncode(settings)) end) end
@@ -53,11 +63,11 @@ end
 loadSettings()
 
 -- ==========================================
--- PEMBUATAN UI 
+-- PEMBUATAN UI LENGKAP
 -- ==========================================
 local parentGui = PlayerGui
 pcall(function() if gethui then parentGui = gethui() else parentGui = CoreGui end end)
-local uiName = "ETW_LightPanel_V42"
+local uiName = "ETW_LightPanel_V45"
 if parentGui:FindFirstChild(uiName) then parentGui[uiName]:Destroy() end
 
 local uiScreen = Instance.new("ScreenGui", parentGui)
@@ -65,7 +75,7 @@ uiScreen.Name = uiName
 uiScreen.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame", uiScreen)
-MainFrame.Size = UDim2.new(0, 240, 0, 320) 
+MainFrame.Size = UDim2.new(0, 240, 0, 380) 
 MainFrame.Position = UDim2.new(0, 20, 0, 20)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 15, 20)
 MainFrame.Active = true; MainFrame.Draggable = true
@@ -75,7 +85,7 @@ local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, -60, 0, 35)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "ETW Tool - V42"
+Title.Text = "ETW Tool - V45"
 Title.TextColor3 = Color3.fromRGB(255, 200, 100)
 Title.Font = Enum.Font.SourceSansBold; Title.TextSize = 18
 Title.TextXAlignment = Enum.TextXAlignment.Left
@@ -92,12 +102,52 @@ CloseBtn.Position = UDim2.new(1, -30, 0, 0)
 CloseBtn.BackgroundTransparency = 1; CloseBtn.Text = "X"
 CloseBtn.TextColor3 = Color3.fromRGB(255, 80, 80); CloseBtn.TextSize = 18
 
+-- Frame Daftar Player untuk Target Throw
+local TargetListFrame = Instance.new("ScrollingFrame", MainFrame)
+TargetListFrame.Size = UDim2.new(0, 220, 0, 110)
+TargetListFrame.Position = UDim2.new(0, 10, 0, 260)
+TargetListFrame.BackgroundColor3 = Color3.fromRGB(30, 25, 30)
+TargetListFrame.Visible = false
+TargetListFrame.ScrollBarThickness = 5
+Instance.new("UICorner", TargetListFrame).CornerRadius = UDim.new(0, 6)
+
+local function refreshTargetList()
+    for _, child in pairs(TargetListFrame:GetChildren()) do if child:IsA("TextButton") then child:Destroy() end end
+    local yOffset = 0
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local btn = Instance.new("TextButton", TargetListFrame)
+            btn.Size = UDim2.new(1, -10, 0, 25)
+            btn.Position = UDim2.new(0, 5, 0, yOffset)
+            btn.Text = player.Name
+            btn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+            btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+            btn.Font = Enum.Font.SourceSansBold; btn.TextSize = 14
+            Instance.new("UICorner", btn)
+            
+            btn.MouseButton1Click:Connect(function() 
+                CurrentTarget = player 
+                Title.Text = "Target: " .. player.Name
+            end)
+            yOffset = yOffset + 30
+        end
+    end
+    TargetListFrame.CanvasSize = UDim2.new(0, 0, 0, yOffset)
+end
+
+-- Loop Refresh Daftar Player tiap 5 detik
+task.spawn(function()
+    while task.wait(5) do
+        if settings.AutoTargetThrow then refreshTargetList() end
+    end
+end)
+
 local ScrollFrame = Instance.new("ScrollingFrame", MainFrame)
 ScrollFrame.Size = UDim2.new(1, 0, 1, -35)
 ScrollFrame.Position = UDim2.new(0, 0, 0, 35)
 ScrollFrame.BackgroundTransparency = 1
 ScrollFrame.ScrollBarThickness = 6
-ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 650) -- Diperluas untuk tombol baru
+ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 700) 
 ScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(255, 200, 100)
 ScrollFrame.BorderSizePixel = 0
 
@@ -132,11 +182,24 @@ local function createToggle(text, yPos, settingKey)
     btn.MouseButton1Click:Connect(function()
         settings[settingKey] = not settings[settingKey]
         updateVisual(settingKey); saveSettings()
+        
+        if settingKey == "AutoTargetThrow" then
+            if settings.AutoTargetThrow then
+                TargetListFrame.Visible = true
+                ScrollFrame.Size = UDim2.new(1, 0, 1, -150)
+                refreshTargetList()
+            else
+                TargetListFrame.Visible = false
+                ScrollFrame.Size = UDim2.new(1, 0, 1, -35)
+                Title.Text = "ETW Tool - V45"
+            end
+        end
     end)
     updateVisual(settingKey)
 end
 
-createToggle("Auto Grab", 10, "AutoGrab")
+-- Pemasangan Semua Tombol Fitur (Tanpa Skip)
+createToggle("Auto Grab (Smart)", 10, "AutoGrab")
 createToggle("Auto Eat (Instan)", 55, "AutoEat")
 createToggle("Auto Sell", 100, "AutoSell")
 
@@ -160,22 +223,23 @@ Instance.new("UICorner", wsInput).CornerRadius = UDim.new(0, 6)
 wsInput.FocusLost:Connect(function() local val = tonumber(wsInput.Text); if val then settings.WalkSpeedValue = val; saveSettings() else wsInput.Text = tostring(settings.WalkSpeedValue) end end)
 
 createToggle("Anti-Freeze", 190, "AntiFreeze")
-createToggle("Anti-Ragdoll (God Mode)", 235, "AntiRagdoll") -- BARU
-createToggle("Anti-Chunk Aura", 280, "AntiChunk")         -- BARU
-createToggle("No Anim (Brutal)", 325, "NoAnimation")
-createToggle("Stealth Mode", 370, "StealthMode")
-createToggle("Auto Tween (Safe)", 415, "AutoTween") 
-createToggle("Noclip (Matikan!)", 460, "Noclip") 
-createToggle("Smart Rejoin (All)", 505, "SmartAutoRejoin") 
-createToggle("Auto All Rewards", 550, "AutoAllRewards")
-createToggle("Auto Cube", 595, "AutoCube")
+createToggle("Anti-Ragdoll (God)", 235, "AntiRagdoll")
+createToggle("Anti-Chunk Aura", 280, "AntiChunk")
+createToggle("Auto Target Throw", 325, "AutoTargetThrow")
+createToggle("No Anim (Brutal)", 370, "NoAnimation")
+createToggle("Stealth Mode", 415, "StealthMode")
+createToggle("Auto Tween (Safe)", 460, "AutoTween") 
+createToggle("Noclip (Matikan!)", 505, "Noclip") 
+createToggle("Smart Rejoin (All)", 550, "SmartAutoRejoin") 
+createToggle("Auto All Rewards", 595, "AutoAllRewards")
+createToggle("Auto Cube", 640, "AutoCube")
 
 MinBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false; MinIcon.Visible = true end)
 MinIcon.MouseButton1Click:Connect(function() MinIcon.Visible = false; MainFrame.Visible = true end)
 CloseBtn.MouseButton1Click:Connect(function() uiScreen:Destroy() end)
 
 -- ==========================================
--- SMART REJOIN & SERVER HOP SYSTEM
+-- SMART REJOIN SYSTEM
 -- ==========================================
 local retryCount = 0
 local function handleDisconnect()
@@ -197,41 +261,100 @@ game:GetService("CoreGui").ChildAdded:Connect(function(child)
 end)
 
 -- ==========================================
--- MESIN UTAMA (FARMING, GERAKAN, & GOD MODE)
+-- MESIN UTAMA LOOPS (FARMING & TARGET THROW)
 -- ==========================================
 
--- LOOP AUTO GRAB, EAT, SELL (Tetap sama)
 task.spawn(function()
-    while task.wait(0.5) do
-        if settings.AutoGrab then
+    while task.wait(0.3) do
+        -- A. LOGIKA AUTO TARGET THROW
+        if settings.AutoTargetThrow then
+            settings.AutoGrab = false 
+            settings.AutoEat = false 
+            TargetListFrame.Visible = true
+            
+            if CurrentTarget and CurrentTarget.Character and CurrentTarget.Character:FindFirstChild("HumanoidRootPart") then
+                local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                local targetRoot = CurrentTarget.Character.HumanoidRootPart
+                
+                if myRoot then
+                    -- Mengunci hadapan tubuh ke arah target
+                    myRoot.CFrame = CFrame.new(myRoot.Position, Vector3.new(targetRoot.Position.X, myRoot.Position.Y, targetRoot.Position.Z))
+                    
+                    local events = LocalPlayer.Character:FindFirstChild("Events")
+                    if events and events:FindFirstChild("Throw") then
+                        -- Melempar chunk tepat ke arah target dengan offset melengkung ke atas (+3 studs)
+                        pcall(function() events.Throw:FireServer(targetRoot.Position + Vector3.new(0, 3, 0)) end)
+                    end
+                end
+            end
+        
+        -- B. LOGIKA SMART AUTO GRAB
+        elseif settings.AutoGrab then
             local Char = LocalPlayer.Character
-            if Char and Char:FindFirstChild("Events") then
+            if Char and Char:FindFirstChild("Events") and Char:FindFirstChild("HumanoidRootPart") then
                 local currentChunk = Char:FindFirstChild("CurrentChunk")
-                if not currentChunk or currentChunk.Value == nil then pcall(function() Char.Events.Grab:FireServer(false, false, false) end) end
+                
+                if not currentChunk or currentChunk.Value == nil then 
+                    -- Tembak laser raycast ke bawah kaki sejauh 15 studs
+                    local rayOrigin = Char.HumanoidRootPart.Position
+                    local rayDirection = Vector3.new(0, -15, 0)
+                    local params = RaycastParams.new()
+                    params.FilterDescendantsInstances = {Char}
+                    params.FilterType = Enum.RaycastFilterType.Exclude
+                    
+                    local result = Workspace:Raycast(rayOrigin, rayDirection, params)
+                    local shouldGrab = false
+                    
+                    if result and result.Instance then
+                        local hitPart = result.Instance
+                        -- Blokir grab jika kaki menginjak Bedrock (lantai dasar paling bawah saat mengecil)
+                        if hitPart.Name ~= "Bedrock" then
+                            -- Hanya ambil jika menginjak objek bangunan atau reruntuhan fragmentable
+                            local isFrag = hitPart:FindFirstAncestor("Fragmentable")
+                            local isBuild = hitPart:FindFirstAncestor("Building") or hitPart:FindFirstAncestor("Buildings")
+                            
+                            if isFrag or isBuild then
+                                shouldGrab = true
+                            end
+                        end
+                    end
+                    
+                    if shouldGrab then
+                        pcall(function() Char.Events.Grab:FireServer(false, false, false) end)
+                    end
+                end
             end
         end
+        
+        -- C. AUTO SELL
         if settings.AutoSell then
             pcall(function()
                 local warn = PlayerGui.ScreenGui.Sell.WarningText
-                if warn and warn.Visible and LocalPlayer.Character then LocalPlayer.Character.Events.Sell:FireServer(); task.wait(1.5) end
+                if warn and warn.Visible and LocalPlayer.Character then 
+                    LocalPlayer.Character.Events.Sell:FireServer()
+                    task.wait(1.5) 
+                end
             end)
         end
     end
 end)
 
+-- AUTO EAT LOOP
 task.spawn(function()
     while task.wait() do 
-        if settings.AutoEat then
+        if settings.AutoEat and not settings.AutoTargetThrow then
             local Char = LocalPlayer.Character
             if Char and Char:FindFirstChild("Events") then
                 local currentChunk = Char:FindFirstChild("CurrentChunk")
-                if currentChunk and currentChunk.Value ~= nil then pcall(function() Char.Events.Eat:FireServer() end) end
+                if currentChunk and currentChunk.Value ~= nil then 
+                    pcall(function() Char.Events.Eat:FireServer() end) 
+                end
             end
         end
     end
 end)
 
--- LOOP AUTO TWEEN (Dengan Safe Zone)
+-- AUTO TWEEN FUNCTION & LOOP
 local function tweenTo(targetPos)
     local char = LocalPlayer.Character
     if not char then return end
@@ -284,7 +407,9 @@ task.spawn(function()
     end
 end)
 
--- GOD MODE LOGIC & STEPPED LOOP
+-- ==========================================
+-- STEPPED COROUTINE (GOD MODE & PHYSICS CORRECTION)
+-- ==========================================
 local PlayerModule, Controls
 pcall(function() PlayerModule = require(LocalPlayer.PlayerScripts:WaitForChild("PlayerModule")); Controls = PlayerModule:GetControls() end)
 
@@ -295,30 +420,27 @@ RunService.Stepped:Connect(function()
     local Humanoid = Char:FindFirstChildOfClass("Humanoid")
     local RootPart = Char:FindFirstChild("HumanoidRootPart")
     
-    -- 1. ANTI-RAGDOLL (Sesuai Skrip Temuanmu)
+    -- 1. ANTI-RAGDOLL (Berdasarkan temuan skrip aslimu)
     if settings.AntiRagdoll and Humanoid then
-        -- Jika game mencoba mengubah status kita jadi Physics (Ragdoll)
         if Humanoid:GetState() == Enum.HumanoidStateType.Physics or Humanoid:GetState() == Enum.HumanoidStateType.Ragdoll then
-            -- Langsung paksa bangun dan tembak remote unRagdoll ke server
             Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
             pcall(function() ReplicatedStorage.Events.unRagdoll:FireServer(Char) end)
         end
     end
     
-    -- 2. ANTI-CHUNK AURA (Kebal Lemparan)
+    -- 2. ANTI-CHUNK AURA (Kebal hantaman peluru gamepass)
     if settings.AntiChunk and RootPart then
         for _, obj in pairs(Workspace:GetChildren()) do
-            -- Mencari objek yang dilempar orang lain
             if obj:IsA("BasePart") and (obj.Name == "Chunk" or obj.Name == "ExplodeChunk") then
                 if (obj.Position - RootPart.Position).Magnitude <= 15 then
-                    obj.CanCollide = false -- Matikan tabrakan agar tembus
-                    obj.Velocity = Vector3.new(0,0,0) -- Hentikan momentumnya
-                    -- Opsional: obj:Destroy() bisa dipakai tapi mungkin menyebabkan visual bug di layar orang lain
+                    obj.CanCollide = false
+                    obj.Velocity = Vector3.new(0,0,0) 
                 end
             end
         end
     end
 
+    -- 3. SPEED & ANIMATION MANAGER
     if Humanoid then
         if settings.WalkSpeedToggle then Humanoid.WalkSpeed = settings.WalkSpeedValue
         elseif settings.AntiFreeze and Humanoid.WalkSpeed < 5 then Humanoid.WalkSpeed = 16 end
@@ -337,11 +459,13 @@ RunService.Stepped:Connect(function()
         end
     end
     
+    -- 4. ANTI FREEZE EFFECTS
     if settings.AntiFreeze then
         if RootPart and RootPart.Anchored then RootPart.Anchored = false end
         if Controls then pcall(function() Controls:Enable() end) end
     end
     
+    -- 5. NOCLIP MODE
     if settings.Noclip then
         for _, part in pairs(Char:GetDescendants()) do
             if part:IsA("BasePart") and part.CanCollide == true then part.CanCollide = false end
@@ -349,14 +473,18 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- LOOP CUBE & REWARDS (Tetap Sama)
+-- ==========================================
+-- AUTO CUBE & TIMED REWARDS LOOP
+-- ==========================================
 task.spawn(function()
     while task.wait(1) do
         if settings.AutoCube then
             for _, obj in ipairs(Workspace:GetChildren()) do
                 if obj.Name == "Cube" and obj:IsA("BasePart") then
                     local Root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                    if Root and firetouchinterest then pcall(function() firetouchinterest(Root, obj, 0); firetouchinterest(Root, obj, 1) end) end
+                    if Root and firetouchinterest then 
+                        pcall(function() firetouchinterest(Root, obj, 0); firetouchinterest(Root, obj, 1) end) 
+                    end
                 end
             end
         end
@@ -371,14 +499,19 @@ task.spawn(function()
                             local rf = LocalPlayer:WaitForChild("TimedRewards")
                             local re = ReplicatedStorage.Events.RewardEvent
                             for _, item in pairs(rf:GetChildren()) do re:FireServer(item) end
-                        elseif t.Time.Text ~= "Claimed!" then hasPendingRewards = true end
+                        elseif t.Time.Text ~= "Claimed!" then 
+                            hasPendingRewards = true 
+                        end
                     end
                 end
-                if settings.SmartAutoRejoin and not hasPendingRewards then TeleportService:Teleport(game.PlaceId, LocalPlayer) end
+                if settings.SmartAutoRejoin and not hasPendingRewards then 
+                    TeleportService:Teleport(game.PlaceId, LocalPlayer) 
+                end
             end)
             pcall(function()
                 if PlayerGui.ScreenGui.Rewards.Spin.NextSpin.Visible == false then
-                    ReplicatedStorage.Events.SpinEvent:FireServer(); task.wait(2)
+                    ReplicatedStorage.Events.SpinEvent:FireServer()
+                    task.wait(2)
                 end
             end)
         end
