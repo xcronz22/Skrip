@@ -1,5 +1,5 @@
 -- ==========================================
--- EAT THE WORLD - LIGHTWEIGHT HUB V20 (TRUE RANDOM TP - ZERO LAG)
+-- EAT THE WORLD - LIGHTWEIGHT HUB V23 (CUSTOM HITBOX INPUT & ANTI-FREEZE)
 -- ==========================================
 
 local Players = game:GetService("Players")
@@ -12,12 +12,14 @@ local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 -- 1. SISTEM AUTO SAVE
-local settingsFile = "ETW_Settings_V20.json"
+local settingsFile = "ETW_Settings_V23.json"
 local settings = {
     AutoGrab = false,
     AutoEat = false,
     AutoSell = false,
-    AutoTP = false,
+    WideHitbox = false,
+    HitboxSize = 150, -- Default Size
+    AntiFreeze = false,
     AutoReward = false,
     AutoCube = false
 }
@@ -45,7 +47,7 @@ loadSettings()
 local parentGui = PlayerGui
 pcall(function() if gethui then parentGui = gethui() else parentGui = CoreGui end end)
 
-local uiName = "ETW_LightPanel_V20"
+local uiName = "ETW_LightPanel_V23"
 if parentGui:FindFirstChild(uiName) then parentGui[uiName]:Destroy() end
 
 -- ==========================================
@@ -57,9 +59,9 @@ uiScreen.ResetOnSpawn = false
 uiScreen.Parent = parentGui
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 220, 0, 320)
+MainFrame.Size = UDim2.new(0, 220, 0, 365)
 MainFrame.Position = UDim2.new(0, 20, 0, 20)
-MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 15, 20)
 MainFrame.Active = true
 MainFrame.Draggable = true
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
@@ -69,8 +71,8 @@ local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, -60, 0, 30)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "ETW Tool - V20"
-Title.TextColor3 = Color3.fromRGB(255, 100, 100)
+Title.Text = "ETW Tool - V23"
+Title.TextColor3 = Color3.fromRGB(255, 200, 100)
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 16
 Title.TextXAlignment = Enum.TextXAlignment.Left
@@ -93,9 +95,9 @@ CloseBtn.TextSize = 16
 
 local MinIcon = Instance.new("TextButton")
 MinIcon.Size = UDim2.new(0, 40, 0, 40)
-MinIcon.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+MinIcon.BackgroundColor3 = Color3.fromRGB(20, 15, 20)
 MinIcon.Text = "ETW"
-MinIcon.TextColor3 = Color3.fromRGB(255, 100, 100)
+MinIcon.TextColor3 = Color3.fromRGB(255, 200, 100)
 MinIcon.Font = Enum.Font.SourceSansBold
 MinIcon.TextSize = 14
 MinIcon.Visible = false
@@ -105,6 +107,7 @@ Instance.new("UICorner", MinIcon).CornerRadius = UDim.new(1, 0)
 MinIcon.Parent = uiScreen
 
 local buttonRefs = {}
+
 local function updateVisual(sKey)
     local ref = buttonRefs[sKey]
     if not ref then return end
@@ -138,12 +141,54 @@ local function createToggle(text, yPos, settingKey)
     updateVisual(settingKey)
 end
 
+-- Membuat Standar Toggle
 createToggle("Auto Grab", 40, "AutoGrab")
 createToggle("Auto Eat", 85, "AutoEat")
 createToggle("Auto Sell", 130, "AutoSell")
-createToggle("Auto TP (Random)", 175, "AutoTP")
-createToggle("Auto Reward", 220, "AutoReward")
-createToggle("Auto Cube", 265, "AutoCube")
+
+-- ====================================================
+-- PEMBUATAN CUSTOM TOGGLE & INPUT UNTUK HITBOX
+-- ====================================================
+local hitBoxBtn = Instance.new("TextButton", MainFrame)
+hitBoxBtn.Size = UDim2.new(0, 120, 0, 35) -- Lebih pendek untuk ruang Input Box
+hitBoxBtn.Position = UDim2.new(0, 20, 0, 175)
+hitBoxBtn.Font = Enum.Font.SourceSansBold
+hitBoxBtn.TextSize = 14
+Instance.new("UICorner", hitBoxBtn).CornerRadius = UDim.new(0, 6)
+buttonRefs["WideHitbox"] = {button = hitBoxBtn, label = "Wide Hitbox"}
+
+hitBoxBtn.MouseButton1Click:Connect(function()
+    settings["WideHitbox"] = not settings["WideHitbox"]
+    updateVisual("WideHitbox"); saveSettings()
+end)
+updateVisual("WideHitbox")
+
+local hitboxInput = Instance.new("TextBox", MainFrame)
+hitboxInput.Size = UDim2.new(0, 55, 0, 35)
+hitboxInput.Position = UDim2.new(0, 145, 0, 175)
+hitboxInput.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+hitboxInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+hitboxInput.Font = Enum.Font.SourceSansBold
+hitboxInput.TextSize = 14
+hitboxInput.Text = tostring(settings.HitboxSize)
+hitboxInput.PlaceholderText = "Size"
+Instance.new("UICorner", hitboxInput).CornerRadius = UDim.new(0, 6)
+
+-- Event saat menekan Enter pada TextBox
+hitboxInput.FocusLost:Connect(function()
+    local val = tonumber(hitboxInput.Text)
+    if val then
+        settings.HitboxSize = val
+        saveSettings()
+    else
+        hitboxInput.Text = tostring(settings.HitboxSize) -- Kembalikan ke angka awal jika yang diketik huruf
+    end
+end)
+-- ====================================================
+
+createToggle("Anti-Freeze (Move)", 220, "AntiFreeze")
+createToggle("Auto Reward", 265, "AutoReward")
+createToggle("Auto Cube", 310, "AutoCube")
 
 MinBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false; MinIcon.Position = MainFrame.Position; MinIcon.Visible = true end)
 MinIcon.MouseButton1Click:Connect(function() MinIcon.Visible = false; MainFrame.Position = MinIcon.Position; MainFrame.Visible = true end)
@@ -174,71 +219,64 @@ local function sweepCubes()
 end
 
 -- ==========================================
--- 5. LOGIKA PERMAINAN (V20 - TRUE RANDOM, 0% LAG)
+-- 5. LOGIKA PERMAINAN (V23 - CUSTOM HITBOX)
 -- ==========================================
 
-local lastTpTarget = nil
+local originalWalkSpeed = 16
 
--- Fungsi untuk mengambil target murni secara acak tanpa scan berat
-local function getFastRandomTarget()
-    local mapFolder = Workspace:FindFirstChild("Map")
-    if not mapFolder then return nil end
-
-    -- Ambil semua anak di dalam folder Map (biasanya folder "building", "fragmentable", dll)
-    local categories = mapFolder:GetChildren()
-    if #categories == 0 then return nil end
-
-    -- Acak 1: Pilih folder kategori secara acak
-    local randomCategory = categories[math.random(1, #categories)]
-    
-    local items = randomCategory:GetChildren()
-    if #items == 0 then return nil end
-    
-    -- Acak 2: Pilih objek di dalam folder secara acak
-    local randomItem = items[math.random(1, #items)]
-    
-    -- Jika objek itu adalah part, langsung kembalikan
-    if randomItem:IsA("BasePart") then return randomItem end
-    
-    -- Jika objek itu berupa Model/Folder yang berisi potongan-potongan part
-    local parts = {}
-    for _, child in ipairs(randomItem:GetChildren()) do
-        if child:IsA("BasePart") and child.CanCollide then
-            table.insert(parts, child)
-        end
-    end
-    
-    if #parts > 0 then
-        return parts[math.random(1, #parts)]
-    end
-
-    return nil
-end
-
--- LOOP UTAMA
 task.spawn(function()
     local lastGrabTick = 0
     local lastEatTick = 0
-    local lastTPTick = 0
     local isSellingCooldown = false
 
     while task.wait(0.05) do
         if not uiScreen.Parent then break end
         
-        -- SISTEM IDLE SLEEP (Skrip tertidur jika semua fitur mati)
-        if not (settings.AutoGrab or settings.AutoEat or settings.AutoSell or settings.AutoTP or settings.AutoCube) then
-            continue
-        end
-        
         local Character = LocalPlayer.Character
         local Events = Character and Character:FindFirstChild("Events")
         if not Character or not Events then continue end
         
-        local RootPart = Character:FindFirstChild("HumanoidRootPart")
         local Humanoid = Character:FindFirstChildOfClass("Humanoid")
-        if not RootPart or not Humanoid then continue end
+        local RootPart = Character:FindFirstChild("HumanoidRootPart")
+        if not Humanoid or not RootPart then continue end
         
         sweepCubes()
+
+        -- ====================================================
+        -- 1. DYNAMIC WIDE HITBOX (Menggunakan Input Pengguna)
+        -- ====================================================
+        local radiusPart = Character:FindFirstChild("Radius")
+        if radiusPart then
+            if settings.WideHitbox then
+                -- Ambil angka dari TextBox (misal 50, 150, 200)
+                local sizeValue = tonumber(settings.HitboxSize) or 150
+                -- Kita terapkan Size X dan Z sesuai input, Y (ketinggian) biarkan standar (50) agar tidak error ke bawah map
+                radiusPart.Size = Vector3.new(sizeValue, 50, sizeValue)
+            else
+                -- Kembalikan ke ukuran normal
+                if radiusPart.Size.X > 50 then
+                    radiusPart.Size = Vector3.new(10, 10, 10)
+                end
+            end
+        end
+
+        -- ====================================================
+        -- 2. ANTI-FREEZE (Mencegah karakter nyangkut/berhenti)
+        -- ====================================================
+        if settings.AntiFreeze then
+            if Humanoid.WalkSpeed > 5 then
+                originalWalkSpeed = Humanoid.WalkSpeed
+            end
+            
+            if Humanoid.WalkSpeed < 2 then
+                Humanoid.WalkSpeed = originalWalkSpeed
+            end
+            
+            if RootPart.Anchored then
+                RootPart.Anchored = false
+            end
+        end
+        -- ====================================================
         
         -- AUTO SELL
         if settings.AutoSell and not isSellingCooldown then
@@ -258,48 +296,23 @@ task.spawn(function()
         end
         if isSellingCooldown then continue end
         
-        -- CEK STATUS CHUNK
+        -- CEK TANGAN
         local chunkValueObj = Character:FindFirstChild("CurrentChunk")
         local isHoldingChunk = (chunkValueObj and chunkValueObj.Value ~= nil)
         
         -- AUTO EAT
         if settings.AutoEat and isHoldingChunk then
-            if tick() - lastEatTick > 0.1 then 
+            if tick() - lastEatTick > 0.2 then 
                 pcall(function() Events:WaitForChild("Eat"):FireServer() end)
                 lastEatTick = tick()
             end
         end
             
-        -- AUTO GRAB (Anti-Spam: Jeda 0.8 detik)
+        -- AUTO GRAB
         if settings.AutoGrab and not isHoldingChunk then
-            if tick() - lastGrabTick > 0.8 then
+            if tick() - lastGrabTick > 0.5 then
                 pcall(function() Events:WaitForChild("Grab"):FireServer(false, false, false) end)
                 lastGrabTick = tick()
-            end
-        end
-        
-        -- AUTO TP (Random & Bebas, tidak peduli bawa makanan atau tidak)
-        if settings.AutoTP then
-            -- TP setiap 0.5 detik (menghindari game nge-freeze atau nyangkut)
-            if tick() - lastTPTick > 0.5 then
-                
-                local target = getFastRandomTarget()
-                
-                -- Cegah TP ke tempat yang persis sama dua kali
-                local attempts = 0
-                while target == lastTpTarget and attempts < 3 do
-                    target = getFastRandomTarget()
-                    attempts = attempts + 1
-                end
-                
-                if target then
-                    RootPart.CFrame = target.CFrame + Vector3.new(0, (target.Size.Y / 2) + Humanoid.HipHeight + 3, 0)
-                    -- Memberi sedikit dorongan gravitasi ke bawah agar karakter menapak wajar
-                    RootPart.Velocity = Vector3.new(0, -10, 0)
-                    
-                    lastTpTarget = target
-                    lastTPTick = tick()
-                end
             end
         end
     end
