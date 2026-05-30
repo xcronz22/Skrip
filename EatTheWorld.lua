@@ -1,8 +1,8 @@
 -- ==========================================
--- EAT THE WORLD - V45 (ULTIMATE SELF-EXECUTE EDITION)
+-- EAT THE WORLD - V46 (FIX AUTO GRAB & DROPDOWN TARGET)
 -- ==========================================
 
--- 1. LOGIKA AUTO EXECUTE SETELAH REJOIN (DITARUH PALING ATAS)
+-- 1. LOGIKA AUTO EXECUTE SETELAH REJOIN
 local scriptURL = "https://raw.githubusercontent.com/xcronz22/Skrip/main/EatTheWorld.lua"
 if queue_on_teleport then
     queue_on_teleport('task.wait(1); loadstring(game:HttpGet("' .. scriptURL .. '"))()')
@@ -10,7 +10,7 @@ elseif syn and syn.queue_on_teleport then
     syn.queue_on_teleport('task.wait(1); loadstring(game:HttpGet("' .. scriptURL .. '"))()')
 end
 
--- 2. SERVICE ROBLOX
+-- 2. SERVICES
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -36,7 +36,7 @@ end)
 -- ==========================================
 -- PENGATURAN & PENYIMPANAN
 -- ==========================================
-local settingsFile = "ETW_Settings_V45.json"
+local settingsFile = "ETW_Settings_V46.json"
 local settings = {
     AutoGrab = false, AutoEat = false, AutoSell = false,
     WalkSpeedToggle = false, WalkSpeedValue = 16,
@@ -63,11 +63,11 @@ end
 loadSettings()
 
 -- ==========================================
--- PEMBUATAN UI LENGKAP
+-- PEMBUATAN UI LENGKAP (DENGAN UILISTLAYOUT)
 -- ==========================================
 local parentGui = PlayerGui
 pcall(function() if gethui then parentGui = gethui() else parentGui = CoreGui end end)
-local uiName = "ETW_LightPanel_V45"
+local uiName = "ETW_LightPanel_V46"
 if parentGui:FindFirstChild(uiName) then parentGui[uiName]:Destroy() end
 
 local uiScreen = Instance.new("ScreenGui", parentGui)
@@ -75,7 +75,7 @@ uiScreen.Name = uiName
 uiScreen.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame", uiScreen)
-MainFrame.Size = UDim2.new(0, 240, 0, 380) 
+MainFrame.Size = UDim2.new(0, 240, 0, 400) 
 MainFrame.Position = UDim2.new(0, 20, 0, 20)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 15, 20)
 MainFrame.Active = true; MainFrame.Draggable = true
@@ -85,7 +85,7 @@ local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, -60, 0, 35)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "ETW Tool - V45"
+Title.Text = "ETW Tool - V46"
 Title.TextColor3 = Color3.fromRGB(255, 200, 100)
 Title.Font = Enum.Font.SourceSansBold; Title.TextSize = 18
 Title.TextXAlignment = Enum.TextXAlignment.Left
@@ -102,54 +102,33 @@ CloseBtn.Position = UDim2.new(1, -30, 0, 0)
 CloseBtn.BackgroundTransparency = 1; CloseBtn.Text = "X"
 CloseBtn.TextColor3 = Color3.fromRGB(255, 80, 80); CloseBtn.TextSize = 18
 
--- Frame Daftar Player untuk Target Throw
-local TargetListFrame = Instance.new("ScrollingFrame", MainFrame)
-TargetListFrame.Size = UDim2.new(0, 220, 0, 110)
-TargetListFrame.Position = UDim2.new(0, 10, 0, 260)
-TargetListFrame.BackgroundColor3 = Color3.fromRGB(30, 25, 30)
-TargetListFrame.Visible = false
-TargetListFrame.ScrollBarThickness = 5
-Instance.new("UICorner", TargetListFrame).CornerRadius = UDim.new(0, 6)
-
-local function refreshTargetList()
-    for _, child in pairs(TargetListFrame:GetChildren()) do if child:IsA("TextButton") then child:Destroy() end end
-    local yOffset = 0
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            local btn = Instance.new("TextButton", TargetListFrame)
-            btn.Size = UDim2.new(1, -10, 0, 25)
-            btn.Position = UDim2.new(0, 5, 0, yOffset)
-            btn.Text = player.Name
-            btn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-            btn.TextColor3 = Color3.fromRGB(200, 200, 200)
-            btn.Font = Enum.Font.SourceSansBold; btn.TextSize = 14
-            Instance.new("UICorner", btn)
-            
-            btn.MouseButton1Click:Connect(function() 
-                CurrentTarget = player 
-                Title.Text = "Target: " .. player.Name
-            end)
-            yOffset = yOffset + 30
-        end
-    end
-    TargetListFrame.CanvasSize = UDim2.new(0, 0, 0, yOffset)
-end
-
--- Loop Refresh Daftar Player tiap 5 detik
-task.spawn(function()
-    while task.wait(5) do
-        if settings.AutoTargetThrow then refreshTargetList() end
-    end
-end)
-
+-- ScrollFrame Utama dengan UIListLayout agar rapi otomatis
 local ScrollFrame = Instance.new("ScrollingFrame", MainFrame)
-ScrollFrame.Size = UDim2.new(1, 0, 1, -35)
+ScrollFrame.Size = UDim2.new(1, 0, 1, -40)
 ScrollFrame.Position = UDim2.new(0, 0, 0, 35)
 ScrollFrame.BackgroundTransparency = 1
-ScrollFrame.ScrollBarThickness = 6
-ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 700) 
+ScrollFrame.ScrollBarThickness = 4
 ScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(255, 200, 100)
 ScrollFrame.BorderSizePixel = 0
+
+local ListLayout = Instance.new("UIListLayout", ScrollFrame)
+ListLayout.Padding = UDim.new(0, 8)
+ListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+-- Fungsi Update Canvas Size
+local function updateCanvas()
+    task.wait(0.1)
+    local totalHeight = 10
+    for _, child in ipairs(ScrollFrame:GetChildren()) do
+        if child:IsA("GuiObject") and child.Visible then
+            totalHeight = totalHeight + child.AbsoluteSize.Y + 8
+        end
+    end
+    ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, totalHeight)
+end
+ScrollFrame.ChildAdded:Connect(updateCanvas)
+ScrollFrame.ChildRemoved:Connect(updateCanvas)
 
 local MinIcon = Instance.new("TextButton", uiScreen)
 MinIcon.Size = UDim2.new(0, 45, 0, 45)
@@ -160,83 +139,166 @@ MinIcon.Font = Enum.Font.SourceSansBold; MinIcon.TextSize = 16
 MinIcon.Visible = false; MinIcon.Active = true; MinIcon.Draggable = true
 Instance.new("UICorner", MinIcon).CornerRadius = UDim.new(1, 0)
 
+-- Helper Pembuat Tombol Toggle
 local buttonRefs = {}
+local layoutOrderCounter = 1
+
 local function updateVisual(sKey)
     local ref = buttonRefs[sKey]; if not ref then return end
-    local b = ref.button; local label = ref.label
     if settings[sKey] then
-        b.Text = label .. ": ON"; b.BackgroundColor3 = Color3.fromRGB(40, 80, 40); b.TextColor3 = Color3.fromRGB(150, 255, 150)
+        ref.button.Text = ref.label .. ": ON"
+        ref.button.BackgroundColor3 = Color3.fromRGB(40, 80, 40)
+        ref.button.TextColor3 = Color3.fromRGB(150, 255, 150)
     else
-        b.Text = label .. ": OFF"; b.BackgroundColor3 = Color3.fromRGB(60, 40, 40); b.TextColor3 = Color3.fromRGB(255, 150, 150)
+        ref.button.Text = ref.label .. ": OFF"
+        ref.button.BackgroundColor3 = Color3.fromRGB(60, 40, 40)
+        ref.button.TextColor3 = Color3.fromRGB(255, 150, 150)
     end
 end
 
-local function createToggle(text, yPos, settingKey)
+local function createToggle(text, settingKey)
     local btn = Instance.new("TextButton", ScrollFrame)
     btn.Size = UDim2.new(0, 210, 0, 35)
-    btn.Position = UDim2.new(0, 10, 0, yPos)
     btn.Font = Enum.Font.SourceSansBold; btn.TextSize = 15
+    btn.LayoutOrder = layoutOrderCounter; layoutOrderCounter = layoutOrderCounter + 1
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    
     buttonRefs[settingKey] = {button = btn, label = text}
     
     btn.MouseButton1Click:Connect(function()
         settings[settingKey] = not settings[settingKey]
         updateVisual(settingKey); saveSettings()
-        
-        if settingKey == "AutoTargetThrow" then
-            if settings.AutoTargetThrow then
-                TargetListFrame.Visible = true
-                ScrollFrame.Size = UDim2.new(1, 0, 1, -150)
-                refreshTargetList()
-            else
-                TargetListFrame.Visible = false
-                ScrollFrame.Size = UDim2.new(1, 0, 1, -35)
-                Title.Text = "ETW Tool - V45"
-            end
-        end
     end)
     updateVisual(settingKey)
+    return btn
 end
 
--- Pemasangan Semua Tombol Fitur (Tanpa Skip)
-createToggle("Auto Grab (Smart)", 10, "AutoGrab")
-createToggle("Auto Eat (Instan)", 55, "AutoEat")
-createToggle("Auto Sell", 100, "AutoSell")
+-- ==========================================
+-- PEMASANGAN TOMBOL & FITUR DROPDOWN
+-- ==========================================
+createToggle("Auto Grab (Original)", "AutoGrab")
+createToggle("Auto Eat (Instan)", "AutoEat")
+createToggle("Auto Sell", "AutoSell")
 
-local wsBtn = Instance.new("TextButton", ScrollFrame)
-wsBtn.Size = UDim2.new(0, 145, 0, 35)
-wsBtn.Position = UDim2.new(0, 10, 0, 145)
+-- Kontainer WalkSpeed
+local wsContainer = Instance.new("Frame", ScrollFrame)
+wsContainer.Size = UDim2.new(0, 210, 0, 35)
+wsContainer.BackgroundTransparency = 1
+wsContainer.LayoutOrder = layoutOrderCounter; layoutOrderCounter = layoutOrderCounter + 1
+
+local wsBtn = Instance.new("TextButton", wsContainer)
+wsBtn.Size = UDim2.new(0, 140, 1, 0)
 wsBtn.Font = Enum.Font.SourceSansBold; wsBtn.TextSize = 15
 Instance.new("UICorner", wsBtn).CornerRadius = UDim.new(0, 6)
 buttonRefs["WalkSpeedToggle"] = {button = wsBtn, label = "Walk Speed"}
 wsBtn.MouseButton1Click:Connect(function() settings["WalkSpeedToggle"] = not settings["WalkSpeedToggle"]; updateVisual("WalkSpeedToggle"); saveSettings() end)
 updateVisual("WalkSpeedToggle")
 
-local wsInput = Instance.new("TextBox", ScrollFrame)
-wsInput.Size = UDim2.new(0, 60, 0, 35)
-wsInput.Position = UDim2.new(0, 160, 0, 145)
+local wsInput = Instance.new("TextBox", wsContainer)
+wsInput.Size = UDim2.new(0, 65, 1, 0)
+wsInput.Position = UDim2.new(1, -65, 0, 0)
 wsInput.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 wsInput.TextColor3 = Color3.fromRGB(255, 255, 255)
 wsInput.Font = Enum.Font.SourceSansBold; wsInput.TextSize = 16
-wsInput.Text = tostring(settings.WalkSpeedValue); wsInput.PlaceholderText = "Spd"
+wsInput.Text = tostring(settings.WalkSpeedValue)
 Instance.new("UICorner", wsInput).CornerRadius = UDim.new(0, 6)
 wsInput.FocusLost:Connect(function() local val = tonumber(wsInput.Text); if val then settings.WalkSpeedValue = val; saveSettings() else wsInput.Text = tostring(settings.WalkSpeedValue) end end)
 
-createToggle("Anti-Freeze", 190, "AntiFreeze")
-createToggle("Anti-Ragdoll (God)", 235, "AntiRagdoll")
-createToggle("Anti-Chunk Aura", 280, "AntiChunk")
-createToggle("Auto Target Throw", 325, "AutoTargetThrow")
-createToggle("No Anim (Brutal)", 370, "NoAnimation")
-createToggle("Stealth Mode", 415, "StealthMode")
-createToggle("Auto Tween (Safe)", 460, "AutoTween") 
-createToggle("Noclip (Matikan!)", 505, "Noclip") 
-createToggle("Smart Rejoin (All)", 550, "SmartAutoRejoin") 
-createToggle("Auto All Rewards", 595, "AutoAllRewards")
-createToggle("Auto Cube", 640, "AutoCube")
+createToggle("Anti-Freeze", "AntiFreeze")
+createToggle("Anti-Ragdoll (God)", "AntiRagdoll")
+createToggle("Anti-Chunk Aura", "AntiChunk")
+
+-- SETUP DROPDOWN UNTUK AUTO TARGET THROW
+local TargetThrowBtn = createToggle("Auto Target Throw", "AutoTargetThrow")
+
+local DropdownBtn = Instance.new("TextButton", ScrollFrame)
+DropdownBtn.Size = UDim2.new(0, 210, 0, 30)
+DropdownBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+DropdownBtn.TextColor3 = Color3.fromRGB(200, 200, 255)
+DropdownBtn.Font = Enum.Font.SourceSansBold; DropdownBtn.TextSize = 14
+DropdownBtn.Text = "Pilih Target: None ▼"
+DropdownBtn.Visible = settings.AutoTargetThrow
+DropdownBtn.LayoutOrder = layoutOrderCounter; layoutOrderCounter = layoutOrderCounter + 1
+Instance.new("UICorner", DropdownBtn).CornerRadius = UDim.new(0, 6)
+
+local DropdownList = Instance.new("ScrollingFrame", ScrollFrame)
+DropdownList.Size = UDim2.new(0, 210, 0, 110)
+DropdownList.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+DropdownList.Visible = false
+DropdownList.ScrollBarThickness = 4
+DropdownList.LayoutOrder = layoutOrderCounter; layoutOrderCounter = layoutOrderCounter + 1
+Instance.new("UICorner", DropdownList).CornerRadius = UDim.new(0, 6)
+local DropdownLayout = Instance.new("UIListLayout", DropdownList)
+DropdownLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+local function refreshDropdown()
+    for _, child in pairs(DropdownList:GetChildren()) do if child:IsA("TextButton") then child:Destroy() end end
+    local ySize = 0
+    
+    local players = Players:GetPlayers()
+    for i, p in ipairs(players) do
+        if p ~= LocalPlayer then
+            local btn = Instance.new("TextButton", DropdownList)
+            btn.Size = UDim2.new(1, 0, 0, 25)
+            btn.BackgroundTransparency = (i % 2 == 0) and 0.8 or 1
+            btn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+            btn.TextColor3 = Color3.fromRGB(220, 220, 220)
+            btn.Font = Enum.Font.SourceSans; btn.TextSize = 14
+            btn.Text = "  " .. p.Name
+            btn.TextXAlignment = Enum.TextXAlignment.Left
+            btn.LayoutOrder = i
+            
+            btn.MouseButton1Click:Connect(function()
+                CurrentTarget = p
+                DropdownBtn.Text = "Target: " .. p.Name .. " ▼"
+                DropdownList.Visible = false
+                updateCanvas()
+            end)
+            ySize = ySize + 25
+        end
+    end
+    DropdownList.CanvasSize = UDim2.new(0, 0, 0, ySize)
+end
+
+DropdownBtn.MouseButton1Click:Connect(function()
+    DropdownList.Visible = not DropdownList.Visible
+    if DropdownList.Visible then refreshDropdown() end
+    updateCanvas()
+end)
+
+-- Hubungkan Visibility Dropdown dengan Toggle Target Throw
+TargetThrowBtn.MouseButton1Click:Connect(function()
+    DropdownBtn.Visible = settings.AutoTargetThrow
+    if not settings.AutoTargetThrow then 
+        DropdownList.Visible = false 
+        CurrentTarget = nil
+        DropdownBtn.Text = "Pilih Target: None ▼"
+    end
+    updateCanvas()
+end)
+
+-- Auto Update Dropdown List jika ada yang keluar/masuk
+Players.PlayerAdded:Connect(function() if DropdownList.Visible then refreshDropdown() end end)
+Players.PlayerRemoving:Connect(function(player)
+    if CurrentTarget == player then
+        CurrentTarget = nil
+        DropdownBtn.Text = "Pilih Target: None ▼"
+    end
+    if DropdownList.Visible then refreshDropdown() end
+end)
+
+createToggle("No Anim (Brutal)", "NoAnimation")
+createToggle("Stealth Mode", "StealthMode")
+createToggle("Auto Tween (Safe)", "AutoTween") 
+createToggle("Noclip (Matikan!)", "Noclip") 
+createToggle("Smart Rejoin (All)", "SmartAutoRejoin") 
+createToggle("Auto All Rewards", "AutoAllRewards")
+createToggle("Auto Cube", "AutoCube")
 
 MinBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false; MinIcon.Visible = true end)
 MinIcon.MouseButton1Click:Connect(function() MinIcon.Visible = false; MainFrame.Visible = true end)
 CloseBtn.MouseButton1Click:Connect(function() uiScreen:Destroy() end)
+updateCanvas()
 
 -- ==========================================
 -- SMART REJOIN SYSTEM
@@ -255,73 +317,38 @@ local function handleDisconnect()
         end
     end
 end
-
-game:GetService("CoreGui").ChildAdded:Connect(function(child)
-    if child:IsA("ScreenGui") and child.Name == "ErrorPrompt" then handleDisconnect() end
-end)
+game:GetService("CoreGui").ChildAdded:Connect(function(child) if child:IsA("ScreenGui") and child.Name == "ErrorPrompt" then handleDisconnect() end end)
 
 -- ==========================================
 -- MESIN UTAMA LOOPS (FARMING & TARGET THROW)
 -- ==========================================
-
 task.spawn(function()
     while task.wait(0.3) do
+        local isAiming = false
+        
         -- A. LOGIKA AUTO TARGET THROW
-        if settings.AutoTargetThrow then
-            settings.AutoGrab = false 
-            settings.AutoEat = false 
-            TargetListFrame.Visible = true
+        if settings.AutoTargetThrow and CurrentTarget and CurrentTarget.Character and CurrentTarget.Character:FindFirstChild("HumanoidRootPart") then
+            isAiming = true -- Tandai bahwa kita sedang membidik
+            local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            local targetRoot = CurrentTarget.Character.HumanoidRootPart
             
-            if CurrentTarget and CurrentTarget.Character and CurrentTarget.Character:FindFirstChild("HumanoidRootPart") then
-                local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                local targetRoot = CurrentTarget.Character.HumanoidRootPart
-                
-                if myRoot then
-                    -- Mengunci hadapan tubuh ke arah target
-                    myRoot.CFrame = CFrame.new(myRoot.Position, Vector3.new(targetRoot.Position.X, myRoot.Position.Y, targetRoot.Position.Z))
-                    
-                    local events = LocalPlayer.Character:FindFirstChild("Events")
-                    if events and events:FindFirstChild("Throw") then
-                        -- Melempar chunk tepat ke arah target dengan offset melengkung ke atas (+3 studs)
-                        pcall(function() events.Throw:FireServer(targetRoot.Position + Vector3.new(0, 3, 0)) end)
-                    end
+            if myRoot then
+                myRoot.CFrame = CFrame.new(myRoot.Position, Vector3.new(targetRoot.Position.X, myRoot.Position.Y, targetRoot.Position.Z))
+                local events = LocalPlayer.Character:FindFirstChild("Events")
+                if events and events:FindFirstChild("Throw") then
+                    pcall(function() events.Throw:FireServer(targetRoot.Position + Vector3.new(0, 3, 0)) end)
                 end
             end
+        end
         
-        -- B. LOGIKA SMART AUTO GRAB
-        elseif settings.AutoGrab then
+        -- B. LOGIKA AUTO GRAB (KEMBALI KE ORIGINAL)
+        -- Hanya grab jika tidak sedang membidik (agar tidak konflik animasi)
+        if settings.AutoGrab and not isAiming then
             local Char = LocalPlayer.Character
             if Char and Char:FindFirstChild("Events") and Char:FindFirstChild("HumanoidRootPart") then
                 local currentChunk = Char:FindFirstChild("CurrentChunk")
-                
                 if not currentChunk or currentChunk.Value == nil then 
-                    -- Tembak laser raycast ke bawah kaki sejauh 15 studs
-                    local rayOrigin = Char.HumanoidRootPart.Position
-                    local rayDirection = Vector3.new(0, -15, 0)
-                    local params = RaycastParams.new()
-                    params.FilterDescendantsInstances = {Char}
-                    params.FilterType = Enum.RaycastFilterType.Exclude
-                    
-                    local result = Workspace:Raycast(rayOrigin, rayDirection, params)
-                    local shouldGrab = false
-                    
-                    if result and result.Instance then
-                        local hitPart = result.Instance
-                        -- Blokir grab jika kaki menginjak Bedrock (lantai dasar paling bawah saat mengecil)
-                        if hitPart.Name ~= "Bedrock" then
-                            -- Hanya ambil jika menginjak objek bangunan atau reruntuhan fragmentable
-                            local isFrag = hitPart:FindFirstAncestor("Fragmentable")
-                            local isBuild = hitPart:FindFirstAncestor("Building") or hitPart:FindFirstAncestor("Buildings")
-                            
-                            if isFrag or isBuild then
-                                shouldGrab = true
-                            end
-                        end
-                    end
-                    
-                    if shouldGrab then
-                        pcall(function() Char.Events.Grab:FireServer(false, false, false) end)
-                    end
+                    pcall(function() Char.Events.Grab:FireServer(false, false, false) end)
                 end
             end
         end
@@ -342,7 +369,9 @@ end)
 -- AUTO EAT LOOP
 task.spawn(function()
     while task.wait() do 
-        if settings.AutoEat and not settings.AutoTargetThrow then
+        -- Hanya eat jika AutoTargetThrow OFF atau sedang tidak punya target
+        local isAiming = (settings.AutoTargetThrow and CurrentTarget ~= nil)
+        if settings.AutoEat and not isAiming then
             local Char = LocalPlayer.Character
             if Char and Char:FindFirstChild("Events") then
                 local currentChunk = Char:FindFirstChild("CurrentChunk")
@@ -360,7 +389,6 @@ local function tweenTo(targetPos)
     if not char then return end
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return end
-    
     local distance = (root.Position - targetPos).Magnitude
     local info = TweenInfo.new(distance / 55, Enum.EasingStyle.Linear)
     local tween = TweenService:Create(root, info, {CFrame = CFrame.new(targetPos)})
@@ -377,7 +405,6 @@ task.spawn(function()
                 local foldersToSearch = {}
                 if Workspace:FindFirstChild("Chunks") then table.insert(foldersToSearch, Workspace.Chunks) end
                 if Workspace:FindFirstChild("Map") and Workspace.Map:FindFirstChild("Fragmentable") then table.insert(foldersToSearch, Workspace.Map.Fragmentable) end
-                
                 for _, folder in pairs(foldersToSearch) do
                     for _, obj in pairs(folder:GetChildren()) do
                         local pos = nil
@@ -388,7 +415,6 @@ task.spawn(function()
                         end
                     end
                 end
-                
                 if targetPos then
                     local safeX = targetPos.X; local safeZ = targetPos.Z
                     local bedrock = Workspace:FindFirstChild("Map") and Workspace.Map:FindFirstChild("Bedrock")
@@ -408,7 +434,7 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- STEPPED COROUTINE (GOD MODE & PHYSICS CORRECTION)
+-- STEPPED COROUTINE (GOD MODE & PHYSICS)
 -- ==========================================
 local PlayerModule, Controls
 pcall(function() PlayerModule = require(LocalPlayer.PlayerScripts:WaitForChild("PlayerModule")); Controls = PlayerModule:GetControls() end)
@@ -420,7 +446,6 @@ RunService.Stepped:Connect(function()
     local Humanoid = Char:FindFirstChildOfClass("Humanoid")
     local RootPart = Char:FindFirstChild("HumanoidRootPart")
     
-    -- 1. ANTI-RAGDOLL (Berdasarkan temuan skrip aslimu)
     if settings.AntiRagdoll and Humanoid then
         if Humanoid:GetState() == Enum.HumanoidStateType.Physics or Humanoid:GetState() == Enum.HumanoidStateType.Ragdoll then
             Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
@@ -428,7 +453,6 @@ RunService.Stepped:Connect(function()
         end
     end
     
-    -- 2. ANTI-CHUNK AURA (Kebal hantaman peluru gamepass)
     if settings.AntiChunk and RootPart then
         for _, obj in pairs(Workspace:GetChildren()) do
             if obj:IsA("BasePart") and (obj.Name == "Chunk" or obj.Name == "ExplodeChunk") then
@@ -440,7 +464,6 @@ RunService.Stepped:Connect(function()
         end
     end
 
-    -- 3. SPEED & ANIMATION MANAGER
     if Humanoid then
         if settings.WalkSpeedToggle then Humanoid.WalkSpeed = settings.WalkSpeedValue
         elseif settings.AntiFreeze and Humanoid.WalkSpeed < 5 then Humanoid.WalkSpeed = 16 end
@@ -459,13 +482,11 @@ RunService.Stepped:Connect(function()
         end
     end
     
-    -- 4. ANTI FREEZE EFFECTS
     if settings.AntiFreeze then
         if RootPart and RootPart.Anchored then RootPart.Anchored = false end
         if Controls then pcall(function() Controls:Enable() end) end
     end
     
-    -- 5. NOCLIP MODE
     if settings.Noclip then
         for _, part in pairs(Char:GetDescendants()) do
             if part:IsA("BasePart") and part.CanCollide == true then part.CanCollide = false end
@@ -482,9 +503,7 @@ task.spawn(function()
             for _, obj in ipairs(Workspace:GetChildren()) do
                 if obj.Name == "Cube" and obj:IsA("BasePart") then
                     local Root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                    if Root and firetouchinterest then 
-                        pcall(function() firetouchinterest(Root, obj, 0); firetouchinterest(Root, obj, 1) end) 
-                    end
+                    if Root and firetouchinterest then pcall(function() firetouchinterest(Root, obj, 0); firetouchinterest(Root, obj, 1) end) end
                 end
             end
         end
@@ -499,19 +518,14 @@ task.spawn(function()
                             local rf = LocalPlayer:WaitForChild("TimedRewards")
                             local re = ReplicatedStorage.Events.RewardEvent
                             for _, item in pairs(rf:GetChildren()) do re:FireServer(item) end
-                        elseif t.Time.Text ~= "Claimed!" then 
-                            hasPendingRewards = true 
-                        end
+                        elseif t.Time.Text ~= "Claimed!" then hasPendingRewards = true end
                     end
                 end
-                if settings.SmartAutoRejoin and not hasPendingRewards then 
-                    TeleportService:Teleport(game.PlaceId, LocalPlayer) 
-                end
+                if settings.SmartAutoRejoin and not hasPendingRewards then TeleportService:Teleport(game.PlaceId, LocalPlayer) end
             end)
             pcall(function()
                 if PlayerGui.ScreenGui.Rewards.Spin.NextSpin.Visible == false then
-                    ReplicatedStorage.Events.SpinEvent:FireServer()
-                    task.wait(2)
+                    ReplicatedStorage.Events.SpinEvent:FireServer(); task.wait(2)
                 end
             end)
         end
