@@ -1,5 +1,5 @@
 -- ==========================================
--- EAT THE WORLD - V47 (FIX UI INVERSION & MULTI-TASKING)
+-- EAT THE WORLD - V48 (SAFE FARM & FPS BOOSTER INTEGRATION)
 -- ==========================================
 
 -- 1. LOGIKA AUTO EXECUTE SETELAH REJOIN
@@ -36,7 +36,7 @@ end)
 -- ==========================================
 -- PENGATURAN & PENYIMPANAN
 -- ==========================================
-local settingsFile = "ETW_Settings_V47.json"
+local settingsFile = "ETW_Settings_V48.json"
 local settings = {
     AutoGrab = false, AutoEat = false, AutoSell = false,
     WalkSpeedToggle = false, WalkSpeedValue = 16,
@@ -44,7 +44,9 @@ local settings = {
     AutoTween = false, Noclip = false, 
     SmartAutoRejoin = false, AutoAllRewards = false, AutoCube = false,
     AntiRagdoll = false, AntiChunk = false,
-    AutoTargetThrow = false
+    AutoTargetThrow = false,
+    SafeUnowned = false,  -- Fitur Baru dari Temuan User
+    FPSBooster = false    -- Fitur Baru dari Temuan User
 }
 local CurrentTarget = nil
 
@@ -67,7 +69,7 @@ loadSettings()
 -- ==========================================
 local parentGui = PlayerGui
 pcall(function() if gethui then parentGui = gethui() else parentGui = CoreGui end end)
-local uiName = "ETW_LightPanel_V47"
+local uiName = "ETW_LightPanel_V48"
 if parentGui:FindFirstChild(uiName) then parentGui[uiName]:Destroy() end
 
 local uiScreen = Instance.new("ScreenGui", parentGui)
@@ -85,7 +87,7 @@ local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, -60, 0, 35)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "ETW Tool - V47"
+Title.Text = "ETW Tool - V48"
 Title.TextColor3 = Color3.fromRGB(255, 200, 100)
 Title.Font = Enum.Font.SourceSansBold; Title.TextSize = 18
 Title.TextXAlignment = Enum.TextXAlignment.Left
@@ -206,17 +208,12 @@ createToggle("Anti-Ragdoll (God)", "AntiRagdoll")
 createToggle("Anti-Chunk Aura", "AntiChunk")
 
 -- SETUP DROPDOWN UNTUK AUTO TARGET THROW
--- Kita buat elemennya dulu agar bisa dipanggil oleh fungsi Callback
 local DropdownBtn = Instance.new("TextButton", ScrollFrame)
 local DropdownList = Instance.new("ScrollingFrame", ScrollFrame)
 
 local TargetThrowBtn = createToggle("Auto Target Throw", "AutoTargetThrow", function(state)
-    -- Logika visibilitas yang sudah 100% aman dari bug terbalik
     DropdownBtn.Visible = state
-    if not state then 
-        DropdownList.Visible = false 
-        -- Target TIDAK dikosongkan lagi, jadi skrip tetap ingat target terakhirmu
-    end
+    if not state then DropdownList.Visible = false end
     updateCanvas()
 end)
 
@@ -229,7 +226,6 @@ DropdownBtn.Visible = settings.AutoTargetThrow
 DropdownBtn.LayoutOrder = layoutOrderCounter; layoutOrderCounter = layoutOrderCounter + 1
 Instance.new("UICorner", DropdownBtn).CornerRadius = UDim.new(0, 6)
 
--- Kembalikan nama target terakhir jika ada di memori
 if CurrentTarget and CurrentTarget.Parent then
     DropdownBtn.Text = "Target: " .. CurrentTarget.Name .. " ▼"
 end
@@ -246,7 +242,6 @@ DropdownLayout.SortOrder = Enum.SortOrder.LayoutOrder
 local function refreshDropdown()
     for _, child in pairs(DropdownList:GetChildren()) do if child:IsA("TextButton") then child:Destroy() end end
     local ySize = 0
-    
     local players = Players:GetPlayers()
     for i, p in ipairs(players) do
         if p ~= LocalPlayer then
@@ -290,6 +285,11 @@ end)
 createToggle("No Anim (Brutal)", "NoAnimation")
 createToggle("Stealth Mode", "StealthMode")
 createToggle("Auto Tween (Safe)", "AutoTween") 
+
+-- TOMBOL FITUR BARU BERDASARKAN ANALISIS USER
+createToggle("Safe Unowned Farm", "SafeUnowned")
+createToggle("FPS Booster (Clean Trash)", "FPSBooster")
+
 createToggle("Noclip (Matikan!)", "Noclip") 
 createToggle("Smart Rejoin (All)", "SmartAutoRejoin") 
 createToggle("Auto All Rewards", "AutoAllRewards")
@@ -338,7 +338,7 @@ task.spawn(function()
             end
         end
         
-        -- B. LOGIKA AUTO GRAB (BEBAS TANPA BATASAN AIMING)
+        -- B. LOGIKA AUTO GRAB
         if settings.AutoGrab then
             local Char = LocalPlayer.Character
             if Char and Char:FindFirstChild("Events") and Char:FindFirstChild("HumanoidRootPart") then
@@ -362,7 +362,7 @@ task.spawn(function()
     end
 end)
 
--- AUTO EAT LOOP (BEBAS TANPA BATASAN AIMING)
+-- AUTO EAT LOOP
 task.spawn(function()
     while task.wait() do 
         if settings.AutoEat then
@@ -377,7 +377,7 @@ task.spawn(function()
     end
 end)
 
--- AUTO TWEEN FUNCTION & LOOP
+-- LOGIKA AUTO TWEEN DENGAN FILTER FILTERING 'SAFE UNOWNED'
 local function tweenTo(targetPos)
     local char = LocalPlayer.Character
     if not char then return end
@@ -399,16 +399,30 @@ task.spawn(function()
                 local foldersToSearch = {}
                 if Workspace:FindFirstChild("Chunks") then table.insert(foldersToSearch, Workspace.Chunks) end
                 if Workspace:FindFirstChild("Map") and Workspace.Map:FindFirstChild("Fragmentable") then table.insert(foldersToSearch, Workspace.Map.Fragmentable) end
+                
                 for _, folder in pairs(foldersToSearch) do
                     for _, obj in pairs(folder:GetChildren()) do
-                        local pos = nil
-                        if obj:IsA("BasePart") then pos = obj.Position elseif obj:IsA("Model") and obj.PrimaryPart then pos = obj.PrimaryPart.Position end
-                        if pos then
-                            local dist = (root.Position - pos).Magnitude
-                            if dist < shortestDist then shortestDist = dist; targetPos = pos end
+                        local isAllowed = true
+                        
+                        -- OPTIMASI TEMUAN USER: Jika SafeUnowned aktif, abaikan chunk yang sudah ada pemiliknya
+                        if settings.SafeUnowned and folder.Name == "Chunks" and obj.Name == "TemplateChunk" then
+                            local owner = obj:FindFirstChild("Owner")
+                            if owner and owner.Value ~= nil then
+                                isAllowed = false
+                            end
+                        end
+                        
+                        if isAllowed then
+                            local pos = nil
+                            if obj:IsA("BasePart") then pos = obj.Position elseif obj:IsA("Model") and obj.PrimaryPart then pos = obj.PrimaryPart.Position end
+                            if pos then
+                                local dist = (root.Position - pos).Magnitude
+                                if dist < shortestDist then shortestDist = dist; targetPos = pos end
+                            end
                         end
                     end
                 end
+                
                 if targetPos then
                     local safeX = targetPos.X; local safeZ = targetPos.Z
                     local bedrock = Workspace:FindFirstChild("Map") and Workspace.Map:FindFirstChild("Bedrock")
@@ -421,6 +435,32 @@ task.spawn(function()
                         safeX = math.clamp(safeX, -144, 144); safeZ = math.clamp(safeZ, -144, 144)
                     end
                     tweenTo(Vector3.new(safeX, targetPos.Y, safeZ))
+                end
+            end
+        end
+    end
+end)
+
+-- ==========================================
+-- OPTIMASI TEMUAN USER: BACKGROUND CHUNK GARBAGE COLLECTOR
+-- ==========================================
+task.spawn(function()
+    while task.wait(2) do
+        if settings.FPSBooster and Workspace:FindFirstChild("Chunks") then
+            local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if root then
+                for _, obj in ipairs(Workspace.Chunks:GetChildren()) do
+                    if obj.Name == "TemplateChunk" then
+                        local owner = obj:FindFirstChild("Owner")
+                        -- Jika chunk tidak punya owner (sampah sisa ledakan)
+                        if owner and owner.Value == nil then
+                            local pos = obj:IsA("BasePart") and obj.Position or (obj:IsA("Model") and obj.PrimaryPart and obj.PrimaryPart.Position)
+                            -- Hapus jika jaraknya jauh (> 150 studs) agar tidak membebani render device kita
+                            if pos and (root.Position - pos).Magnitude > 150 then
+                                pcall(function() obj:Destroy() end)
+                            end
+                        end
+                    end
                 end
             end
         end
