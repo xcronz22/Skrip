@@ -1,13 +1,15 @@
 -- =======================================================================
--- EAT THE WORLD - V53 ULTIMATE EDITION (ANTI-YIELD / BUG FIX)
+-- EAT THE WORLD - V53 ULTIMATE EDITION (100% ANTI-YIELD / FIXED)
 -- =======================================================================
 
 -- 1. AUTO EXECUTE (REJOIN / HOP)
 local execCmd = [[task.wait(3); loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/EatTheWorld.lua"))()]]
-if queue_on_teleport then pcall(function() queue_on_teleport(execCmd) end)
-elseif syn and syn.queue_on_teleport then pcall(function() syn.queue_on_teleport(execCmd) end) end
+pcall(function()
+    if queue_on_teleport then queue_on_teleport(execCmd)
+    elseif syn and syn.queue_on_teleport then syn.queue_on_teleport(execCmd) end
+end)
 
--- 2. SERVICES & VARIABLES
+-- 2. SERVICES & VARIABLES (NO WAITING/YIELDING)
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -32,10 +34,10 @@ local safeZoneFloorPart = nil
 local activeTween = nil
 local originalC0 = nil
 
--- ANTI-AFK (Dibungkus agar aman)
+-- ANTI-AFK
 task.spawn(function()
-    LocalPlayer.Idled:Connect(function()
-        pcall(function()
+    pcall(function()
+        LocalPlayer.Idled:Connect(function()
             VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
             task.wait(1)
             VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
@@ -44,7 +46,7 @@ task.spawn(function()
 end)
 
 -- =======================================================================
--- FLUENT UI (LOAD PALING AWAL AGAR TIDAK MACET)
+-- FLUENT UI (LOAD PALING AWAL)
 -- =======================================================================
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/main/Addons/SaveManager.lua"))()
@@ -99,15 +101,17 @@ Tabs.Misc:AddToggle("T_CleanTrash", {Title = "Aggressive Clean Trash (FPS Boost)
 Tabs.Misc:AddToggle("T_NoAnimBrutal", {Title = "No Animation (Brutal)", Default = false}):OnChanged(function(v) settings.NoAnimBrutal = v end)
 Tabs.Misc:AddToggle("T_NoAnimV2", {Title = "No Animation V2 (Bisa Jalan/Idle)", Default = false}):OnChanged(function(v) settings.NoAnimV2 = v end)
 
-
 -- =======================================================================
--- NON-BLOCKING CONTROLS SETUP (MENCEGAH SKRIP NYANGKUT)
+-- NON-BLOCKING CONTROLS SETUP
 -- =======================================================================
 local Controls = nil
 task.spawn(function()
     pcall(function()
-        local PlayerModule = require(LocalPlayer:WaitForChild("PlayerScripts", 10):WaitForChild("PlayerModule", 10))
-        Controls = PlayerModule:GetControls()
+        local PlayerScripts = LocalPlayer:WaitForChild("PlayerScripts", 5)
+        if PlayerScripts then
+            local PlayerModule = require(PlayerScripts:WaitForChild("PlayerModule", 5))
+            if PlayerModule then Controls = PlayerModule:GetControls() end
+        end
     end)
 end)
 
@@ -285,7 +289,8 @@ task.spawn(function()
             local tPlayer = Players:FindFirstChild(settings.ThrowTarget)
             local char = LocalPlayer.Character
             if tPlayer and tPlayer.Character and char then
-                local myRoot, tRoot = char:FindFirstChild("HumanoidRootPart"), tPlayer.Character:FindFirstChild("HumanoidRootPart")
+                local myRoot = char:FindFirstChild("HumanoidRootPart")
+                local tRoot = tPlayer.Character:FindFirstChild("HumanoidRootPart")
                 local events = char:FindFirstChild("Events")
                 if myRoot and tRoot and events and events:FindFirstChild("Throw") then
                     if not settings.LayDownMode then
@@ -325,9 +330,9 @@ task.spawn(function()
                         if t.Name == "Template" and t:FindFirstChild("Time") then
                             if t.Time.Text == "Tap to claim!" then
                                 allClaimed = false
-                                local rf = LocalPlayer:WaitForChild("TimedRewards")
+                                local rf = LocalPlayer:WaitForChild("TimedRewards", 2)
                                 local re = ReplicatedStorage.Events.RewardEvent
-                                for _, item in pairs(rf:GetChildren()) do re:FireServer(item) end
+                                if rf then for _, item in pairs(rf:GetChildren()) do re:FireServer(item) end end
                             elseif t.Time.Text ~= "Claimed!" then
                                 allClaimed = false
                             end
@@ -423,5 +428,5 @@ Tabs.Settings:AddButton({Title = "Save Configuration", Callback = function() Sav
 Tabs.Settings:AddButton({Title = "Load Configuration", Callback = function() SaveManager:Load("AutoSave") end})
 
 pcall(function() SaveManager:Load("AutoSave") end)
-Fluent:Notify({Title = "V53 Ultimate Active", Content = "Semua fitur komplit & bebas bug macet!", Duration = 5})
+Fluent:Notify({Title = "V53 Ultimate Active", Content = "Siap Farming! (Anti-Macat Edition)", Duration = 5})
 Window:SelectTab(Tabs.Main)
