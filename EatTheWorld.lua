@@ -1,5 +1,5 @@
 -- ==========================================
--- EAT THE WORLD - LIGHTWEIGHT HUB V23 (CUSTOM HITBOX INPUT & ANTI-FREEZE)
+-- EAT THE WORLD - LIGHTWEIGHT HUB V25 (CUSTOM WALK SPEED & STABILITY)
 -- ==========================================
 
 local Players = game:GetService("Players")
@@ -7,18 +7,21 @@ local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
 local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- 1. SISTEM AUTO SAVE
-local settingsFile = "ETW_Settings_V23.json"
+-- 1. SISTEM AUTO SAVE (DENGAN WALK SPEED)
+local settingsFile = "ETW_Settings_V25.json"
 local settings = {
     AutoGrab = false,
     AutoEat = false,
     AutoSell = false,
     WideHitbox = false,
-    HitboxSize = 150, -- Default Size
+    HitboxSize = 100,
+    WalkSpeedToggle = false,
+    WalkSpeedValue = 16, -- Kecepatan normal Roblox
     AntiFreeze = false,
     AutoReward = false,
     AutoCube = false
@@ -47,7 +50,7 @@ loadSettings()
 local parentGui = PlayerGui
 pcall(function() if gethui then parentGui = gethui() else parentGui = CoreGui end end)
 
-local uiName = "ETW_LightPanel_V23"
+local uiName = "ETW_LightPanel_V25"
 if parentGui:FindFirstChild(uiName) then parentGui[uiName]:Destroy() end
 
 -- ==========================================
@@ -59,7 +62,7 @@ uiScreen.ResetOnSpawn = false
 uiScreen.Parent = parentGui
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 220, 0, 365)
+MainFrame.Size = UDim2.new(0, 220, 0, 410) -- Diperpanjang untuk menu Walk Speed
 MainFrame.Position = UDim2.new(0, 20, 0, 20)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 15, 20)
 MainFrame.Active = true
@@ -71,7 +74,7 @@ local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, -60, 0, 30)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "ETW Tool - V23"
+Title.Text = "ETW Tool - V25"
 Title.TextColor3 = Color3.fromRGB(255, 200, 100)
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 16
@@ -141,16 +144,15 @@ local function createToggle(text, yPos, settingKey)
     updateVisual(settingKey)
 end
 
--- Membuat Standar Toggle
 createToggle("Auto Grab", 40, "AutoGrab")
 createToggle("Auto Eat", 85, "AutoEat")
 createToggle("Auto Sell", 130, "AutoSell")
 
 -- ====================================================
--- PEMBUATAN CUSTOM TOGGLE & INPUT UNTUK HITBOX
+-- CUSTOM INPUT HITBOX UI
 -- ====================================================
 local hitBoxBtn = Instance.new("TextButton", MainFrame)
-hitBoxBtn.Size = UDim2.new(0, 120, 0, 35) -- Lebih pendek untuk ruang Input Box
+hitBoxBtn.Size = UDim2.new(0, 120, 0, 35)
 hitBoxBtn.Position = UDim2.new(0, 20, 0, 175)
 hitBoxBtn.Font = Enum.Font.SourceSansBold
 hitBoxBtn.TextSize = 14
@@ -174,172 +176,193 @@ hitboxInput.Text = tostring(settings.HitboxSize)
 hitboxInput.PlaceholderText = "Size"
 Instance.new("UICorner", hitboxInput).CornerRadius = UDim.new(0, 6)
 
--- Event saat menekan Enter pada TextBox
 hitboxInput.FocusLost:Connect(function()
     local val = tonumber(hitboxInput.Text)
-    if val then
-        settings.HitboxSize = val
-        saveSettings()
-    else
-        hitboxInput.Text = tostring(settings.HitboxSize) -- Kembalikan ke angka awal jika yang diketik huruf
-    end
+    if val then settings.HitboxSize = val; saveSettings() else hitboxInput.Text = tostring(settings.HitboxSize) end
 end)
+
+-- ====================================================
+-- CUSTOM INPUT WALK SPEED UI
+-- ====================================================
+local wsBtn = Instance.new("TextButton", MainFrame)
+wsBtn.Size = UDim2.new(0, 120, 0, 35)
+wsBtn.Position = UDim2.new(0, 20, 0, 220)
+wsBtn.Font = Enum.Font.SourceSansBold
+wsBtn.TextSize = 14
+Instance.new("UICorner", wsBtn).CornerRadius = UDim.new(0, 6)
+buttonRefs["WalkSpeedToggle"] = {button = wsBtn, label = "Walk Speed"}
+
+wsBtn.MouseButton1Click:Connect(function()
+    settings["WalkSpeedToggle"] = not settings["WalkSpeedToggle"]
+    updateVisual("WalkSpeedToggle"); saveSettings()
+end)
+updateVisual("WalkSpeedToggle")
+
+local wsInput = Instance.new("TextBox", MainFrame)
+wsInput.Size = UDim2.new(0, 55, 0, 35)
+wsInput.Position = UDim2.new(0, 145, 0, 220)
+wsInput.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+wsInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+wsInput.Font = Enum.Font.SourceSansBold
+wsInput.TextSize = 14
+wsInput.Text = tostring(settings.WalkSpeedValue)
+wsInput.PlaceholderText = "Speed"
+Instance.new("UICorner", wsInput).CornerRadius = UDim.new(0, 6)
+
+wsInput.FocusLost:Connect(function()
+    local val = tonumber(wsInput.Text)
+    if val then settings.WalkSpeedValue = val; saveSettings() else wsInput.Text = tostring(settings.WalkSpeedValue) end
+end)
+
 -- ====================================================
 
-createToggle("Anti-Freeze (Move)", 220, "AntiFreeze")
-createToggle("Auto Reward", 265, "AutoReward")
-createToggle("Auto Cube", 310, "AutoCube")
+createToggle("Anti-Freeze (Move)", 265, "AntiFreeze")
+createToggle("Auto Reward", 310, "AutoReward")
+createToggle("Auto Cube", 355, "AutoCube")
 
 MinBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false; MinIcon.Position = MainFrame.Position; MinIcon.Visible = true end)
 MinIcon.MouseButton1Click:Connect(function() MinIcon.Visible = false; MainFrame.Position = MinIcon.Position; MainFrame.Visible = true end)
 CloseBtn.MouseButton1Click:Connect(function() uiScreen:Destroy() end)
 
 -- ==========================================
--- 4. EVENT-BASED AUTO CUBE
+-- 4. MESIN MULTI-THREAD (KEBAL ERROR & STUCK)
 -- ==========================================
-local function grabCubeInstantly(obj)
-    if settings.AutoCube and obj.Name == "Cube" and obj:IsA("BasePart") and obj:FindFirstChildOfClass("TouchTransmitter") then
+
+-- LOOP 1: AUTO GRAB 
+task.spawn(function()
+    while task.wait(0.5) do
+        if not settings.AutoGrab then continue end
         local Char = LocalPlayer.Character
-        if Char then
-            local Root = Char:FindFirstChild("HumanoidRootPart")
-            if Root and firetouchinterest then
-                pcall(function()
-                    firetouchinterest(Root, obj, 0)
-                    task.wait(0.01)
-                    firetouchinterest(Root, obj, 1)
-                end)
-            end
+        if not Char then continue end
+        local chunkValueObj = Char:FindFirstChild("CurrentChunk")
+        local isHoldingChunk = (chunkValueObj and chunkValueObj.Value ~= nil)
+        if not isHoldingChunk then
+            pcall(function() Char.Events.Grab:FireServer(false, false, false) end)
         end
     end
-end
-Workspace.ChildAdded:Connect(grabCubeInstantly)
-local function sweepCubes()
-    if not settings.AutoCube then return end
-    for _, obj in ipairs(Workspace:GetChildren()) do grabCubeInstantly(obj) end
-end
+end)
 
--- ==========================================
--- 5. LOGIKA PERMAINAN (V23 - CUSTOM HITBOX)
--- ==========================================
-
-local originalWalkSpeed = 16
-
+-- LOOP 2: AUTO EAT 
 task.spawn(function()
-    local lastGrabTick = 0
-    local lastEatTick = 0
-    local isSellingCooldown = false
-
-    while task.wait(0.05) do
-        if not uiScreen.Parent then break end
-        
-        local Character = LocalPlayer.Character
-        local Events = Character and Character:FindFirstChild("Events")
-        if not Character or not Events then continue end
-        
-        local Humanoid = Character:FindFirstChildOfClass("Humanoid")
-        local RootPart = Character:FindFirstChild("HumanoidRootPart")
-        if not Humanoid or not RootPart then continue end
-        
-        sweepCubes()
-
-        -- ====================================================
-        -- 1. DYNAMIC WIDE HITBOX (Menggunakan Input Pengguna)
-        -- ====================================================
-        local radiusPart = Character:FindFirstChild("Radius")
-        if radiusPart then
-            if settings.WideHitbox then
-                -- Ambil angka dari TextBox (misal 50, 150, 200)
-                local sizeValue = tonumber(settings.HitboxSize) or 150
-                -- Kita terapkan Size X dan Z sesuai input, Y (ketinggian) biarkan standar (50) agar tidak error ke bawah map
-                radiusPart.Size = Vector3.new(sizeValue, 50, sizeValue)
-            else
-                -- Kembalikan ke ukuran normal
-                if radiusPart.Size.X > 50 then
-                    radiusPart.Size = Vector3.new(10, 10, 10)
-                end
-            end
-        end
-
-        -- ====================================================
-        -- 2. ANTI-FREEZE (Mencegah karakter nyangkut/berhenti)
-        -- ====================================================
-        if settings.AntiFreeze then
-            if Humanoid.WalkSpeed > 5 then
-                originalWalkSpeed = Humanoid.WalkSpeed
-            end
-            
-            if Humanoid.WalkSpeed < 2 then
-                Humanoid.WalkSpeed = originalWalkSpeed
-            end
-            
-            if RootPart.Anchored then
-                RootPart.Anchored = false
-            end
-        end
-        -- ====================================================
-        
-        -- AUTO SELL
-        if settings.AutoSell and not isSellingCooldown then
-            local isFull = false
-            pcall(function()
-                local warningUI = PlayerGui.ScreenGui.Sell.WarningText
-                if warningUI and warningUI.Visible then isFull = true end
-            end)
-            
-            if isFull then
-                isSellingCooldown = true
-                Events:WaitForChild("Sell"):FireServer()
-                task.wait(1.5) 
-                isSellingCooldown = false
-                continue 
-            end
-        end
-        if isSellingCooldown then continue end
-        
-        -- CEK TANGAN
-        local chunkValueObj = Character:FindFirstChild("CurrentChunk")
+    while task.wait(0.2) do
+        if not settings.AutoEat then continue end
+        local Char = LocalPlayer.Character
+        if not Char then continue end
+        local chunkValueObj = Char:FindFirstChild("CurrentChunk")
         local isHoldingChunk = (chunkValueObj and chunkValueObj.Value ~= nil)
-        
-        -- AUTO EAT
-        if settings.AutoEat and isHoldingChunk then
-            if tick() - lastEatTick > 0.2 then 
-                pcall(function() Events:WaitForChild("Eat"):FireServer() end)
-                lastEatTick = tick()
-            end
+        if isHoldingChunk then
+            pcall(function() Char.Events.Eat:FireServer() end)
         end
-            
-        -- AUTO GRAB
-        if settings.AutoGrab and not isHoldingChunk then
-            if tick() - lastGrabTick > 0.5 then
-                pcall(function() Events:WaitForChild("Grab"):FireServer(false, false, false) end)
-                lastGrabTick = tick()
+    end
+end)
+
+-- LOOP 3: DYNAMIC WIDE HITBOX
+task.spawn(function()
+    while task.wait(1) do
+        local Char = LocalPlayer.Character
+        local radiusPart = Char and Char:FindFirstChild("Radius")
+        if not radiusPart then continue end
+        
+        if settings.WideHitbox then
+            local sizeValue = tonumber(settings.HitboxSize) or 100
+            pcall(function() radiusPart.Size = Vector3.new(sizeValue, 50, sizeValue) end)
+        else
+            if radiusPart.Size.X > 20 then
+                pcall(function() radiusPart.Size = Vector3.new(10, 10, 10) end)
             end
         end
     end
 end)
 
--- LOOP AUTO REWARD
+-- ====================================================
+-- LOOP 4: AGGRESSIVE WALK SPEED & ANTI-FREEZE (60 FPS Override)
+-- ====================================================
+local PlayerModule, Controls
+pcall(function()
+    PlayerModule = require(LocalPlayer.PlayerScripts:WaitForChild("PlayerModule"))
+    Controls = PlayerModule:GetControls()
+end)
+
+RunService.RenderStepped:Connect(function()
+    local Char = LocalPlayer.Character
+    if not Char then return end
+    local Humanoid = Char:FindFirstChildOfClass("Humanoid")
+    local RootPart = Char:FindFirstChild("HumanoidRootPart")
+    
+    if Humanoid then
+        -- Jika Toggle WalkSpeed NYALA, paksakan terus menerus ke angka yang diketik
+        if settings.WalkSpeedToggle then
+            Humanoid.WalkSpeed = tonumber(settings.WalkSpeedValue) or 16
+            
+        -- Jika Toggle Mati, TAPI Anti-Freeze Nyala, cegah kecepatan jadi 0 (Standar Roblox 16)
+        elseif settings.AntiFreeze and Humanoid.WalkSpeed < 5 then
+            Humanoid.WalkSpeed = 16
+        end
+    end
+    
+    if settings.AntiFreeze then
+        -- Cabut paksa gembok akar tubuh
+        if RootPart and RootPart.Anchored then
+            RootPart.Anchored = false
+        end
+        -- Paksa kontrol tetap aktif
+        if Controls then
+            pcall(function() Controls:Enable() end)
+        end
+    end
+end)
+
+-- LOOP 5: AUTO SELL
 task.spawn(function()
-    while task.wait(3) do
-        if not uiScreen.Parent then break end
+    while task.wait(1) do
+        if not settings.AutoSell then continue end
+        local isFull = false
+        pcall(function()
+            local warningUI = PlayerGui.ScreenGui.Sell.WarningText
+            if warningUI and warningUI.Visible then isFull = true end
+        end)
+        
+        if isFull then
+            local Char = LocalPlayer.Character
+            if Char then
+                pcall(function() Char.Events.Sell:FireServer() end)
+                task.wait(1.5)
+            end
+        end
+    end
+end)
+
+-- LOOP 6: AUTO CUBE & AUTO REWARD
+task.spawn(function()
+    while task.wait(1) do
+        if settings.AutoCube then
+            for _, obj in ipairs(Workspace:GetChildren()) do
+                if obj.Name == "Cube" and obj:IsA("BasePart") then
+                    local Char = LocalPlayer.Character
+                    local Root = Char and Char:FindFirstChild("HumanoidRootPart")
+                    if Root and firetouchinterest then
+                        pcall(function()
+                            firetouchinterest(Root, obj, 0)
+                            firetouchinterest(Root, obj, 1)
+                        end)
+                    end
+                end
+            end
+        end
+        
         if settings.AutoReward then
             pcall(function()
                 local rewardGrid = PlayerGui.ScreenGui.Rewards.TimedRewards.RewardGrid
-                local canClaim = false
                 for _, template in pairs(rewardGrid:GetChildren()) do
                     if template.Name == "Template" and template:FindFirstChild("Time") then
                         if template.Time.Text == "Tap to claim!" then
-                            canClaim = true
+                            local rewardFolder = LocalPlayer:WaitForChild("TimedRewards")
+                            local rewardEvent = ReplicatedStorage:WaitForChild("Events"):WaitForChild("RewardEvent")
+                            for _, rewardItem in pairs(rewardFolder:GetChildren()) do
+                                rewardEvent:FireServer(rewardItem)
+                            end
                             break
                         end
-                    end
-                end
-                if canClaim then
-                    local rewardFolder = LocalPlayer:WaitForChild("TimedRewards")
-                    local rewardEvent = ReplicatedStorage:WaitForChild("Events"):WaitForChild("RewardEvent")
-                    for _, rewardItem in pairs(rewardFolder:GetChildren()) do
-                        rewardEvent:FireServer(rewardItem)
-                        task.wait(0.1)
                     end
                 end
             end)
