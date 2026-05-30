@@ -1,5 +1,5 @@
 -- ==========================================
--- EAT THE WORLD - LIGHTWEIGHT HUB V39 (ULTIMATE EDITION)
+-- EAT THE WORLD - LIGHTWEIGHT HUB V41 (SMART REJOIN EDITION)
 -- ==========================================
 
 local Players = game:GetService("Players")
@@ -16,7 +16,7 @@ local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 -- ==========================================
--- ANTI-AFK (MENCEGAH KICK KARENA DIAM)
+-- ANTI-AFK
 -- ==========================================
 LocalPlayer.Idled:Connect(function()
     VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
@@ -27,30 +27,19 @@ end)
 -- ==========================================
 -- PENGATURAN & PENYIMPANAN
 -- ==========================================
-local settingsFile = "ETW_Settings_V39.json"
+local settingsFile = "ETW_Settings_V41.json"
 local settings = {
-    AutoGrab = false,
-    AutoEat = false,
-    AutoSell = false,
-    WalkSpeedToggle = false,
-    WalkSpeedValue = 16,
-    AntiFreeze = false,
-    NoAnimation = false,
-    StealthMode = false,
-    AutoTween = false,    -- PENGGANTI AUTO WALK
-    Noclip = false,       -- FITUR NOCLIP
-    AutoRejoinReward = false, -- REJOIN SAAT REWARD HABIS
-    AutoRejoinKick = false,   -- REJOIN SAAT DISCONNECT
-    AutoAllRewards = false,
-    AutoCube = false
+    AutoGrab = false, AutoEat = false, AutoSell = false,
+    WalkSpeedToggle = false, WalkSpeedValue = 16,
+    AntiFreeze = false, NoAnimation = false, StealthMode = false,
+    AutoTween = false, Noclip = false, 
+    SmartAutoRejoin = false, -- FITUR GABUNGAN (REWARD & KICK)
+    AutoAllRewards = false, AutoCube = false
 }
 
 local function saveSettings()
-    if writefile then
-        pcall(function() writefile(settingsFile, HttpService:JSONEncode(settings)) end)
-    end
+    if writefile then pcall(function() writefile(settingsFile, HttpService:JSONEncode(settings)) end) end
 end
-
 local function loadSettings()
     if isfile and readfile then
         local s, res = pcall(function() return isfile(settingsFile) end)
@@ -63,11 +52,11 @@ end
 loadSettings()
 
 -- ==========================================
--- PEMBUATAN UI (SCROLLING & INDEPENDENT ICON)
+-- PEMBUATAN UI 
 -- ==========================================
 local parentGui = PlayerGui
 pcall(function() if gethui then parentGui = gethui() else parentGui = CoreGui end end)
-local uiName = "ETW_LightPanel_V39"
+local uiName = "ETW_LightPanel_V41"
 if parentGui:FindFirstChild(uiName) then parentGui[uiName]:Destroy() end
 
 local uiScreen = Instance.new("ScreenGui", parentGui)
@@ -85,7 +74,7 @@ local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, -60, 0, 35)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "ETW Tool - V39"
+Title.Text = "ETW Tool - V41"
 Title.TextColor3 = Color3.fromRGB(255, 200, 100)
 Title.Font = Enum.Font.SourceSansBold; Title.TextSize = 18
 Title.TextXAlignment = Enum.TextXAlignment.Left
@@ -107,7 +96,7 @@ ScrollFrame.Size = UDim2.new(1, 0, 1, -35)
 ScrollFrame.Position = UDim2.new(0, 0, 0, 35)
 ScrollFrame.BackgroundTransparency = 1
 ScrollFrame.ScrollBarThickness = 6
-ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 600) -- Area scroll diperpanjang
+ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 550) -- Disesuaikan karena tombol berkurang
 ScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(255, 200, 100)
 ScrollFrame.BorderSizePixel = 0
 
@@ -146,7 +135,7 @@ local function createToggle(text, yPos, settingKey)
     updateVisual(settingKey)
 end
 
--- Layout Tombol di ScrollFrame
+-- Layout Tombol Baru
 createToggle("Auto Grab", 10, "AutoGrab")
 createToggle("Auto Eat (Instan)", 55, "AutoEat")
 createToggle("Auto Sell", 100, "AutoSell")
@@ -173,31 +162,27 @@ wsInput.FocusLost:Connect(function() local val = tonumber(wsInput.Text); if val 
 createToggle("Anti-Freeze", 190, "AntiFreeze")
 createToggle("No Anim (Brutal)", 235, "NoAnimation")
 createToggle("Stealth Mode", 280, "StealthMode")
-createToggle("Auto Tween (Smooth)", 325, "AutoTween") 
-createToggle("Noclip (Rawan Jatuh)", 370, "Noclip") 
-createToggle("Auto Rejoin (Reward)", 415, "AutoRejoinReward") 
-createToggle("Auto Rejoin (DC/Kick)", 460, "AutoRejoinKick") 
-createToggle("Auto All Rewards", 505, "AutoAllRewards")
-createToggle("Auto Cube", 550, "AutoCube")
+createToggle("Auto Tween (Safe)", 325, "AutoTween") 
+createToggle("Noclip (Matikan!)", 370, "Noclip") 
+createToggle("Smart Rejoin (All)", 415, "SmartAutoRejoin") -- TOMBOL GABUNGAN
+createToggle("Auto All Rewards", 460, "AutoAllRewards")
+createToggle("Auto Cube", 505, "AutoCube")
 
--- Tombol UI Logika
 MinBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false; MinIcon.Visible = true end)
 MinIcon.MouseButton1Click:Connect(function() MinIcon.Visible = false; MainFrame.Visible = true end)
 CloseBtn.MouseButton1Click:Connect(function() uiScreen:Destroy() end)
 
 -- ==========================================
--- SMART REJOIN & SERVER HOP SYSTEM
+-- SMART REJOIN & SERVER HOP SYSTEM (TRIGGER: KICK/DC)
 -- ==========================================
 local retryCount = 0
 local function handleDisconnect()
-    if settings.AutoRejoinKick then
+    if settings.SmartAutoRejoin then -- MENGGUNAKAN TOGGLE BARU
         if retryCount < 3 then
             retryCount = retryCount + 1
             task.wait(3)
-            -- Coba Rejoin server yang sama
             TeleportService:Teleport(game.PlaceId, LocalPlayer)
         else
-            -- Plan B: Server Hop karena stuck di server lama
             local servers = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?limit=100"))
             if servers and servers.data and #servers.data > 0 then
                 TeleportService:TeleportToPlaceInstance(game.PlaceId, servers.data[math.random(1, #servers.data)].id)
@@ -206,11 +191,8 @@ local function handleDisconnect()
     end
 end
 
--- Hook deteksi Error/Kick dari Roblox
 game:GetService("CoreGui").ChildAdded:Connect(function(child)
-    if child:IsA("ScreenGui") and child.Name == "ErrorPrompt" then
-        handleDisconnect()
-    end
+    if child:IsA("ScreenGui") and child.Name == "ErrorPrompt" then handleDisconnect() end
 end)
 
 -- ==========================================
@@ -251,7 +233,7 @@ task.spawn(function()
     end
 end)
 
--- 3. LOOP AUTO TWEEN (FARMING MAKANAN MULUS)
+-- 3. LOOP AUTO TWEEN DENGAN BOUNDARY BEDROCK
 local function tweenTo(targetPos)
     local char = LocalPlayer.Character
     if not char then return end
@@ -259,7 +241,7 @@ local function tweenTo(targetPos)
     if not root then return end
     
     local distance = (root.Position - targetPos).Magnitude
-    local speed = 50 -- Kecepatan Tween (Semakin besar semakin cepat)
+    local speed = 55
     local info = TweenInfo.new(distance / speed, Enum.EasingStyle.Linear)
     local tween = TweenService:Create(root, info, {CFrame = CFrame.new(targetPos)})
     tween:Play()
@@ -268,14 +250,53 @@ end
 task.spawn(function()
     while task.wait(0.5) do
         if settings.AutoTween then
-            local targetPos = nil
-            -- Mencari part yang bisa diambil/dimakan (Sesuaikan jika nama partnya berbeda)
-            for _, obj in pairs(Workspace:GetChildren()) do
-                if obj:IsA("BasePart") and (obj.Name == "Food" or obj.Name == "Chunk" or obj:FindFirstChild("TouchInterest")) then
-                    targetPos = obj.Position; break
+            local char = LocalPlayer.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            if root then
+                local targetPos = nil
+                local shortestDist = math.huge
+                
+                local foldersToSearch = {}
+                if Workspace:FindFirstChild("Chunks") then table.insert(foldersToSearch, Workspace.Chunks) end
+                if Workspace:FindFirstChild("Map") and Workspace.Map:FindFirstChild("Fragmentable") then table.insert(foldersToSearch, Workspace.Map.Fragmentable) end
+                
+                for _, folder in pairs(foldersToSearch) do
+                    for _, obj in pairs(folder:GetChildren()) do
+                        local pos = nil
+                        if obj:IsA("BasePart") then pos = obj.Position 
+                        elseif obj:IsA("Model") and obj.PrimaryPart then pos = obj.PrimaryPart.Position end
+                        
+                        if pos then
+                            local dist = (root.Position - pos).Magnitude
+                            if dist < shortestDist then
+                                shortestDist = dist
+                                targetPos = pos
+                            end
+                        end
+                    end
+                end
+                
+                if targetPos then
+                    local safeX = targetPos.X
+                    local safeZ = targetPos.Z
+                    
+                    local bedrock = Workspace:FindFirstChild("Map") and Workspace.Map:FindFirstChild("Bedrock")
+                    if bedrock then
+                        local halfX = (bedrock.Size.X / 2) - 5
+                        local halfZ = (bedrock.Size.Z / 2) - 5
+                        local cx = bedrock.Position.X
+                        local cz = bedrock.Position.Z
+                        
+                        safeX = math.clamp(safeX, cx - halfX, cx + halfX)
+                        safeZ = math.clamp(safeZ, cz - halfZ, cz + halfZ)
+                    else
+                        safeX = math.clamp(safeX, -144, 144)
+                        safeZ = math.clamp(safeZ, -144, 144)
+                    end
+                    
+                    tweenTo(Vector3.new(safeX, targetPos.Y, safeZ))
                 end
             end
-            if targetPos then tweenTo(targetPos) end
         end
     end
 end)
@@ -292,11 +313,9 @@ RunService.Stepped:Connect(function()
     local RootPart = Char:FindFirstChild("HumanoidRootPart")
     
     if Humanoid then
-        -- Walkspeed
         if settings.WalkSpeedToggle then Humanoid.WalkSpeed = settings.WalkSpeedValue
         elseif settings.AntiFreeze and Humanoid.WalkSpeed < 5 then Humanoid.WalkSpeed = 16 end
         
-        -- Animasi (Brutal vs Stealth)
         if settings.NoAnimation then
             local Animator = Humanoid:FindFirstChildOfClass("Animator")
             if Animator then
@@ -308,21 +327,17 @@ RunService.Stepped:Connect(function()
                            anim.Priority == Enum.AnimationPriority.Action4 then
                             anim:Stop(0)
                         end
-                    else
-                        anim:Stop(0)
-                    end
+                    else anim:Stop(0) end
                 end
             end
         end
     end
     
-    -- Anti-Freeze
     if settings.AntiFreeze then
         if RootPart and RootPart.Anchored then RootPart.Anchored = false end
         if Controls then pcall(function() Controls:Enable() end) end
     end
     
-    -- Noclip (Awas jatuh!)
     if settings.Noclip then
         for _, part in pairs(Char:GetDescendants()) do
             if part:IsA("BasePart") and part.CanCollide == true then
@@ -332,7 +347,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- 5. LOOP CUBE & REWARDS (+ AUTO REJOIN REWARD)
+-- 5. LOOP CUBE & REWARDS (+ AUTO REJOIN REWARD TRIGGER)
 task.spawn(function()
     while task.wait(1) do
         if settings.AutoCube then
@@ -348,27 +363,21 @@ task.spawn(function()
             pcall(function()
                 local grid = PlayerGui.ScreenGui.Rewards.TimedRewards.RewardGrid
                 local hasPendingRewards = false
-                
                 for _, t in pairs(grid:GetChildren()) do
                     if t.Name == "Template" and t:FindFirstChild("Time") then
                         if t.Time.Text == "Tap to claim!" then
                             local rf = LocalPlayer:WaitForChild("TimedRewards")
                             local re = ReplicatedStorage.Events.RewardEvent
                             for _, item in pairs(rf:GetChildren()) do re:FireServer(item) end
-                        elseif t.Time.Text ~= "Claimed!" then
-                            -- Jika ada waktu yang masih menghitung, berarti belum selesai semua
-                            hasPendingRewards = true
-                        end
+                        elseif t.Time.Text ~= "Claimed!" then hasPendingRewards = true end
                     end
                 end
                 
-                -- Logika Auto Rejoin Reward
-                if settings.AutoRejoinReward and not hasPendingRewards then
-                    -- Rejoin Server Yang Sama (Bukan Hop)
+                -- TRIGGER REWARD HABIS MENGGUNAKAN SMART AUTO REJOIN
+                if settings.SmartAutoRejoin and not hasPendingRewards then
                     TeleportService:Teleport(game.PlaceId, LocalPlayer)
                 end
             end)
-            
             pcall(function()
                 if PlayerGui.ScreenGui.Rewards.Spin.NextSpin.Visible == false then
                     ReplicatedStorage.Events.SpinEvent:FireServer(); task.wait(2)
