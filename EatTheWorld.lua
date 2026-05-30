@@ -1,5 +1,5 @@
 -- ==========================================
--- EAT THE WORLD - LIGHTWEIGHT HUB V34 (BRUTAL vs STEALTH)
+-- EAT THE WORLD - LIGHTWEIGHT HUB V35 (SCROLLING & INDEPENDENT UI)
 -- ==========================================
 
 local Players = game:GetService("Players")
@@ -12,7 +12,7 @@ local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
-local settingsFile = "ETW_Settings_V34.json"
+local settingsFile = "ETW_Settings_V35.json"
 local settings = {
     AutoGrab = false,
     AutoEat = false,
@@ -21,7 +21,7 @@ local settings = {
     WalkSpeedValue = 16,
     AntiFreeze = false,
     NoAnimation = false,
-    StealthMode = false, -- FITUR BARU: PEMISAH STEALTH
+    StealthMode = false,
     AutoRoam = false,
     AutoAllRewards = false,
     AutoCube = false
@@ -45,44 +45,56 @@ loadSettings()
 
 local parentGui = PlayerGui
 pcall(function() if gethui then parentGui = gethui() else parentGui = CoreGui end end)
-local uiName = "ETW_LightPanel_V34"
+local uiName = "ETW_LightPanel_V35"
 if parentGui:FindFirstChild(uiName) then parentGui[uiName]:Destroy() end
 
 local uiScreen = Instance.new("ScreenGui", parentGui)
 uiScreen.Name = uiName
 uiScreen.ResetOnSpawn = false
 
--- PANEL DIPERPANJANG UNTUK MUAT TOMBOL STEALTH
+-- PANEL UTAMA (Sekarang dibuat lebih pendek agar tidak makan tempat)
 local MainFrame = Instance.new("Frame", uiScreen)
-MainFrame.Size = UDim2.new(0, 240, 0, 500) 
+MainFrame.Size = UDim2.new(0, 240, 0, 320) -- Tinggi diperpendek jadi 320
 MainFrame.Position = UDim2.new(0, 20, 0, 20)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 15, 20)
 MainFrame.Active = true; MainFrame.Draggable = true
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
 
 local Title = Instance.new("TextLabel", MainFrame)
-Title.Size = UDim2.new(1, -60, 0, 30)
+Title.Size = UDim2.new(1, -60, 0, 35)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "ETW Tool - V34"
+Title.Text = "ETW Tool - V35"
 Title.TextColor3 = Color3.fromRGB(255, 200, 100)
 Title.Font = Enum.Font.SourceSansBold; Title.TextSize = 18
 Title.TextXAlignment = Enum.TextXAlignment.Left
 
 local MinBtn = Instance.new("TextButton", MainFrame)
-MinBtn.Size = UDim2.new(0, 30, 0, 30)
+MinBtn.Size = UDim2.new(0, 30, 0, 35)
 MinBtn.Position = UDim2.new(1, -60, 0, 0)
 MinBtn.BackgroundTransparency = 1; MinBtn.Text = "_"
 MinBtn.TextColor3 = Color3.fromRGB(200, 200, 200); MinBtn.TextSize = 20
 
 local CloseBtn = Instance.new("TextButton", MainFrame)
-CloseBtn.Size = UDim2.new(0, 30, 0, 30)
+CloseBtn.Size = UDim2.new(0, 30, 0, 35)
 CloseBtn.Position = UDim2.new(1, -30, 0, 0)
 CloseBtn.BackgroundTransparency = 1; CloseBtn.Text = "X"
 CloseBtn.TextColor3 = Color3.fromRGB(255, 80, 80); CloseBtn.TextSize = 18
 
+-- SCROLLING FRAME (Area untuk menampung tombol-tombol agar bisa digeser naik-turun)
+local ScrollFrame = Instance.new("ScrollingFrame", MainFrame)
+ScrollFrame.Size = UDim2.new(1, 0, 1, -35)
+ScrollFrame.Position = UDim2.new(0, 0, 0, 35)
+ScrollFrame.BackgroundTransparency = 1
+ScrollFrame.ScrollBarThickness = 6
+ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 465) -- Total panjang area tombol
+ScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(255, 200, 100)
+ScrollFrame.BorderSizePixel = 0
+
+-- ICON MINIMIZE (Posisi Independen)
 local MinIcon = Instance.new("TextButton", uiScreen)
 MinIcon.Size = UDim2.new(0, 45, 0, 45)
+MinIcon.Position = UDim2.new(0, 20, 0, 20) -- Muncul pertama kali di pojok kiri atas
 MinIcon.BackgroundColor3 = Color3.fromRGB(20, 15, 20)
 MinIcon.Text = "ETW"; MinIcon.TextColor3 = Color3.fromRGB(255, 200, 100)
 MinIcon.Font = Enum.Font.SourceSansBold; MinIcon.TextSize = 16
@@ -101,9 +113,9 @@ local function updateVisual(sKey)
 end
 
 local function createToggle(text, yPos, settingKey)
-    local btn = Instance.new("TextButton", MainFrame)
-    btn.Size = UDim2.new(0, 200, 0, 35)
-    btn.Position = UDim2.new(0, 20, 0, yPos)
+    local btn = Instance.new("TextButton", ScrollFrame)
+    btn.Size = UDim2.new(0, 210, 0, 35) -- Lebar sedikit dikurangi agar tidak menabrak scrollbar
+    btn.Position = UDim2.new(0, 10, 0, yPos)
     btn.Font = Enum.Font.SourceSansBold; btn.TextSize = 15
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
     buttonRefs[settingKey] = {button = btn, label = text}
@@ -115,24 +127,24 @@ local function createToggle(text, yPos, settingKey)
     updateVisual(settingKey)
 end
 
--- Layout UI
-createToggle("Auto Grab", 40, "AutoGrab")
-createToggle("Auto Eat (Instan)", 85, "AutoEat")
-createToggle("Auto Sell", 130, "AutoSell")
+-- Layout UI di dalam ScrollFrame
+createToggle("Auto Grab", 10, "AutoGrab")
+createToggle("Auto Eat (Instan)", 55, "AutoEat")
+createToggle("Auto Sell", 100, "AutoSell")
 
 -- Walkspeed 
-local wsBtn = Instance.new("TextButton", MainFrame)
-wsBtn.Size = UDim2.new(0, 130, 0, 35)
-wsBtn.Position = UDim2.new(0, 20, 0, 175)
+local wsBtn = Instance.new("TextButton", ScrollFrame)
+wsBtn.Size = UDim2.new(0, 145, 0, 35)
+wsBtn.Position = UDim2.new(0, 10, 0, 145)
 wsBtn.Font = Enum.Font.SourceSansBold; wsBtn.TextSize = 15
 Instance.new("UICorner", wsBtn).CornerRadius = UDim.new(0, 6)
 buttonRefs["WalkSpeedToggle"] = {button = wsBtn, label = "Walk Speed"}
 wsBtn.MouseButton1Click:Connect(function() settings["WalkSpeedToggle"] = not settings["WalkSpeedToggle"]; updateVisual("WalkSpeedToggle"); saveSettings() end)
 updateVisual("WalkSpeedToggle")
 
-local wsInput = Instance.new("TextBox", MainFrame)
+local wsInput = Instance.new("TextBox", ScrollFrame)
 wsInput.Size = UDim2.new(0, 60, 0, 35)
-wsInput.Position = UDim2.new(0, 160, 0, 175)
+wsInput.Position = UDim2.new(0, 160, 0, 145)
 wsInput.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 wsInput.TextColor3 = Color3.fromRGB(255, 255, 255)
 wsInput.Font = Enum.Font.SourceSansBold; wsInput.TextSize = 16
@@ -140,15 +152,24 @@ wsInput.Text = tostring(settings.WalkSpeedValue); wsInput.PlaceholderText = "Spd
 Instance.new("UICorner", wsInput).CornerRadius = UDim.new(0, 6)
 wsInput.FocusLost:Connect(function() local val = tonumber(wsInput.Text); if val then settings.WalkSpeedValue = val; saveSettings() else wsInput.Text = tostring(settings.WalkSpeedValue) end end)
 
-createToggle("Anti-Freeze", 220, "AntiFreeze")
-createToggle("No Anim (Brutal)", 265, "NoAnimation")
-createToggle("Stealth Mode", 310, "StealthMode") -- JIKA ON: JALAN TETAP NORMAL
-createToggle("Auto Roam (Walk)", 355, "AutoRoam") 
-createToggle("Auto All Rewards", 400, "AutoAllRewards")
-createToggle("Auto Cube", 445, "AutoCube")
+createToggle("Anti-Freeze", 190, "AntiFreeze")
+createToggle("No Anim (Brutal)", 235, "NoAnimation")
+createToggle("Stealth Mode", 280, "StealthMode")
+createToggle("Auto Roam (Walk)", 325, "AutoRoam") 
+createToggle("Auto All Rewards", 370, "AutoAllRewards")
+createToggle("Auto Cube", 415, "AutoCube")
 
-MinBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false; MinIcon.Position = MainFrame.Position; MinIcon.Visible = true end)
-MinIcon.MouseButton1Click:Connect(function() MinIcon.Visible = false; MainFrame.Position = MinIcon.Position; MainFrame.Visible = true end)
+-- LOGIKA MINIMIZE YANG SUDAH DIPERBAIKI (Posisi Tidak Saling Mengganti)
+MinBtn.MouseButton1Click:Connect(function() 
+    MainFrame.Visible = false 
+    MinIcon.Visible = true 
+end)
+
+MinIcon.MouseButton1Click:Connect(function() 
+    MinIcon.Visible = false 
+    MainFrame.Visible = true 
+end)
+
 CloseBtn.MouseButton1Click:Connect(function() uiScreen:Destroy() end)
 
 -- ==========================================
@@ -210,7 +231,6 @@ RunService.Stepped:Connect(function()
             if Animator then
                 for _, anim in pairs(Animator:GetPlayingAnimationTracks()) do
                     if settings.StealthMode then
-                        -- STEALTH: Hanya hentikan animasi berprioritas tinggi (Action/Makan)
                         if anim.Priority == Enum.AnimationPriority.Action or 
                            anim.Priority == Enum.AnimationPriority.Action2 or 
                            anim.Priority == Enum.AnimationPriority.Action3 or 
@@ -218,7 +238,6 @@ RunService.Stepped:Connect(function()
                             anim:Stop(0)
                         end
                     else
-                        -- BRUTAL: Bantai SEMUA animasi. Karakter meluncur seperti patung (Anti-Animation).
                         anim:Stop(0)
                     end
                 end
