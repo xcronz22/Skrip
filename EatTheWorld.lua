@@ -1,5 +1,5 @@
 -- ==========================================
--- EAT THE WORLD - V46 (FIX AUTO GRAB & DROPDOWN TARGET)
+-- EAT THE WORLD - V47 (FIX UI INVERSION & MULTI-TASKING)
 -- ==========================================
 
 -- 1. LOGIKA AUTO EXECUTE SETELAH REJOIN
@@ -36,7 +36,7 @@ end)
 -- ==========================================
 -- PENGATURAN & PENYIMPANAN
 -- ==========================================
-local settingsFile = "ETW_Settings_V46.json"
+local settingsFile = "ETW_Settings_V47.json"
 local settings = {
     AutoGrab = false, AutoEat = false, AutoSell = false,
     WalkSpeedToggle = false, WalkSpeedValue = 16,
@@ -63,11 +63,11 @@ end
 loadSettings()
 
 -- ==========================================
--- PEMBUATAN UI LENGKAP (DENGAN UILISTLAYOUT)
+-- PEMBUATAN UI LENGKAP
 -- ==========================================
 local parentGui = PlayerGui
 pcall(function() if gethui then parentGui = gethui() else parentGui = CoreGui end end)
-local uiName = "ETW_LightPanel_V46"
+local uiName = "ETW_LightPanel_V47"
 if parentGui:FindFirstChild(uiName) then parentGui[uiName]:Destroy() end
 
 local uiScreen = Instance.new("ScreenGui", parentGui)
@@ -85,7 +85,7 @@ local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, -60, 0, 35)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "ETW Tool - V46"
+Title.Text = "ETW Tool - V47"
 Title.TextColor3 = Color3.fromRGB(255, 200, 100)
 Title.Font = Enum.Font.SourceSansBold; Title.TextSize = 18
 Title.TextXAlignment = Enum.TextXAlignment.Left
@@ -102,7 +102,6 @@ CloseBtn.Position = UDim2.new(1, -30, 0, 0)
 CloseBtn.BackgroundTransparency = 1; CloseBtn.Text = "X"
 CloseBtn.TextColor3 = Color3.fromRGB(255, 80, 80); CloseBtn.TextSize = 18
 
--- ScrollFrame Utama dengan UIListLayout agar rapi otomatis
 local ScrollFrame = Instance.new("ScrollingFrame", MainFrame)
 ScrollFrame.Size = UDim2.new(1, 0, 1, -40)
 ScrollFrame.Position = UDim2.new(0, 0, 0, 35)
@@ -116,7 +115,6 @@ ListLayout.Padding = UDim.new(0, 8)
 ListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
--- Fungsi Update Canvas Size
 local function updateCanvas()
     task.wait(0.1)
     local totalHeight = 10
@@ -139,7 +137,6 @@ MinIcon.Font = Enum.Font.SourceSansBold; MinIcon.TextSize = 16
 MinIcon.Visible = false; MinIcon.Active = true; MinIcon.Draggable = true
 Instance.new("UICorner", MinIcon).CornerRadius = UDim.new(1, 0)
 
--- Helper Pembuat Tombol Toggle
 local buttonRefs = {}
 local layoutOrderCounter = 1
 
@@ -156,7 +153,7 @@ local function updateVisual(sKey)
     end
 end
 
-local function createToggle(text, settingKey)
+local function createToggle(text, settingKey, onToggleCallback)
     local btn = Instance.new("TextButton", ScrollFrame)
     btn.Size = UDim2.new(0, 210, 0, 35)
     btn.Font = Enum.Font.SourceSansBold; btn.TextSize = 15
@@ -168,6 +165,7 @@ local function createToggle(text, settingKey)
     btn.MouseButton1Click:Connect(function()
         settings[settingKey] = not settings[settingKey]
         updateVisual(settingKey); saveSettings()
+        if onToggleCallback then onToggleCallback(settings[settingKey]) end
     end)
     updateVisual(settingKey)
     return btn
@@ -180,7 +178,6 @@ createToggle("Auto Grab (Original)", "AutoGrab")
 createToggle("Auto Eat (Instan)", "AutoEat")
 createToggle("Auto Sell", "AutoSell")
 
--- Kontainer WalkSpeed
 local wsContainer = Instance.new("Frame", ScrollFrame)
 wsContainer.Size = UDim2.new(0, 210, 0, 35)
 wsContainer.BackgroundTransparency = 1
@@ -209,9 +206,20 @@ createToggle("Anti-Ragdoll (God)", "AntiRagdoll")
 createToggle("Anti-Chunk Aura", "AntiChunk")
 
 -- SETUP DROPDOWN UNTUK AUTO TARGET THROW
-local TargetThrowBtn = createToggle("Auto Target Throw", "AutoTargetThrow")
-
+-- Kita buat elemennya dulu agar bisa dipanggil oleh fungsi Callback
 local DropdownBtn = Instance.new("TextButton", ScrollFrame)
+local DropdownList = Instance.new("ScrollingFrame", ScrollFrame)
+
+local TargetThrowBtn = createToggle("Auto Target Throw", "AutoTargetThrow", function(state)
+    -- Logika visibilitas yang sudah 100% aman dari bug terbalik
+    DropdownBtn.Visible = state
+    if not state then 
+        DropdownList.Visible = false 
+        -- Target TIDAK dikosongkan lagi, jadi skrip tetap ingat target terakhirmu
+    end
+    updateCanvas()
+end)
+
 DropdownBtn.Size = UDim2.new(0, 210, 0, 30)
 DropdownBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
 DropdownBtn.TextColor3 = Color3.fromRGB(200, 200, 255)
@@ -221,7 +229,11 @@ DropdownBtn.Visible = settings.AutoTargetThrow
 DropdownBtn.LayoutOrder = layoutOrderCounter; layoutOrderCounter = layoutOrderCounter + 1
 Instance.new("UICorner", DropdownBtn).CornerRadius = UDim.new(0, 6)
 
-local DropdownList = Instance.new("ScrollingFrame", ScrollFrame)
+-- Kembalikan nama target terakhir jika ada di memori
+if CurrentTarget and CurrentTarget.Parent then
+    DropdownBtn.Text = "Target: " .. CurrentTarget.Name .. " ▼"
+end
+
 DropdownList.Size = UDim2.new(0, 210, 0, 110)
 DropdownList.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 DropdownList.Visible = false
@@ -266,18 +278,6 @@ DropdownBtn.MouseButton1Click:Connect(function()
     updateCanvas()
 end)
 
--- Hubungkan Visibility Dropdown dengan Toggle Target Throw
-TargetThrowBtn.MouseButton1Click:Connect(function()
-    DropdownBtn.Visible = settings.AutoTargetThrow
-    if not settings.AutoTargetThrow then 
-        DropdownList.Visible = false 
-        CurrentTarget = nil
-        DropdownBtn.Text = "Pilih Target: None ▼"
-    end
-    updateCanvas()
-end)
-
--- Auto Update Dropdown List jika ada yang keluar/masuk
 Players.PlayerAdded:Connect(function() if DropdownList.Visible then refreshDropdown() end end)
 Players.PlayerRemoving:Connect(function(player)
     if CurrentTarget == player then
@@ -324,11 +324,8 @@ game:GetService("CoreGui").ChildAdded:Connect(function(child) if child:IsA("Scre
 -- ==========================================
 task.spawn(function()
     while task.wait(0.3) do
-        local isAiming = false
-        
         -- A. LOGIKA AUTO TARGET THROW
         if settings.AutoTargetThrow and CurrentTarget and CurrentTarget.Character and CurrentTarget.Character:FindFirstChild("HumanoidRootPart") then
-            isAiming = true -- Tandai bahwa kita sedang membidik
             local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
             local targetRoot = CurrentTarget.Character.HumanoidRootPart
             
@@ -341,9 +338,8 @@ task.spawn(function()
             end
         end
         
-        -- B. LOGIKA AUTO GRAB (KEMBALI KE ORIGINAL)
-        -- Hanya grab jika tidak sedang membidik (agar tidak konflik animasi)
-        if settings.AutoGrab and not isAiming then
+        -- B. LOGIKA AUTO GRAB (BEBAS TANPA BATASAN AIMING)
+        if settings.AutoGrab then
             local Char = LocalPlayer.Character
             if Char and Char:FindFirstChild("Events") and Char:FindFirstChild("HumanoidRootPart") then
                 local currentChunk = Char:FindFirstChild("CurrentChunk")
@@ -366,12 +362,10 @@ task.spawn(function()
     end
 end)
 
--- AUTO EAT LOOP
+-- AUTO EAT LOOP (BEBAS TANPA BATASAN AIMING)
 task.spawn(function()
     while task.wait() do 
-        -- Hanya eat jika AutoTargetThrow OFF atau sedang tidak punya target
-        local isAiming = (settings.AutoTargetThrow and CurrentTarget ~= nil)
-        if settings.AutoEat and not isAiming then
+        if settings.AutoEat then
             local Char = LocalPlayer.Character
             if Char and Char:FindFirstChild("Events") then
                 local currentChunk = Char:FindFirstChild("CurrentChunk")
