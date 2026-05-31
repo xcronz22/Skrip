@@ -166,7 +166,6 @@ CreateToggle("AutoBuy", "Auto Buy Buttons") -- Fokus folder Buttons saja
 CreateToggle("AutoUpgrade", "Auto Upgrade Max")
 CreateToggle("AutoPhone", "Auto Answer Phone")
 
--- Letakkan variabel ini di bagian atas skrip, di luar loop utama
 local UpgradeRemotes = {} -- Tabel penyimpan daftar remote
 
 -- Fungsi untuk cari remote (Otak dari sistem Cache)
