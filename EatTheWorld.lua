@@ -485,7 +485,7 @@ local function moveToTarget(targetPos, targetSize)
         local blinkHeight = targetPos.Y + 3
         
         root.CFrame = CFrame.new(targetPos.X, blinkHeight, targetPos.Z) * CFrame.lookAt(Vector3.new(targetPos.X, blinkHeight, targetPos.Z), targetPos).Rotation
-        task.wait(0.5) 
+        task.wait(5.5) 
         
         pcall(function() 
             char.Events.Grab:FireServer(false, false, false)
