@@ -205,17 +205,17 @@ task.spawn(function()
                                         local targetPos = readyFruits[1].Part.Position
                                         
                                         -- Teleport ke posisi buah, TAPI dikurangi 11 stud ke bawah (ke arah pangkal pohon)
-                                        rootPart.CFrame = CFrame.new(targetPos - Vector3.new(0, 11, 0))
+                                        rootPart.CFrame = CFrame.new(targetPos - Vector3.new(0, 15, 0))
                                         
-                                        -- Jeda 0.4 detik agar karakter "jatuh" menapak tanah dan server sinkron
-                                        task.wait(0.4) 
+                                        -- Jeda 0.1 detik agar karakter "jatuh" menapak tanah dan server sinkron
+                                        task.wait(0.1) 
 
                                         -- Klik semua buah di pohon ini
                                         for _, fruitData in pairs(readyFruits) do
                                             if not Toggles.AutoHarvest then break end
                                             if fruitData.Part and fruitData.Part.Parent then
                                                 fireclickdetector(fruitData.CD)
-                                                task.wait(0.1) 
+                                                task.wait(0.05) 
                                             end
                                         end
                                         
