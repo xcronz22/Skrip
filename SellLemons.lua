@@ -228,29 +228,33 @@ task.spawn(function()
                 rootPart.CFrame = originalCFrame
             end
         end
-
-        -- AUTO BUY (HANYA FOLDER BUTTONS)
-        if MyTycoon and Toggles.AutoBuy then
-            local purchases = MyTycoon:FindFirstChild("Purchases")
-            if purchases then
-                for _, folder in pairs(purchases:GetChildren()) do
-                    if folder.Name == "Buttons" then
-                        for _, item in pairs(folder:GetDescendants()) do
-                            if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
-                                if item.Parent then
-                                    firetouchinterest(rootPart, item.Parent, 0)
-                                    task.wait(0.01)
-                                    firetouchinterest(rootPart, item.Parent, 1)
-                                end
-                            elseif item:IsA("ProximityPrompt") then
-                                fireproximityprompt(item)
-                            end
+            
+        -- AUTO BUY (HANYA FOLDER BUTTONS DI DALAM SETIAP PEMBELIAN)
+if MyTycoon and Toggles.AutoBuy then
+    local purchases = MyTycoon:FindFirstChild("Purchases")
+    if purchases then
+        -- Loop setiap item pembelian (misal: "Lemon Stand", dll)
+        for _, purchaseItem in pairs(purchases:GetChildren()) do
+            -- Cari folder "Buttons" di dalam item tersebut
+            local buttonsFolder = purchaseItem:FindFirstChild("Buttons")
+            
+            if buttonsFolder then
+                for _, item in pairs(buttonsFolder:GetDescendants()) do
+                    if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
+                        if item.Parent then
+                            firetouchinterest(rootPart, item.Parent, 0)
+                            task.wait(0.01)
+                            firetouchinterest(rootPart, item.Parent, 1)
                         end
+                    elseif item:IsA("ProximityPrompt") then
+                        fireproximityprompt(item)
                     end
                 end
             end
         end
-
+    end
+end
+            
         -- AUTO UPGRADE
         if MyTycoon and Toggles.AutoUpgrade then
             local purchases = MyTycoon:FindFirstChild("Purchases")
