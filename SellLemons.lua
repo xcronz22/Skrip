@@ -36,7 +36,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -70, 0, 35)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "🍋 Lemon Auto V3.2"
+Title.Text = "🍋 Lemon Auto V3.5"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextSize = 16
 Title.Font = Enum.Font.GothamBold
@@ -165,7 +165,7 @@ CreateToggle("AutoBuy", "Auto Buy My Tycoon")
 CreateToggle("AutoUpgrade", "Auto Upgrade & Click")
 
 -- ==========================================
--- 3. LOOP 1: AUTO HARVEST (TP + SILENT)
+-- 3. LOOP 1: AUTO HARVEST (SIMPLE OFFSET, NO ANCHOR, NO RAYCAST)
 -- ==========================================
 task.spawn(function()
     while task.wait(0.5) do
@@ -175,7 +175,7 @@ task.spawn(function()
                 local originalCFrame = rootPart.CFrame
                 local hasTeleported = false
 
-                rootPart.Anchored = true 
+                -- ANCHORED DIHAPUS SEPENUHNYA
 
                 for i = 1, 10 do
                     if not Toggles.AutoHarvest then break end
@@ -198,28 +198,27 @@ task.spawn(function()
                                         end
                                     end
 
-                                    -- Jika ada buah di pohon INI
                                     if #readyFruits > 0 then
                                         hasTeleported = true
                                         
-                                        -- TP ke tengah pohon ini
-                                        rootPart.CFrame = CFrame.new(readyFruits[1].Part.Position)
+                                        -- Ambil posisi buah pertama
+                                        local targetPos = readyFruits[1].Part.Position
                                         
-                                        -- Jeda agar server mendaftarkan lokasi baru karakter
-                                        task.wait(0.3) 
+                                        -- Teleport ke posisi buah, TAPI dikurangi 11 stud ke bawah (ke arah pangkal pohon)
+                                        rootPart.CFrame = CFrame.new(targetPos - Vector3.new(0, 11, 0))
+                                        
+                                        -- Jeda 0.4 detik agar karakter "jatuh" menapak tanah dan server sinkron
+                                        task.wait(0.4) 
 
-                                        -- Ambil semua buah HANYA di pohon ini
+                                        -- Klik semua buah di pohon ini
                                         for _, fruitData in pairs(readyFruits) do
                                             if not Toggles.AutoHarvest then break end
                                             if fruitData.Part and fruitData.Part.Parent then
-                                                fireclickdetector(fruitData.CD, 0)
-                                                
-                                                -- Jeda agar klik terdaftar dengan baik di server
+                                                fireclickdetector(fruitData.CD)
                                                 task.wait(0.1) 
                                             end
                                         end
                                         
-                                        -- Jeda sebelum pindah pohon
                                         task.wait(0.2)
                                     end
                                 end
@@ -232,8 +231,6 @@ task.spawn(function()
                     task.wait(0.2)
                     rootPart.CFrame = originalCFrame
                 end
-                
-                rootPart.Anchored = false 
             end
         end
     end
@@ -247,7 +244,7 @@ task.spawn(function()
         local MyTycoon = GetMyTycoon()
         
         if MyTycoon then
-            -- Auto Buy Tombol Fisik (Sekarang menelusuri SEMUA folder Purchases seperti Auto Upgrade)
+            -- Auto Buy Tombol Fisik
             if Toggles.AutoBuy then
                 local purchases = MyTycoon:FindFirstChild("Purchases")
                 if purchases then
@@ -269,14 +266,12 @@ task.spawn(function()
             if Toggles.AutoUpgrade then
                 local remotes = MyTycoon:FindFirstChild("Remotes")
                 
-                -- Klik Stand
                 if remotes and remotes:FindFirstChild("WakeIncomeStream") then
                     pcall(function()
                         remotes.WakeIncomeStream:InvokeServer("LemonStand")
                     end)
                 end
 
-                -- Eksekusi semua Upgrade
                 local purchases = MyTycoon:FindFirstChild("Purchases")
                 if purchases then
                     for _, desc in pairs(purchases:GetDescendants()) do
