@@ -283,7 +283,7 @@ if MyTycoon and Toggles.AutoUpgrade then
         if remote and remote.Parent then
             task.spawn(function()
                 pcall(function()
-                    remote:InvokeServer(5)
+                    remote:InvokeServer(1)
                 end)
             end)
         else
