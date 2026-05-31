@@ -166,6 +166,22 @@ CreateToggle("AutoBuy", "Auto Buy Buttons") -- Fokus folder Buttons saja
 CreateToggle("AutoUpgrade", "Auto Upgrade Max")
 CreateToggle("AutoPhone", "Auto Answer Phone")
 
+-- Letakkan variabel ini di bagian atas skrip, di luar loop utama
+local UpgradeRemotes = {} -- Tabel penyimpan daftar remote
+
+-- Fungsi untuk cari remote (Otak dari sistem Cache)
+local function RefreshUpgradeRemotes()
+    UpgradeRemotes = {} -- Bersihkan tabel dulu
+    local MyTycoon = GetMyTycoon()
+    if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
+        for _, desc in pairs(MyTycoon.Purchases:GetDescendants()) do
+            if desc:IsA("RemoteFunction") and desc.Name == "Upgrade" then
+                table.insert(UpgradeRemotes, desc)
+            end
+        end
+    end
+end
+
 -- ==========================================
 -- 3. LOOP UTAMA: HARVEST, BUY, UPGRADE, PHONE
 -- ==========================================
@@ -256,16 +272,28 @@ if MyTycoon and Toggles.AutoBuy then
 end
             
         -- AUTO UPGRADE
-        if MyTycoon and Toggles.AutoUpgrade then
-            local purchases = MyTycoon:FindFirstChild("Purchases")
-            if purchases then
-                for _, desc in pairs(purchases:GetDescendants()) do
-                    if desc:IsA("RemoteFunction") and desc.Name == "Upgrade" then
-                        task.spawn(function() pcall(function() desc:InvokeServer(1) end) end)
-                    end
-                end
-            end
+        -- Di dalam Loop Utama (Ganti blok Auto Upgrade kamu dengan ini):
+if MyTycoon and Toggles.AutoUpgrade then
+    -- Jika daftar remote masih kosong, kita cari otomatis
+    if #UpgradeRemotes == 0 then
+        RefreshUpgradeRemotes()
+    end
+
+    -- Eksekusi semua upgrade di tabel dengan kecepatan penuh
+    for _, remote in pairs(UpgradeRemotes) do
+        if remote and remote.Parent then
+            task.spawn(function()
+                pcall(function()
+                    remote:InvokeServer(1)
+                end)
+            end)
+        else
+            -- Jika ada remote yang hilang (misal tombol hancur/update), 
+            -- kita pancing agar tabel di-refresh lagi nanti
+            UpgradeRemotes = {} 
         end
+    end
+end
 
         -- AUTO PHONE (Tunggu 3s -> Raise -> Tunggu 3s -> Accept)
         if MyTycoon and Toggles.AutoPhone then
