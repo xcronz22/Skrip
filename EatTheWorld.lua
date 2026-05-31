@@ -418,7 +418,7 @@ task.spawn(function()
 end)
 
 -- =======================================================================
--- MOVEMENT & TARGETING LOGIC (PERFECTED BLINK FARM VERSION)
+-- MOVEMENT & TARGETING LOGIC (FIXED WALK & BLINK TP VERSION)
 -- =======================================================================
 local function moveToTarget(targetPos, targetSize)
     local char = LocalPlayer.Character
@@ -441,40 +441,49 @@ local function moveToTarget(targetPos, targetSize)
     
     local targetLookCFrame = CFrame.lookAt(root.Position, targetPosFlat)
     local distance = (root.Position - finalPosition).Magnitude
-    if distance < 1 then return end
     
-    -- MODE 1: TWEEN (Jalan Halus Udara)
+    -- Jika sudah sangat dekat dengan target, hentikan pergerakan
+    if distance < 1.5 then 
+        if settings.FarmMode == "Walk" then
+            humanoid:Move(Vector3.new(0, 0, 0)) -- Stop jalan
+        end
+        return 
+    end
+    
+    -- MODE 1: TWEEN (Terbang Halus)
     if settings.FarmMode == "Tween" then
         if activeTween then activeTween:Cancel() end
         local info = TweenInfo.new(distance / 65, Enum.EasingStyle.Linear)
         activeTween = TweenService:Create(root, info, {CFrame = CFrame.new(finalPosition) * targetLookCFrame.Rotation})
         activeTween:Play()
         
-    -- MODE 2: WALK (Jalan Biasa)
+    -- MODE 2: WALK (ANTI-STUCK VERSION)
     elseif settings.FarmMode == "Walk" then
-        humanoid:MoveTo(finalPosition)
-        root.CFrame = CFrame.new(root.Position) * targetLookCFrame.Rotation
-        
-    -- MODE 3: TP (BLINK FARM - JAWABAN UNTUK LUAR MAP)
-    elseif settings.FarmMode == "TP" then
         if activeTween then activeTween:Cancel() end
         
-        local originalCFrame = root.CFrame -- 1. Simpan posisi amanmu di luar map
+        -- Paksa karakter selalu menghadap ke makanan
+        root.CFrame = CFrame.new(root.Position) * targetLookCFrame.Rotation
         
-        -- 2. Blink langsung tepat di atas koordinat asli makanan (agar barier/head menyentuhnya)
+        -- Hitung arah kompas menuju makanan dari posisi kamu sekarang
+        local moveDir = (finalPosition - root.Position).Unit
+        
+        -- Tekan tombol jalan secara konstan ke arah makanan (Bebas dari bug timeout/spam)
+        humanoid:Move(moveDir, false)
+        
+    -- MODE 3: TP (BLINK SNIPER)
+    elseif settings.FarmMode == "TP" then
+        if activeTween then activeTween:Cancel() end
+        local originalCFrame = root.CFrame
         local blinkHeight = targetPos.Y + 3
+        
         root.CFrame = CFrame.new(targetPos.X, blinkHeight, targetPos.Z) * CFrame.lookAt(Vector3.new(targetPos.X, blinkHeight, targetPos.Z), targetPos).Rotation
+        task.wait(0.5) 
         
-        -- 3. Jeda 1 frame super tipis (0.03 detik) agar server sempat membaca hitbox kamu menyentuh objek
-        task.wait(0.03) 
-        
-        -- 4. Paksa Ambil dan Makan di tempat detik itu juga
         pcall(function() 
             char.Events.Grab:FireServer(false, false, false)
             char.Events.Eat:FireServer()
         end)
         
-        -- 5. Langsung instan teleport balik ke tempat aman kamu di luar map
         root.CFrame = originalCFrame
     end
 end
