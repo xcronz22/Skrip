@@ -272,8 +272,7 @@ if MyTycoon and Toggles.AutoBuy then
 end
             
         -- AUTO UPGRADE
-        -- Di dalam Loop Utama (Ganti blok Auto Upgrade dengan ini):
-if Toggl-- Di dalam Loop Utama (Ganti blok Auto Upgrade kamu dengan ini):
+        -- Di dalam Loop Utama (Ganti blok Auto Upgrade kamu dengan ini):
 if MyTycoon and Toggles.AutoUpgrade then
     -- Jika daftar remote masih kosong, kita cari otomatis
     if #UpgradeRemotes == 0 then
