@@ -24,8 +24,8 @@ ScreenGui.Name = "LemonTycoonGUI"
 ScreenGui.Parent = CoreGui
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 280, 0, 260)
-MainFrame.Position = UDim2.new(0.5, -140, 0.5, -130)
+MainFrame.Size = UDim2.new(0, 280, 0, 305) -- Diperpanjang sedikit untuk tombol baru
+MainFrame.Position = UDim2.new(0.5, -140, 0.5, -150)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -36,7 +36,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -70, 0, 35)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "🍋 Lemon Auto V3.8"
+Title.Text = "🍋 Lemon Auto V3.9"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextSize = 16
 Title.Font = Enum.Font.GothamBold
@@ -116,7 +116,8 @@ local Toggles = {
     AutoHarvest = false,
     AutoDrop = false,
     AutoBuy = false,
-    AutoUpgrade = false
+    AutoUpgrade = false,
+    AutoPhone = false
 }
 
 local function GetMyTycoon()
@@ -163,9 +164,10 @@ CreateToggle("AutoHarvest", "Auto Steal Lemons")
 CreateToggle("AutoDrop", "Auto Collect Drops")
 CreateToggle("AutoBuy", "Auto Buy My Tycoon")
 CreateToggle("AutoUpgrade", "Auto Upgrade Max")
+CreateToggle("AutoPhone", "Auto Answer Phone") -- Tombol Baru
 
 -- ==========================================
--- 3. LOOP 1: AUTO HARVEST (SUPER CEPAT & KUNCI POHON)
+-- 3. LOOP 1: AUTO HARVEST (VACUUM & TERTIDUR)
 -- ==========================================
 task.spawn(function()
     while task.wait(0.1) do
@@ -189,8 +191,6 @@ task.spawn(function()
                                 if not Toggles.AutoHarvest then break end
 
                                 if tree.Name == "LemonTree" then
-                                    
-                                    -- Fungsi internal untuk selalu mengecek sisa buah di pohon INI
                                     local function getRemainingFruits()
                                         local fruits = {}
                                         for _, part in pairs(tree:GetChildren()) do
@@ -206,34 +206,25 @@ task.spawn(function()
 
                                     local readyFruits = getRemainingFruits()
 
-                                    -- Jika ada buah, kita mulai invasi ke pohon ini
                                     if #readyFruits > 0 then
                                         hasTeleported = true
                                         local targetPos = readyFruits[1].Part.Position
                                         
                                         humanoid.PlatformStand = true 
-                                        
-                                        -- TP Tidur ke bawah tanah
                                         rootPart.CFrame = CFrame.new(targetPos - Vector3.new(0, 15, 0)) * CFrame.Angles(math.rad(90), 0, 0)
-                                        task.wait(0.2) -- Jeda sebentar biar server menyadari posisi baru
+                                        task.wait(0.2) 
 
-                                        -- LOOP PENGHABISAN BUAH (Tahan di pohon ini sampai bersih total)
                                         while #readyFruits > 0 and Toggles.AutoHarvest do
                                             for _, fruitData in pairs(readyFruits) do
                                                 if fruitData.Part and fruitData.Part.Parent then
-                                                    -- Klik semua secara SERENTAK (tanpa jeda task.wait di dalam loop ini)
                                                     fireclickdetector(fruitData.CD)
                                                 end
                                             end
                                             
-                                            -- Tunggu sepersekian detik biarkan server memproses semua klik dan menghapus buahnya
                                             task.wait(0.1) 
-                                            
-                                            -- Cek lagi, masih ada yang nyisa ga? Kalau ada, loop ini bakal jalan lagi
                                             readyFruits = getRemainingFruits() 
                                         end
                                         
-                                        -- Pohon ini sudah bersih, jeda sedikit sebelum pindah ke Pohon B
                                         task.wait(0.1)
                                     end
                                 end
@@ -253,18 +244,28 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- 4. LOOP 2: TYCOON MANAGEMENT (NGEBUT MODE)
+-- 4. LOOP 2: TYCOON MANAGEMENT & AUTO PHONE
 -- ==========================================
 task.spawn(function()
     while task.wait(0.1) do 
         local MyTycoon = GetMyTycoon()
         
         if MyTycoon then
+            -- Auto Buy Tombol Fisik (Blacklist Minigames & Elevator Lemon Trading)
             if Toggles.AutoBuy then
                 local purchases = MyTycoon:FindFirstChild("Purchases")
                 if purchases then
                     for _, item in pairs(purchases:GetDescendants()) do
-                        if not item:FindFirstAncestor("Minigames") then
+                        
+                        -- Cek Blacklist
+                        local isMinigame = item:FindFirstAncestor("Minigames")
+                        local isLemonTrading = item:FindFirstAncestor("Lemon Trading")
+                        local isStructure = item:FindFirstAncestor("Structure")
+                        
+                        -- Lewati jika objek ada di Minigames ATAU di dalam Lemon Trading -> Structure
+                        local isBlacklisted = isMinigame or (isLemonTrading and isStructure)
+
+                        if not isBlacklisted then
                             if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
                                 if item.Parent then
                                     firetouchinterest(LocalPlayer.Character.HumanoidRootPart, item.Parent, 0)
@@ -279,6 +280,7 @@ task.spawn(function()
                 end
             end
 
+            -- Auto Upgrade
             if Toggles.AutoUpgrade then
                 local purchases = MyTycoon:FindFirstChild("Purchases")
                 if purchases then
@@ -293,6 +295,33 @@ task.spawn(function()
                     end
                 end
             end
+
+            -- Auto Phone (Raise & Accept)
+            if Toggles.AutoPhone then
+                local phoneGui = LocalPlayer.PlayerGui:FindFirstChild("Phone")
+                local phoneFrame = phoneGui and phoneGui:FindFirstChild("Phone")
+                
+                -- Jika UI HP muncul di layar
+                if phoneFrame and phoneFrame.Visible then
+                    local remotes = MyTycoon:FindFirstChild("Remotes")
+                    if remotes and remotes:FindFirstChild("PhoneOffer") then
+                        pcall(function()
+                            -- Tekan tombol Raise (Angkat)
+                            remotes.PhoneOffer:FireServer("Raise")
+                            
+                            -- Tunggu 3 detik sesuai permintaan
+                            task.wait(3)
+                            
+                            -- Tekan tombol Accept (Terima)
+                            remotes.PhoneOffer:FireServer("Accept")
+                        end)
+                        
+                        -- Tambahkan jeda ekstra setelah menerima agar tidak spam beruntun
+                        task.wait(2)
+                    end
+                end
+            end
+
         end
     end
 end)
