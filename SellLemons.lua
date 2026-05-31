@@ -2,7 +2,6 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
-local RunService = game:GetService("RunService")
 local VirtualUser = game:GetService("VirtualUser")
 
 -- ==========================================
@@ -25,8 +24,8 @@ ScreenGui.Name = "LemonTycoonGUI"
 ScreenGui.Parent = CoreGui
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 280, 0, 300)
-MainFrame.Position = UDim2.new(0.5, -140, 0.5, -150)
+MainFrame.Size = UDim2.new(0, 280, 0, 260)
+MainFrame.Position = UDim2.new(0.5, -140, 0.5, -130)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -37,7 +36,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -70, 0, 35)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "🍋 Lemon Auto V2"
+Title.Text = "🍋 Lemon Auto V3.2"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextSize = 16
 Title.Font = Enum.Font.GothamBold
@@ -114,11 +113,10 @@ UIListLayout.Parent = Container
 -- 2. SISTEM LOGIKA & AUTO FEATURES
 -- ==========================================
 local Toggles = {
-    AutoHarvestAll = false,
-    AutoHarvestTP = false,
-    AutoClick = false,
+    AutoHarvest = false,
     AutoDrop = false,
-    AutoBuy = false
+    AutoBuy = false,
+    AutoUpgrade = false
 }
 
 local function GetMyTycoon()
@@ -149,12 +147,6 @@ local function CreateToggle(name, text)
     Corner.Parent = Btn
 
     Btn.MouseButton1Click:Connect(function()
-        if name == "AutoHarvestAll" and Toggles.AutoHarvestTP then
-            Toggles.AutoHarvestTP = false
-        elseif name == "AutoHarvestTP" and Toggles.AutoHarvestAll then
-            Toggles.AutoHarvestAll = false
-        end
-
         Toggles[name] = not Toggles[name]
         
         if Toggles[name] then
@@ -167,77 +159,68 @@ local function CreateToggle(name, text)
     end)
 end
 
-CreateToggle("AutoHarvestAll", "Steal Lemons (Silent)")
-CreateToggle("AutoHarvestTP", "Steal Lemons (Teleport)")
-CreateToggle("AutoClick", "Auto Click My Stand")
+CreateToggle("AutoHarvest", "Auto Steal Lemons")
 CreateToggle("AutoDrop", "Auto Collect Drops")
 CreateToggle("AutoBuy", "Auto Buy My Tycoon")
+CreateToggle("AutoUpgrade", "Auto Upgrade & Click")
 
 -- ==========================================
--- 3. LOOP UNTUK SEMUA FITUR
+-- 3. LOOP 1: AUTO HARVEST (TP + SILENT)
 -- ==========================================
 task.spawn(function()
     while task.wait(0.5) do
-        local MyTycoon = GetMyTycoon()
-        
-        -- Auto Harvest ALL Tycoons (Silent)
-        if Toggles.AutoHarvestAll and not Toggles.AutoHarvestTP then
-            for i = 1, 10 do
-                local tycoon = Workspace:FindFirstChild("Tycoon" .. i)
-                if tycoon then
-                    local constantFolder = tycoon:FindFirstChild("Constant")
-                    if constantFolder and constantFolder:FindFirstChild("Trees") then
-                        for _, tree in pairs(constantFolder.Trees:GetChildren()) do
-                            if tree.Name == "LemonTree" then
-                                for _, part in pairs(tree:GetChildren()) do
-                                    if part.Name == "Fruit" then
-                                        local clickDetector = part:FindFirstChildWhichIsA("ClickDetector", true)
-                                        if clickDetector then
-                                            fireclickdetector(clickDetector, 0)
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end
-
-        -- Auto Harvest ALL Tycoons (Dengan Teleport Aman & Bisa Distop Langsung)
-        if Toggles.AutoHarvestTP and not Toggles.AutoHarvestAll then
+        if Toggles.AutoHarvest then
             local rootPart = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
             if rootPart then
                 local originalCFrame = rootPart.CFrame
                 local hasTeleported = false
 
-                -- Membuat karakter diam mematung agar tidak terbang/jatuh
                 rootPart.Anchored = true 
 
                 for i = 1, 10 do
-                    if not Toggles.AutoHarvestTP then break end -- Deteksi stop instan
+                    if not Toggles.AutoHarvest then break end
 
                     local tycoon = Workspace:FindFirstChild("Tycoon" .. i)
                     if tycoon then
                         local constantFolder = tycoon:FindFirstChild("Constant")
                         if constantFolder and constantFolder:FindFirstChild("Trees") then
                             for _, tree in pairs(constantFolder.Trees:GetChildren()) do
-                                if not Toggles.AutoHarvestTP then break end -- Deteksi stop instan
+                                if not Toggles.AutoHarvest then break end
 
                                 if tree.Name == "LemonTree" then
+                                    local readyFruits = {}
                                     for _, part in pairs(tree:GetChildren()) do
-                                        if not Toggles.AutoHarvestTP then break end -- Deteksi stop instan
-
                                         if part.Name == "Fruit" then
                                             local clickDetector = part:FindFirstChildWhichIsA("ClickDetector", true)
                                             if clickDetector then
-                                                -- Teleport HANYA POSISI, abaikan rotasi buahnya
-                                                rootPart.CFrame = CFrame.new(part.Position)
-                                                task.wait(0.1) 
-                                                fireclickdetector(clickDetector, 0)
-                                                hasTeleported = true
+                                                table.insert(readyFruits, {Part = part, CD = clickDetector})
                                             end
                                         end
+                                    end
+
+                                    -- Jika ada buah di pohon INI
+                                    if #readyFruits > 0 then
+                                        hasTeleported = true
+                                        
+                                        -- TP ke tengah pohon ini
+                                        rootPart.CFrame = CFrame.new(readyFruits[1].Part.Position)
+                                        
+                                        -- Jeda agar server mendaftarkan lokasi baru karakter
+                                        task.wait(0.3) 
+
+                                        -- Ambil semua buah HANYA di pohon ini
+                                        for _, fruitData in pairs(readyFruits) do
+                                            if not Toggles.AutoHarvest then break end
+                                            if fruitData.Part and fruitData.Part.Parent then
+                                                fireclickdetector(fruitData.CD, 0)
+                                                
+                                                -- Jeda agar klik terdaftar dengan baik di server
+                                                task.wait(0.1) 
+                                            end
+                                        end
+                                        
+                                        -- Jeda sebelum pindah pohon
+                                        task.wait(0.2)
                                     end
                                 end
                             end
@@ -246,40 +229,62 @@ task.spawn(function()
                 end
 
                 if hasTeleported then
-                    task.wait(0.1)
+                    task.wait(0.2)
                     rootPart.CFrame = originalCFrame
                 end
                 
-                -- Kembalikan physics karakter ke normal
                 rootPart.Anchored = false 
             end
         end
-        
-        -- Auto Click Stand Income
-        if Toggles.AutoClick and MyTycoon then
-            local remotes = MyTycoon:FindFirstChild("Remotes")
-            if remotes and remotes:FindFirstChild("WakeIncomeStream") then
-                pcall(function()
-                    remotes.WakeIncomeStream:InvokeServer("LemonStand")
-                end)
-            end
-        end
+    end
+end)
 
-        -- Auto Buy (Membeli tombol-tombol fisik di base)
-        if Toggles.AutoBuy and MyTycoon then
-            local purchases = MyTycoon:FindFirstChild("Purchases")
-            if purchases then
-                for _, category in pairs(purchases:GetChildren()) do
-                    local buttons = category:FindFirstChild("Buttons")
-                    if buttons then
-                        for _, item in pairs(buttons:GetDescendants()) do
-                            if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
+-- ==========================================
+-- 4. LOOP 2: TYCOON MANAGEMENT (UPGRADE, BUY, CLICK)
+-- ==========================================
+task.spawn(function()
+    while task.wait(1) do
+        local MyTycoon = GetMyTycoon()
+        
+        if MyTycoon then
+            -- Auto Buy Tombol Fisik (Sekarang menelusuri SEMUA folder Purchases seperti Auto Upgrade)
+            if Toggles.AutoBuy then
+                local purchases = MyTycoon:FindFirstChild("Purchases")
+                if purchases then
+                    for _, item in pairs(purchases:GetDescendants()) do
+                        if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
+                            if item.Parent then
                                 firetouchinterest(LocalPlayer.Character.HumanoidRootPart, item.Parent, 0)
                                 task.wait(0.01)
                                 firetouchinterest(LocalPlayer.Character.HumanoidRootPart, item.Parent, 1)
-                            elseif item:IsA("ProximityPrompt") then
-                                fireproximityprompt(item)
                             end
+                        elseif item:IsA("ProximityPrompt") then
+                            fireproximityprompt(item)
+                        end
+                    end
+                end
+            end
+
+            -- Auto Upgrade & Auto Click Stand
+            if Toggles.AutoUpgrade then
+                local remotes = MyTycoon:FindFirstChild("Remotes")
+                
+                -- Klik Stand
+                if remotes and remotes:FindFirstChild("WakeIncomeStream") then
+                    pcall(function()
+                        remotes.WakeIncomeStream:InvokeServer("LemonStand")
+                    end)
+                end
+
+                -- Eksekusi semua Upgrade
+                local purchases = MyTycoon:FindFirstChild("Purchases")
+                if purchases then
+                    for _, desc in pairs(purchases:GetDescendants()) do
+                        if desc:IsA("RemoteFunction") and desc.Name == "Upgrade" then
+                            pcall(function()
+                                desc:InvokeServer(1)
+                            end)
+                            task.wait(0.05)
                         end
                     end
                 end
@@ -288,7 +293,9 @@ task.spawn(function()
     end
 end)
 
--- Loop Terpisah untuk Cash Drops
+-- ==========================================
+-- 5. LOOP 3: AUTO DROP
+-- ==========================================
 task.spawn(function()
     while task.wait(0.1) do
         if Toggles.AutoDrop then
