@@ -37,7 +37,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -70, 0, 35)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "🍋 Lemon Auto"
+Title.Text = "🍋 Lemon Auto V2"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextSize = 16
 Title.Font = Enum.Font.GothamBold
@@ -149,10 +149,8 @@ local function CreateToggle(name, text)
     Corner.Parent = Btn
 
     Btn.MouseButton1Click:Connect(function()
-        -- Mematikan toggle lain jika salah satu opsi panen dipilih
         if name == "AutoHarvestAll" and Toggles.AutoHarvestTP then
             Toggles.AutoHarvestTP = false
-            -- (Pembaruan UI otomatis tidak diperlukan di sini karena akan di-refresh manual oleh pemain)
         elseif name == "AutoHarvestTP" and Toggles.AutoHarvestAll then
             Toggles.AutoHarvestAll = false
         end
@@ -206,27 +204,36 @@ task.spawn(function()
             end
         end
 
-        -- Auto Harvest ALL Tycoons (Dengan Teleport & Return)
+        -- Auto Harvest ALL Tycoons (Dengan Teleport Aman & Bisa Distop Langsung)
         if Toggles.AutoHarvestTP and not Toggles.AutoHarvestAll then
             local rootPart = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
             if rootPart then
-                local originalCFrame = rootPart.CFrame -- Simpan posisi awal sebelum mencuri
+                local originalCFrame = rootPart.CFrame
                 local hasTeleported = false
 
+                -- Membuat karakter diam mematung agar tidak terbang/jatuh
+                rootPart.Anchored = true 
+
                 for i = 1, 10 do
+                    if not Toggles.AutoHarvestTP then break end -- Deteksi stop instan
+
                     local tycoon = Workspace:FindFirstChild("Tycoon" .. i)
                     if tycoon then
                         local constantFolder = tycoon:FindFirstChild("Constant")
                         if constantFolder and constantFolder:FindFirstChild("Trees") then
                             for _, tree in pairs(constantFolder.Trees:GetChildren()) do
+                                if not Toggles.AutoHarvestTP then break end -- Deteksi stop instan
+
                                 if tree.Name == "LemonTree" then
                                     for _, part in pairs(tree:GetChildren()) do
+                                        if not Toggles.AutoHarvestTP then break end -- Deteksi stop instan
+
                                         if part.Name == "Fruit" then
                                             local clickDetector = part:FindFirstChildWhichIsA("ClickDetector", true)
                                             if clickDetector then
-                                                -- Teleport ke lokasi buah
-                                                rootPart.CFrame = part.CFrame
-                                                task.wait(0.1) -- Jeda sebentar agar terbaca server
+                                                -- Teleport HANYA POSISI, abaikan rotasi buahnya
+                                                rootPart.CFrame = CFrame.new(part.Position)
+                                                task.wait(0.1) 
                                                 fireclickdetector(clickDetector, 0)
                                                 hasTeleported = true
                                             end
@@ -238,11 +245,13 @@ task.spawn(function()
                     end
                 end
 
-                -- Mengembalikan karakter ke posisi semula jika sempat berpindah
                 if hasTeleported then
                     task.wait(0.1)
                     rootPart.CFrame = originalCFrame
                 end
+                
+                -- Kembalikan physics karakter ke normal
+                rootPart.Anchored = false 
             end
         end
         
@@ -256,7 +265,7 @@ task.spawn(function()
             end
         end
 
-        -- Auto Buy
+        -- Auto Buy (Membeli tombol-tombol fisik di base)
         if Toggles.AutoBuy and MyTycoon then
             local purchases = MyTycoon:FindFirstChild("Purchases")
             if purchases then
