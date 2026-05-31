@@ -674,12 +674,12 @@ task.spawn(function()
                     if currentFoundTarget ~= currentTarget then
                         currentTarget = currentFoundTarget
                         stuckTimer = tick() -- Reset timer jika target baru
-                    elseif tick() - stuckTimer > 3 then
-                        -- Jika nyangkut lebih dari 3 detik
+                    elseif tick() - stuckTimer > 5 then
+                        -- Jika nyangkut lebih dari 5 detik
                         blacklist[currentFoundTarget] = true
                         local foodToReset = currentFoundTarget
-                        task.delay(5, function()
-                            blacklist[foodToReset] = nil -- Hapus dari blacklist setelah 5 detik
+                        task.delay(10, function()
+                            blacklist[foodToReset] = nil -- Hapus dari blacklist setelah 10 detik
                         end)
                         currentTarget = nil
                         targetPos = nil -- Batalkan pergerakan agar lanjut ke iterasi berikutnya
