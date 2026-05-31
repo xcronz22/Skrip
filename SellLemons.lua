@@ -167,12 +167,12 @@ CreateToggle("AutoUpgrade", "Auto Upgrade Max")
 CreateToggle("AutoPhone", "Auto Answer Phone")
 
 -- Letakkan variabel ini di bagian atas skrip, di luar loop utama
--- Fungsi ini sekarang lebih cerdas
+local UpgradeRemotes = {} -- Tabel penyimpan daftar remote
+
+-- Fungsi untuk cari remote (Otak dari sistem Cache)
 local function RefreshUpgradeRemotes()
-    UpgradeRemotes = {} -- Kosongkan tabel
+    UpgradeRemotes = {} -- Bersihkan tabel dulu
     local MyTycoon = GetMyTycoon()
-    
-    -- Hanya isi tabel jika Tycoon valid
     if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
         for _, desc in pairs(MyTycoon.Purchases:GetDescendants()) do
             if desc:IsA("RemoteFunction") and desc.Name == "Upgrade" then
@@ -273,17 +273,15 @@ end
             
         -- AUTO UPGRADE
         -- Di dalam Loop Utama (Ganti blok Auto Upgrade dengan ini):
-if Toggles.AutoUpgrade then
-    local MyTycoon = GetMyTycoon() -- Cek lagi tycoon aktif
-    
-    -- Jika tabel kosong ATAU MyTycoon tidak ditemukan (berarti baru saja Rebirth), Refresh!
-    if #UpgradeRemotes == 0 or not MyTycoon then
+if Toggl-- Di dalam Loop Utama (Ganti blok Auto Upgrade kamu dengan ini):
+if MyTycoon and Toggles.AutoUpgrade then
+    -- Jika daftar remote masih kosong, kita cari otomatis
+    if #UpgradeRemotes == 0 then
         RefreshUpgradeRemotes()
     end
 
-    -- Eksekusi
+    -- Eksekusi semua upgrade di tabel dengan kecepatan penuh
     for _, remote in pairs(UpgradeRemotes) do
-        -- Cek apakah remote masih aktif (masih terhubung ke game)
         if remote and remote.Parent then
             task.spawn(function()
                 pcall(function()
@@ -291,7 +289,8 @@ if Toggles.AutoUpgrade then
                 end)
             end)
         else
-            -- Jika ada satu saja remote yang rusak/hilang, kosongkan tabel agar auto-refresh
+            -- Jika ada remote yang hilang (misal tombol hancur/update), 
+            -- kita pancing agar tabel di-refresh lagi nanti
             UpgradeRemotes = {} 
         end
     end
