@@ -1,5 +1,5 @@
 -- =======================================================================
--- EAT THE WORLD - V53 ULTIMATE EDITION (PERFECTED PHYSICS)
+-- EAT THE WORLD - V53 ULTIMATE EDITION (PERFECTED PHYSICS + ANTI-STUCK)
 -- 100% ANTI-FAIL UNTUK DELTA & SEMUA EXECUTOR MOBILE/PC
 -- =======================================================================
 
@@ -28,6 +28,13 @@ local settings = {
     NoAnimBrutal = false, NoAnimV2 = false,
     AutoRewards = false, AutoCube = false, RejoinAfterRewards = false
 }
+
+-- =======================================================================
+-- VARIABEL SISTEM ANTI-STUCK (BLACKLIST)
+-- =======================================================================
+local blacklist = {}
+local currentTarget = nil
+local stuckTimer = tick()
 
 local safeZoneFloorPart = nil
 local activeTween = nil
@@ -207,6 +214,7 @@ CreateToggle("Auto Farm (Multi-Mode)", "AutoFarm")
 CreateToggle("Auto Grab (Ambil)", "AutoGrab")
 CreateToggle("Auto Eat (Makan)", "AutoEat")
 CreateToggle("Auto Sell", "AutoSell")
+CreateToggle("Safe Unowned", "SafeUnowned")
 
 CreateSectionTitle("MOVEMENT & EXPLOIT")
 CreateDropdown("Move Mode", "FarmMode", {"Tween", "Walk", "TP"})
@@ -608,7 +616,7 @@ task.spawn(function()
 end)
 
 -- =======================================================================
--- AUTOFARM PENCARI CHUNK (BUILDING & FRAGMENTABLE)
+-- AUTOFARM PENCARI CHUNK (TERINTEGRASI SISTEM ANTI-STUCK)
 -- =======================================================================
 task.spawn(function()
     while task.wait(0.3) do
@@ -617,42 +625,69 @@ task.spawn(function()
             if root then
                 local targetPos = nil; local shortestDist = math.huge; local targetObjSize = Vector3.new(4, 4, 4)
                 local foldersToSearch = {}
+                local currentFoundTarget = nil -- Menyimpan referensi objek terpilih
                 
                 if Workspace:FindFirstChild("Chunks") then table.insert(foldersToSearch, Workspace.Chunks) end
                 if Workspace:FindFirstChild("Map") and Workspace.Map:FindFirstChild("Fragmentable") then table.insert(foldersToSearch, Workspace.Map.Fragmentable) end
                 
                 for _, folder in pairs(foldersToSearch) do
                     for _, obj in pairs(folder:GetChildren()) do
-                        local isAllowed = true
-                        if settings.SafeUnowned and folder.Name == "Chunks" and obj.Name == "TemplateChunk" then
-                            local owner = obj:FindFirstChild("Owner")
-                            if owner and owner.Value ~= nil then isAllowed = false end
-                        end
-                        
-                        if isAllowed then
-                            local visualCheck = false; local currentSize = Vector3.new(4, 4, 4)
-                            if obj:IsA("BasePart") and obj.Transparency < 1 and obj.Size.Magnitude > 0 then
-                                visualCheck = true; currentSize = obj.Size
-                            elseif obj:IsA("Model") then
-                                local pPart = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
-                                if pPart and pPart.Transparency < 1 and pPart.Size.Magnitude > 0 then 
-                                    visualCheck = true; currentSize = pPart.Size 
-                                end
+                        -- Cek apakah objek sedang di-blacklist
+                        if not blacklist[obj] then
+                            local isAllowed = true
+                            if settings.SafeUnowned and folder.Name == "Chunks" and obj.Name == "TemplateChunk" then
+                                local owner = obj:FindFirstChild("Owner")
+                                if owner and owner.Value ~= nil then isAllowed = false end
                             end
                             
-                            if visualCheck then
-                                local pos = obj:IsA("BasePart") and obj.Position or (obj:IsA("Model") and obj.PrimaryPart and obj.PrimaryPart.Position)
-                                if pos then
-                                    local basePos = settings.SafeZoneFarm and Vector3.new(root.Position.X, pos.Y, root.Position.Z) or root.Position
-                                    local dist = (basePos - pos).Magnitude
-                                    if dist < shortestDist then shortestDist = dist; targetPos = pos; targetObjSize = currentSize end
+                            if isAllowed then
+                                local visualCheck = false; local currentSize = Vector3.new(4, 4, 4)
+                                if obj:IsA("BasePart") and obj.Transparency < 1 and obj.Size.Magnitude > 0 then
+                                    visualCheck = true; currentSize = obj.Size
+                                elseif obj:IsA("Model") then
+                                    local pPart = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+                                    if pPart and pPart.Transparency < 1 and pPart.Size.Magnitude > 0 then 
+                                        visualCheck = true; currentSize = pPart.Size 
+                                    end
+                                end
+                                
+                                if visualCheck then
+                                    local pos = obj:IsA("BasePart") and obj.Position or (obj:IsA("Model") and obj.PrimaryPart and obj.PrimaryPart.Position)
+                                    if pos then
+                                        local basePos = settings.SafeZoneFarm and Vector3.new(root.Position.X, pos.Y, root.Position.Z) or root.Position
+                                        local dist = (basePos - pos).Magnitude
+                                        if dist < shortestDist then 
+                                            shortestDist = dist; 
+                                            targetPos = pos; 
+                                            targetObjSize = currentSize;
+                                            currentFoundTarget = obj -- Simpan target untuk logika anti-stuck
+                                        end
+                                    end
                                 end
                             end
                         end
                     end
                 end
                 
-                if targetPos then
+                -- LOGIKA ANTI-STUCK
+                if currentFoundTarget then
+                    if currentFoundTarget ~= currentTarget then
+                        currentTarget = currentFoundTarget
+                        stuckTimer = tick() -- Reset timer jika target baru
+                    elseif tick() - stuckTimer > 3 then
+                        -- Jika nyangkut lebih dari 3 detik
+                        blacklist[currentFoundTarget] = true
+                        local foodToReset = currentFoundTarget
+                        task.delay(5, function()
+                            blacklist[foodToReset] = nil -- Hapus dari blacklist setelah 5 detik
+                        end)
+                        currentTarget = nil
+                        targetPos = nil -- Batalkan pergerakan agar lanjut ke iterasi berikutnya
+                    end
+                end
+                
+                -- EKSEKUSI PERGERAKAN
+                if targetPos and currentTarget then
                     local safeX = targetPos.X; local safeZ = targetPos.Z
                     local bedrock = Workspace:FindFirstChild("Map") and Workspace.Map:FindFirstChild("Bedrock")
                     if bedrock then
