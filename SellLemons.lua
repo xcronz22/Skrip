@@ -486,7 +486,7 @@ CreateTapButton("Open All Doors [TAP]", function()
     end)
 end)
 
- CreateTapButton("Auto Sewer [TAP]", function()
+CreateTapButton("Auto Sewer [TAP]", function()
     local char = LocalPlayer.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
     if not root then return end
@@ -494,7 +494,7 @@ end)
     local sewer = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Sewer")
     if not sewer then return end
 
-    -- 1. Trigger SewerAlien & Talk (Tanpa TP ke Alien)
+    -- 1. Trigger SewerAlien, Talk, Ambil Kunci UFO, & Langsung Unlock VineDoor
     pcall(function()
         local alienFolder = sewer:FindFirstChild("SewerAlien")
         if alienFolder then
@@ -502,7 +502,7 @@ end)
             local trig = alienFolder:FindFirstChild("Trigger")
             if trig and trig:IsA("RemoteFunction") then trig:InvokeServer() end
             
-            -- Eksekusi langsung Prompt "Talk" dari jauh tanpa TP
+            -- Eksekusi langsung Prompt "Talk" dari jauh
             local alien = alienFolder:FindFirstChild("Alien")
             if alien then
                 local alienRoot = alien:FindFirstChild("HumanoidRootPart")
@@ -526,6 +526,17 @@ end)
                 if coll and coll:IsA("RemoteEvent") then coll:FireServer() end
             end
         end
+
+        -- Langsung tembak Unlock VineDoor sesuai path yang kamu berikan
+        -- (Menggunakan FindFirstChild agar skrip tidak nyangkut/crash jika objek belum ada)
+        local vineUnlock = sewer:FindFirstChild("CashVine") 
+            and sewer.CashVine:FindFirstChild("VineDoor") 
+            and sewer.CashVine.VineDoor:FindFirstChild("Door") 
+            and sewer.CashVine.VineDoor.Door:FindFirstChild("Unlock")
+            
+        if vineUnlock and vineUnlock:IsA("RemoteFunction") then
+            vineUnlock:InvokeServer()
+        end
     end)
 
     -- 2. Temukan dan Interaksi dengan Alien Tersembunyi di DoorsGreen
@@ -537,7 +548,6 @@ end)
                     local alienModel = desc.Parent
                     local alienRoot = alienModel:FindFirstChild("HumanoidRootPart")
                     
-                    -- Kita tetap sisakan TP di sini just in case alien di labirin belum ke-render sempurna oleh server
                     if alienRoot then
                         root.CFrame = alienRoot.CFrame
                         task.wait(0.5)
@@ -550,7 +560,7 @@ end)
         end
     end)
 
-    -- 3. Buka Kunci Penjara CashVine Sekali
+    -- 3. Ambil VineKey & Ekstra Buka Kunci (Backup)
     pcall(function()
         local cvFolder = sewer:FindFirstChild("CashVine")
         if cvFolder then
@@ -572,11 +582,16 @@ end)
         end
     end)
 
-    -- 4. Inisiasi Loop Auto CashVine Berkelanjutan (Berjalan di Background)
+    -- 4. Loop Auto CashVine Ganda (READY Detector + 30s Fallback)
     if not isCashVineLooping then
         isCashVineLooping = true
         task.spawn(function()
-            while task.wait(5) do
+            local timeSinceLastForce = 0 
+            
+            -- Cek tulisan READY setiap 1 detik agar sangat responsif!
+            while task.wait(1) do
+                timeSinceLastForce = timeSinceLastForce + 1
+                
                 pcall(function()
                     local currSewer = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Sewer")
                     if not currSewer then return end
@@ -590,7 +605,10 @@ end)
                                 local attach = cvMesh:FindFirstChild("Attachment")
                                 local label = attach and attach:FindFirstChild("Gui") and attach.Gui:FindFirstChild("Label")
                                 
-                                if label and label.Text == "READY" then
+                                local isReady = (label and label.Text == "READY")
+                                
+                                -- Eksekusi jika tulisan "READY" muncul ATAU jika sudah 30 detik lewat
+                                if isReady or timeSinceLastForce >= 30 then
                                     local useFunc = cvModel:FindFirstChild("Use")
                                     if useFunc and useFunc:IsA("RemoteFunction") then
                                         useFunc:InvokeServer()
@@ -600,6 +618,9 @@ end)
                                     if prompt and prompt:IsA("ProximityPrompt") then
                                         fireproximityprompt(prompt)
                                     end
+                                    
+                                    -- Reset timer kembali ke 0
+                                    timeSinceLastForce = 0
                                 end
                             end
                         end
