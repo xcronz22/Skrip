@@ -155,19 +155,47 @@ UIListLayout.Parent = Container
 -- ==========================================
 -- 2. ENGINE VALUE CONVERTER & UTILITIES
 -- ==========================================
+local Multipliers = {
+    ["k"] = 1e3, ["thousand"] = 1e3,
+    ["m"] = 1e6, ["million"] = 1e6,
+    ["b"] = 1e9, ["billion"] = 1e9,
+    ["t"] = 1e12, ["trillion"] = 1e12,
+    ["qd"] = 1e15, ["quadrillion"] = 1e15,
+    ["qn"] = 1e18, ["quintillion"] = 1e18,
+    ["sx"] = 1e21, ["sextillion"] = 1e21,
+    ["sp"] = 1e24, ["septillion"] = 1e24,
+    ["o"] = 1e27, ["oc"] = 1e27, ["octillion"] = 1e27,
+    ["n"] = 1e30, ["no"] = 1e30, ["nonillion"] = 1e30,
+    ["d"] = 1e33, ["dc"] = 1e33, ["decillion"] = 1e33,
+    ["ud"] = 1e36, ["undecillion"] = 1e36,
+    ["dd"] = 1e39, ["duodecillion"] = 1e39,
+    ["td"] = 1e42, ["tredecillion"] = 1e42,
+    ["qad"]= 1e45, ["quattuordecillion"] = 1e45,
+    ["qid"]= 1e48, ["quindecillion"] = 1e48,
+    ["sxd"]= 1e51, ["sexdecillion"] = 1e51,
+    ["spd"]= 1e54, ["septendecillion"] = 1e54,
+    ["odc"]= 1e57, ["octodecillion"] = 1e57,     -- <--- Targetmu di sini
+    ["ndc"]= 1e60, ["novemdecillion"] = 1e60,
+    ["v"]  = 1e63, ["vg"] = 1e63, ["vigintillion"] = 1e63,
+    ["uv"] = 1e66, ["unvigintillion"] = 1e66,
+    ["dv"] = 1e69, ["duovigintillion"] = 1e69,
+    ["tv"] = 1e72, ["trevigintillion"] = 1e72    -- <--- Kita siapkan sampai sini
+}
+
 local function parseStringToNumber(text)
     if not text then return 0 end
-    text = string.lower(string.gsub(text, ",", ""))
-    local numStr = string.match(text, "[%d%.]+")
+    text = string.lower(string.gsub(text, ",", "")) 
+    
+    local numStr = string.match(text, "[%d%.]+") 
     if not numStr then return 0 end
     local num = tonumber(numStr) or 0
     
-    if string.find(text, "billion") then return num * 1e9
-    elseif string.find(text, "million") then return num * 1e6
-    elseif string.find(text, "trillion") then return num * 1e12
-    elseif string.find(text, "quadrillion") or string.find(text, "qd") then return num * 1e15
-    elseif string.find(text, "quintillion") or string.find(text, "qn") then return num * 1e18
+    -- Tangkap teks kata/sufiksnya saja (misal: "billion", "odc", "octodecillion")
+    local suffixStr = string.match(text, "[a-z]+") 
+    if suffixStr and Multipliers[suffixStr] then
+        return num * Multipliers[suffixStr]
     end
+    
     return num
 end
 
@@ -286,7 +314,7 @@ local TextBox = Instance.new("TextBox")
 TextBox.Size = UDim2.new(0.55, 0, 0.8, 0)
 TextBox.Position = UDim2.new(0.45, 0, 0.1, 0)
 TextBox.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-TextBox.Text = "smart"
+TextBox.Text = "Smart (2x)"
 TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
 TextBox.Font = Enum.Font.Gotham
 TextBox.TextSize = 12
@@ -299,7 +327,7 @@ UICornerBox.Parent = TextBox
 
 TextBox.FocusLost:Connect(function()
     local input = string.lower(TextBox.Text)
-    if input == "smart" then
+    if input == "smart" or "2x" then
         RebirthMode = "Multiplier"
         RebirthValue = 2
         TextBox.Text = "Smart (2x)"
