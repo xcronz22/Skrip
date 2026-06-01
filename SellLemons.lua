@@ -583,14 +583,41 @@ task.spawn(function()
     end
 end)
 
--- LOOP 3: AUTO UPGRADE
+-- LOOP 3: MODIFIKASI BARU (AUTO UPGRADE + ULTRA FAST AUTO CLICK 0.04 DETIK BERGILIRAN)
 local lastScanTime = 0
+local clickTargets = {"LemonDepot", "LemonLabs", "LemonRepublic", "LemonRobotics", "LemonStand", "LemonTrading", "LemonDash", "LemonX"}
+local clickIndex = 1 -- Penanda giliran
+
 task.spawn(function()
     while task.wait(0.04) do 
         if Toggles.AutoUpgrade then
             pcall(function() 
                 local MyTycoon = GetMyTycoon()
                 if MyTycoon then
+                    
+                    -- [ FITUR BARU: Auto Click Stream (Sistem Gilir / Satu per Satu) ]
+                    local remotes = MyTycoon:FindFirstChild("Remotes")
+                    local wakeRemote = remotes and remotes:FindFirstChild("WakeIncomeStream")
+                    
+                    if wakeRemote and wakeRemote:IsA("RemoteFunction") then
+                        -- Ambil SATU target sesuai urutan saat ini
+                        local targetName = clickTargets[clickIndex]
+                        
+                        -- Panggil target tersebut di thread terpisah (agar tidak membuat nyangkut/lag)
+                        task.spawn(function()
+                            pcall(function() 
+                                wakeRemote:InvokeServer(targetName) 
+                            end)
+                        end)
+                        
+                        -- Pindah ke target berikutnya untuk eksekusi 0.04 detik selanjutnya
+                        clickIndex = clickIndex + 1
+                        if clickIndex > #clickTargets then
+                            clickIndex = 1 -- Kembali ke awal jika sudah mencapai LemonX
+                        end
+                    end
+
+                    -- [ Logika Auto Upgrade Max Bawaan Asli ]
                     if #UpgradeRemotes == 0 or (tick() - lastScanTime) > 5 then
                         RefreshUpgradeRemotes()
                         lastScanTime = tick()
