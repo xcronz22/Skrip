@@ -327,7 +327,7 @@ UICornerBox.Parent = TextBox
 
 TextBox.FocusLost:Connect(function()
     local input = string.lower(TextBox.Text)
-    if input == "smart" and "2x" then
+    if input == "smart" then
         RebirthMode = "Multiplier"
         RebirthValue = 2
         TextBox.Text = "Smart (2x)"
