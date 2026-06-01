@@ -459,34 +459,7 @@ end
 
 local isCashVineLooping = false
 
-CreateTapButton("Open All Doors [TAP]", function()
-    pcall(function()
-        local sewer = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Sewer")
-        if sewer then
-            local colors = {"Blue", "Green", "Purple", "Red"}
-            for _, color in ipairs(colors) do
-                local doorFolder = sewer:FindFirstChild("Doors" .. color)
-                if doorFolder then
-                    local lever = doorFolder:FindFirstChild("Lever (" .. color .. ")")
-                    if lever then
-                        local rootPart = lever:FindFirstChild("Root")
-                        if rootPart then
-                            local attach = rootPart:FindFirstChild("Attachment")
-                            if attach then
-                                local prompt = attach:FindFirstChild("PullPrompt")
-                                if prompt and prompt:IsA("ProximityPrompt") then
-                                    fireproximityprompt(prompt)
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end)
-end)
-
-CreateTapButton("Auto Sewer [TAP]", function()
+ CreateTapButton("Auto Sewer [TAP]", function()
     local char = LocalPlayer.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
     if not root then return end
@@ -494,16 +467,27 @@ CreateTapButton("Auto Sewer [TAP]", function()
     local sewer = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Sewer")
     if not sewer then return end
 
-    -- 1. Trigger SewerAlien Pertama
+    -- 1. Trigger SewerAlien & Talk (Tanpa TP ke Alien)
     pcall(function()
         local alienFolder = sewer:FindFirstChild("SewerAlien")
         if alienFolder then
+            -- Memicu trigger awal
             local trig = alienFolder:FindFirstChild("Trigger")
             if trig and trig:IsA("RemoteFunction") then trig:InvokeServer() end
             
-            local listenP = alienFolder:FindFirstChild("ListenPrompt") and alienFolder.ListenPrompt:FindFirstChild("ListenPrompt")
-            if listenP then fireproximityprompt(listenP) end
+            -- Eksekusi langsung Prompt "Talk" dari jauh tanpa TP
+            local alien = alienFolder:FindFirstChild("Alien")
+            if alien then
+                local alienRoot = alien:FindFirstChild("HumanoidRootPart")
+                if alienRoot then
+                    local talkPrompt = alienRoot:FindFirstChild("Prompt")
+                    if talkPrompt and talkPrompt:IsA("ProximityPrompt") then
+                        fireproximityprompt(talkPrompt)
+                    end
+                end
+            end
             
+            -- Ambil UFOKey
             local ufoKey = alienFolder:FindFirstChild("UFOKey")
             if ufoKey then
                 local ti = ufoKey:FindFirstChild("TouchInterest")
@@ -513,13 +497,6 @@ CreateTapButton("Auto Sewer [TAP]", function()
                 end
                 local coll = ufoKey:FindFirstChild("Collected")
                 if coll and coll:IsA("RemoteEvent") then coll:FireServer() end
-            end
-
-            -- TP menuju Alien jika prasyarat pintu telah dibuka sebelumnya (Open All Doors)
-            local alienHum = alienFolder:FindFirstChild("Alien")
-            if alienHum and alienHum:FindFirstChild("HumanoidRootPart") then
-                root.CFrame = alienHum.HumanoidRootPart.CFrame
-                task.wait(0.5)
             end
         end
     end)
@@ -532,13 +509,15 @@ CreateTapButton("Auto Sewer [TAP]", function()
                 if desc:IsA("Humanoid") then
                     local alienModel = desc.Parent
                     local alienRoot = alienModel:FindFirstChild("HumanoidRootPart")
+                    
+                    -- Kita tetap sisakan TP di sini just in case alien di labirin belum ke-render sempurna oleh server
                     if alienRoot then
                         root.CFrame = alienRoot.CFrame
                         task.wait(0.5)
                     end
                     local prompt = alienModel:FindFirstChild("ListenPrompt", true) or alienModel:FindFirstChildWhichIsA("ProximityPrompt", true)
                     if prompt then fireproximityprompt(prompt) end
-                    break -- Berhenti di penemuan pertama
+                    break 
                 end
             end
         end
@@ -584,7 +563,6 @@ CreateTapButton("Auto Sewer [TAP]", function()
                                 local attach = cvMesh:FindFirstChild("Attachment")
                                 local label = attach and attach:FindFirstChild("Gui") and attach.Gui:FindFirstChild("Label")
                                 
-                                -- Interaksi otomatis jika status READY 
                                 if label and label.Text == "READY" then
                                     local useFunc = cvModel:FindFirstChild("Use")
                                     if useFunc and useFunc:IsA("RemoteFunction") then
