@@ -164,9 +164,9 @@ local Multipliers = {
     ["qn"] = 1e18, ["quintillion"] = 1e18,
     ["sx"] = 1e21, ["sextillion"] = 1e21,
     ["sp"] = 1e24, ["septillion"] = 1e24,
-    ["o"] = 1e27, ["oc"] = 1e27, ["octillion"] = 1e27,
-    ["n"] = 1e30, ["no"] = 1e30, ["nonillion"] = 1e30,
-    ["d"] = 1e33, ["dc"] = 1e33, ["decillion"] = 1e33,
+    ["o"] = 1e27, ["octillion"] = 1e27,
+    ["n"] = 1e30, ["nonillion"] = 1e30,
+    ["d"] = 1e33, ["decillion"] = 1e33,
     ["ud"] = 1e36, ["undecillion"] = 1e36,
     ["dd"] = 1e39, ["duodecillion"] = 1e39,
     ["td"] = 1e42, ["tredecillion"] = 1e42,
@@ -174,12 +174,35 @@ local Multipliers = {
     ["qid"]= 1e48, ["quindecillion"] = 1e48,
     ["sxd"]= 1e51, ["sexdecillion"] = 1e51,
     ["spd"]= 1e54, ["septendecillion"] = 1e54,
-    ["odc"]= 1e57, ["octodecillion"] = 1e57,     -- <--- Targetmu di sini
+    ["odc"]= 1e57, ["octodecillion"] = 1e57,
     ["ndc"]= 1e60, ["novemdecillion"] = 1e60,
-    ["v"]  = 1e63, ["vg"] = 1e63, ["vigintillion"] = 1e63,
+    ["v"]  = 1e63, ["vigintillion"] = 1e63,
     ["uv"] = 1e66, ["unvigintillion"] = 1e66,
     ["dv"] = 1e69, ["duovigintillion"] = 1e69,
-    ["tv"] = 1e72, ["trevigintillion"] = 1e72    -- <--- Kita siapkan sampai sini
+    ["tv"] = 1e72, ["trevigintillion"] = 1e72,
+    ["qav"]= 1e75, ["quattuorvigintillion"] = 1e75,
+    ["qiv"]= 1e78, ["quinvigintillion"] = 1e78,
+    ["sxv"]= 1e81, ["sexvigintillion"] = 1e81,
+    ["spv"]= 1e84, ["septenvigintillion"] = 1e84,
+    ["ocv"]= 1e87, ["octovigintillion"] = 1e87,
+    ["nov"]= 1e90, ["novemvigintillion"] = 1e90,
+    ["tg"] = 1e93, ["trigintillion"] = 1e93,
+    ["utg"]= 1e96, ["untrigintillion"] = 1e96,
+    ["dtg"]= 1e99, ["duotrigintillion"] = 1e99,
+    ["ttg"]= 1e102, ["tretrigintillion"] = 1e102,
+    ["qatg"]=1e105, ["quattuortrigintillion"] = 1e105,
+    ["qitg"]=1e108, ["quintrigintillion"] = 1e108,
+    ["sxtg"]=1e111, ["sextrigintillion"] = 1e111,
+    ["sptg"]=1e114, ["septentrigintillion"] = 1e114,
+    ["otg"]= 1e117, ["octotrigintillion"] = 1e117,
+    ["notg"]=1e120, ["novemtrigintillion"] = 1e120,
+    ["qag"]= 1e123, ["quadragintillion"] = 1e123,
+    ["qig"]= 1e153, ["quinquagintillion"] = 1e153,
+    ["sxg"]= 1e183, ["sexagintillion"] = 1e183,
+    ["spg"]= 1e213, ["septuagintillion"] = 1e213,
+    ["ocg"]= 1e243, ["octogintillion"] = 1e243,
+    ["nog"]= 1e273, ["nonagintillion"] = 1e273,
+    ["c"]  = 1e303, ["centillion"] = 1e303
 }
 
 local function parseStringToNumber(text)
@@ -190,7 +213,6 @@ local function parseStringToNumber(text)
     if not numStr then return 0 end
     local num = tonumber(numStr) or 0
     
-    -- Tangkap teks kata/sufiksnya saja (misal: "billion", "odc", "octodecillion")
     local suffixStr = string.match(text, "[a-z]+") 
     if suffixStr and Multipliers[suffixStr] then
         return num * Multipliers[suffixStr]
