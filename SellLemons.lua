@@ -5,7 +5,7 @@ local CoreGui = game:GetService("CoreGui")
 local VirtualUser = game:GetService("VirtualUser")
 local HttpService = game:GetService("HttpService")
 
-local FILE_NAME = "LemonConfigV50.json"
+local FILE_NAME = "LemonConfigV51.json"
 
 -- ==========================================
 -- 0. DEFAULT CONFIGURATION & STORAGE
@@ -16,7 +16,8 @@ local Toggles = {
     AutoBuy = false,
     AutoUpgrade = false,
     AutoPhone = false,
-    AutoRebirth = false
+    AutoRebirth = false,
+    AutoEvolve = false -- [NEW]
 }
 
 local RebirthMode = "Target" 
@@ -31,7 +32,8 @@ local ToggleDefinitions = {
     {Name = "AutoBuy", Text = "Auto Buy Buttons"},
     {Name = "AutoUpgrade", Text = "Auto Upgrade Max"},
     {Name = "AutoPhone", Text = "Auto Answer Phone"},
-    {Name = "AutoRebirth", Text = "Auto Rebirth"}
+    {Name = "AutoRebirth", Text = "Auto Rebirth"},
+    {Name = "AutoEvolve", Text = "Auto Evolve"} -- [NEW]
 }
 
 -- FUNCTIONS: MANUAL SAVE & LOAD SYSTEM
@@ -89,7 +91,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -70, 0, 35)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "🍋 Lemon Auto V5.0"
+Title.Text = "🍋 Lemon Auto V5.1"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextSize = 16
 Title.Font = Enum.Font.GothamBold
@@ -638,8 +640,31 @@ task.spawn(function()
                 end
             end
         end
-    end
-end)
+
+        -- AUTO EVOLVE [SIMPLIFIED]
+if Toggles.AutoEvolve then
+    pcall(function()
+        local rebirthGui = LocalPlayer.PlayerGui:FindFirstChild("Rebirth")
+        local evoMenu = rebirthGui and rebirthGui:FindFirstChild("EvolutionMenu")
+        local body = evoMenu and evoMenu:FindFirstChild("Body")
+        local progress = body and body:FindFirstChild("Progress")
+
+        if progress then
+            local percent = tonumber(string.match(progress.Text, "[%d%.]+"))
+            if percent and percent >= 100 then
+                local remotes = MyTycoon:FindFirstChild("Remotes")
+                local evolveRemote = remotes and remotes:FindFirstChild("Evolve")
+                
+                -- Langsung dieksekusi menggunakan InvokeServer
+                if evolveRemote and evolveRemote:IsA("RemoteFunction") then
+                    evolveRemote:InvokeServer()
+                    UpgradeRemotes = {} 
+                    task.wait(2) 
+                end
+            end
+        end
+    end)
+end
 
 -- LOOP TERPISAH: AUTO DROP
 task.spawn(function()
