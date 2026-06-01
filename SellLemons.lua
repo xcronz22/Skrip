@@ -153,7 +153,7 @@ UIListLayout.Padding = UDim.new(0, 8)
 UIListLayout.Parent = Container
 
 UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    Container.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 80)
+    Container.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 120)
 end)
 
 -- ==========================================
