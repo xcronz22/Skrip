@@ -5,7 +5,7 @@ local CoreGui = game:GetService("CoreGui")
 local VirtualUser = game:GetService("VirtualUser")
 local HttpService = game:GetService("HttpService")
 
-local FILE_NAME = "LemonConfigV55.json"
+local FILE_NAME = "LemonConfigV56.json"
 
 -- ==========================================
 -- 0. DEFAULT CONFIGURATION & STORAGE
@@ -90,7 +90,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -70, 0, 35)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "🍋 Lemon Auto V5.5"
+Title.Text = "🍋 Lemon Auto V5.6"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextSize = 16
 Title.Font = Enum.Font.GothamBold
@@ -220,7 +220,6 @@ local function parseStringToNumber(text)
     return num
 end
 
--- PCALL SHIELD: Melindungi fungsi pencarian Tycoon dari error objek hilang
 local function GetMyTycoon()
     local foundTycoon = nil
     pcall(function()
@@ -311,6 +310,16 @@ local function CreateToggle(name, text)
 
     Btn.MouseButton1Click:Connect(function()
         Toggles[name] = not Toggles[name]
+        
+        -- FAILSAFE: Pembebas Kunci PlatformStand
+        if name == "AutoHarvest" and not Toggles[name] then
+            pcall(function()
+                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+                    LocalPlayer.Character.Humanoid.PlatformStand = false
+                end
+            end)
+        end
+
         if Toggles[name] then
             Btn.Text = text .. " [ON]"
             Btn.TextColor3 = Color3.fromRGB(100, 255, 100)
@@ -453,14 +462,14 @@ LocalPlayer.Idled:Connect(function()
 end)
 
 -- ==========================================
--- 6. FULLY SHIELDED MULTI-THREAD ENGINE (V5.5)
+-- 6. FULLY SHIELDED MULTI-THREAD ENGINE (V5.6)
 -- ==========================================
 
--- LOOP 1: AUTO HARVEST
+-- LOOP 1: AUTO HARVEST (PERBAIKAN ANTI-NYANGKUT)
 task.spawn(function()
     while task.wait(0.1) do
         if Toggles.AutoHarvest then
-            pcall(function() -- PCALL SHIELD UTAMA
+            pcall(function() 
                 local MyTycoon = GetMyTycoon()
                 local char = LocalPlayer.Character
                 local rootPart = char and char:FindFirstChild("HumanoidRootPart")
@@ -469,15 +478,19 @@ task.spawn(function()
                 if MyTycoon and rootPart and humanoid and humanoid.Health > 0 then
                     local originalCFrame = rootPart.CFrame
                     local hasTeleported = false
+                    local stopFarming = false -- Bendera Rem Halus
 
                     for i = 1, 12 do
-                        if not Toggles.AutoHarvest then return end
+                        if not Toggles.AutoHarvest or stopFarming then break end 
                         local tycoon = Workspace:FindFirstChild("Tycoon" .. i)
                         if tycoon then
                             local constantFolder = tycoon:FindFirstChild("Constant")
                             if constantFolder and constantFolder:FindFirstChild("Trees") then
                                 for _, tree in pairs(constantFolder.Trees:GetChildren()) do
-                                    if not Toggles.AutoHarvest then return end
+                                    if not Toggles.AutoHarvest then 
+                                        stopFarming = true 
+                                        break 
+                                    end
                                     if tree.Name == "LemonTree" then
                                         local readyFruits = {}
                                         for _, part in pairs(tree:GetChildren()) do
@@ -494,7 +507,7 @@ task.spawn(function()
                                             task.wait(0.2) 
                                             while #readyFruits > 0 and Toggles.AutoHarvest and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") do
                                                 for _, fruitData in pairs(readyFruits) do
-                                                    pcall(function() -- SHIELD EXTRA
+                                                    pcall(function() 
                                                         if fruitData.Part and fruitData.Part.Parent then fireclickdetector(fruitData.CD) end
                                                     end)
                                                 end
@@ -513,6 +526,8 @@ task.spawn(function()
                             end
                         end
                     end
+                    
+                    -- BLOK KODE INI SEKARANG AKAN SELALU DIEKSEKUSI (Karakter dipulangkan ke asal)
                     if hasTeleported and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character:FindFirstChild("Humanoid") then
                         task.wait(0.2)
                         LocalPlayer.Character.Humanoid.PlatformStand = false
@@ -528,7 +543,7 @@ end)
 task.spawn(function()
     while task.wait(0.1) do
         if Toggles.AutoBuy then
-            pcall(function() -- PCALL SHIELD
+            pcall(function() 
                 local MyTycoon = GetMyTycoon()
                 local char = LocalPlayer.Character
                 local rootPart = char and char:FindFirstChild("HumanoidRootPart")
@@ -544,13 +559,12 @@ task.spawn(function()
                                 local buttons = buttonsFolder:GetDescendants()
                                 for _, item in pairs(buttons) do
                                     if not Toggles.AutoBuy then return end
-                                    pcall(function() -- SHIELD DOUBLE-CHECK VALIDATION
+                                    pcall(function() 
                                         if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
                                             local target = item.Parent
                                             if target then
                                                 firetouchinterest(rootPart, target, 0)
                                                 task.wait(0.01)
-                                                -- Cek LAGI setelah wait, inilah kunci anti-macetnya!
                                                 if target and target.Parent then 
                                                     firetouchinterest(rootPart, target, 1)
                                                 end
@@ -574,7 +588,7 @@ local lastScanTime = 0
 task.spawn(function()
     while task.wait(0.04) do 
         if Toggles.AutoUpgrade then
-            pcall(function() -- PCALL SHIELD
+            pcall(function() 
                 local MyTycoon = GetMyTycoon()
                 if MyTycoon then
                     if #UpgradeRemotes == 0 or (tick() - lastScanTime) > 5 then
@@ -586,7 +600,6 @@ task.spawn(function()
                         if not Toggles.AutoUpgrade then return end
                         local remote = UpgradeRemotes[i]
                         
-                        -- Cek validasi dengan aman tanpa error
                         local isValid = false
                         pcall(function() if remote and remote.Parent then isValid = true end end)
 
@@ -610,7 +623,7 @@ end)
 task.spawn(function()
     while task.wait(0.5) do
         if Toggles.AutoPhone then
-            pcall(function() -- PCALL SHIELD
+            pcall(function() 
                 local MyTycoon = GetMyTycoon()
                 if MyTycoon then
                     local phoneGui = LocalPlayer.PlayerGui:FindFirstChild("Phone")
@@ -635,7 +648,7 @@ end)
 task.spawn(function()
     while task.wait(0.5) do
         if Toggles.AutoRebirth then
-            pcall(function() -- PCALL SHIELD
+            pcall(function() 
                 local MyTycoon = GetMyTycoon()
                 if MyTycoon then
                     local rebirthGui = LocalPlayer.PlayerGui:FindFirstChild("Rebirth")
@@ -683,7 +696,7 @@ end)
 task.spawn(function()
     while task.wait(0.5) do
         if Toggles.AutoEvolve then
-            pcall(function() -- PCALL SHIELD
+            pcall(function() 
                 local MyTycoon = GetMyTycoon()
                 if MyTycoon then
                     local rebirthGui = LocalPlayer.PlayerGui:FindFirstChild("Rebirth")
@@ -714,7 +727,7 @@ end)
 task.spawn(function()
     while task.wait(0.1) do
         if Toggles.AutoDrop then
-            pcall(function() -- PCALL SHIELD
+            pcall(function() 
                 local char = LocalPlayer.Character
                 local humanoid = char and char:FindFirstChild("Humanoid")
                 if humanoid and humanoid.Health > 0 then
