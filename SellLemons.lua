@@ -5,7 +5,7 @@ local CoreGui = game:GetService("CoreGui")
 local VirtualUser = game:GetService("VirtualUser")
 local HttpService = game:GetService("HttpService")
 
-local FILE_NAME = "LemonConfigV53.json"
+local FILE_NAME = "LemonConfigV54.json"
 
 -- ==========================================
 -- 0. DEFAULT CONFIGURATION & STORAGE
@@ -91,7 +91,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -70, 0, 35)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "🍋 Lemon Auto V5.3"
+Title.Text = "🍋 Lemon Auto V5.4"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextSize = 16
 Title.Font = Enum.Font.GothamBold
@@ -147,12 +147,17 @@ Container.Position = UDim2.new(0, 10, 0, 40)
 Container.BackgroundTransparency = 1
 Container.ScrollBarThickness = 3
 Container.CanvasSize = UDim2.new(0, 0, 0, 0)
-Container.AutomaticCanvasSize = Enum.AutomaticSize.Y
+-- Dihapus AutomaticCanvasSize untuk diganti manual kalkulasi
 Container.Parent = MainFrame
 
 local UIListLayout = Instance.new("UIListLayout")
 UIListLayout.Padding = UDim.new(0, 8)
 UIListLayout.Parent = Container
+
+-- FIX SCROLL: Manual Canvas Size Calculation
+UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    Container.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 20)
+end)
 
 -- ==========================================
 -- 2. ENGINE VALUE CONVERTER & UTILITIES
@@ -245,7 +250,7 @@ local function RefreshUpgradeRemotes()
                 table.insert(tempTable, desc)
             end
         end
-        UpgradeRemotes = tempTable -- Menimpa cache dengan data paling fresh
+        UpgradeRemotes = tempTable
     end
 end
 
@@ -392,7 +397,7 @@ UpgradeInputLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 UpgradeInputLabel.Font = Enum.Font.GothamBold
 UpgradeInputLabel.TextSize = 12
 UpgradeInputLabel.BackgroundTransparency = 1
-UpgradeInputFrame.Parent = UpgradeInputFrame
+UpgradeInputLabel.Parent = UpgradeInputFrame -- FIX TYPO DISINI
 
 local UpgradeTextBox = Instance.new("TextBox")
 UpgradeTextBox.Size = UDim2.new(0.55, 0, 0.8, 0)
@@ -471,7 +476,7 @@ LocalPlayer.Idled:Connect(function()
 end)
 
 -- ==========================================
--- 6. INDEPENDENT MULTI-THREAD ENGINE (V5.3)
+-- 6. INDEPENDENT MULTI-THREAD ENGINE (V5.4)
 -- ==========================================
 
 -- LOOP 1: AUTO HARVEST
@@ -573,14 +578,13 @@ task.spawn(function()
     end
 end)
 
--- LOOP 3: FIXED AUTO UPGRADE (Auto-Rescan + Anti-Throttle Engine)
+-- LOOP 3: FIXED AUTO UPGRADE
 local lastScanTime = 0
 task.spawn(function()
-    while task.wait(0.04) do -- Batas kecepatan optimal aman bebas dari blokir server
+    while task.wait(0.04) do 
         if Toggles.AutoUpgrade then
             local MyTycoon = GetMyTycoon()
             if MyTycoon then
-                -- Perbaikan Utama: Memaksa scan ulang berkala setiap 5 detik agar tombol baru terdeteksi
                 if #UpgradeRemotes == 0 or (tick() - lastScanTime) > 5 then
                     RefreshUpgradeRemotes()
                     lastScanTime = tick()
