@@ -3,29 +3,82 @@ local LocalPlayer = Players.LocalPlayer
 local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
 local VirtualUser = game:GetService("VirtualUser")
+local HttpService = game:GetService("HttpService")
+
+local FILE_NAME = "LemonConfigV50.json"
 
 -- ==========================================
--- 0. ANTI-AFK SYSTEM
+-- 0. DEFAULT CONFIGURATION & STORAGE
 -- ==========================================
-LocalPlayer.Idled:Connect(function()
-    VirtualUser:CaptureController()
-    VirtualUser:ClickButton2(Vector2.new())
-end)
+local Toggles = {
+    AutoHarvest = false,
+    AutoDrop = false,
+    AutoBuy = false,
+    AutoUpgrade = false,
+    AutoPhone = false,
+    AutoRebirth = false
+}
 
+local RebirthMode = "Target" 
+local RebirthValue = 1000
+local UpgradeAmount = 1
+local UpgradeRemotes = {}
+local UI_Buttons = {}
+
+local ToggleDefinitions = {
+    {Name = "AutoHarvest", Text = "Auto Steal Lemons"},
+    {Name = "AutoDrop", Text = "Auto Collect Drops"},
+    {Name = "AutoBuy", Text = "Auto Buy Buttons"},
+    {Name = "AutoUpgrade", Text = "Auto Upgrade Max"},
+    {Name = "AutoPhone", Text = "Auto Answer Phone"},
+    {Name = "AutoRebirth", Text = "Auto Rebirth"}
+}
+
+-- FUNCTIONS: MANUAL SAVE & LOAD SYSTEM
+local function SaveConfig()
+    local configData = {
+        Toggles = Toggles,
+        RebirthMode = RebirthMode,
+        RebirthValue = RebirthValue,
+        UpgradeAmount = UpgradeAmount
+    }
+    pcall(function()
+        if writefile then
+            writefile(FILE_NAME, HttpService:JSONEncode(configData))
+        end
+    end)
+end
+
+local function LoadConfig()
+    pcall(function()
+        if isfile and readfile and isfile(FILE_NAME) then
+            local decoded = HttpService:JSONDecode(readfile(FILE_NAME))
+            if decoded then
+                if decoded.Toggles then
+                    for k, v in pairs(decoded.Toggles) do Toggles[k] = v end
+                end
+                if decoded.RebirthMode then RebirthMode = decoded.RebirthMode end
+                if decoded.RebirthValue then RebirthValue = decoded.RebirthValue end
+                if decoded.UpgradeAmount then UpgradeAmount = decoded.UpgradeAmount end
+            end
+        end
+    end)
+end
+
+-- ==========================================
+-- 1. PEMBUATAN UI MOBILE-FRIENDLY
+-- ==========================================
 if CoreGui:FindFirstChild("LemonTycoonGUI") then
     CoreGui.LemonTycoonGUI:Destroy()
 end
 
--- ==========================================
--- 1. PEMBUATAN UI MOBILE-FRIENDLY (EXPANDED FOR BOTH INPUTS)
--- ==========================================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "LemonTycoonGUI"
 ScreenGui.Parent = CoreGui
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 280, 0, 420) -- Ditambah tingginya agar muat 2 input box
-MainFrame.Position = UDim2.new(0.5, -140, 0.5, -210)
+MainFrame.Size = UDim2.new(0, 280, 0, 460)
+MainFrame.Position = UDim2.new(0.5, -140, 0.5, -230)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -36,7 +89,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -70, 0, 35)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "🍋 Lemon Auto V4.8"
+Title.Text = "🍋 Lemon Auto V5.0"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextSize = 16
 Title.Font = Enum.Font.GothamBold
@@ -100,22 +153,8 @@ UIListLayout.Padding = UDim.new(0, 8)
 UIListLayout.Parent = Container
 
 -- ==========================================
--- 2. SISTEM LOGIKA & VALUE CONVERTER
+-- 2. ENGINE VALUE CONVERTER & UTILITIES
 -- ==========================================
-local Toggles = {
-    AutoHarvest = false,
-    AutoDrop = false,
-    AutoBuy = false,
-    AutoUpgrade = false,
-    AutoPhone = false,
-    AutoRebirth = false
-}
-
-local RebirthMode = "Target" 
-local RebirthValue = 1000
-local UpgradeAmount = 1 -- Nilai default jumlah upgrade sekaligus
-local UpgradeRemotes = {}
-
 local function parseStringToNumber(text)
     if not text then return 0 end
     text = string.lower(string.gsub(text, ",", ""))
@@ -157,6 +196,45 @@ local function RefreshUpgradeRemotes()
     end
 end
 
+-- ==========================================
+-- 3. UI ELEMENTS: SAVE/LOAD BUTTONS
+-- ==========================================
+local ConfigFrame = Instance.new("Frame")
+ConfigFrame.Size = UDim2.new(1, 0, 0, 35)
+ConfigFrame.BackgroundTransparency = 1
+ConfigFrame.Parent = Container
+
+local SaveBtn = Instance.new("TextButton")
+SaveBtn.Size = UDim2.new(0.48, 0, 1, 0)
+SaveBtn.Position = UDim2.new(0, 0, 0, 0)
+SaveBtn.BackgroundColor3 = Color3.fromRGB(40, 100, 40)
+SaveBtn.Text = "💾 Save"
+SaveBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+SaveBtn.Font = Enum.Font.GothamBold
+SaveBtn.TextSize = 13
+SaveBtn.Parent = ConfigFrame
+
+local UICornerSave = Instance.new("UICorner")
+UICornerSave.CornerRadius = UDim.new(0, 5)
+UICornerSave.Parent = SaveBtn
+
+local LoadBtn = Instance.new("TextButton")
+LoadBtn.Size = UDim2.new(0.48, 0, 1, 0)
+LoadBtn.Position = UDim2.new(0.52, 0, 0, 0)
+LoadBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 100)
+LoadBtn.Text = "📂 Load"
+LoadBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+LoadBtn.Font = Enum.Font.GothamBold
+LoadBtn.TextSize = 13
+LoadBtn.Parent = ConfigFrame
+
+local UICornerLoad = Instance.new("UICorner")
+UICornerLoad.CornerRadius = UDim.new(0, 5)
+UICornerLoad.Parent = LoadBtn
+
+-- ==========================================
+-- 4. UI ELEMENTS: TOGGLES & INPUTS
+-- ==========================================
 local function CreateToggle(name, text)
     local Btn = Instance.new("TextButton")
     Btn.Size = UDim2.new(1, 0, 0, 35)
@@ -171,6 +249,8 @@ local function CreateToggle(name, text)
     Corner.CornerRadius = UDim.new(0, 5)
     Corner.Parent = Btn
 
+    UI_Buttons[name] = Btn
+
     Btn.MouseButton1Click:Connect(function()
         Toggles[name] = not Toggles[name]
         if Toggles[name] then
@@ -183,14 +263,11 @@ local function CreateToggle(name, text)
     end)
 end
 
-CreateToggle("AutoHarvest", "Auto Steal Lemons")
-CreateToggle("AutoDrop", "Auto Collect Drops")
-CreateToggle("AutoBuy", "Auto Buy Buttons")
-CreateToggle("AutoUpgrade", "Auto Upgrade Max")
-CreateToggle("AutoPhone", "Auto Answer Phone")
-CreateToggle("AutoRebirth", "Auto Rebirth")
+for _, def in pairs(ToggleDefinitions) do
+    CreateToggle(def.Name, def.Text)
+end
 
--- INPUT BOX 1: TARGET REBIRTH
+-- INPUT 1: TARGET REBIRTH
 local InputFrame = Instance.new("Frame")
 InputFrame.Size = UDim2.new(1, 0, 0, 40)
 InputFrame.BackgroundTransparency = 1
@@ -209,7 +286,7 @@ local TextBox = Instance.new("TextBox")
 TextBox.Size = UDim2.new(0.55, 0, 0.8, 0)
 TextBox.Position = UDim2.new(0.45, 0, 0.1, 0)
 TextBox.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-TextBox.Text = "1000"
+TextBox.Text = "Smart (2x)"
 TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
 TextBox.Font = Enum.Font.Gotham
 TextBox.TextSize = 12
@@ -245,7 +322,7 @@ TextBox.FocusLost:Connect(function()
     end
 end)
 
--- INPUT BOX 2: JUMLAH UPGRADE (NEW FITUR ⭐)
+-- INPUT 2: JUMLAH UPGRADE 
 local UpgradeInputFrame = Instance.new("Frame")
 UpgradeInputFrame.Size = UDim2.new(1, 0, 0, 40)
 UpgradeInputFrame.BackgroundTransparency = 1
@@ -278,20 +355,69 @@ UICornerUpgradeBox.Parent = UpgradeTextBox
 UpgradeTextBox.FocusLost:Connect(function()
     local val = tonumber(UpgradeTextBox.Text)
     if val and val > 0 then
-        UpgradeAmount = math.floor(val) -- Ambil angka bulatnya saja
+        UpgradeAmount = math.floor(val)
         UpgradeTextBox.Text = tostring(UpgradeAmount)
     else
-        -- Jika input salah/kosong, kembalikan ke nilai sebelumnya
         UpgradeTextBox.Text = tostring(UpgradeAmount)
     end
 end)
 
+-- ==========================================
+-- 5. BUTTON FUNCTIONALITIES (SAVE/LOAD SYNC)
+-- ==========================================
+local function SyncLoadedDataToUI()
+    for _, def in pairs(ToggleDefinitions) do
+        local btn = UI_Buttons[def.Name]
+        if btn then
+            if Toggles[def.Name] then
+                btn.Text = def.Text .. " [ON]"
+                btn.TextColor3 = Color3.fromRGB(100, 255, 100)
+            else
+                btn.Text = def.Text .. " [OFF]"
+                btn.TextColor3 = Color3.fromRGB(255, 100, 100)
+            end
+        end
+    end
+    if RebirthMode == "Multiplier" then
+        if RebirthValue == 2 and not string.find(TextBox.Text, "Smart") then
+            TextBox.Text = "Smart (2x)"
+        else
+            TextBox.Text = RebirthValue .. "x"
+        end
+    else
+        TextBox.Text = tostring(RebirthValue)
+    end
+    UpgradeTextBox.Text = tostring(UpgradeAmount)
+end
+
+SaveBtn.MouseButton1Click:Connect(function()
+    SaveConfig()
+    SaveBtn.Text = "✅ Saved!"
+    task.wait(1)
+    SaveBtn.Text = "💾 Save"
+end)
+
+LoadBtn.MouseButton1Click:Connect(function()
+    LoadConfig()
+    SyncLoadedDataToUI()
+    LoadBtn.Text = "✅ Loaded!"
+    task.wait(1)
+    LoadBtn.Text = "📂 Load"
+end)
 
 -- ==========================================
--- 3. LOOP UTAMA
+-- 6. INTERFACES LOOP (PERMA ANTI-AFK & ENGINE)
 -- ==========================================
+
+-- ENGINE: PERMANENT ANTI-AFK (Tidak bisa dimatikan)
+LocalPlayer.Idled:Connect(function()
+    pcall(function()
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new())
+    end)
+end)
+
 local ActiveTycoon = nil 
-
 task.spawn(function()
     while task.wait(0.1) do
         local MyTycoon = GetMyTycoon()
@@ -386,7 +512,7 @@ task.spawn(function()
             end
         end
             
-        -- AUTO UPGRADE (DYNAMIC AMOUNT INCORPORATED)
+        -- AUTO UPGRADE
         if Toggles.AutoUpgrade then
             if #UpgradeRemotes == 0 then
                 RefreshUpgradeRemotes()
@@ -397,7 +523,6 @@ task.spawn(function()
                 if remote and remote.Parent then
                     task.spawn(function()
                         pcall(function() 
-                            -- Menggunakan variabel UpgradeAmount dari Input Box GUI
                             remote:InvokeServer(UpgradeAmount) 
                         end)
                     end)
