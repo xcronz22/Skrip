@@ -507,11 +507,9 @@ CreateTapButton("Auto Sewer [TAP]", function()
     pcall(function()
         local alienFolder = sewer:FindFirstChild("SewerAlien")
         if alienFolder then
-            -- Memicu trigger awal
             local trig = alienFolder:FindFirstChild("Trigger")
             if trig and trig:IsA("RemoteFunction") then trig:InvokeServer() end
             
-            -- Eksekusi langsung Prompt "Talk" dari jauh
             local alien = alienFolder:FindFirstChild("Alien")
             if alien then
                 local alienRoot = alien:FindFirstChild("HumanoidRootPart")
@@ -523,7 +521,6 @@ CreateTapButton("Auto Sewer [TAP]", function()
                 end
             end
             
-            -- Ambil UFOKey
             local ufoKey = alienFolder:FindFirstChild("UFOKey")
             if ufoKey then
                 local ti = ufoKey:FindFirstChild("TouchInterest")
@@ -536,7 +533,6 @@ CreateTapButton("Auto Sewer [TAP]", function()
             end
         end
 
-        -- Langsung tembak Unlock VineDoor
         local vineUnlock = sewer:FindFirstChild("CashVine") 
             and sewer.CashVine:FindFirstChild("VineDoor") 
             and sewer.CashVine.VineDoor:FindFirstChild("Door") 
@@ -589,51 +585,6 @@ CreateTapButton("Auto Sewer [TAP]", function()
             end
         end
     end)
-
-    -- 4. Loop Auto CashVine Ganda (READY Detector + 30s Fallback)
-    if not isCashVineLooping then
-        isCashVineLooping = true
-        task.spawn(function()
-            local timeSinceLastForce = 0 
-            
-            while task.wait(1) do
-                timeSinceLastForce = timeSinceLastForce + 1
-                
-                pcall(function()
-                    local currSewer = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Sewer")
-                    if not currSewer then return end
-                    
-                    local cvFolder = currSewer:FindFirstChild("CashVine")
-                    if cvFolder then
-                        local cvModel = cvFolder:FindFirstChild("CashVine")
-                        if cvModel then
-                            local cvMesh = cvModel:FindFirstChild("CashVine")
-                            if cvMesh then
-                                local attach = cvMesh:FindFirstChild("Attachment")
-                                local label = attach and attach:FindFirstChild("Gui") and attach.Gui:FindFirstChild("Label")
-                                
-                                local isReady = (label and label.Text == "READY")
-                                
-                                if isReady or timeSinceLastForce >= 30 then
-                                    local useFunc = cvModel:FindFirstChild("Use")
-                                    if useFunc and useFunc:IsA("RemoteFunction") then
-                                        useFunc:InvokeServer()
-                                    end
-                                    
-                                    local prompt = attach:FindFirstChild("Prompt")
-                                    if prompt and prompt:IsA("ProximityPrompt") then
-                                        fireproximityprompt(prompt)
-                                    end
-                                    
-                                    timeSinceLastForce = 0
-                                end
-                            end
-                        end
-                    end
-                end)
-            end
-        end)
-    end
 end)
 
 -- ==========================================
@@ -980,18 +931,65 @@ task.spawn(function()
     end
 end)
 
--- LOOP 8: AUTO CLOSE ALERT
+-- LOOP 8: AUTO CLOSE ALERT (FIXED BACKGROUND BUG)
 task.spawn(function()
-    while task.wait(0.5) do -- Mengecek setiap setengah detik
+    while task.wait(0.5) do
         pcall(function()
             local importantGui = LocalPlayer.PlayerGui:FindFirstChild("Important")
             if importantGui then
                 local alertFolder = importantGui:FindFirstChild("Alert")
-                if alertFolder then
-                    local mainAlert = alertFolder:FindFirstChild("Main")
-                    -- Jika pop-up ada dan sedang terlihat di layar, kita sembunyikan
-                    if mainAlert and mainAlert.Visible then
-                        mainAlert.Visible = false
+                -- Kita cek Alert-nya secara keseluruhan, bukan cuma Main
+                if alertFolder and alertFolder.Visible then
+                    alertFolder.Visible = false -- Ini akan menghilangkan kotak peringatan SEKALIGUS layar gelapnya
+                end
+                
+                -- Sebagai pengaman ekstra, jika Important itu sendiri menggunakan Enabled
+                if importantGui:IsA("ScreenGui") and importantGui.Enabled and alertFolder and not alertFolder.Visible then
+                    -- Biarkan game yang mengatur, atau kita bisa force Important.Enabled = false jika masih nge-bug
+                    -- Tapi menutup Alert.Visible = false biasanya sudah cukup 100%
+                end
+            end
+        end)
+    end
+end)
+
+-- LOOP 9: AUTO CASHVINE (BACKGROUND)
+task.spawn(function()
+    local timeSinceLastForce = 0 
+    
+    while task.wait(1) do
+        timeSinceLastForce = timeSinceLastForce + 1
+        
+        pcall(function()
+            local currSewer = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Sewer")
+            if not currSewer then return end
+            
+            local cvFolder = currSewer:FindFirstChild("CashVine")
+            if cvFolder then
+                local cvModel = cvFolder:FindFirstChild("CashVine")
+                if cvModel then
+                    local cvMesh = cvModel:FindFirstChild("CashVine")
+                    if cvMesh then
+                        local attach = cvMesh:FindFirstChild("Attachment")
+                        local label = attach and attach:FindFirstChild("Gui") and attach.Gui:FindFirstChild("Label")
+                        
+                        local isReady = (label and label.Text == "READY")
+                        
+                        -- Eksekusi jika tulisan "READY" muncul ATAU jika sudah 60 detik lewat
+                        if isReady or timeSinceLastForce >= 60 then
+                            local useFunc = cvModel:FindFirstChild("Use")
+                            if useFunc and useFunc:IsA("RemoteFunction") then
+                                useFunc:InvokeServer()
+                            end
+                            
+                            local prompt = attach:FindFirstChild("Prompt")
+                            if prompt and prompt:IsA("ProximityPrompt") then
+                                fireproximityprompt(prompt)
+                            end
+                            
+                            -- Reset timer kembali ke 0 setelah eksekusi
+                            timeSinceLastForce = 0
+                        end
                     end
                 end
             end
