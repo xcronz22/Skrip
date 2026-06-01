@@ -153,7 +153,7 @@ UIListLayout.Padding = UDim.new(0, 8)
 UIListLayout.Parent = Container
 
 UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    Container.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 120)
+    Container.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 200)
 end)
 
 -- ==========================================
@@ -494,6 +494,15 @@ CreateTapButton("Auto Sewer [TAP]", function()
     local sewer = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Sewer")
     if not sewer then return end
 
+    -- [FITUR BARU] Tembak InvestorsRevealed SEBELUM mengambil kunci
+    pcall(function()
+        local args = {
+            "InvestorsRevealed",
+            true
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Core"):WaitForChild("PlayerSettings"):WaitForChild("Set"):FireServer(unpack(args))
+    end)
+
     -- 1. Trigger SewerAlien, Talk, Ambil Kunci UFO, & Langsung Unlock VineDoor
     pcall(function()
         local alienFolder = sewer:FindFirstChild("SewerAlien")
@@ -527,8 +536,7 @@ CreateTapButton("Auto Sewer [TAP]", function()
             end
         end
 
-        -- Langsung tembak Unlock VineDoor sesuai path yang kamu berikan
-        -- (Menggunakan FindFirstChild agar skrip tidak nyangkut/crash jika objek belum ada)
+        -- Langsung tembak Unlock VineDoor
         local vineUnlock = sewer:FindFirstChild("CashVine") 
             and sewer.CashVine:FindFirstChild("VineDoor") 
             and sewer.CashVine.VineDoor:FindFirstChild("Door") 
@@ -588,7 +596,6 @@ CreateTapButton("Auto Sewer [TAP]", function()
         task.spawn(function()
             local timeSinceLastForce = 0 
             
-            -- Cek tulisan READY setiap 1 detik agar sangat responsif!
             while task.wait(1) do
                 timeSinceLastForce = timeSinceLastForce + 1
                 
@@ -607,7 +614,6 @@ CreateTapButton("Auto Sewer [TAP]", function()
                                 
                                 local isReady = (label and label.Text == "READY")
                                 
-                                -- Eksekusi jika tulisan "READY" muncul ATAU jika sudah 30 detik lewat
                                 if isReady or timeSinceLastForce >= 30 then
                                     local useFunc = cvModel:FindFirstChild("Use")
                                     if useFunc and useFunc:IsA("RemoteFunction") then
@@ -619,7 +625,6 @@ CreateTapButton("Auto Sewer [TAP]", function()
                                         fireproximityprompt(prompt)
                                     end
                                     
-                                    -- Reset timer kembali ke 0
                                     timeSinceLastForce = 0
                                 end
                             end
@@ -972,5 +977,24 @@ task.spawn(function()
                 end
             end)
         end
+    end
+end)
+
+-- LOOP 8: AUTO CLOSE ALERT
+task.spawn(function()
+    while task.wait(0.5) do -- Mengecek setiap setengah detik
+        pcall(function()
+            local importantGui = LocalPlayer.PlayerGui:FindFirstChild("Important")
+            if importantGui then
+                local alertFolder = importantGui:FindFirstChild("Alert")
+                if alertFolder then
+                    local mainAlert = alertFolder:FindFirstChild("Main")
+                    -- Jika pop-up ada dan sedang terlihat di layar, kita sembunyikan
+                    if mainAlert and mainAlert.Visible then
+                        mainAlert.Visible = false
+                    end
+                end
+            end
+        end)
     end
 end)
