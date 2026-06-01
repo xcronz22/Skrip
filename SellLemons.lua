@@ -21,7 +21,7 @@ local Toggles = {
 }
 
 local RebirthMode = "Target" 
-local RebirthValue = "Smart (2x)"
+local RebirthValue = 1
 local UpgradeAmount = 1
 local UpgradeRemotes = {}
 local UI_Buttons = {}
@@ -338,7 +338,7 @@ local TextBox = Instance.new("TextBox")
 TextBox.Size = UDim2.new(0.55, 0, 0.8, 0)
 TextBox.Position = UDim2.new(0.45, 0, 0.1, 0)
 TextBox.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-TextBox.Text = "Smart (2x)"
+TextBox.Text = "1"
 TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
 TextBox.Font = Enum.Font.Gotham
 TextBox.TextSize = 12
