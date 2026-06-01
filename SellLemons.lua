@@ -1027,55 +1027,26 @@ task.spawn(function()
     end
 end)
 
--- LOOP 10: AUTO BUY POWER (QUICK FLASH METHOD)
+-- LOOP 10: AUTO BUY POWER (CLEAN REMOTE METHOD)
 task.spawn(function()
     local powerNames = {"Manage", "BuyNext", "ClickFruitValue", "UpgradeStack", "WalkSpeed"}
-    local grayColor = Color3.fromRGB(125, 125, 125)
     
     while task.wait(2) do -- Pengecekan tiap 2 detik
         pcall(function()
-            local manageGui = LocalPlayer.PlayerGui:FindFirstChild("Manage")
-            local manageMenu = manageGui and manageGui:FindFirstChild("ManageMenu")
-            
-            if manageMenu then
-                local isOriginallyVisible = manageMenu.Visible
-                
-                -- Buka sekejap untuk update warna
-                if not isOriginallyVisible then
-                    manageMenu.Visible = true
-                    task.wait(0.1) 
-                end
+            local MyTycoon = GetMyTycoon()
+            local upgradeRemote = MyTycoon 
+                and MyTycoon:FindFirstChild("Remotes") 
+                and MyTycoon.Remotes:FindFirstChild("UpgradePowerLevel")
 
-                local powersFrame = manageMenu:FindFirstChild("Body") 
-                    and manageMenu.Body:FindFirstChild("Frame") 
-                    and manageMenu.Body.Frame:FindFirstChild("Powers")
-
-                if powersFrame then
-                    local MyTycoon = GetMyTycoon()
-                    local upgradeRemote = MyTycoon 
-                        and MyTycoon:FindFirstChild("Remotes") 
-                        and MyTycoon.Remotes:FindFirstChild("UpgradePowerLevel")
-
-                    if upgradeRemote and upgradeRemote:IsA("RemoteFunction") then
-                        for _, powerName in ipairs(powerNames) do
-                            local powerNode = powersFrame:FindFirstChild(powerName)
-                            local buyBtn = powerNode and powerNode:FindFirstChild("Buy")
-
-                            if buyBtn and buyBtn:IsA("GuiObject") then
-                                -- Jika warna tombol BUKAN abu-abu
-                                if buyBtn.BackgroundColor3 ~= grayColor then
-                                    pcall(function()
-                                        upgradeRemote:InvokeServer(powerName)
-                                    end)
-                                end
-                            end
-                        end
-                    end
-                end
-                
-                -- Tutup kembali UI
-                if not isOriginallyVisible then
-                    manageMenu.Visible = false
+            if upgradeRemote and upgradeRemote:IsA("RemoteFunction") then
+                for _, powerName in ipairs(powerNames) do
+                    -- Gunakan task.spawn untuk tiap request agar loop tidak tertahan (yield)
+                    task.spawn(function()
+                        pcall(function()
+                            -- Langsung request beli ke server tanpa cek warna UI
+                            upgradeRemote:InvokeServer(powerName)
+                        end)
+                    end)
                 end
             end
         end)
