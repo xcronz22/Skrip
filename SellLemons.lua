@@ -665,8 +665,8 @@ task.spawn(function()
                 end
             end)
         end
-    end
-end)
+    end -- <--- Tadi ini hilang (Menutup perulangan 'while do' mesin utama)
+end) -- <--- Tadi ini hilang (Menutup 'task.spawn' mesin utama)
 
 -- LOOP TERPISAH: AUTO DROP
 task.spawn(function()
