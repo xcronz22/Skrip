@@ -823,45 +823,60 @@ task.spawn(function()
     end
 end)
 
--- LOOP 5: AUTO REBIRTH
+-- LOOP 5: AUTO REBIRTH (ANTI ZOMBIE UI)
 task.spawn(function()
     while task.wait(0.5) do
         if Toggles.AutoRebirth then
             pcall(function() 
                 local MyTycoon = GetMyTycoon()
                 if MyTycoon then
-                    local rebirthGui = LocalPlayer.PlayerGui:FindFirstChild("Rebirth")
-                    local investorsMenu = rebirthGui and rebirthGui:FindFirstChild("InvestorsMenu", true) 
-                    local body = investorsMenu and investorsMenu:FindFirstChild("Body")
-
-                    if body then
-                        local potentialLabel = body:FindFirstChild("Potential", true) and body.Potential:FindFirstChild("Quantity")
-                        local currentLabel = body:FindFirstChild("Amount", true) and body.Amount:FindFirstChild("Quantity")
-
-                        if potentialLabel and currentLabel then
-                            local currentPotential = parseStringToNumber(potentialLabel.Text)
-                            local currentInvestors = parseStringToNumber(currentLabel.Text)
-
-                            local shouldRebirth = false
-                            
-                            if RebirthMode == "Multiplier" then
-                                if currentPotential >= (currentInvestors * RebirthValue) then
-                                    shouldRebirth = true
-                                end
-                            elseif RebirthMode == "Target" then
-                                if currentPotential >= RebirthValue then
-                                    shouldRebirth = true
+                    local currentPotential = 0
+                    local currentInvestors = 0
+                    
+                    -- Scan SEMUA ScreenGui di layar untuk mencari angka terbaru, mengabaikan UI yang mati/nyangkut
+                    for _, gui in ipairs(LocalPlayer.PlayerGui:GetChildren()) do
+                        if gui:IsA("ScreenGui") then
+                            local investorsMenu = gui:FindFirstChild("InvestorsMenu", true)
+                            if investorsMenu then
+                                local body = investorsMenu:FindFirstChild("Body")
+                                if body then
+                                    local potLabel = body:FindFirstChild("Potential", true) and body.Potential:FindFirstChild("Quantity")
+                                    local curLabel = body:FindFirstChild("Amount", true) and body.Amount:FindFirstChild("Quantity")
+                                    
+                                    if potLabel and curLabel then
+                                        local potVal = parseStringToNumber(potLabel.Text)
+                                        local curVal = parseStringToNumber(curLabel.Text)
+                                        
+                                        -- Mengambil angka tertinggi dari semua GUI yang terdeteksi
+                                        if potVal > currentPotential then currentPotential = potVal end
+                                        if curVal > currentInvestors then currentInvestors = curVal end
+                                    end
                                 end
                             end
+                        end
+                    end
 
-                            if shouldRebirth then
-                                local remotes = MyTycoon:FindFirstChild("Remotes")
-                                local rebirthRemote = remotes and remotes:FindFirstChild("Rebirth")
-                                if rebirthRemote then
-                                    pcall(function() rebirthRemote:InvokeServer() end)
-                                    UpgradeRemotes = {} 
-                                    task.wait(2) 
-                                end
+                    -- Pastikan datanya valid sebelum mengeksekusi logika Rebirth
+                    if currentPotential > 0 and currentInvestors > 0 then
+                        local shouldRebirth = false
+                        
+                        if RebirthMode == "Multiplier" then
+                            if currentPotential >= (currentInvestors * RebirthValue) then
+                                shouldRebirth = true
+                            end
+                        elseif RebirthMode == "Target" then
+                            if currentPotential >= RebirthValue then
+                                shouldRebirth = true
+                            end
+                        end
+
+                        if shouldRebirth then
+                            local remotes = MyTycoon:FindFirstChild("Remotes")
+                            local rebirthRemote = remotes and remotes:FindFirstChild("Rebirth")
+                            if rebirthRemote then
+                                pcall(function() rebirthRemote:InvokeServer() end)
+                                UpgradeRemotes = {} 
+                                task.wait(2) 
                             end
                         end
                     end
@@ -871,29 +886,42 @@ task.spawn(function()
     end
 end)
 
--- LOOP 6: AUTO EVOLVE
+-- LOOP 6: AUTO EVOLVE (ANTI ZOMBIE UI)
 task.spawn(function()
     while task.wait(0.5) do
         if Toggles.AutoEvolve then
             pcall(function() 
                 local MyTycoon = GetMyTycoon()
                 if MyTycoon then
-                    local rebirthGui = LocalPlayer.PlayerGui:FindFirstChild("Rebirth")
-                    local evoMenu = rebirthGui and rebirthGui:FindFirstChild("EvolutionMenu")
-                    local body = evoMenu and evoMenu:FindFirstChild("Body")
-                    local progress = body and body:FindFirstChild("Progress")
-
-                    if progress then
-                        local percent = tonumber(string.match(progress.Text, "[%d%.]+"))
-                        if percent and percent >= 100 then
-                            local remotes = MyTycoon:FindFirstChild("Remotes")
-                            local evolveRemote = remotes and remotes:FindFirstChild("Evolve")
-                            
-                            if evolveRemote and evolveRemote:IsA("RemoteFunction") then
-                                pcall(function() evolveRemote:InvokeServer() end)
-                                UpgradeRemotes = {} 
-                                task.wait(2) 
+                    local evoPercent = -1
+                    
+                    -- Scan SEMUA ScreenGui di layar untuk mencari progres persentase Evolution terbaru
+                    for _, gui in ipairs(LocalPlayer.PlayerGui:GetChildren()) do
+                        if gui:IsA("ScreenGui") then
+                            local evoMenu = gui:FindFirstChild("EvolutionMenu", true)
+                            if evoMenu then
+                                local body = evoMenu:FindFirstChild("Body")
+                                local progress = body and body:FindFirstChild("Progress")
+                                
+                                if progress then
+                                    local pct = tonumber(string.match(progress.Text, "[%d%.]+"))
+                                    if pct and pct > evoPercent then
+                                        evoPercent = pct
+                                    end
+                                end
                             end
+                        end
+                    end
+
+                    -- Jika persentase sudah 100%, langsung eksekusi Evolve
+                    if evoPercent >= 100 then
+                        local remotes = MyTycoon:FindFirstChild("Remotes")
+                        local evolveRemote = remotes and remotes:FindFirstChild("Evolve")
+                        
+                        if evolveRemote and evolveRemote:IsA("RemoteFunction") then
+                            pcall(function() evolveRemote:InvokeServer() end)
+                            UpgradeRemotes = {} 
+                            task.wait(2) 
                         end
                     end
                 end
