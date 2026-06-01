@@ -823,9 +823,9 @@ task.spawn(function()
     end
 end)
 
--- LOOP 5: AUTO REBIRTH (GHOSTING UI METHOD)
+-- LOOP 5: AUTO REBIRTH (QUICK FLASH METHOD)
 task.spawn(function()
-    while task.wait(0.5) do
+    while task.wait(2) do -- Dicek setiap 2 detik agar kedipan tidak membuat pusing
         if Toggles.AutoRebirth then
             pcall(function() 
                 local MyTycoon = GetMyTycoon()
@@ -835,16 +835,13 @@ task.spawn(function()
                     
                     if investorsMenu then
                         local isOriginallyVisible = investorsMenu.Visible
-                        local originalPosition = investorsMenu.Position
                         
-                        -- Jika menu tertutup, lempar ke luar layar lalu paksa buka sebentar
+                        -- Buka tutup sekejap di posisi aslinya
                         if not isOriginallyVisible then
-                            investorsMenu.Position = UDim2.new(10, 0, 10, 0) -- Jauh di luar layar
                             investorsMenu.Visible = true
-                            task.wait(0.1) -- Beri waktu 0.1 detik agar LocalScript game update angka
+                            task.wait(0.1) -- Beri waktu 0.1 detik agar angka ter-update
                         end
 
-                        -- Mulai proses membaca angka
                         local body = investorsMenu:FindFirstChild("Body")
                         if body then
                             local potentialLabel = body:FindFirstChild("Potential", true) and body.Potential:FindFirstChild("Quantity")
@@ -878,10 +875,9 @@ task.spawn(function()
                             end
                         end
                         
-                        -- Kembalikan UI ke kondisi semula (tutup dan balikkan posisinya)
+                        -- Kembalikan UI menjadi tidak terlihat tanpa mengubah posisinya
                         if not isOriginallyVisible then
                             investorsMenu.Visible = false
-                            investorsMenu.Position = originalPosition
                         end
                     end
                 end
@@ -890,9 +886,9 @@ task.spawn(function()
     end
 end)
 
--- LOOP 6: AUTO EVOLVE (GHOSTING UI METHOD)
+-- LOOP 6: AUTO EVOLVE (QUICK FLASH METHOD)
 task.spawn(function()
-    while task.wait(0.5) do
+    while task.wait(2) do
         if Toggles.AutoEvolve then
             pcall(function() 
                 local MyTycoon = GetMyTycoon()
@@ -902,13 +898,11 @@ task.spawn(function()
                     
                     if evoMenu then
                         local isOriginallyVisible = evoMenu.Visible
-                        local originalPosition = evoMenu.Position
                         
-                        -- Jika menu tertutup, lakukan trik Ghosting
+                        -- Buka tutup sekejap
                         if not isOriginallyVisible then
-                            evoMenu.Position = UDim2.new(10, 0, 10, 0)
                             evoMenu.Visible = true
-                            task.wait(0.1) -- Beri waktu update teks
+                            task.wait(0.1) 
                         end
 
                         local body = evoMenu:FindFirstChild("Body")
@@ -928,10 +922,8 @@ task.spawn(function()
                             end
                         end
                         
-                        -- Kembalikan UI Evolve ke kondisi semula
                         if not isOriginallyVisible then
                             evoMenu.Visible = false
-                            evoMenu.Position = originalPosition
                         end
                     end
                 end
@@ -1029,6 +1021,61 @@ task.spawn(function()
                             timeSinceLastForce = 0
                         end
                     end
+                end
+            end
+        end)
+    end
+end)
+
+-- LOOP 10: AUTO BUY POWER (QUICK FLASH METHOD)
+task.spawn(function()
+    local powerNames = {"Manage", "BuyNext", "ClickFruitValue", "UpgradeStack", "WalkSpeed"}
+    local grayColor = Color3.fromRGB(125, 125, 125)
+    
+    while task.wait(2) do -- Pengecekan tiap 2 detik
+        pcall(function()
+            local manageGui = LocalPlayer.PlayerGui:FindFirstChild("Manage")
+            local manageMenu = manageGui and manageGui:FindFirstChild("ManageMenu")
+            
+            if manageMenu then
+                local isOriginallyVisible = manageMenu.Visible
+                
+                -- Buka sekejap untuk update warna
+                if not isOriginallyVisible then
+                    manageMenu.Visible = true
+                    task.wait(0.1) 
+                end
+
+                local powersFrame = manageMenu:FindFirstChild("Body") 
+                    and manageMenu.Body:FindFirstChild("Frame") 
+                    and manageMenu.Body.Frame:FindFirstChild("Powers")
+
+                if powersFrame then
+                    local MyTycoon = GetMyTycoon()
+                    local upgradeRemote = MyTycoon 
+                        and MyTycoon:FindFirstChild("Remotes") 
+                        and MyTycoon.Remotes:FindFirstChild("UpgradePowerLevel")
+
+                    if upgradeRemote and upgradeRemote:IsA("RemoteFunction") then
+                        for _, powerName in ipairs(powerNames) do
+                            local powerNode = powersFrame:FindFirstChild(powerName)
+                            local buyBtn = powerNode and powerNode:FindFirstChild("Buy")
+
+                            if buyBtn and buyBtn:IsA("GuiObject") then
+                                -- Jika warna tombol BUKAN abu-abu
+                                if buyBtn.BackgroundColor3 ~= grayColor then
+                                    pcall(function()
+                                        upgradeRemote:InvokeServer(powerName)
+                                    end)
+                                end
+                            end
+                        end
+                    end
+                end
+                
+                -- Tutup kembali UI
+                if not isOriginallyVisible then
+                    manageMenu.Visible = false
                 end
             end
         end)
