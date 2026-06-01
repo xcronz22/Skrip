@@ -642,29 +642,31 @@ task.spawn(function()
         end
 
         -- AUTO EVOLVE [SIMPLIFIED]
-if Toggles.AutoEvolve then
-    pcall(function()
-        local rebirthGui = LocalPlayer.PlayerGui:FindFirstChild("Rebirth")
-        local evoMenu = rebirthGui and rebirthGui:FindFirstChild("EvolutionMenu")
-        local body = evoMenu and evoMenu:FindFirstChild("Body")
-        local progress = body and body:FindFirstChild("Progress")
+        if Toggles.AutoEvolve then
+            pcall(function()
+                local rebirthGui = LocalPlayer.PlayerGui:FindFirstChild("Rebirth")
+                local evoMenu = rebirthGui and rebirthGui:FindFirstChild("EvolutionMenu")
+                local body = evoMenu and evoMenu:FindFirstChild("Body")
+                local progress = body and body:FindFirstChild("Progress")
 
-        if progress then
-            local percent = tonumber(string.match(progress.Text, "[%d%.]+"))
-            if percent and percent >= 100 then
-                local remotes = MyTycoon:FindFirstChild("Remotes")
-                local evolveRemote = remotes and remotes:FindFirstChild("Evolve")
-                
-                -- Langsung dieksekusi menggunakan InvokeServer
-                if evolveRemote and evolveRemote:IsA("RemoteFunction") then
-                    evolveRemote:InvokeServer()
-                    UpgradeRemotes = {} 
-                    task.wait(2) 
+                if progress then
+                    local percent = tonumber(string.match(progress.Text, "[%d%.]+"))
+                    if percent and percent >= 100 then
+                        local remotes = MyTycoon:FindFirstChild("Remotes")
+                        local evolveRemote = remotes and remotes:FindFirstChild("Evolve")
+                        
+                        -- Langsung dieksekusi menggunakan InvokeServer
+                        if evolveRemote and evolveRemote:IsA("RemoteFunction") then
+                            evolveRemote:InvokeServer()
+                            UpgradeRemotes = {} 
+                            task.wait(2) 
+                        end
+                    end
                 end
-            end
+            end)
         end
-    end)
-end
+    end
+end)
 
 -- LOOP TERPISAH: AUTO DROP
 task.spawn(function()
