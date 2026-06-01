@@ -17,15 +17,15 @@ if CoreGui:FindFirstChild("LemonTycoonGUI") then
 end
 
 -- ==========================================
--- 1. PEMBUATAN UI MOBILE-FRIENDLY (UPDATED SIZE)
+-- 1. PEMBUATAN UI MOBILE-FRIENDLY (EXPANDED FOR BOTH INPUTS)
 -- ==========================================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "LemonTycoonGUI"
 ScreenGui.Parent = CoreGui
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 280, 0, 380) -- Diperpanjang untuk slot input Rebirth
-MainFrame.Position = UDim2.new(0.5, -140, 0.5, -190)
+MainFrame.Size = UDim2.new(0, 280, 0, 420) -- Ditambah tingginya agar muat 2 input box
+MainFrame.Position = UDim2.new(0.5, -140, 0.5, -210)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -36,7 +36,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -70, 0, 35)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "🍋 Lemon Auto V4.5"
+Title.Text = "🍋 Lemon Auto V4.8"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextSize = 16
 Title.Font = Enum.Font.GothamBold
@@ -110,10 +110,12 @@ local Toggles = {
     AutoPhone = false,
     AutoRebirth = false
 }
-local RebirthTarget = 1000
+
+local RebirthMode = "Target" 
+local RebirthValue = 1000
+local UpgradeAmount = 1 -- Nilai default jumlah upgrade sekaligus
 local UpgradeRemotes = {}
 
--- Fungsi pengubah teks (e.g. "197.785 billion" -> Angka Asli)
 local function parseStringToNumber(text)
     if not text then return 0 end
     text = string.lower(string.gsub(text, ",", ""))
@@ -121,12 +123,11 @@ local function parseStringToNumber(text)
     if not numStr then return 0 end
     local num = tonumber(numStr) or 0
     
-    if string.find(text, "billion") or string.find(text, "b") then
-        return num * 1000000000
-    elseif string.find(text, "million") or string.find(text, "m") then
-        return num * 1000000
-    elseif string.find(text, "trillion") or string.find(text, "t") then
-        return num * 1000000000000
+    if string.find(text, "billion") then return num * 1e9
+    elseif string.find(text, "million") then return num * 1e6
+    elseif string.find(text, "trillion") then return num * 1e12
+    elseif string.find(text, "quadrillion") or string.find(text, "qd") then return num * 1e15
+    elseif string.find(text, "quintillion") or string.find(text, "qn") then return num * 1e18
     end
     return num
 end
@@ -156,7 +157,6 @@ local function RefreshUpgradeRemotes()
     end
 end
 
--- Generator Tombol Kontrol GUI
 local function CreateToggle(name, text)
     local Btn = Instance.new("TextButton")
     Btn.Size = UDim2.new(1, 0, 0, 35)
@@ -190,7 +190,7 @@ CreateToggle("AutoUpgrade", "Auto Upgrade Max")
 CreateToggle("AutoPhone", "Auto Answer Phone")
 CreateToggle("AutoRebirth", "Auto Rebirth")
 
--- Pembuatan Input Box Khusus Target Rebirth
+-- INPUT BOX 1: TARGET REBIRTH
 local InputFrame = Instance.new("Frame")
 InputFrame.Size = UDim2.new(1, 0, 0, 40)
 InputFrame.BackgroundTransparency = 1
@@ -221,32 +221,96 @@ UICornerBox.CornerRadius = UDim.new(0, 4)
 UICornerBox.Parent = TextBox
 
 TextBox.FocusLost:Connect(function()
-    local val = parseStringToNumber(TextBox.Text)
-    if val and val > 0 then
-        RebirthTarget = val
+    local input = string.lower(TextBox.Text)
+    if input == "smart" then
+        RebirthMode = "Multiplier"
+        RebirthValue = 2
+        TextBox.Text = "Smart (2x)"
+    elseif string.match(input, "^[%d%.]+x$") then
+        local mult = tonumber(string.match(input, "[%d%.]+"))
+        if mult then
+            RebirthMode = "Multiplier"
+            RebirthValue = mult
+            TextBox.Text = mult .. "x"
+        end
     else
-        TextBox.Text = tostring(RebirthTarget)
+        local val = parseStringToNumber(input)
+        if val and val > 0 then 
+            RebirthMode = "Target"
+            RebirthValue = val 
+            TextBox.Text = tostring(val)
+        else 
+            if RebirthMode == "Multiplier" then TextBox.Text = RebirthValue .. "x" else TextBox.Text = tostring(RebirthValue) end
+        end
     end
 end)
 
+-- INPUT BOX 2: JUMLAH UPGRADE (NEW FITUR ⭐)
+local UpgradeInputFrame = Instance.new("Frame")
+UpgradeInputFrame.Size = UDim2.new(1, 0, 0, 40)
+UpgradeInputFrame.BackgroundTransparency = 1
+UpgradeInputFrame.Parent = Container
+
+local UpgradeInputLabel = Instance.new("TextLabel")
+UpgradeInputLabel.Size = UDim2.new(0.4, 0, 1, 0)
+UpgradeInputLabel.Text = "Jumlah Upgrade:"
+UpgradeInputLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+UpgradeInputLabel.Font = Enum.Font.GothamBold
+UpgradeInputLabel.TextSize = 12
+UpgradeInputLabel.BackgroundTransparency = 1
+UpgradeInputLabel.Parent = UpgradeInputFrame
+
+local UpgradeTextBox = Instance.new("TextBox")
+UpgradeTextBox.Size = UDim2.new(0.55, 0, 0.8, 0)
+UpgradeTextBox.Position = UDim2.new(0.45, 0, 0.1, 0)
+UpgradeTextBox.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+UpgradeTextBox.Text = "1"
+UpgradeTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+UpgradeTextBox.Font = Enum.Font.Gotham
+UpgradeTextBox.TextSize = 12
+UpgradeTextBox.ClearTextOnFocus = false
+UpgradeTextBox.Parent = UpgradeInputFrame
+
+local UICornerUpgradeBox = Instance.new("UICorner")
+UICornerUpgradeBox.CornerRadius = UDim.new(0, 4)
+UICornerUpgradeBox.Parent = UpgradeTextBox
+
+UpgradeTextBox.FocusLost:Connect(function()
+    local val = tonumber(UpgradeTextBox.Text)
+    if val and val > 0 then
+        UpgradeAmount = math.floor(val) -- Ambil angka bulatnya saja
+        UpgradeTextBox.Text = tostring(UpgradeAmount)
+    else
+        -- Jika input salah/kosong, kembalikan ke nilai sebelumnya
+        UpgradeTextBox.Text = tostring(UpgradeAmount)
+    end
+end)
+
+
 -- ==========================================
--- 3. LOOP UTAMA: HARVEST, BUY, UPGRADE, PHONE, REBIRTH
+-- 3. LOOP UTAMA
 -- ==========================================
+local ActiveTycoon = nil 
+
 task.spawn(function()
     while task.wait(0.1) do
         local MyTycoon = GetMyTycoon()
         local char = LocalPlayer.Character
         local rootPart = char and char:FindFirstChild("HumanoidRootPart")
         local humanoid = char and char:FindFirstChild("Humanoid")
+        local isAlive = humanoid and humanoid.Health > 0
 
-        -- CRASH GUARD: Lewati proses fisik jika karakter sedang mati/respawn
-        if not MyTycoon then 
-            UpgradeRemotes = {} -- Kosongkan cache tombol lama saat transisi gedung baru
+        if not isAlive or MyTycoon ~= ActiveTycoon then
+            ActiveTycoon = MyTycoon
+            UpgradeRemotes = {} 
+            task.wait(1) 
             continue 
         end
 
+        if not MyTycoon or not rootPart then continue end
+
         -- AUTO HARVEST
-        if Toggles.AutoHarvest and rootPart and humanoid then
+        if Toggles.AutoHarvest then
             local originalCFrame = rootPart.CFrame
             local hasTeleported = false
 
@@ -298,8 +362,8 @@ task.spawn(function()
             end
         end
             
-        -- AUTO BUY (DENGAN CRASH GUARD ROOTPART)
-        if Toggles.AutoBuy and rootPart then
+        -- AUTO BUY
+        if Toggles.AutoBuy then
             local purchases = MyTycoon:FindFirstChild("Purchases")
             if purchases then
                 for _, purchaseItem in pairs(purchases:GetChildren()) do
@@ -322,21 +386,23 @@ task.spawn(function()
             end
         end
             
-        -- AUTO UPGRADE (ANTI-LAG CACHE REFRESHER)
+        -- AUTO UPGRADE (DYNAMIC AMOUNT INCORPORATED)
         if Toggles.AutoUpgrade then
             if #UpgradeRemotes == 0 then
                 RefreshUpgradeRemotes()
             end
 
-            -- Loop mundur agar aman menghapus remote yang hancur saat Rebirth
             for i = #UpgradeRemotes, 1, -1 do
                 local remote = UpgradeRemotes[i]
                 if remote and remote.Parent then
                     task.spawn(function()
-                        pcall(function() remote:InvokeServer(1) end)
+                        pcall(function() 
+                            -- Menggunakan variabel UpgradeAmount dari Input Box GUI
+                            remote:InvokeServer(UpgradeAmount) 
+                        end)
                     end)
                 else
-                    table.remove(UpgradeRemotes, i) -- Buang data usang dari tabel tanpa crash
+                    table.remove(UpgradeRemotes, i)
                 end
             end
         end
@@ -357,25 +423,42 @@ task.spawn(function()
             end
         end
 
-        -- AUTO REBIRTH (SMART VALUE DETECTOR)
+        -- AUTO REBIRTH
         if Toggles.AutoRebirth then
             local rebirthGui = LocalPlayer.PlayerGui:FindFirstChild("Rebirth")
-            local quantityLabel = rebirthGui and rebirthGui:FindFirstChild("InvestorsMenu", true) 
-                and rebirthGui.InvestorsMenu:FindFirstChild("Body", true)
-                and rebirthGui.InvestorsMenu.Body:FindFirstChild("Potential", true)
-                and rebirthGui.InvestorsMenu.Body.Potential:FindFirstChild("Quantity")
+            local investorsMenu = rebirthGui and rebirthGui:FindFirstChild("InvestorsMenu", true) 
+            local body = investorsMenu and investorsMenu:FindFirstChild("Body")
 
-            if quantityLabel then
-                local currentPotential = parseStringToNumber(quantityLabel.Text)
-                if currentPotential >= RebirthTarget then
-                    local remotes = MyTycoon:FindFirstChild("Remotes")
-                    local rebirthRemote = remotes and remotes:FindFirstChild("Rebirth")
-                    if rebirthRemote then
-                        pcall(function()
-                            rebirthRemote:InvokeServer()
-                        end)
-                        UpgradeRemotes = {} -- Kosongkan list tombol upgrade agar langsung me-refresh di gedung baru
-                        task.wait(2) -- Cooldown proteksi spam setelah rebirth berhasil
+            if body then
+                local potentialLabel = body:FindFirstChild("Potential", true) and body.Potential:FindFirstChild("Quantity")
+                local currentLabel = body:FindFirstChild("Amount", true) and body.Amount:FindFirstChild("Quantity")
+
+                if potentialLabel and currentLabel then
+                    local currentPotential = parseStringToNumber(potentialLabel.Text)
+                    local currentInvestors = parseStringToNumber(currentLabel.Text)
+
+                    local shouldRebirth = false
+                    
+                    if RebirthMode == "Multiplier" then
+                        if currentPotential >= (currentInvestors * RebirthValue) then
+                            shouldRebirth = true
+                        end
+                    elseif RebirthMode == "Target" then
+                        if currentPotential >= RebirthValue then
+                            shouldRebirth = true
+                        end
+                    end
+
+                    if shouldRebirth then
+                        local remotes = MyTycoon:FindFirstChild("Remotes")
+                        local rebirthRemote = remotes and remotes:FindFirstChild("Rebirth")
+                        if rebirthRemote then
+                            pcall(function()
+                                rebirthRemote:InvokeServer()
+                            end)
+                            UpgradeRemotes = {} 
+                            task.wait(2) 
+                        end
                     end
                 end
             end
@@ -386,12 +469,14 @@ end)
 -- LOOP TERPISAH: AUTO DROP
 task.spawn(function()
     while task.wait(0.1) do
-        if Toggles.AutoDrop then
+        local char = LocalPlayer.Character
+        local humanoid = char and char:FindFirstChild("Humanoid")
+        if Toggles.AutoDrop and humanoid and humanoid.Health > 0 then
             local cashDropsFolder = Workspace:FindFirstChild("CashDrops")
             if cashDropsFolder then
                 for _, drop in pairs(cashDropsFolder:GetChildren()) do
                     if drop.Name == "CashDrop" then
-                        local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        local root = char:FindFirstChild("HumanoidRootPart")
                         local touchInterest = drop:FindFirstChild("TouchInterest") or drop:FindFirstChildWhichIsA("TouchTransmitter", true)
                         if root and touchInterest then
                             firetouchinterest(root, touchInterest.Parent, 0)
