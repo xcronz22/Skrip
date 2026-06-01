@@ -459,6 +459,33 @@ end
 
 local isCashVineLooping = false
 
+CreateTapButton("Open All Doors [TAP]", function()
+    pcall(function()
+        local sewer = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Sewer")
+        if sewer then
+            local colors = {"Blue", "Green", "Purple", "Red"}
+            for _, color in ipairs(colors) do
+                local doorFolder = sewer:FindFirstChild("Doors" .. color)
+                if doorFolder then
+                    local lever = doorFolder:FindFirstChild("Lever (" .. color .. ")")
+                    if lever then
+                        local rootPart = lever:FindFirstChild("Root")
+                        if rootPart then
+                            local attach = rootPart:FindFirstChild("Attachment")
+                            if attach then
+                                local prompt = attach:FindFirstChild("PullPrompt")
+                                if prompt and prompt:IsA("ProximityPrompt") then
+                                    fireproximityprompt(prompt)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end)
+end)
+
  CreateTapButton("Auto Sewer [TAP]", function()
     local char = LocalPlayer.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
