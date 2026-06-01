@@ -20,7 +20,7 @@ local Toggles = {
 }
 
 local RebirthMode = "Target" 
-local RebirthValue = 1000
+local RebirthValue = "Smart (2x)"
 local UpgradeAmount = 1
 local UpgradeRemotes = {}
 local UI_Buttons = {}
@@ -327,7 +327,7 @@ UICornerBox.Parent = TextBox
 
 TextBox.FocusLost:Connect(function()
     local input = string.lower(TextBox.Text)
-    if input == "smart" or "2x" then
+    if input == "smart" and "2x" then
         RebirthMode = "Multiplier"
         RebirthValue = 2
         TextBox.Text = "Smart (2x)"
