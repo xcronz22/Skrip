@@ -78,7 +78,7 @@ ScreenGui.Name = "LemonTycoonGUI"
 ScreenGui.Parent = CoreGui
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 280, 0, 460)
+MainFrame.Size = UDim2.new(0, 280, 0, 520) -- Diperpanjang untuk mengakomodasi tombol baru
 MainFrame.Position = UDim2.new(0.5, -140, 0.5, -230)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MainFrame.BorderSizePixel = 0
@@ -429,6 +429,186 @@ UpgradeTextBox.FocusLost:Connect(function()
     end
 end)
 
+-- ==========================================
+-- 5. BUTTON SEWER & DOORS (TAP FUNCTIONS)
+-- ==========================================
+local function CreateTapButton(text, callback)
+    local Btn = Instance.new("TextButton")
+    Btn.Size = UDim2.new(1, 0, 0, 35)
+    Btn.BackgroundColor3 = Color3.fromRGB(60, 100, 160)
+    Btn.Text = text
+    Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Btn.Font = Enum.Font.GothamBold
+    Btn.TextSize = 13
+    Btn.Parent = Container
+    
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 5)
+    Corner.Parent = Btn
+
+    Btn.MouseButton1Click:Connect(function()
+        Btn.Text = "⏳ Processing..."
+        task.spawn(function()
+            pcall(callback)
+            task.wait(1)
+            Btn.Text = text
+        end)
+    end)
+    return Btn
+end
+
+local isCashVineLooping = false
+
+CreateTapButton("Open All Doors [TAP]", function()
+    pcall(function()
+        local sewer = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Sewer")
+        if sewer then
+            local colors = {"Blue", "Green", "Purple", "Red"}
+            for _, color in ipairs(colors) do
+                local doorFolder = sewer:FindFirstChild("Doors" .. color)
+                if doorFolder then
+                    local lever = doorFolder:FindFirstChild("Lever (" .. color .. ")")
+                    if lever then
+                        local rootPart = lever:FindFirstChild("Root")
+                        if rootPart then
+                            local attach = rootPart:FindFirstChild("Attachment")
+                            if attach then
+                                local prompt = attach:FindFirstChild("PullPrompt")
+                                if prompt and prompt:IsA("ProximityPrompt") then
+                                    fireproximityprompt(prompt)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end)
+end)
+
+CreateTapButton("Auto Sewer [TAP]", function()
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    local sewer = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Sewer")
+    if not sewer then return end
+
+    -- 1. Trigger SewerAlien Pertama
+    pcall(function()
+        local alienFolder = sewer:FindFirstChild("SewerAlien")
+        if alienFolder then
+            local trig = alienFolder:FindFirstChild("Trigger")
+            if trig and trig:IsA("RemoteFunction") then trig:InvokeServer() end
+            
+            local listenP = alienFolder:FindFirstChild("ListenPrompt") and alienFolder.ListenPrompt:FindFirstChild("ListenPrompt")
+            if listenP then fireproximityprompt(listenP) end
+            
+            local ufoKey = alienFolder:FindFirstChild("UFOKey")
+            if ufoKey then
+                local ti = ufoKey:FindFirstChild("TouchInterest")
+                if ti then
+                    firetouchinterest(root, ufoKey, 0)
+                    firetouchinterest(root, ufoKey, 1)
+                end
+                local coll = ufoKey:FindFirstChild("Collected")
+                if coll and coll:IsA("RemoteEvent") then coll:FireServer() end
+            end
+
+            -- TP menuju Alien jika prasyarat pintu telah dibuka sebelumnya (Open All Doors)
+            local alienHum = alienFolder:FindFirstChild("Alien")
+            if alienHum and alienHum:FindFirstChild("HumanoidRootPart") then
+                root.CFrame = alienHum.HumanoidRootPart.CFrame
+                task.wait(0.5)
+            end
+        end
+    end)
+
+    -- 2. Temukan dan Interaksi dengan Alien Tersembunyi di DoorsGreen
+    pcall(function()
+        local doorsGreen = sewer:FindFirstChild("DoorsGreen")
+        if doorsGreen then
+            for _, desc in pairs(doorsGreen:GetDescendants()) do
+                if desc:IsA("Humanoid") then
+                    local alienModel = desc.Parent
+                    local alienRoot = alienModel:FindFirstChild("HumanoidRootPart")
+                    if alienRoot then
+                        root.CFrame = alienRoot.CFrame
+                        task.wait(0.5)
+                    end
+                    local prompt = alienModel:FindFirstChild("ListenPrompt", true) or alienModel:FindFirstChildWhichIsA("ProximityPrompt", true)
+                    if prompt then fireproximityprompt(prompt) end
+                    break -- Berhenti di penemuan pertama
+                end
+            end
+        end
+    end)
+
+    -- 3. Buka Kunci Penjara CashVine Sekali
+    pcall(function()
+        local cvFolder = sewer:FindFirstChild("CashVine")
+        if cvFolder then
+            local vineKey = cvFolder:FindFirstChild("VineKey")
+            if vineKey then
+                local ti = vineKey:FindFirstChild("TouchInterest")
+                if ti then
+                    firetouchinterest(root, vineKey, 0)
+                    firetouchinterest(root, vineKey, 1)
+                end
+                local coll = vineKey:FindFirstChild("Collected")
+                if coll and coll:IsA("RemoteEvent") then coll:FireServer() end
+            end
+
+            local unlock = cvFolder:FindFirstChild("VineDoor") and cvFolder.VineDoor:FindFirstChild("Door") and cvFolder.VineDoor.Door:FindFirstChild("Unlock")
+            if unlock and unlock:IsA("RemoteFunction") then
+                unlock:InvokeServer()
+            end
+        end
+    end)
+
+    -- 4. Inisiasi Loop Auto CashVine Berkelanjutan (Berjalan di Background)
+    if not isCashVineLooping then
+        isCashVineLooping = true
+        task.spawn(function()
+            while task.wait(5) do
+                pcall(function()
+                    local currSewer = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Sewer")
+                    if not currSewer then return end
+                    
+                    local cvFolder = currSewer:FindFirstChild("CashVine")
+                    if cvFolder then
+                        local cvModel = cvFolder:FindFirstChild("CashVine")
+                        if cvModel then
+                            local cvMesh = cvModel:FindFirstChild("CashVine")
+                            if cvMesh then
+                                local attach = cvMesh:FindFirstChild("Attachment")
+                                local label = attach and attach:FindFirstChild("Gui") and attach.Gui:FindFirstChild("Label")
+                                
+                                -- Interaksi otomatis jika status READY 
+                                if label and label.Text == "READY" then
+                                    local useFunc = cvModel:FindFirstChild("Use")
+                                    if useFunc and useFunc:IsA("RemoteFunction") then
+                                        useFunc:InvokeServer()
+                                    end
+                                    
+                                    local prompt = attach:FindFirstChild("Prompt")
+                                    if prompt and prompt:IsA("ProximityPrompt") then
+                                        fireproximityprompt(prompt)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end)
+            end
+        end)
+    end
+end)
+
+-- ==========================================
+-- 6. FULLY SHIELDED MULTI-THREAD ENGINE (V5.6)
+-- ==========================================
+
 local function SyncLoadedDataToUI()
     for _, def in pairs(ToggleDefinitions) do
         local btn = UI_Buttons[def.Name]
@@ -461,10 +641,6 @@ LocalPlayer.Idled:Connect(function()
     pcall(function() VirtualUser:CaptureController() VirtualUser:ClickButton2(Vector2.new()) end)
 end)
 
--- ==========================================
--- 6. FULLY SHIELDED MULTI-THREAD ENGINE (V5.6)
--- ==========================================
-
 -- LOOP 1: AUTO HARVEST (PERBAIKAN ANTI-NYANGKUT)
 task.spawn(function()
     while task.wait(0.1) do
@@ -478,7 +654,7 @@ task.spawn(function()
                 if MyTycoon and rootPart and humanoid and humanoid.Health > 0 then
                     local originalCFrame = rootPart.CFrame
                     local hasTeleported = false
-                    local stopFarming = false -- Bendera Rem Halus
+                    local stopFarming = false 
 
                     for i = 1, 12 do
                         if not Toggles.AutoHarvest or stopFarming then break end 
@@ -527,7 +703,6 @@ task.spawn(function()
                         end
                     end
                     
-                    -- BLOK KODE INI SEKARANG AKAN SELALU DIEKSEKUSI (Karakter dipulangkan ke asal)
                     if hasTeleported and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character:FindFirstChild("Humanoid") then
                         task.wait(0.2)
                         LocalPlayer.Character.Humanoid.PlatformStand = false
@@ -583,10 +758,10 @@ task.spawn(function()
     end
 end)
 
--- LOOP 3: MODIFIKASI BARU (AUTO UPGRADE + ULTRA FAST AUTO CLICK 0.04 DETIK BERGILIRAN)
+-- LOOP 3: AUTO UPGRADE
 local lastScanTime = 0
 local clickTargets = {"LemonDepot", "LemonLabs", "LemonRepublic", "LemonRobotics", "LemonStand", "LemonTrading", "LemonDash", "LemonX"}
-local clickIndex = 1 -- Penanda giliran
+local clickIndex = 1 
 
 task.spawn(function()
     while task.wait(0.04) do 
@@ -595,29 +770,24 @@ task.spawn(function()
                 local MyTycoon = GetMyTycoon()
                 if MyTycoon then
                     
-                    -- [ FITUR BARU: Auto Click Stream (Sistem Gilir / Satu per Satu) ]
                     local remotes = MyTycoon:FindFirstChild("Remotes")
                     local wakeRemote = remotes and remotes:FindFirstChild("WakeIncomeStream")
                     
                     if wakeRemote and wakeRemote:IsA("RemoteFunction") then
-                        -- Ambil SATU target sesuai urutan saat ini
                         local targetName = clickTargets[clickIndex]
                         
-                        -- Panggil target tersebut di thread terpisah (agar tidak membuat nyangkut/lag)
                         task.spawn(function()
                             pcall(function() 
                                 wakeRemote:InvokeServer(targetName) 
                             end)
                         end)
                         
-                        -- Pindah ke target berikutnya untuk eksekusi 0.04 detik selanjutnya
                         clickIndex = clickIndex + 1
                         if clickIndex > #clickTargets then
-                            clickIndex = 1 -- Kembali ke awal jika sudah mencapai LemonX
+                            clickIndex = 1 
                         end
                     end
 
-                    -- [ Logika Auto Upgrade Max Bawaan Asli ]
                     if #UpgradeRemotes == 0 or (tick() - lastScanTime) > 5 then
                         RefreshUpgradeRemotes()
                         lastScanTime = tick()
