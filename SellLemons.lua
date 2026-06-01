@@ -5,7 +5,7 @@ local CoreGui = game:GetService("CoreGui")
 local VirtualUser = game:GetService("VirtualUser")
 local HttpService = game:GetService("HttpService")
 
-local FILE_NAME = "LemonConfigV54.json"
+local FILE_NAME = "LemonConfigV55.json"
 
 -- ==========================================
 -- 0. DEFAULT CONFIGURATION & STORAGE
@@ -36,7 +36,6 @@ local ToggleDefinitions = {
     {Name = "AutoEvolve", Text = "Auto Evolve"}
 }
 
--- FUNCTIONS: MANUAL SAVE & LOAD SYSTEM
 local function SaveConfig()
     local configData = {
         Toggles = Toggles,
@@ -91,7 +90,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -70, 0, 35)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "🍋 Lemon Auto V5.4"
+Title.Text = "🍋 Lemon Auto V5.5"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextSize = 16
 Title.Font = Enum.Font.GothamBold
@@ -147,14 +146,12 @@ Container.Position = UDim2.new(0, 10, 0, 40)
 Container.BackgroundTransparency = 1
 Container.ScrollBarThickness = 3
 Container.CanvasSize = UDim2.new(0, 0, 0, 0)
--- Dihapus AutomaticCanvasSize untuk diganti manual kalkulasi
 Container.Parent = MainFrame
 
 local UIListLayout = Instance.new("UIListLayout")
 UIListLayout.Padding = UDim.new(0, 8)
 UIListLayout.Parent = Container
 
--- FIX SCROLL: Manual Canvas Size Calculation
 UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     Container.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 20)
 end)
@@ -215,48 +212,47 @@ local Multipliers = {
 local function parseStringToNumber(text)
     if not text then return 0 end
     text = string.lower(string.gsub(text, ",", "")) 
-    
     local numStr = string.match(text, "[%d%.]+") 
     if not numStr then return 0 end
     local num = tonumber(numStr) or 0
-    
     local suffixStr = string.match(text, "[a-z]+") 
-    if suffixStr and Multipliers[suffixStr] then
-        return num * Multipliers[suffixStr]
-    end
-    
+    if suffixStr and Multipliers[suffixStr] then return num * Multipliers[suffixStr] end
     return num
 end
 
+-- PCALL SHIELD: Melindungi fungsi pencarian Tycoon dari error objek hilang
 local function GetMyTycoon()
-    for i = 1, 12 do
-        local tycoon = Workspace:FindFirstChild("Tycoon" .. i)
-        if tycoon then
-            local owner = tycoon:FindFirstChild("Owner")
-            if owner and (tostring(owner.Value) == LocalPlayer.Name or owner.Value == LocalPlayer) then
-                return tycoon
+    local foundTycoon = nil
+    pcall(function()
+        for i = 1, 12 do
+            local tycoon = Workspace:FindFirstChild("Tycoon" .. i)
+            if tycoon then
+                local owner = tycoon:FindFirstChild("Owner")
+                if owner and (tostring(owner.Value) == LocalPlayer.Name or owner.Value == LocalPlayer) then
+                    foundTycoon = tycoon
+                end
             end
         end
-    end
-    return nil
+    end)
+    return foundTycoon
 end
 
 local function RefreshUpgradeRemotes()
-    local MyTycoon = GetMyTycoon()
-    if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
-        local tempTable = {}
-        for _, desc in pairs(MyTycoon.Purchases:GetDescendants()) do
-            if desc:IsA("RemoteFunction") and desc.Name == "Upgrade" then
-                table.insert(tempTable, desc)
+    pcall(function()
+        local MyTycoon = GetMyTycoon()
+        if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
+            local tempTable = {}
+            for _, desc in pairs(MyTycoon.Purchases:GetDescendants()) do
+                if desc:IsA("RemoteFunction") and desc.Name == "Upgrade" then
+                    table.insert(tempTable, desc)
+                end
             end
+            UpgradeRemotes = tempTable
         end
-        UpgradeRemotes = tempTable
-    end
+    end)
 end
 
-LocalPlayer.CharacterAdded:Connect(function()
-    UpgradeRemotes = {}
-end)
+LocalPlayer.CharacterAdded:Connect(function() UpgradeRemotes = {} end)
 
 -- ==========================================
 -- 3. UI ELEMENTS: SAVE/LOAD BUTTONS
@@ -397,7 +393,7 @@ UpgradeInputLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 UpgradeInputLabel.Font = Enum.Font.GothamBold
 UpgradeInputLabel.TextSize = 12
 UpgradeInputLabel.BackgroundTransparency = 1
-UpgradeInputLabel.Parent = UpgradeInputFrame -- FIX TYPO DISINI
+UpgradeInputLabel.Parent = UpgradeInputFrame
 
 local UpgradeTextBox = Instance.new("TextBox")
 UpgradeTextBox.Size = UDim2.new(0.55, 0, 0.8, 0)
@@ -424,9 +420,6 @@ UpgradeTextBox.FocusLost:Connect(function()
     end
 end)
 
--- ==========================================
--- 5. BUTTON FUNCTIONALITIES (SAVE/LOAD SYNC)
--- ==========================================
 local function SyncLoadedDataToUI()
     for _, def in pairs(ToggleDefinitions) do
         local btn = UI_Buttons[def.Name]
@@ -452,158 +445,163 @@ local function SyncLoadedDataToUI()
     UpgradeTextBox.Text = tostring(UpgradeAmount)
 end
 
-SaveBtn.MouseButton1Click:Connect(function()
-    SaveConfig()
-    SaveBtn.Text = "✅ Saved!"
-    task.wait(1)
-    SaveBtn.Text = "💾 Save"
-end)
+SaveBtn.MouseButton1Click:Connect(function() SaveConfig() SaveBtn.Text = "✅ Saved!" task.wait(1) SaveBtn.Text = "💾 Save" end)
+LoadBtn.MouseButton1Click:Connect(function() LoadConfig() SyncLoadedDataToUI() LoadBtn.Text = "✅ Loaded!" task.wait(1) LoadBtn.Text = "📂 Load" end)
 
-LoadBtn.MouseButton1Click:Connect(function()
-    LoadConfig()
-    SyncLoadedDataToUI()
-    LoadBtn.Text = "✅ Loaded!"
-    task.wait(1)
-    LoadBtn.Text = "📂 Load"
-end)
-
--- ANTI-AFK ENGINE
 LocalPlayer.Idled:Connect(function()
-    pcall(function()
-        VirtualUser:CaptureController()
-        VirtualUser:ClickButton2(Vector2.new())
-    end)
+    pcall(function() VirtualUser:CaptureController() VirtualUser:ClickButton2(Vector2.new()) end)
 end)
 
 -- ==========================================
--- 6. INDEPENDENT MULTI-THREAD ENGINE (V5.4)
+-- 6. FULLY SHIELDED MULTI-THREAD ENGINE (V5.5)
 -- ==========================================
 
 -- LOOP 1: AUTO HARVEST
 task.spawn(function()
     while task.wait(0.1) do
         if Toggles.AutoHarvest then
-            local MyTycoon = GetMyTycoon()
-            local char = LocalPlayer.Character
-            local rootPart = char and char:FindFirstChild("HumanoidRootPart")
-            local humanoid = char and char:FindFirstChild("Humanoid")
-            
-            if MyTycoon and rootPart and humanoid and humanoid.Health > 0 then
-                local originalCFrame = rootPart.CFrame
-                local hasTeleported = false
+            pcall(function() -- PCALL SHIELD UTAMA
+                local MyTycoon = GetMyTycoon()
+                local char = LocalPlayer.Character
+                local rootPart = char and char:FindFirstChild("HumanoidRootPart")
+                local humanoid = char and char:FindFirstChild("Humanoid")
+                
+                if MyTycoon and rootPart and humanoid and humanoid.Health > 0 then
+                    local originalCFrame = rootPart.CFrame
+                    local hasTeleported = false
 
-                for i = 1, 12 do
-                    if not Toggles.AutoHarvest then break end
-                    local tycoon = Workspace:FindFirstChild("Tycoon" .. i)
-                    if tycoon then
-                        local constantFolder = tycoon:FindFirstChild("Constant")
-                        if constantFolder and constantFolder:FindFirstChild("Trees") then
-                            for _, tree in pairs(constantFolder.Trees:GetChildren()) do
-                                if not Toggles.AutoHarvest then break end
-                                if tree.Name == "LemonTree" then
-                                    local readyFruits = {}
-                                    for _, part in pairs(tree:GetChildren()) do
-                                        if part.Name == "Fruit" then
-                                            local clickDetector = part:FindFirstChildWhichIsA("ClickDetector", true)
-                                            if clickDetector then table.insert(readyFruits, {Part = part, CD = clickDetector}) end
-                                        end
-                                    end
-
-                                    if #readyFruits > 0 then
-                                        hasTeleported = true
-                                        humanoid.PlatformStand = true 
-                                        rootPart.CFrame = CFrame.new(readyFruits[1].Part.Position - Vector3.new(0, 15, 0)) * CFrame.Angles(math.rad(90), 0, 0)
-                                        task.wait(0.2) 
-                                        while #readyFruits > 0 and Toggles.AutoHarvest and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") do
-                                            for _, fruitData in pairs(readyFruits) do
-                                                if fruitData.Part and fruitData.Part.Parent then fireclickdetector(fruitData.CD) end
+                    for i = 1, 12 do
+                        if not Toggles.AutoHarvest then return end
+                        local tycoon = Workspace:FindFirstChild("Tycoon" .. i)
+                        if tycoon then
+                            local constantFolder = tycoon:FindFirstChild("Constant")
+                            if constantFolder and constantFolder:FindFirstChild("Trees") then
+                                for _, tree in pairs(constantFolder.Trees:GetChildren()) do
+                                    if not Toggles.AutoHarvest then return end
+                                    if tree.Name == "LemonTree" then
+                                        local readyFruits = {}
+                                        for _, part in pairs(tree:GetChildren()) do
+                                            if part.Name == "Fruit" then
+                                                local clickDetector = part:FindFirstChildWhichIsA("ClickDetector", true)
+                                                if clickDetector then table.insert(readyFruits, {Part = part, CD = clickDetector}) end
                                             end
-                                            task.wait(0.1) 
-                                            readyFruits = {}
-                                            for _, part in pairs(tree:GetChildren()) do
-                                                if part.Name == "Fruit" and part:FindFirstChildWhichIsA("ClickDetector", true) then
-                                                    table.insert(readyFruits, {Part = part, CD = part:FindFirstChildWhichIsA("ClickDetector", true)})
+                                        end
+
+                                        if #readyFruits > 0 then
+                                            hasTeleported = true
+                                            humanoid.PlatformStand = true 
+                                            rootPart.CFrame = CFrame.new(readyFruits[1].Part.Position - Vector3.new(0, 15, 0)) * CFrame.Angles(math.rad(90), 0, 0)
+                                            task.wait(0.2) 
+                                            while #readyFruits > 0 and Toggles.AutoHarvest and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") do
+                                                for _, fruitData in pairs(readyFruits) do
+                                                    pcall(function() -- SHIELD EXTRA
+                                                        if fruitData.Part and fruitData.Part.Parent then fireclickdetector(fruitData.CD) end
+                                                    end)
+                                                end
+                                                task.wait(0.1) 
+                                                readyFruits = {}
+                                                for _, part in pairs(tree:GetChildren()) do
+                                                    if part.Name == "Fruit" and part:FindFirstChildWhichIsA("ClickDetector", true) then
+                                                        table.insert(readyFruits, {Part = part, CD = part:FindFirstChildWhichIsA("ClickDetector", true)})
+                                                    end
                                                 end
                                             end
+                                            task.wait(0.1)
                                         end
-                                        task.wait(0.1)
                                     end
                                 end
                             end
                         end
                     end
+                    if hasTeleported and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character:FindFirstChild("Humanoid") then
+                        task.wait(0.2)
+                        LocalPlayer.Character.Humanoid.PlatformStand = false
+                        LocalPlayer.Character.HumanoidRootPart.CFrame = originalCFrame
+                    end
                 end
-                if hasTeleported and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character:FindFirstChild("Humanoid") then
-                    task.wait(0.2)
-                    LocalPlayer.Character.Humanoid.PlatformStand = false
-                    LocalPlayer.Character.HumanoidRootPart.CFrame = originalCFrame
-                end
-            end
+            end)
         end
     end
 end)
 
--- LOOP 2: AUTO BUY
+-- LOOP 2: AUTO BUY (Anti-Crash)
 task.spawn(function()
     while task.wait(0.1) do
         if Toggles.AutoBuy then
-            local MyTycoon = GetMyTycoon()
-            local char = LocalPlayer.Character
-            local rootPart = char and char:FindFirstChild("HumanoidRootPart")
-            
-            if MyTycoon and rootPart then
-                local purchases = MyTycoon:FindFirstChild("Purchases")
-                if purchases then
-                    for _, purchaseItem in pairs(purchases:GetChildren()) do
-                        if not Toggles.AutoBuy then break end
-                        local buttonsFolder = purchaseItem:FindFirstChild("Buttons")
-                        if buttonsFolder then
-                            for _, item in pairs(buttonsFolder:GetDescendants()) do
-                                if not Toggles.AutoBuy then break end
-                                if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
-                                    if item.Parent then
-                                        firetouchinterest(rootPart, item.Parent, 0)
-                                        task.wait(0.01)
-                                        firetouchinterest(rootPart, item.Parent, 1)
-                                    end
-                                elseif item:IsA("ProximityPrompt") then
-                                    fireproximityprompt(item)
+            pcall(function() -- PCALL SHIELD
+                local MyTycoon = GetMyTycoon()
+                local char = LocalPlayer.Character
+                local rootPart = char and char:FindFirstChild("HumanoidRootPart")
+                
+                if MyTycoon and rootPart then
+                    local purchases = MyTycoon:FindFirstChild("Purchases")
+                    if purchases then
+                        local purchaseItems = purchases:GetChildren()
+                        for _, purchaseItem in pairs(purchaseItems) do
+                            if not Toggles.AutoBuy then return end
+                            local buttonsFolder = purchaseItem:FindFirstChild("Buttons")
+                            if buttonsFolder then
+                                local buttons = buttonsFolder:GetDescendants()
+                                for _, item in pairs(buttons) do
+                                    if not Toggles.AutoBuy then return end
+                                    pcall(function() -- SHIELD DOUBLE-CHECK VALIDATION
+                                        if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
+                                            local target = item.Parent
+                                            if target then
+                                                firetouchinterest(rootPart, target, 0)
+                                                task.wait(0.01)
+                                                -- Cek LAGI setelah wait, inilah kunci anti-macetnya!
+                                                if target and target.Parent then 
+                                                    firetouchinterest(rootPart, target, 1)
+                                                end
+                                            end
+                                        elseif item:IsA("ProximityPrompt") then
+                                            fireproximityprompt(item)
+                                        end
+                                    end)
                                 end
                             end
                         end
                     end
                 end
-            end
+            end)
         end
     end
 end)
 
--- LOOP 3: FIXED AUTO UPGRADE
+-- LOOP 3: AUTO UPGRADE
 local lastScanTime = 0
 task.spawn(function()
     while task.wait(0.04) do 
         if Toggles.AutoUpgrade then
-            local MyTycoon = GetMyTycoon()
-            if MyTycoon then
-                if #UpgradeRemotes == 0 or (tick() - lastScanTime) > 5 then
-                    RefreshUpgradeRemotes()
-                    lastScanTime = tick()
-                end
+            pcall(function() -- PCALL SHIELD
+                local MyTycoon = GetMyTycoon()
+                if MyTycoon then
+                    if #UpgradeRemotes == 0 or (tick() - lastScanTime) > 5 then
+                        RefreshUpgradeRemotes()
+                        lastScanTime = tick()
+                    end
 
-                for i = #UpgradeRemotes, 1, -1 do
-                    if not Toggles.AutoUpgrade then break end
-                    local remote = UpgradeRemotes[i]
-                    if remote and remote.Parent then
-                        task.spawn(function()
-                            pcall(function() 
-                                remote:InvokeServer(UpgradeAmount) 
+                    for i = #UpgradeRemotes, 1, -1 do
+                        if not Toggles.AutoUpgrade then return end
+                        local remote = UpgradeRemotes[i]
+                        
+                        -- Cek validasi dengan aman tanpa error
+                        local isValid = false
+                        pcall(function() if remote and remote.Parent then isValid = true end end)
+
+                        if isValid then
+                            task.spawn(function()
+                                pcall(function() 
+                                    remote:InvokeServer(UpgradeAmount) 
+                                end)
                             end)
-                        end)
-                    else
-                        table.remove(UpgradeRemotes, i)
+                        else
+                            table.remove(UpgradeRemotes, i)
+                        end
                     end
                 end
-            end
+            end)
         end
     end
 end)
@@ -612,21 +610,23 @@ end)
 task.spawn(function()
     while task.wait(0.5) do
         if Toggles.AutoPhone then
-            local MyTycoon = GetMyTycoon()
-            if MyTycoon then
-                local phoneGui = LocalPlayer.PlayerGui:FindFirstChild("Phone")
-                local phoneFrame = phoneGui and phoneGui:FindFirstChild("Phone")
-                if phoneFrame and phoneFrame.Visible then
-                    local remotes = MyTycoon:FindFirstChild("Remotes")
-                    if remotes and remotes:FindFirstChild("PhoneOffer") then
-                        task.wait(3)
-                        pcall(function() remotes.PhoneOffer:FireServer("Raise") end)
-                        task.wait(3)
-                        pcall(function() remotes.PhoneOffer:FireServer("Accept") end)
-                        task.wait(2)
+            pcall(function() -- PCALL SHIELD
+                local MyTycoon = GetMyTycoon()
+                if MyTycoon then
+                    local phoneGui = LocalPlayer.PlayerGui:FindFirstChild("Phone")
+                    local phoneFrame = phoneGui and phoneGui:FindFirstChild("Phone")
+                    if phoneFrame and phoneFrame.Visible then
+                        local remotes = MyTycoon:FindFirstChild("Remotes")
+                        if remotes and remotes:FindFirstChild("PhoneOffer") then
+                            task.wait(3)
+                            pcall(function() remotes.PhoneOffer:FireServer("Raise") end)
+                            task.wait(3)
+                            pcall(function() remotes.PhoneOffer:FireServer("Accept") end)
+                            task.wait(2)
+                        end
                     end
                 end
-            end
+            end)
         end
     end
 end)
@@ -635,46 +635,46 @@ end)
 task.spawn(function()
     while task.wait(0.5) do
         if Toggles.AutoRebirth then
-            local MyTycoon = GetMyTycoon()
-            if MyTycoon then
-                local rebirthGui = LocalPlayer.PlayerGui:FindFirstChild("Rebirth")
-                local investorsMenu = rebirthGui and rebirthGui:FindFirstChild("InvestorsMenu", true) 
-                local body = investorsMenu and investorsMenu:FindFirstChild("Body")
+            pcall(function() -- PCALL SHIELD
+                local MyTycoon = GetMyTycoon()
+                if MyTycoon then
+                    local rebirthGui = LocalPlayer.PlayerGui:FindFirstChild("Rebirth")
+                    local investorsMenu = rebirthGui and rebirthGui:FindFirstChild("InvestorsMenu", true) 
+                    local body = investorsMenu and investorsMenu:FindFirstChild("Body")
 
-                if body then
-                    local potentialLabel = body:FindFirstChild("Potential", true) and body.Potential:FindFirstChild("Quantity")
-                    local currentLabel = body:FindFirstChild("Amount", true) and body.Amount:FindFirstChild("Quantity")
+                    if body then
+                        local potentialLabel = body:FindFirstChild("Potential", true) and body.Potential:FindFirstChild("Quantity")
+                        local currentLabel = body:FindFirstChild("Amount", true) and body.Amount:FindFirstChild("Quantity")
 
-                    if potentialLabel and currentLabel then
-                        local currentPotential = parseStringToNumber(potentialLabel.Text)
-                        local currentInvestors = parseStringToNumber(currentLabel.Text)
+                        if potentialLabel and currentLabel then
+                            local currentPotential = parseStringToNumber(potentialLabel.Text)
+                            local currentInvestors = parseStringToNumber(currentLabel.Text)
 
-                        local shouldRebirth = false
-                        
-                        if RebirthMode == "Multiplier" then
-                            if currentPotential >= (currentInvestors * RebirthValue) then
-                                shouldRebirth = true
+                            local shouldRebirth = false
+                            
+                            if RebirthMode == "Multiplier" then
+                                if currentPotential >= (currentInvestors * RebirthValue) then
+                                    shouldRebirth = true
+                                end
+                            elseif RebirthMode == "Target" then
+                                if currentPotential >= RebirthValue then
+                                    shouldRebirth = true
+                                end
                             end
-                        elseif RebirthMode == "Target" then
-                            if currentPotential >= RebirthValue then
-                                shouldRebirth = true
-                            end
-                        end
 
-                        if shouldRebirth then
-                            local remotes = MyTycoon:FindFirstChild("Remotes")
-                            local rebirthRemote = remotes and remotes:FindFirstChild("Rebirth")
-                            if rebirthRemote then
-                                pcall(function()
-                                    rebirthRemote:InvokeServer()
-                                end)
-                                UpgradeRemotes = {} 
-                                task.wait(2) 
+                            if shouldRebirth then
+                                local remotes = MyTycoon:FindFirstChild("Remotes")
+                                local rebirthRemote = remotes and remotes:FindFirstChild("Rebirth")
+                                if rebirthRemote then
+                                    pcall(function() rebirthRemote:InvokeServer() end)
+                                    UpgradeRemotes = {} 
+                                    task.wait(2) 
+                                end
                             end
                         end
                     end
                 end
-            end
+            end)
         end
     end
 end)
@@ -683,9 +683,9 @@ end)
 task.spawn(function()
     while task.wait(0.5) do
         if Toggles.AutoEvolve then
-            local MyTycoon = GetMyTycoon()
-            if MyTycoon then
-                pcall(function()
+            pcall(function() -- PCALL SHIELD
+                local MyTycoon = GetMyTycoon()
+                if MyTycoon then
                     local rebirthGui = LocalPlayer.PlayerGui:FindFirstChild("Rebirth")
                     local evoMenu = rebirthGui and rebirthGui:FindFirstChild("EvolutionMenu")
                     local body = evoMenu and evoMenu:FindFirstChild("Body")
@@ -698,14 +698,14 @@ task.spawn(function()
                             local evolveRemote = remotes and remotes:FindFirstChild("Evolve")
                             
                             if evolveRemote and evolveRemote:IsA("RemoteFunction") then
-                                evolveRemote:InvokeServer()
+                                pcall(function() evolveRemote:InvokeServer() end)
                                 UpgradeRemotes = {} 
                                 task.wait(2) 
                             end
                         end
                     end
-                end)
-            end
+                end
+            end)
         end
     end
 end)
@@ -714,23 +714,27 @@ end)
 task.spawn(function()
     while task.wait(0.1) do
         if Toggles.AutoDrop then
-            local char = LocalPlayer.Character
-            local humanoid = char and char:FindFirstChild("Humanoid")
-            if humanoid and humanoid.Health > 0 then
-                local cashDropsFolder = Workspace:FindFirstChild("CashDrops")
-                if cashDropsFolder then
-                    for _, drop in pairs(cashDropsFolder:GetChildren()) do
-                        if drop.Name == "CashDrop" then
-                            local root = char:FindFirstChild("HumanoidRootPart")
-                            local touchInterest = drop:FindFirstChild("TouchInterest") or drop:FindFirstChildWhichIsA("TouchTransmitter", true)
-                            if root and touchInterest then
-                                firetouchinterest(root, touchInterest.Parent, 0)
-                                firetouchinterest(root, touchInterest.Parent, 1)
+            pcall(function() -- PCALL SHIELD
+                local char = LocalPlayer.Character
+                local humanoid = char and char:FindFirstChild("Humanoid")
+                if humanoid and humanoid.Health > 0 then
+                    local cashDropsFolder = Workspace:FindFirstChild("CashDrops")
+                    if cashDropsFolder then
+                        for _, drop in pairs(cashDropsFolder:GetChildren()) do
+                            if drop.Name == "CashDrop" then
+                                local root = char:FindFirstChild("HumanoidRootPart")
+                                local touchInterest = drop:FindFirstChild("TouchInterest") or drop:FindFirstChildWhichIsA("TouchTransmitter", true)
+                                if root and touchInterest then
+                                    pcall(function() 
+                                        firetouchinterest(root, touchInterest.Parent, 0)
+                                        firetouchinterest(root, touchInterest.Parent, 1)
+                                    end)
+                                end
                             end
                         end
                     end
                 end
-            end
+            end)
         end
     end
 end)
