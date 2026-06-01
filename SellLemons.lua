@@ -823,61 +823,46 @@ task.spawn(function()
     end
 end)
 
--- LOOP 5: AUTO REBIRTH (QUICK FLASH METHOD)
+-- LOOP 5: AUTO REBIRTH
 task.spawn(function()
-    while task.wait(2) do -- Dicek setiap 2 detik agar kedipan tidak membuat pusing
+    while task.wait(0.5) do
         if Toggles.AutoRebirth then
             pcall(function() 
                 local MyTycoon = GetMyTycoon()
                 if MyTycoon then
                     local rebirthGui = LocalPlayer.PlayerGui:FindFirstChild("Rebirth")
-                    local investorsMenu = rebirthGui and rebirthGui:FindFirstChild("InvestorsMenu", true)
-                    
-                    if investorsMenu then
-                        local isOriginallyVisible = investorsMenu.Visible
-                        
-                        -- Buka tutup sekejap di posisi aslinya
-                        if not isOriginallyVisible then
-                            investorsMenu.Visible = true
-                            task.wait(0.1) -- Beri waktu 0.1 detik agar angka ter-update
-                        end
+                    local investorsMenu = rebirthGui and rebirthGui:FindFirstChild("InvestorsMenu", true) 
+                    local body = investorsMenu and investorsMenu:FindFirstChild("Body")
 
-                        local body = investorsMenu:FindFirstChild("Body")
-                        if body then
-                            local potentialLabel = body:FindFirstChild("Potential", true) and body.Potential:FindFirstChild("Quantity")
-                            local currentLabel = body:FindFirstChild("Amount", true) and body.Amount:FindFirstChild("Quantity")
+                    if body then
+                        local potentialLabel = body:FindFirstChild("Potential", true) and body.Potential:FindFirstChild("Quantity")
+                        local currentLabel = body:FindFirstChild("Amount", true) and body.Amount:FindFirstChild("Quantity")
 
-                            if potentialLabel and currentLabel then
-                                local currentPotential = parseStringToNumber(potentialLabel.Text)
-                                local currentInvestors = parseStringToNumber(currentLabel.Text)
+                        if potentialLabel and currentLabel then
+                            local currentPotential = parseStringToNumber(potentialLabel.Text)
+                            local currentInvestors = parseStringToNumber(currentLabel.Text)
 
-                                local shouldRebirth = false
-                                
-                                if RebirthMode == "Multiplier" then
-                                    if currentPotential >= (currentInvestors * RebirthValue) then
-                                        shouldRebirth = true
-                                    end
-                                elseif RebirthMode == "Target" then
-                                    if currentPotential >= RebirthValue then
-                                        shouldRebirth = true
-                                    end
+                            local shouldRebirth = false
+                            
+                            if RebirthMode == "Multiplier" then
+                                if currentPotential >= (currentInvestors * RebirthValue) then
+                                    shouldRebirth = true
                                 end
-
-                                if shouldRebirth then
-                                    local remotes = MyTycoon:FindFirstChild("Remotes")
-                                    local rebirthRemote = remotes and remotes:FindFirstChild("Rebirth")
-                                    if rebirthRemote then
-                                        pcall(function() rebirthRemote:InvokeServer() end)
-                                        UpgradeRemotes = {} 
-                                        task.wait(2) 
-                                    end
+                            elseif RebirthMode == "Target" then
+                                if currentPotential >= RebirthValue then
+                                    shouldRebirth = true
                                 end
                             end
-                        end
-                        
-                        -- Kembalikan UI menjadi tidak terlihat tanpa mengubah posisinya
-                        if not isOriginallyVisible then
-                            investorsMenu.Visible = false
+
+                            if shouldRebirth then
+                                local remotes = MyTycoon:FindFirstChild("Remotes")
+                                local rebirthRemote = remotes and remotes:FindFirstChild("Rebirth")
+                                if rebirthRemote then
+                                    pcall(function() rebirthRemote:InvokeServer() end)
+                                    UpgradeRemotes = {} 
+                                    task.wait(2) 
+                                end
+                            end
                         end
                     end
                 end
@@ -886,44 +871,29 @@ task.spawn(function()
     end
 end)
 
--- LOOP 6: AUTO EVOLVE (QUICK FLASH METHOD)
+-- LOOP 6: AUTO EVOLVE
 task.spawn(function()
-    while task.wait(2) do
+    while task.wait(0.5) do
         if Toggles.AutoEvolve then
             pcall(function() 
                 local MyTycoon = GetMyTycoon()
                 if MyTycoon then
                     local rebirthGui = LocalPlayer.PlayerGui:FindFirstChild("Rebirth")
-                    local evoMenu = rebirthGui and rebirthGui:FindFirstChild("EvolutionMenu", true)
-                    
-                    if evoMenu then
-                        local isOriginallyVisible = evoMenu.Visible
-                        
-                        -- Buka tutup sekejap
-                        if not isOriginallyVisible then
-                            evoMenu.Visible = true
-                            task.wait(0.1) 
-                        end
+                    local evoMenu = rebirthGui and rebirthGui:FindFirstChild("EvolutionMenu")
+                    local body = evoMenu and evoMenu:FindFirstChild("Body")
+                    local progress = body and body:FindFirstChild("Progress")
 
-                        local body = evoMenu:FindFirstChild("Body")
-                        local progress = body and body:FindFirstChild("Progress")
-
-                        if progress then
-                            local percent = tonumber(string.match(progress.Text, "[%d%.]+"))
-                            if percent and percent >= 100 then
-                                local remotes = MyTycoon:FindFirstChild("Remotes")
-                                local evolveRemote = remotes and remotes:FindFirstChild("Evolve")
-                                
-                                if evolveRemote and evolveRemote:IsA("RemoteFunction") then
-                                    pcall(function() evolveRemote:InvokeServer() end)
-                                    UpgradeRemotes = {} 
-                                    task.wait(2) 
-                                end
+                    if progress then
+                        local percent = tonumber(string.match(progress.Text, "[%d%.]+"))
+                        if percent and percent >= 100 then
+                            local remotes = MyTycoon:FindFirstChild("Remotes")
+                            local evolveRemote = remotes and remotes:FindFirstChild("Evolve")
+                            
+                            if evolveRemote and evolveRemote:IsA("RemoteFunction") then
+                                pcall(function() evolveRemote:InvokeServer() end)
+                                UpgradeRemotes = {} 
+                                task.wait(2) 
                             end
-                        end
-                        
-                        if not isOriginallyVisible then
-                            evoMenu.Visible = false
                         end
                     end
                 end
