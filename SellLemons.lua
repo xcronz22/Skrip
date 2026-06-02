@@ -160,6 +160,7 @@ end)
 -- 2. ENGINE VALUE CONVERTER & UTILITIES
 -- ==========================================
 local Multipliers = {
+    -- === RIBUAN SAMPAI NONILLION (1e3 - 1e30) ===
     ["k"] = 1e3, ["thousand"] = 1e3,
     ["m"] = 1e6, ["million"] = 1e6,
     ["b"] = 1e9, ["billion"] = 1e9,
@@ -170,44 +171,176 @@ local Multipliers = {
     ["sp"] = 1e24, ["septillion"] = 1e24,
     ["o"] = 1e27, ["octillion"] = 1e27,
     ["n"] = 1e30, ["nonillion"] = 1e30,
+
+    -- === DECILLION SAMPAI NOVEMDECILLION (1e33 - 1e60) ===
     ["d"] = 1e33, ["decillion"] = 1e33,
     ["ud"] = 1e36, ["undecillion"] = 1e36,
     ["dd"] = 1e39, ["duodecillion"] = 1e39,
     ["td"] = 1e42, ["tredecillion"] = 1e42,
-    ["qad"]= 1e45, ["quattuordecillion"] = 1e45,
-    ["qid"]= 1e48, ["quindecillion"] = 1e48,
-    ["sxd"]= 1e51, ["sexdecillion"] = 1e51,
-    ["spd"]= 1e54, ["septendecillion"] = 1e54,
-    ["odc"]= 1e57, ["octodecillion"] = 1e57,
-    ["ndc"]= 1e60, ["novemdecillion"] = 1e60,
-    ["v"]  = 1e63, ["vigintillion"] = 1e63,
+    ["qtd"] = 1e45, ["quattuordecillion"] = 1e45,
+    ["qnd"] = 1e48, ["quindecillion"] = 1e48,
+    ["sxd"] = 1e51, ["sexdecillion"] = 1e51,
+    ["spd"] = 1e54, ["septendecillion"] = 1e54,
+    ["od"] = 1e57, ["octodecillion"] = 1e57,
+    ["nd"] = 1e60, ["novemdecillion"] = 1e60,
+
+    -- === VIGINTILLION SAMPAI NOVEMVIGINTILLION (1e63 - 1e90) ===
+    ["v"] = 1e63, ["vigintillion"] = 1e63,
     ["uv"] = 1e66, ["unvigintillion"] = 1e66,
     ["dv"] = 1e69, ["duovigintillion"] = 1e69,
-    ["tv"] = 1e72, ["trevigintillion"] = 1e72,
-    ["qav"]= 1e75, ["quattuorvigintillion"] = 1e75,
-    ["qiv"]= 1e78, ["quinvigintillion"] = 1e78,
-    ["sxv"]= 1e81, ["sexvigintillion"] = 1e81,
-    ["spv"]= 1e84, ["septenvigintillion"] = 1e84,
-    ["ocv"]= 1e87, ["octovigintillion"] = 1e87,
-    ["nov"]= 1e90, ["novemvigintillion"] = 1e90,
+    ["tv"] = 1e72, ["trevingtillion"] = 1e72,
+    ["qtv"] = 1e75, ["quattuorvigintillion"] = 1e75,
+    ["qnv"] = 1e78, ["quinvigintillion"] = 1e78,
+    ["sxv"] = 1e81, ["sexvigintillion"] = 1e81,
+    ["spv"] = 1e84, ["septenvigintillion"] = 1e84,
+    ["ov"] = 1e87, ["octovigintillion"] = 1e87,
+    ["nv"] = 1e90, ["novemvigintillion"] = 1e90,
+
+    -- === TRIGINTILLION SAMPAI NOVEMTRIGINTILLION (1e93 - 1e120) ===
     ["tg"] = 1e93, ["trigintillion"] = 1e93,
-    ["utg"]= 1e96, ["untrigintillion"] = 1e96,
-    ["dtg"]= 1e99, ["duotrigintillion"] = 1e99,
-    ["ttg"]= 1e102, ["tretrigintillion"] = 1e102,
-    ["qatg"]=1e105, ["quattuortrigintillion"] = 1e105,
-    ["qitg"]=1e108, ["quintrigintillion"] = 1e108,
-    ["sxtg"]=1e111, ["sextrigintillion"] = 1e111,
-    ["sptg"]=1e114, ["septentrigintillion"] = 1e114,
-    ["otg"]= 1e117, ["octotrigintillion"] = 1e117,
-    ["notg"]=1e120, ["novemtrigintillion"] = 1e120,
-    ["qag"]= 1e123, ["quadragintillion"] = 1e123,
-    ["qig"]= 1e153, ["quinquagintillion"] = 1e153,
-    ["sxg"]= 1e183, ["sexagintillion"] = 1e183,
-    ["spg"]= 1e213, ["septuagintillion"] = 1e213,
-    ["ocg"]= 1e243, ["octogintillion"] = 1e243,
-    ["nog"]= 1e273, ["nonagintillion"] = 1e273,
-    ["c"]  = 1e303, ["centillion"] = 1e303
+    ["utg"] = 1e96, ["untrigintillion"] = 1e96,
+    ["dtg"] = 1e99, ["duotrigintillion"] = 1e99,
+    ["ttg"] = 1e102, ["tretrigintillion"] = 1e102,
+    ["qtg"] = 1e105, ["quattuortrigintillion"] = 1e105,
+    ["qng"] = 1e108, ["quintrigintillion"] = 1e108,
+    ["sxg"] = 1e111, ["sextrigintillion"] = 1e111,
+    ["spg"] = 1e114, ["septentrigintillion"] = 1e114,
+    ["otg"] = 1e117, ["octotrigintillion"] = 1e117,
+    ["ntg"] = 1e120, ["novemtrigintillion"] = 1e120,
+
+    -- === QUADRAGINTILLION SAMPAI NOVEMQUADRAGINTILLION (1e123 - 1e150) ===
+    ["qag"] = 1e123, ["quadragintillion"] = 1e123,
+    ["uqag"] = 1e126, ["unquadragintillion"] = 1e126,
+    ["dqag"] = 1e129, ["duoquadragintillion"] = 1e129,
+    ["tqag"] = 1e132, ["trequadragintillion"] = 1e132,
+    ["qqag"] = 1e135, ["quattuorquadragintillion"] = 1e135,
+    ["qqg"] = 1e138, ["quinquadragintillion"] = 1e138,
+    ["sxqg"] = 1e141, ["sexquadragintillion"] = 1e141,
+    ["spqg"] = 1e144, ["septenquadragintillion"] = 1e144,
+    ["oqg"] = 1e147, ["octoquadragintillion"] = 1e147,
+    ["nqg"] = 1e150, ["novemquadragintillion"] = 1e150,
+
+    -- === QUINQUAGINTILLION SAMPAI NOVEMQUINQUAGINTILLION (1e153 - 1e180) ===
+    ["qig"] = 1e153, ["quinquagintillion"] = 1e153,
+    ["uqig"] = 1e156, ["unquinquagintillion"] = 1e156,
+    ["dqig"] = 1e159, ["duoquinquagintillion"] = 1e159,
+    ["tqig"] = 1e162, ["trequinquagintillion"] = 1e162,
+    ["qqig"] = 1e165, ["quattuorquinquagintillion"] = 1e165,
+    ["qnqg"] = 1e168, ["quinquinquagintillion"] = 1e168,
+    ["sxqig"] = 1e171, ["sexquinquagintillion"] = 1e171,
+    ["spqig"] = 1e174, ["septenquinquagintillion"] = 1e174,
+    ["oqig"] = 1e177, ["octoquinquagintillion"] = 1e177,
+    ["nqig"] = 1e180, ["novemquinquagintillion"] = 1e180,
+
+    -- === SEXAGINTILLION SAMPAI NOVEMSEXAGINTILLION (1e183 - 1e210) ===
+    ["sxa"] = 1e183, ["sexagintillion"] = 1e183,
+    ["usxa"] = 1e186, ["unsexagintillion"] = 1e186,
+    ["dsxa"] = 1e189, ["duosexagintillion"] = 1e189,
+    ["tsxa"] = 1e192, ["tresexagintillion"] = 1e192,
+    ["qsxa"] = 1e195, ["quattuorsexagintillion"] = 1e195,
+    ["qnsxa"] = 1e198, ["quinsexagintillion"] = 1e198,
+    ["sxsxa"] = 1e201, ["sexsexagintillion"] = 1e201,
+    ["spsxa"] = 1e204, ["septensexagintillion"] = 1e204,
+    ["osxa"] = 1e207, ["octosexagintillion"] = 1e207,
+    ["nsxa"] = 1e210, ["novemsexagintillion"] = 1e210,
+
+    -- === SEPTUAGINTILLION SAMPAI NOVEMSEPTUAGINTILLION (1e213 - 1e240) ===
+    ["spg_alt"] = 1e213, ["septuagintillion"] = 1e213,
+    ["uspg"] = 1e216, ["unseptuagintillion"] = 1e216,
+    ["dspg"] = 1e219, ["duoseptuagintillion"] = 1e219,
+    ["tspg"] = 1e222, ["treseptuagintillion"] = 1e222,
+    ["qspg"] = 1e225, ["quattuorseptuagintillion"] = 1e225,
+    ["qnspg"] = 1e228, ["quinseptuagintillion"] = 1e228,
+    ["sxspg"] = 1e231, ["sexseptuagintillion"] = 1e231,
+    ["spspg"] = 1e234, ["septenseptuagintillion"] = 1e234,
+    ["ospg"] = 1e237, ["octoseptuagintillion"] = 1e237,
+    ["nspg"] = 1e240, ["novemseptuagintillion"] = 1e240,
+
+    -- === OCTOGINTILLION SAMPAI NOVEMOCTOGINTILLION (1e243 - 1e270) ===
+    ["ocg"] = 1e243, ["octogintillion"] = 1e243,
+    ["uocg"] = 1e246, ["unoctogintillion"] = 1e246,
+    ["docg"] = 1e249, ["duooctogintillion"] = 1e249,
+    ["tocg"] = 1e252, ["treoctogintillion"] = 1e252,
+    ["qocg"] = 1e255, ["quattuoroctogintillion"] = 1e255,
+    ["qnocg"] = 1e258, ["quinoctogintillion"] = 1e258,
+    ["sxocg"] = 1e261, ["sexoctogintillion"] = 1e261,
+    ["spocg"] = 1e264, ["septenoctogintillion"] = 1e264,
+    ["oocg"] = 1e267, ["octooctogintillion"] = 1e267,
+    ["nocg"] = 1e270, ["novemoctogintillion"] = 1e270,
+
+    -- === NONAGINTILLION SAMPAI CENTILLION (1e273 - 1e303) ===
+    ["nog"] = 1e273, ["nonagintillion"] = 1e273,
+    ["unog"] = 1e276, ["unnonagintillion"] = 1e276,
+    ["dnog"] = 1e279, ["duononagintillion"] = 1e279,
+    ["tnog"] = 1e282, ["trenonagintillion"] = 1e282,
+    ["qnog"] = 1e285, ["quattuornonagintillion"] = 1e285,
+    ["qnnog"] = 1e288, ["quinnonagintillion"] = 1e288,
+    ["sxnog"] = 1e291, ["sexnonagintillion"] = 1e291,
+    ["spnog"] = 1e294, ["septennonagintillion"] = 1e294,
+    ["onog"] = 1e297, ["octononagintillion"] = 1e297,
+    ["nnog"] = 1e300, ["novemnonagintillion"] = 1e300,
+    ["cen"] = 1e303, ["centillion"] = 1e303,
 }
+
+-- FUNGSI UNTUK MEMBONGKAR TEKS ANGKA (BIASA, SUFFIX, MAUPUN EKSPO PONEN ^)
+local function CleanAndParse(textStr)
+    if not textStr or textStr == "" then return 0, 0 end
+    
+    -- Ubah ke huruf kecil dan buang simbol seperti $, koma, atau spasi
+    local clean = string.lower(textStr):gsub("[$,%s]", "")
+    
+    -- FORMAT 1: Eksponen Ilmiah (Contoh: 15.5x10^14139 atau 1.5^14139)
+    local base, exp = string.match(clean, "([%d%.]+)x10%^(%d+)")
+    if not base then
+        base, exp = string.match(clean, "([%d%.]+)%^(%d+)")
+    end
+    if base and exp then
+        return tonumber(base), tonumber(exp) -- Mengembalikan angka utama dan jumlah pangkatnya
+    end
+    
+    -- FORMAT 2: Suffix Huruf Biasa (Contoh: 16.005qqg atau 10m)
+    local num, suffix = string.match(clean, "([%d%.]+)([%a_]+)")
+    if num and suffix and Multipliers[suffix] then
+        -- Kita konversi ke format ilmiah buatan biar adil saat dibandingin
+        local realValue = tonumber(num) * Multipliers[suffix]
+        local log10 = math.log10(realValue)
+        local e = math.floor(log10)
+        local b = realValue / (10^e)
+        return b, e
+    end
+    
+    -- FORMAT 3: Angka Polos Biasa (Contoh: 1250)
+    local plainNum = tonumber(clean:match("[%d%.]+")) or 0
+    if plainNum > 0 then
+        local e = math.floor(math.log10(plainNum))
+        local b = plainNum / (10^e)
+        return b, e
+    end
+    
+    return 0, 0
+end
+
+-- FUNGSI PERBANDINGAN PINTAR (ANTI BUG 'INF')
+local function IsPotentialEnough(basePot, expPot, baseCur, expCur, targetMultiplier)
+    -- Target multiplier contohnya 2 (artinya 2x lipat dari current)
+    local targetBase = baseCur * targetMultiplier
+    local targetExp = expCur
+    
+    -- Normalisasi jika targetBase melebihi atau sama dengan 10
+    while targetBase >= 10 do
+        targetBase = targetBase / 10
+        targetExp = targetExp + 1
+    end
+    
+    -- Bandingkan pangkatnya dulu, baru angka utamanya
+    if expPot > targetExp then
+        return true
+    end
+    if expPot == targetExp and basePot >= targetBase then
+        return true
+    end
+    return false
+end
 
 local function parseStringToNumber(text)
     if not text then return 0 end
@@ -835,46 +968,65 @@ task.spawn(function()
     end
 end)
 
--- LOOP 5: AUTO REBIRTH
+-- LOOP 5: SMART AUTO REBIRTH (DEX PATH + GHOST FLASHING VERSION)
 task.spawn(function()
-    while task.wait(0.5) do
+    while task.wait(0.5) do -- Mengecek setiap 0.5 detik agar responsif
         if Toggles.AutoRebirth then
-            pcall(function() 
-                local MyTycoon = GetMyTycoon()
-                if MyTycoon then
-                    local rebirthGui = LocalPlayer.PlayerGui:FindFirstChild("Rebirth")
-                    local investorsMenu = rebirthGui and rebirthGui:FindFirstChild("InvestorsMenu", true) 
+            pcall(function()
+                local player = game:GetService("Players").LocalPlayer
+                local playerGui = player:FindFirstChild("PlayerGui")
+                
+                if playerGui then
+                    -- Menggunakan jalur pasti dari hasil temuan Dex Explorer kamu
+                    local rebirthGui = playerGui:FindFirstChild("Rebirth")
+                    local investorsMenu = rebirthGui and rebirthGui:FindFirstChild("InvestorsMenu")
                     local body = investorsMenu and investorsMenu:FindFirstChild("Body")
-
-                    if body then
-                        local potentialLabel = body:FindFirstChild("Potential", true) and body.Potential:FindFirstChild("Quantity")
-                        local currentLabel = body:FindFirstChild("Amount", true) and body.Amount:FindFirstChild("Quantity")
-
-                        if potentialLabel and currentLabel then
-                            local currentPotential = parseStringToNumber(potentialLabel.Text)
-                            local currentInvestors = parseStringToNumber(currentLabel.Text)
-
-                            local shouldRebirth = false
+                    
+                    local potentialObj = body and body:FindFirstChild("Potential") and body.Potential:FindFirstChild("Quantity")
+                    local amountObj = body and body:FindFirstChild("Amount") and body.Amount:FindFirstChild("Quantity")
+                    
+                    if potentialObj and amountObj and investorsMenu then
+                        
+                        -- ==========================================
+                        -- TRIK ANTI-MEMBEKU (GHOST FLASHING)
+                        -- ==========================================
+                        local originalVisible = investorsMenu.Visible
+                        if not investorsMenu.Visible then
+                            investorsMenu.Visible = true
+                            task.wait(0.05) -- Jeda super mikro agar LocalScript game memperbarui teks Quantity
+                        end
+                        
+                        -- Membaca teks ter-update yang sudah dipaksa segar
+                        local potentialText = potentialObj.Text
+                        local amountText = amountObj.Text
+                        
+                        -- Kembalikan visibilitas menu ke kondisi semula agar tidak mengganggu layar
+                        if investorsMenu.Visible ~= originalVisible then
+                            investorsMenu.Visible = originalVisible
+                        end
+                        
+                        -- ==========================================
+                        -- PROSES STRIP & HITUNG ANGKA RAKSASA
+                        -- ==========================================
+                        local basePot, expPot = CleanAndParse(potentialText)
+                        local baseCur, expCur = CleanAndParse(amountText)
+                        
+                        -- Mengecek apakah Potensi sudah >= 2x lipat dari Current Investor
+                        if IsPotentialEnough(basePot, expPot, baseCur, expCur, 2) then
                             
-                            if RebirthMode == "Multiplier" then
-                                if currentPotential >= (currentInvestors * RebirthValue) then
-                                    shouldRebirth = true
-                                end
-                            elseif RebirthMode == "Target" then
-                                if currentPotential >= RebirthValue then
-                                    shouldRebirth = true
-                                end
+                            local MyTycoon = GetMyTycoon()
+                            local remotes = MyTycoon and MyTycoon:FindFirstChild("Remotes")
+                            local rebirthRemote = remotes and remotes:FindFirstChild("Rebirth")
+                            
+                            if rebirthRemote and rebirthRemote:IsA("RemoteFunction") then
+                                task.spawn(function()
+                                    pcall(function() 
+                                        rebirthRemote:InvokeServer()
+                                        UpgradeRemotes = {} -- Reset cache upgrade setelah sukses rebirth
+                                    end)
+                                end)
                             end
-
-                            if shouldRebirth then
-                                local remotes = MyTycoon:FindFirstChild("Remotes")
-                                local rebirthRemote = remotes and remotes:FindFirstChild("Rebirth")
-                                if rebirthRemote then
-                                    pcall(function() rebirthRemote:InvokeServer() end)
-                                    UpgradeRemotes = {} 
-                                    task.wait(2) 
-                                end
-                            end
+                            
                         end
                     end
                 end
