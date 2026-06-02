@@ -979,7 +979,7 @@ task.spawn(function()
                     end
 
                     -- ==========================================
-                    -- [2] AUTO UPGRADE MAX (BERJALAN TIAP 0.04 DETIK)
+                    -- [2] AUTO UPGRADE MAX (TRIK ANGKA RAKSASA)
                     -- ==========================================
                     if #UpgradeRemotes == 0 or (tick() - lastScanTime) > 5 then
                         RefreshUpgradeRemotes()
@@ -996,7 +996,9 @@ task.spawn(function()
                         if isValid then
                             task.spawn(function()
                                 pcall(function() 
-                                    remote:InvokeServer(UpgradeAmount) 
+                                    -- KITA GANTI Variabel UpgradeAmount jadi angka 999999
+                                    -- Server otomatis akan membeli MAX sesuai kapasitas uangmu!
+                                    remote:InvokeServer(999999) 
                                 end)
                             end)
                         else
