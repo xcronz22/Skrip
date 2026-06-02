@@ -698,7 +698,7 @@ end)
 
 -- LOOP 2: AUTO BUY (Anti-Crash)
 task.spawn(function()
-    while task.wait(0.1) do
+    while task.wait(0.5) do
         if Toggles.AutoBuy then
             pcall(function() 
                 local MyTycoon = GetMyTycoon()
@@ -721,7 +721,7 @@ task.spawn(function()
                                             local target = item.Parent
                                             if target then
                                                 firetouchinterest(rootPart, target, 0)
-                                                task.wait(0.01)
+                                                task.wait(0.5)
                                                 if target and target.Parent then 
                                                     firetouchinterest(rootPart, target, 1)
                                                 end
@@ -810,11 +810,11 @@ task.spawn(function()
                     if phoneFrame and phoneFrame.Visible then
                         local remotes = MyTycoon:FindFirstChild("Remotes")
                         if remotes and remotes:FindFirstChild("PhoneOffer") then
-                            task.wait(3)
+                            task.wait(0.5)
                             pcall(function() remotes.PhoneOffer:FireServer("Raise") end)
-                            task.wait(3)
+                            task.wait(0.5)
                             pcall(function() remotes.PhoneOffer:FireServer("Accept") end)
-                            task.wait(2)
+                            task.wait(0.5)
                         end
                     end
                 end
