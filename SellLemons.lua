@@ -739,7 +739,7 @@ CreateTapButton("Auto Sewer [TAP]", function()
                     local prompt = alienModel:FindFirstChild("ListenPrompt", true) or alienModel:FindFirstChildWhichIsA("ProximityPrompt", true)
                     if prompt then 
                         fireproximityprompt(prompt)
-                        task.wait(15) -- << JEDA DI SINI AGAR TIDAK STUCK DI BO
+                        task.wait(10) -- << JEDA DI SINI AGAR TIDAK STUCK DI BO
                     end
                     break 
                 end
@@ -768,7 +768,7 @@ CreateTapButton("Auto Sewer [TAP]", function()
             end
         end
         -- Menunggu pintu dibuka jika baru pertama kali
-        task.wait(15)
+        task.wait(10)
     end)
 
     -- 4. Eksekusi ProximityPrompt Sewer Bo
