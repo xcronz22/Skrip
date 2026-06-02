@@ -886,7 +886,7 @@ task.spawn(function()
                     end
                     
                     if hasTeleported and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character:FindFirstChild("Humanoid") then
-                        task.wait(0.2)
+                        task.wait(0.02)
                         LocalPlayer.Character.Humanoid.PlatformStand = false
                         LocalPlayer.Character.HumanoidRootPart.CFrame = originalCFrame
                     end
