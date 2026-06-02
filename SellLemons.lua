@@ -871,30 +871,24 @@ task.spawn(function()
     end
 end)
 
--- LOOP 6: AUTO EVOLVE
+-- LOOP 6: AUTO EVOLVE (BLIND FIRE METHOD)
 task.spawn(function()
-    while task.wait(0.5) do
+    while task.wait(5) do
         if Toggles.AutoEvolve then
             pcall(function() 
                 local MyTycoon = GetMyTycoon()
                 if MyTycoon then
-                    local rebirthGui = LocalPlayer.PlayerGui:FindFirstChild("Rebirth")
-                    local evoMenu = rebirthGui and rebirthGui:FindFirstChild("EvolutionMenu")
-                    local body = evoMenu and evoMenu:FindFirstChild("Body")
-                    local progress = body and body:FindFirstChild("Progress")
-
-                    if progress then
-                        local percent = tonumber(string.match(progress.Text, "[%d%.]+"))
-                        if percent and percent >= 100 then
-                            local remotes = MyTycoon:FindFirstChild("Remotes")
-                            local evolveRemote = remotes and remotes:FindFirstChild("Evolve")
-                            
-                            if evolveRemote and evolveRemote:IsA("RemoteFunction") then
-                                pcall(function() evolveRemote:InvokeServer() end)
-                                UpgradeRemotes = {} 
-                                task.wait(2) 
-                            end
-                        end
+                    local remotes = MyTycoon:FindFirstChild("Remotes")
+                    local evolveRemote = remotes and remotes:FindFirstChild("Evolve")
+                    
+                    if evolveRemote and evolveRemote:IsA("RemoteFunction") then
+                        -- Tembak langsung!
+                        task.spawn(function()
+                            pcall(function() 
+                                evolveRemote:InvokeServer() 
+                                UpgradeRemotes = {}
+                            end)
+                        end)
                     end
                 end
             end)
