@@ -1058,9 +1058,24 @@ task.spawn(function()
                         local basePot, expPot = CleanAndParse(potentialText)
                         local baseCur, expCur = CleanAndParse(amountText)
                         
-                        -- Mengecek apakah Potensi sudah >= 2x lipat dari Current Investor
-                        if IsPotentialEnough(basePot, expPot, baseCur, expCur, 2) then
-                            
+                        -- Mengecek sesuai settingan UI (Multiplier atau Target)
+local shouldRebirth = false
+
+if RebirthMode == "Multiplier" then
+    shouldRebirth = IsPotentialEnough(basePot, expPot, baseCur, expCur, RebirthValue)
+elseif RebirthMode == "Target" then
+    -- Konversi RebirthValue (angka biasa) ke format eksponen untuk dibandingin
+    local targetBase, targetExp = CleanAndParse(tostring(RebirthValue))
+    
+    -- Kalau Potential >= Target, maka rebirth
+    if expPot > targetExp then
+        shouldRebirth = true
+    elseif expPot == targetExp and basePot >= targetBase then
+        shouldRebirth = true
+    end
+end
+
+if shouldRebirth then
                             local MyTycoon = GetMyTycoon()
                             local remotes = MyTycoon and MyTycoon:FindFirstChild("Remotes")
                             local rebirthRemote = remotes and remotes:FindFirstChild("Rebirth")
