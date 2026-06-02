@@ -765,6 +765,19 @@ CreateTapButton("Auto Sewer [TAP]", function()
             end
         end
     end)
+
+    -- ==========================================================
+    -- 4. TAMBAHAN BARU: Eksekusi ProximityPrompt Sewer Bo
+    -- ==========================================================
+    pcall(function()
+        local bo = sewer:FindFirstChild("Bo")
+        local promptFolder = bo and bo:FindFirstChild("Prompt")
+        local thePrompt = promptFolder and promptFolder:FindFirstChild("Prompt")
+
+        if thePrompt and thePrompt:IsA("ProximityPrompt") then
+            fireproximityprompt(thePrompt)
+        end
+    end)
 end)
 
 -- ==========================================
