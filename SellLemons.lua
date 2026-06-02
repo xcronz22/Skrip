@@ -1089,29 +1089,7 @@ task.spawn(function()
     end
 end)
 
--- LOOP 8: AUTO CLOSE ALERT (FIXED BACKGROUND BUG)
-task.spawn(function()
-    while task.wait(0.5) do
-        pcall(function()
-            local importantGui = LocalPlayer.PlayerGui:FindFirstChild("Important")
-            if importantGui then
-                local alertFolder = importantGui:FindFirstChild("Alert")
-                -- Kita cek Alert-nya secara keseluruhan, bukan cuma Main
-                if alertFolder and alertFolder.Visible then
-                    alertFolder.Visible = false -- Ini akan menghilangkan kotak peringatan SEKALIGUS layar gelapnya
-                end
-                
-                -- Sebagai pengaman ekstra, jika Important itu sendiri menggunakan Enabled
-                if importantGui:IsA("ScreenGui") and importantGui.Enabled and alertFolder and not alertFolder.Visible then
-                    -- Biarkan game yang mengatur, atau kita bisa force Important.Enabled = false jika masih nge-bug
-                    -- Tapi menutup Alert.Visible = false biasanya sudah cukup 100%
-                end
-            end
-        end)
-    end
-end)
-
--- LOOP 9: AUTO CASHVINE (BACKGROUND)
+-- LOOP 8: AUTO CASHVINE (BACKGROUND)
 task.spawn(function()
     local timeSinceLastForce = 0 
     
@@ -1155,7 +1133,7 @@ task.spawn(function()
     end
 end)
 
--- LOOP 10: AUTO BUY POWER (CLEAN REMOTE METHOD)
+-- LOOP 9: AUTO BUY POWER (CLEAN REMOTE METHOD)
 task.spawn(function()
     local powerNames = {"Manage", "BuyNext", "ClickFruitValue", "UpgradeStack", "WalkSpeed"}
     
