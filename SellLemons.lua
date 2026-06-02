@@ -1059,23 +1059,33 @@ task.spawn(function()
                         local baseCur, expCur = CleanAndParse(amountText)
                         
                         -- Mengecek sesuai settingan UI (Multiplier atau Target)
-local shouldRebirth = false
+                        local shouldRebirth = false
 
-if RebirthMode == "Multiplier" then
-    shouldRebirth = IsPotentialEnough(basePot, expPot, baseCur, expCur, RebirthValue)
-elseif RebirthMode == "Target" then
-    -- Konversi RebirthValue (angka biasa) ke format eksponen untuk dibandingin
-    local targetBase, targetExp = CleanAndParse(tostring(RebirthValue))
-    
-    -- Kalau Potential >= Target, maka rebirth
-    if expPot > targetExp then
-        shouldRebirth = true
-    elseif expPot == targetExp and basePot >= targetBase then
-        shouldRebirth = true
-    end
-end
+                        if RebirthMode == "Multiplier" then
+                            local multiplier = tonumber(RebirthValue) or 2
+                            shouldRebirth = IsPotentialEnough(basePot, expPot, baseCur, expCur, multiplier)
+                            
+                        elseif RebirthMode == "Target" then
+                            -- Konversi RebirthValue secara matematis ke format base & exp (Sangat Aman)
+                            local rVal = tonumber(RebirthValue) or 0
+                            local targetBase = 0
+                            local targetExp = 0
+                            
+                            if rVal > 0 then
+                                targetExp = math.floor(math.log10(rVal))
+                                targetBase = rVal / (10^targetExp)
+                            end
+                            
+                            -- Kalau Potential >= Target, maka rebirth
+                            if expPot > targetExp then
+                                shouldRebirth = true
+                            elseif expPot == targetExp and basePot >= targetBase then
+                                shouldRebirth = true
+                            end
+                        end
 
-if shouldRebirth then
+                        -- Eksekusi Rebirth
+                        if shouldRebirth then
                             local MyTycoon = GetMyTycoon()
                             local remotes = MyTycoon and MyTycoon:FindFirstChild("Remotes")
                             local rebirthRemote = remotes and remotes:FindFirstChild("Rebirth")
