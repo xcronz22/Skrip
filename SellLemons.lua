@@ -954,9 +954,9 @@ task.spawn(function()
                 if MyTycoon then
                     
                     -- ==========================================
-                    -- [1] AUTO CLICK (BERJALAN TIAP 0.04 DETIK)
+                    -- [1] AUTO CLICK (BERJALAN TIAP 0.1 DETIK)
                     -- ==========================================
-                    if tick() - lastClickTime >= 0.04 then
+                    if tick() - lastClickTime >= 0.1 then
                         lastClickTime = tick() -- Reset timer ke waktu sekarang
                         
                         local remotes = MyTycoon:FindFirstChild("Remotes")
