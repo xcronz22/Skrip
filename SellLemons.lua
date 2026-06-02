@@ -740,36 +740,47 @@ task.spawn(function()
     end
 end)
 
--- LOOP 3: AUTO UPGRADE
+-- LOOP 3: AUTO UPGRADE & AUTO CLICK TERPISAH (1 DETIK)
 local lastScanTime = 0
 local clickTargets = {"LemonDepot", "LemonLabs", "LemonRepublic", "LemonRobotics", "LemonStand", "LemonTrading", "LemonDash", "LemonX"}
 local clickIndex = 1 
+local lastClickTime = 0 -- Variabel baru untuk jeda Auto Click
 
 task.spawn(function()
-    while task.wait(0.04) do 
+    while task.wait(0.1) do -- Mesin utama tetap ngebut 0.04 detik untuk Upgrade
         if Toggles.AutoUpgrade then
             pcall(function() 
                 local MyTycoon = GetMyTycoon()
                 if MyTycoon then
                     
-                    local remotes = MyTycoon:FindFirstChild("Remotes")
-                    local wakeRemote = remotes and remotes:FindFirstChild("WakeIncomeStream")
-                    
-                    if wakeRemote and wakeRemote:IsA("RemoteFunction") then
-                        local targetName = clickTargets[clickIndex]
+                    -- ==========================================
+                    -- [1] AUTO CLICK (BERJALAN TIAP 1 DETIK)
+                    -- ==========================================
+                    if tick() - lastClickTime >= 1 then
+                        lastClickTime = tick() -- Reset timer ke waktu sekarang
                         
-                        task.spawn(function()
-                            pcall(function() 
-                                wakeRemote:InvokeServer(targetName) 
+                        local remotes = MyTycoon:FindFirstChild("Remotes")
+                        local wakeRemote = remotes and remotes:FindFirstChild("WakeIncomeStream")
+                        
+                        if wakeRemote and wakeRemote:IsA("RemoteFunction") then
+                            local targetName = clickTargets[clickIndex]
+                            
+                            task.spawn(function()
+                                pcall(function() 
+                                    wakeRemote:InvokeServer(targetName) 
+                                end)
                             end)
-                        end)
-                        
-                        clickIndex = clickIndex + 1
-                        if clickIndex > #clickTargets then
-                            clickIndex = 1 
+                            
+                            clickIndex = clickIndex + 1
+                            if clickIndex > #clickTargets then
+                                clickIndex = 1 
+                            end
                         end
                     end
 
+                    -- ==========================================
+                    -- [2] AUTO UPGRADE MAX (BERJALAN TIAP 0.04 DETIK)
+                    -- ==========================================
                     if #UpgradeRemotes == 0 or (tick() - lastScanTime) > 5 then
                         RefreshUpgradeRemotes()
                         lastScanTime = tick()
@@ -792,6 +803,7 @@ task.spawn(function()
                             table.remove(UpgradeRemotes, i)
                         end
                     end
+                    
                 end
             end)
         end
