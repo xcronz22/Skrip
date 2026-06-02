@@ -590,68 +590,52 @@ local function CreateTapButton(text, callback)
     return Btn
 end
 
--- [YANG BARU] FUNGSI MANDIRI: TP -> CLAIM -> BALIK KE AWAL (ANTI-SPAM)
+-- FUNGSI FIX (BERDASARKAN DEX): TP -> PROXIMITY PROMPT -> BALIK
 local function TapCollectCashvine()
     pcall(function()
-        local MyTycoon = GetMyTycoon()
-        if not MyTycoon then return end
-        
         local char = LocalPlayer.Character
         local rootPart = char and char:FindFirstChild("HumanoidRootPart")
         local humanoid = char and char:FindFirstChild("Humanoid")
         if not rootPart or not humanoid then return end
         
-        -- 1. Kunci koordinat posisi awal kamu berdiri sekarang
-        local originalCFrame = rootPart.CFrame
+        -- 1. Cari ProximityPrompt CashVine secara dinamis berdasarkan info Dex kamu
+        local sewer = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Sewer")
+        local cashVineFolder = sewer and sewer:FindFirstChild("CashVine")
+        local targetPrompt = cashVineFolder and cashVineFolder:FindFirstChild("Prompt", true)
         
-        -- Cari objek vinetree di game
-        local vinetree = Workspace:FindFirstChild("vinetree", true) or MyTycoon:FindFirstChild("vinetree", true)
+        -- Ambil part fisik tempat nempelnya prompt (Prompt -> Attachment -> CashVine Part)
+        local targetPart = targetPrompt and targetPrompt.Parent and targetPrompt.Parent.Parent
         
-        if vinetree then
-            local targetCFrame = nil
-            if vinetree:IsA("Model") then
-                targetCFrame = vinetree:GetPrimaryPartCFrame() or (vinetree:FindFirstChildWhichIsA("BasePart") and vinetree:FindFirstChildWhichIsA("BasePart").CFrame)
-            elseif vinetree:IsA("BasePart") then
-                targetCFrame = vinetree.CFrame
-            end
+        if targetPrompt and targetPart and targetPart:IsA("BasePart") then
+            -- Kunci koordinat posisi awal kamu berdiri sekarang
+            local originalCFrame = rootPart.CFrame
             
-            if targetCFrame then
-                -- Amankan karakter (PlatformStand) agar posisi tidak slip/jatuh saat TP
-                humanoid.PlatformStand = true
-                
-                -- 2. Teleport ke vinetree (+3 koordinat tinggi Y supaya aman dari amblas)
-                rootPart.CFrame = targetCFrame * CFrame.new(0, 3, 0)
-                
-                -- Jeda mikro agar data posisi tercatat di server
-                task.wait(0.15)
-                
-                -- 3. Tembak Remote Cashvine kamu
-                local remotes = MyTycoon:FindFirstChild("Remotes")
-                local vineRemote = remotes and (remotes:FindFirstChild("Cashvine") or remotes:FindFirstChild("ClaimCashvine") or remotes:FindFirstChild("CollectCashvine"))
-                
-                if vineRemote then
-                    if vineRemote:IsA("RemoteFunction") then
-                        vineRemote:InvokeServer()
-                    elseif vineRemote:IsA("RemoteEvent") then
-                        vineRemote:FireServer()
-                    end
-                end
-                
-                -- Beri jeda super singkat agar server memproses klaim/notifikasi cooldown
-                task.wait(0.15)
-                
-                -- 4. Teleport instan balik ke posisi semula
-                rootPart.CFrame = originalCFrame
-                
-                -- Lepaskan pengunci karakter agar bisa jalan lagi normal
-                task.wait(0.1)
-                humanoid.PlatformStand = false
-            end
+            -- Amankan karakter (PlatformStand) agar tidak jatuh/slip saat TP
+            humanoid.PlatformStand = true
+            
+            -- 2. Teleport tepat ke koordinat part CashVine (+3 tinggi Y agar pas di depan pohon)
+            rootPart.CFrame = targetPart.CFrame * CFrame.new(0, 3, 0)
+            
+            -- Jeda mikro agar game mendeteksi posisi baru kamu
+            task.wait(0.15)
+            
+            -- 3. Eksekusi Ambil Cashvine lewat ProximityPrompt langsung
+            fireproximityprompt(targetPrompt)
+            
+            -- Jeda mikro biar server selesai memproses klaimnya
+            task.wait(0.15)
+            
+            -- 4. Teleport instan balik ke posisi semula
+            rootPart.CFrame = originalCFrame
+            
+            -- Lepaskan pengunci karakter agar bisa jalan lagi normal
+            task.wait(0.1)
+            humanoid.PlatformStand = false
         end
     end)
 end
 -- [YANG BARU] DAFTAR TOMBOL DI UI MENU KAMU
-CreateTapButton("🍇 Collect Cashvine [TAP]", function()
+CreateTapButton("Collect Cashvine [TAP]", function()
     TapCollectCashvine()
 end)
 
