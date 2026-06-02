@@ -698,7 +698,7 @@ end)
 
 -- LOOP 2: AUTO BUY (Anti-Crash)
 task.spawn(function()
-    while task.wait(0.5) do
+    while task.wait(0.1) do
         if Toggles.AutoBuy then
             pcall(function() 
                 local MyTycoon = GetMyTycoon()
@@ -721,7 +721,7 @@ task.spawn(function()
                                             local target = item.Parent
                                             if target then
                                                 firetouchinterest(rootPart, target, 0)
-                                                task.wait(0.5)
+                                                task.wait(0.1)
                                                 if target and target.Parent then 
                                                     firetouchinterest(rootPart, target, 1)
                                                 end
