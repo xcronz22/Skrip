@@ -825,7 +825,7 @@ end)
 
 -- LOOP 1: AUTO HARVEST (PERBAIKAN ANTI-NYANGKUT)
 task.spawn(function()
-    while task.wait(0.01) do
+    while task.wait(0.1) do
         if Toggles.AutoHarvest then
             pcall(function() 
                 local MyTycoon = GetMyTycoon()
@@ -862,14 +862,14 @@ task.spawn(function()
                                             hasTeleported = true
                                             humanoid.PlatformStand = true 
                                             rootPart.CFrame = CFrame.new(readyFruits[1].Part.Position - Vector3.new(0, 15, 0)) * CFrame.Angles(math.rad(90), 0, 0)
-                                            task.wait(0.02) 
+                                            task.wait(0.2) 
                                             while #readyFruits > 0 and Toggles.AutoHarvest and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") do
                                                 for _, fruitData in pairs(readyFruits) do
                                                     pcall(function() 
                                                         if fruitData.Part and fruitData.Part.Parent then fireclickdetector(fruitData.CD) end
                                                     end)
                                                 end
-                                                task.wait(0.01) 
+                                                task.wait(0.1) 
                                                 readyFruits = {}
                                                 for _, part in pairs(tree:GetChildren()) do
                                                     if part.Name == "Fruit" and part:FindFirstChildWhichIsA("ClickDetector", true) then
@@ -877,7 +877,7 @@ task.spawn(function()
                                                     end
                                                 end
                                             end
-                                            task.wait(0.01)
+                                            task.wait(0.1)
                                         end
                                     end
                                 end
@@ -886,7 +886,7 @@ task.spawn(function()
                     end
                     
                     if hasTeleported and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character:FindFirstChild("Humanoid") then
-                        task.wait(0.02)
+                        task.wait(0.2)
                         LocalPlayer.Character.Humanoid.PlatformStand = false
                         LocalPlayer.Character.HumanoidRootPart.CFrame = originalCFrame
                     end
@@ -898,7 +898,7 @@ end)
 
 -- LOOP 2: AUTO BUY (Anti-Crash)
 task.spawn(function()
-    while task.wait(0.1) do
+    while task.wait(0.2) do
         if Toggles.AutoBuy then
             pcall(function() 
                 local MyTycoon = GetMyTycoon()
@@ -921,7 +921,7 @@ task.spawn(function()
                                             local target = item.Parent
                                             if target then
                                                 firetouchinterest(rootPart, target, 0)
-                                                task.wait(0.1)
+                                                task.wait(0.2)
                                                 if target and target.Parent then 
                                                     firetouchinterest(rootPart, target, 1)
                                                 end
