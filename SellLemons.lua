@@ -723,7 +723,7 @@ CreateTapButton("Auto Sewer [TAP]", function()
         end
     end)
 
-    -- 2. Temukan dan Interaksi dengan Alien Tersembunyi di DoorsGreen
+    -- 2. Temukan dan Interaksi dengan Alien Tersembunyi di DoorsGreen (DENGAN JEDA 15 DETIK)
     pcall(function()
         local doorsGreen = sewer:FindFirstChild("DoorsGreen")
         if doorsGreen then
@@ -737,7 +737,10 @@ CreateTapButton("Auto Sewer [TAP]", function()
                         task.wait(0.5)
                     end
                     local prompt = alienModel:FindFirstChild("ListenPrompt", true) or alienModel:FindFirstChildWhichIsA("ProximityPrompt", true)
-                    if prompt then fireproximityprompt(prompt) end
+                    if prompt then 
+                        fireproximityprompt(prompt)
+                        task.wait(15) -- << JEDA DI SINI AGAR TIDAK STUCK DI BO
+                    end
                     break 
                 end
             end
@@ -764,11 +767,11 @@ CreateTapButton("Auto Sewer [TAP]", function()
                 unlock:InvokeServer()
             end
         end
+        -- Menunggu pintu dibuka jika baru pertama kali
+        task.wait(15)
     end)
 
-    -- ==========================================================
-    -- 4. TAMBAHAN BARU: Eksekusi ProximityPrompt Sewer Bo
-    -- ==========================================================
+    -- 4. Eksekusi ProximityPrompt Sewer Bo
     pcall(function()
         local bo = sewer:FindFirstChild("Bo")
         local promptFolder = bo and bo:FindFirstChild("Prompt")
@@ -776,8 +779,12 @@ CreateTapButton("Auto Sewer [TAP]", function()
 
         if thePrompt and thePrompt:IsA("ProximityPrompt") then
             fireproximityprompt(thePrompt)
+            print("[+] Sukses nembak Prompt Sewer Bo setelah obrolan selesai!")
+        else
+            warn("[-] Gagal: Prompt Sewer Bo tidak ditemukan atau belum siap.")
         end
     end)
+
 end)
 
 -- ==========================================
