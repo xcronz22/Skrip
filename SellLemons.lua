@@ -22,7 +22,7 @@ local Toggles = {
 
 local RebirthMode = "Multiplier" 
 local RebirthValue = 2
-local UpgradeAmount = 1
+local UpgradeAmount = 999999
 local UpgradeRemotes = {}
 local UI_Buttons = {}
 
@@ -541,7 +541,7 @@ local UpgradeTextBox = Instance.new("TextBox")
 UpgradeTextBox.Size = UDim2.new(0.55, 0, 0.8, 0)
 UpgradeTextBox.Position = UDim2.new(0.45, 0, 0.1, 0)
 UpgradeTextBox.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-UpgradeTextBox.Text = "1"
+UpgradeTextBox.Text = "999999"
 UpgradeTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
 UpgradeTextBox.Font = Enum.Font.Gotham
 UpgradeTextBox.TextSize = 12
@@ -947,17 +947,17 @@ local clickIndex = 1
 local lastClickTime = 0 -- Variabel baru untuk jeda Auto Click
 
 task.spawn(function()
-    while task.wait(0.1) do -- Mesin utama tetap ngebut 0.04 detik untuk Upgrade
+    while task.wait(0.1) do 
         if Toggles.AutoUpgrade then
             pcall(function() 
                 local MyTycoon = GetMyTycoon()
                 if MyTycoon then
                     
                     -- ==========================================
-                    -- [1] AUTO CLICK (BERJALAN TIAP 1 DETIK)
+                    -- [1] AUTO CLICK (BERJALAN TIAP 0.5 DETIK)
                     -- ==========================================
-                    if tick() - lastClickTime >= 1 then
-                        lastClickTime = tick() -- Reset timer ke waktu sekarang
+                    if tick() - lastClickTime >= 0.5 then
+                        lastClickTime = tick() 
                         
                         local remotes = MyTycoon:FindFirstChild("Remotes")
                         local wakeRemote = remotes and remotes:FindFirstChild("WakeIncomeStream")
@@ -979,7 +979,7 @@ task.spawn(function()
                     end
 
                     -- ==========================================
-                    -- [2] AUTO UPGRADE MAX (TRIK ANGKA RAKSASA)
+                    -- [2] AUTO UPGRADE (MENGIKUTI TARGET UI)
                     -- ==========================================
                     if #UpgradeRemotes == 0 or (tick() - lastScanTime) > 5 then
                         RefreshUpgradeRemotes()
@@ -996,9 +996,9 @@ task.spawn(function()
                         if isValid then
                             task.spawn(function()
                                 pcall(function() 
-                                    -- KITA GANTI Variabel UpgradeAmount jadi angka 999999
-                                    -- Server otomatis akan membeli MAX sesuai kapasitas uangmu!
-                                    remote:InvokeServer(999999) 
+                                    -- KITA KEMBALIKAN pakai UpgradeAmount.
+                                    -- Ketik 999999 di kotak UI dalam game untuk MAX MODE!
+                                    remote:InvokeServer(UpgradeAmount) 
                                 end)
                             end)
                         else
