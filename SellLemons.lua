@@ -650,9 +650,6 @@ local function TapCollectCashvine()
         end
     end)
 end
-
-local isCashVineLooping = false
-
 -- [YANG BARU] DAFTAR TOMBOL DI UI MENU KAMU
 CreateTapButton("🍇 Collect Cashvine [TAP]", function()
     TapCollectCashvine()
