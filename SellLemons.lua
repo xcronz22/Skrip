@@ -590,7 +590,73 @@ local function CreateTapButton(text, callback)
     return Btn
 end
 
+-- [YANG BARU] FUNGSI MANDIRI: TP -> CLAIM -> BALIK KE AWAL (ANTI-SPAM)
+local function TapCollectCashvine()
+    pcall(function()
+        local MyTycoon = GetMyTycoon()
+        if not MyTycoon then return end
+        
+        local char = LocalPlayer.Character
+        local rootPart = char and char:FindFirstChild("HumanoidRootPart")
+        local humanoid = char and char:FindFirstChild("Humanoid")
+        if not rootPart or not humanoid then return end
+        
+        -- 1. Kunci koordinat posisi awal kamu berdiri sekarang
+        local originalCFrame = rootPart.CFrame
+        
+        -- Cari objek vinetree di game
+        local vinetree = Workspace:FindFirstChild("vinetree", true) or MyTycoon:FindFirstChild("vinetree", true)
+        
+        if vinetree then
+            local targetCFrame = nil
+            if vinetree:IsA("Model") then
+                targetCFrame = vinetree:GetPrimaryPartCFrame() or (vinetree:FindFirstChildWhichIsA("BasePart") and vinetree:FindFirstChildWhichIsA("BasePart").CFrame)
+            elseif vinetree:IsA("BasePart") then
+                targetCFrame = vinetree.CFrame
+            end
+            
+            if targetCFrame then
+                -- Amankan karakter (PlatformStand) agar posisi tidak slip/jatuh saat TP
+                humanoid.PlatformStand = true
+                
+                -- 2. Teleport ke vinetree (+3 koordinat tinggi Y supaya aman dari amblas)
+                rootPart.CFrame = targetCFrame * CFrame.new(0, 3, 0)
+                
+                -- Jeda mikro agar data posisi tercatat di server
+                task.wait(0.15)
+                
+                -- 3. Tembak Remote Cashvine kamu
+                local remotes = MyTycoon:FindFirstChild("Remotes")
+                local vineRemote = remotes and (remotes:FindFirstChild("Cashvine") or remotes:FindFirstChild("ClaimCashvine") or remotes:FindFirstChild("CollectCashvine"))
+                
+                if vineRemote then
+                    if vineRemote:IsA("RemoteFunction") then
+                        vineRemote:InvokeServer()
+                    elseif vineRemote:IsA("RemoteEvent") then
+                        vineRemote:FireServer()
+                    end
+                end
+                
+                -- Beri jeda super singkat agar server memproses klaim/notifikasi cooldown
+                task.wait(0.15)
+                
+                -- 4. Teleport instan balik ke posisi semula
+                rootPart.CFrame = originalCFrame
+                
+                -- Lepaskan pengunci karakter agar bisa jalan lagi normal
+                task.wait(0.1)
+                humanoid.PlatformStand = false
+            end
+        end
+    end)
+end
+
 local isCashVineLooping = false
+
+-- [YANG BARU] DAFTAR TOMBOL DI UI MENU KAMU
+CreateTapButton("🍇 Collect Cashvine [TAP]", function()
+    TapCollectCashvine()
+end)
 
 CreateTapButton("Open All Doors [TAP]", function()
     pcall(function()
@@ -1089,51 +1155,7 @@ task.spawn(function()
     end
 end)
 
--- LOOP 8: AUTO CASHVINE (BACKGROUND)
-task.spawn(function()
-    local timeSinceLastForce = 0 
-    
-    while task.wait(1) do
-        timeSinceLastForce = timeSinceLastForce + 1
-        
-        pcall(function()
-            local currSewer = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Sewer")
-            if not currSewer then return end
-            
-            local cvFolder = currSewer:FindFirstChild("CashVine")
-            if cvFolder then
-                local cvModel = cvFolder:FindFirstChild("CashVine")
-                if cvModel then
-                    local cvMesh = cvModel:FindFirstChild("CashVine")
-                    if cvMesh then
-                        local attach = cvMesh:FindFirstChild("Attachment")
-                        local label = attach and attach:FindFirstChild("Gui") and attach.Gui:FindFirstChild("Label")
-                        
-                        local isReady = (label and label.Text == "READY")
-                        
-                        -- Eksekusi jika tulisan "READY" muncul ATAU jika sudah 60 detik lewat
-                        if isReady or timeSinceLastForce >= 60 then
-                            local useFunc = cvModel:FindFirstChild("Use")
-                            if useFunc and useFunc:IsA("RemoteFunction") then
-                                useFunc:InvokeServer()
-                            end
-                            
-                            local prompt = attach:FindFirstChild("Prompt")
-                            if prompt and prompt:IsA("ProximityPrompt") then
-                                fireproximityprompt(prompt)
-                            end
-                            
-                            -- Reset timer kembali ke 0 setelah eksekusi
-                            timeSinceLastForce = 0
-                        end
-                    end
-                end
-            end
-        end)
-    end
-end)
-
--- LOOP 9: AUTO BUY POWER (CLEAN REMOTE METHOD)
+-- LOOP 8: AUTO BUY POWER (CLEAN REMOTE METHOD)
 task.spawn(function()
     local powerNames = {"Manage", "BuyNext", "ClickFruitValue", "UpgradeStack", "WalkSpeed"}
     
