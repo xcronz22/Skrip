@@ -22,7 +22,7 @@ local Toggles = {
 
 local RebirthMode = "Multiplier" 
 local RebirthValue = 2
-local UpgradeAmount = 999999
+local UpgradeAmount = 1
 local UpgradeRemotes = {}
 local UI_Buttons = {}
 
@@ -541,7 +541,7 @@ local UpgradeTextBox = Instance.new("TextBox")
 UpgradeTextBox.Size = UDim2.new(0.55, 0, 0.8, 0)
 UpgradeTextBox.Position = UDim2.new(0.45, 0, 0.1, 0)
 UpgradeTextBox.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-UpgradeTextBox.Text = "999999"
+UpgradeTextBox.Text = "1"
 UpgradeTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
 UpgradeTextBox.Font = Enum.Font.Gotham
 UpgradeTextBox.TextSize = 12
@@ -898,7 +898,7 @@ end)
 
 -- LOOP 2: AUTO BUY (Anti-Crash)
 task.spawn(function()
-    while task.wait(0.01) do
+    while task.wait(0.1) do
         if Toggles.AutoBuy then
             pcall(function() 
                 local MyTycoon = GetMyTycoon()
@@ -921,7 +921,7 @@ task.spawn(function()
                                             local target = item.Parent
                                             if target then
                                                 firetouchinterest(rootPart, target, 0)
-                                                task.wait(0.01)
+                                                task.wait(0.1)
                                                 if target and target.Parent then 
                                                     firetouchinterest(rootPart, target, 1)
                                                 end
@@ -947,16 +947,16 @@ local clickIndex = 1
 local lastClickTime = 0 -- Variabel baru untuk jeda Auto Click
 
 task.spawn(function()
-    while task.wait(0.1) do -- Mesin utama tetap ngebut 0.1 detik untuk Upgrade
+    while task.wait(0.04) do -- Mesin utama tetap ngebut 0.04 detik untuk Upgrade
         if Toggles.AutoUpgrade then
             pcall(function() 
                 local MyTycoon = GetMyTycoon()
                 if MyTycoon then
                     
                     -- ==========================================
-                    -- [1] AUTO CLICK (BERJALAN TIAP 0.1 DETIK)
+                    -- [1] AUTO CLICK (BERJALAN TIAP 0.04 DETIK)
                     -- ==========================================
-                    if tick() - lastClickTime >= 0.1 then
+                    if tick() - lastClickTime >= 0.04 then
                         lastClickTime = tick() -- Reset timer ke waktu sekarang
                         
                         local remotes = MyTycoon:FindFirstChild("Remotes")
