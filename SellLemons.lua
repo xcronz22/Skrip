@@ -482,9 +482,8 @@ Window:AddButton("Load Configuration", function() LoadConfig() end)
 
 -- PROTEKSI UTAMA: Menggunakan pcall agar skrip tidak mati total jika library tidak mendukung AddLabel
 local labelSuccess = pcall(function()
-    Window:AddLabel("Background Features Active: Auto Buy Power & Auto Answer Phone")
-    Window:AddLabel("Turn off Auto Rebirth/Evolve/Ascend to restore the menu to its normal state")
-    Window:AddLabel("Silent Harvest: Approach fruit-bearing trees to collect the results")
+    Window:AddLabel("Background Features Active: Auto Buy Power & Auto Answer Phone.")
+    Window:AddLabel("Silent Harvest: Approach fruit-bearing trees to collect the results.")
 end)
 
 -- FALLBACK: Jika AddLabel error (tidak ada di library), otomatis buat catatan berbentuk Button pasif
@@ -637,7 +636,7 @@ task.spawn(function()
                                             local target = item.Parent
                                             if target then
                                                 firetouchinterest(rootPart, target, 0)
-                                                task.wait(0.2)
+                                                task.wait(0.1)
                                                 if target and target.Parent then firetouchinterest(rootPart, target, 1) end
                                             end
                                         elseif item:IsA("ProximityPrompt") then
@@ -731,31 +730,44 @@ task.spawn(function()
     end
 end)
 
--- LOOP 5: SMART AUTO REBIRTH (TRIPLE BYPASS TRICK)
+-- LOOP 5: SMART AUTO REBIRTH (ULTIMATE BYPASS TRICK)
+local wasAutoRebirthOn = false -- Detektor untuk mengembalikan menu ke normal
+
 task.spawn(function()
-    while task.wait(0.5) do
-        if Toggles.AutoRebirth then
-            pcall(function()
-                local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-                if playerGui then
-                    local rebirthGui = playerGui:FindFirstChild("Rebirth")
-                    local investorsMenu = rebirthGui and rebirthGui:FindFirstChild("InvestorsMenu")
+    while task.wait(0.05) do
+        pcall(function()
+            local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+            if playerGui then
+                local rebirthGui = playerGui:FindFirstChild("Rebirth")
+                local investorsMenu = rebirthGui and rebirthGui:FindFirstChild("InvestorsMenu")
+                
+                -- Path ke Sidebar
+                local sidebarContainer = rebirthGui and rebirthGui:FindFirstChild("Sidebar") and rebirthGui.Sidebar:FindFirstChild("Container")
+                local sidebarInvestors = sidebarContainer and sidebarContainer:FindFirstChild("Investors")
+                
+                if Toggles.AutoRebirth then
+                    wasAutoRebirthOn = true
                     
                     if investorsMenu then
-                        -- TRICK 1: Sembunyikan Data > Visible = false agar tidak mengganggu layar
-                        if investorsMenu.Visible ~= false then investorsMenu.Visible = false end
+                        -- TRICK 1 (Dinonaktifkan tapi tidak dihapus)
+                        -- if investorsMenu.Visible ~= false then investorsMenu.Visible = false end
                         
                         pcall(function()
-                            -- TRICK 3 (NEW BYPASS): Matikan sistem Exclusive agar tidak bentrok dengan menu lain
+                            -- TRICK 3: Matikan sistem Exclusive
                             if investorsMenu:GetAttribute("Exclusive") ~= false then
                                 investorsMenu:SetAttribute("Exclusive", false)
                             end
                             
-                            -- TRICK 2: Paksa Attributes > Visible = true agar game tetap memperbarui angkanya
+                            -- TRICK 2: Paksa Attributes > Visible = true
                             if investorsMenu:GetAttribute("Visible") ~= true then
                                 investorsMenu:SetAttribute("Visible", true)
                             end
                         end)
+                        
+                        -- TRICK 4: Paksa Sidebar Investors Active = true
+                        if sidebarInvestors and sidebarInvestors.Active ~= true then
+                            sidebarInvestors.Active = true
+                        end
                         
                         local body = investorsMenu:FindFirstChild("Body")
                         local potentialObj = body and body:FindFirstChild("Potential") and body.Potential:FindFirstChild("Quantity")
@@ -774,19 +786,12 @@ task.spawn(function()
                                 shouldRebirth = IsPotentialEnough(basePot, expPot, baseCur, expCur, multiplier)
                             elseif RebirthMode == "Target" then
                                 local rVal = tonumber(RebirthValue) or 0
-                                local targetBase = 0
-                                local targetExp = 0
-                                
+                                local targetBase, targetExp = 0, 0
                                 if rVal > 0 then
                                     targetExp = math.floor(math.log10(rVal))
                                     targetBase = rVal / (10^targetExp)
                                 end
-                                
-                                if expPot > targetExp then
-                                    shouldRebirth = true
-                                elseif expPot == targetExp and basePot >= targetBase then
-                                    shouldRebirth = true
-                                end
+                                if expPot > targetExp or (expPot == targetExp and basePot >= targetBase) then shouldRebirth = true end
                             end
 
                             if shouldRebirth then
@@ -797,25 +802,37 @@ task.spawn(function()
                                 if rebirthRemote and rebirthRemote:IsA("RemoteFunction") then
                                     task.spawn(function()
                                         pcall(function() 
+                                            -- 1. Eksekusi Rebirth
                                             rebirthRemote:InvokeServer()
                                             UpgradeRemotes = {} 
                                             
-                                            task.wait(2)
+                                            -- 2. Tunggu server membunuh karakter dan me-reset Tycoon
+                                            task.wait(3)
+                                            
+                                            -- 3. Ambil karakter BARU (hindari Ghost Character)
                                             local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+                                            if not char:FindFirstChild("HumanoidRootPart") then
+                                                char = LocalPlayer.CharacterAdded:Wait()
+                                            end
                                             local root = char:WaitForChild("HumanoidRootPart", 5)
                                             
                                             if root then
-                                                local ActiveTycoon = GetMyTycoon()
                                                 local targetPart = nil
                                                 
-                                                for i = 1, 10 do
-                                                    if ActiveTycoon and ActiveTycoon:FindFirstChild("Purchases") and ActiveTycoon.Purchases:FindFirstChild("Hills") and ActiveTycoon.Purchases.Hills:FindFirstChild("Buttons") and ActiveTycoon.Purchases.Hills.Buttons:FindFirstChild("Roads") and ActiveTycoon.Purchases.Hills.Buttons.Roads:FindFirstChild("Trading Road") then
-                                                        targetPart = ActiveTycoon.Purchases.Hills.Buttons.Roads["Trading Road"]:FindFirstChild("Base")
-                                                        if targetPart then break end
+                                                -- 4. Cari Tycoon & Tombol di DALAM loop agar datanya selalu update!
+                                                for i = 1, 15 do -- Coba sampai 7.5 detik (menunggu map loading)
+                                                    local freshTycoon = GetMyTycoon()
+                                                    if freshTycoon then
+                                                        local purchases = freshTycoon:FindFirstChild("Purchases")
+                                                        if purchases and purchases:FindFirstChild("Hills") and purchases.Hills:FindFirstChild("Buttons") and purchases.Hills.Buttons:FindFirstChild("Roads") and purchases.Hills.Buttons.Roads:FindFirstChild("Trading Road") then
+                                                            targetPart = purchases.Hills.Buttons.Roads["Trading Road"]:FindFirstChild("Base")
+                                                            if targetPart then break end -- Jika ketemu, langsung stop loop-nya
+                                                        end
                                                     end
                                                     task.wait(0.5)
                                                 end
                                                 
+                                                -- 5. Eksekusi Teleportasi
                                                 if targetPart then
                                                     root.CFrame = targetPart.CFrame * CFrame.new(0, 3, 3)
                                                 end
@@ -826,28 +843,49 @@ task.spawn(function()
                             end
                         end
                     end
+                    
+                -- JIKA TOGGLE DIMATIKAN (OFF), KEMBALIKAN KE NORMAL
+                elseif wasAutoRebirthOn then
+                    if investorsMenu then
+                        pcall(function()
+                            investorsMenu:SetAttribute("Exclusive", true)
+                            investorsMenu:SetAttribute("Visible", false)
+                            if investorsMenu.Visible == true then investorsMenu.Visible = false end
+                        end)
+                    end
+                    if sidebarInvestors then sidebarInvestors.Active = false end
+                    wasAutoRebirthOn = false
                 end
-            end)
-        end
+                
+            end
+        end)
     end
 end)
 
--- LOOP 6: SMART AUTO EVOLVE (TRIPLE BYPASS TRICK)
+-- LOOP 6: SMART AUTO EVOLVE (ULTIMATE BYPASS TRICK)
+local wasAutoEvolveOn = false -- Detektor untuk mengembalikan menu ke normal
+
 task.spawn(function()
     while task.wait(0.5) do
-        if Toggles.AutoEvolve then
-            pcall(function() 
-                local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-                if playerGui then
-                    local rebirthGui = playerGui:FindFirstChild("Rebirth")
-                    local evolutionMenu = rebirthGui and rebirthGui:FindFirstChild("EvolutionMenu")
+        pcall(function() 
+            local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+            if playerGui then
+                local rebirthGui = playerGui:FindFirstChild("Rebirth")
+                local evolutionMenu = rebirthGui and rebirthGui:FindFirstChild("EvolutionMenu")
+                
+                -- Path ke Sidebar
+                local sidebarContainer = rebirthGui and rebirthGui:FindFirstChild("Sidebar") and rebirthGui.Sidebar:FindFirstChild("Container")
+                local sidebarEvolution = sidebarContainer and sidebarContainer:FindFirstChild("Evolution")
+                
+                if Toggles.AutoEvolve then
+                    wasAutoEvolveOn = true
                     
                     if evolutionMenu then
-                        -- TRICK 1: Sembunyikan Data > Visible = false
-                        if evolutionMenu.Visible ~= false then evolutionMenu.Visible = false end
+                        -- TRICK 1 (Dinonaktifkan tapi tidak dihapus, hapus "--" di depan jika butuh)
+                        -- if evolutionMenu.Visible ~= false then evolutionMenu.Visible = false end
                         
                         pcall(function()
-                            -- TRICK 3 (NEW BYPASS): Matikan sistem Exclusive
+                            -- TRICK 3: Matikan sistem Exclusive
                             if evolutionMenu:GetAttribute("Exclusive") ~= false then
                                 evolutionMenu:SetAttribute("Exclusive", false)
                             end
@@ -858,12 +896,16 @@ task.spawn(function()
                             end
                         end)
 
+                        -- TRICK 4: Paksa Sidebar Evolution Active = true
+                        if sidebarEvolution and sidebarEvolution.Active ~= true then
+                            sidebarEvolution.Active = true
+                        end
+
                         local body = evolutionMenu:FindFirstChild("Body")
                         local progressObj = body and body:FindFirstChild("Progress")
                         
                         if progressObj then
                             local evolveText = progressObj.Text
-                            
                             if string.find(evolveText, "100%%") or evolveText == "100%" then
                                 local MyTycoon = GetMyTycoon()
                                 local remotes = MyTycoon and MyTycoon:FindFirstChild("Remotes")
@@ -881,9 +923,22 @@ task.spawn(function()
                             end
                         end
                     end
+                    
+                -- JIKA TOGGLE DIMATIKAN (OFF), KEMBALIKAN KE NORMAL
+                elseif wasAutoEvolveOn then
+                    if evolutionMenu then
+                        pcall(function()
+                            evolutionMenu:SetAttribute("Exclusive", true)
+                            evolutionMenu:SetAttribute("Visible", false)
+                            if evolutionMenu.Visible == true then evolutionMenu.Visible = false end
+                        end)
+                    end
+                    if sidebarEvolution then sidebarEvolution.Active = false end
+                    wasAutoEvolveOn = false -- Reset status
                 end
-            end)
-        end
+                
+            end
+        end)
     end
 end)
 
@@ -935,22 +990,30 @@ task.spawn(function()
     end
 end)
 
--- LOOP 9: SMART AUTO ASCEND (TRIPLE BYPASS TRICK)
+-- LOOP 9: SMART AUTO ASCEND (ULTIMATE BYPASS TRICK)
+local wasAutoAscendOn = false -- Detektor untuk mengembalikan menu ke normal
+
 task.spawn(function()
     while task.wait(0.5) do
-        if Toggles.AutoAscend then
-            pcall(function()
-                local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-                if playerGui then
-                    local rebirthGui = playerGui:FindFirstChild("Rebirth")
-                    local ascensionMenu = rebirthGui and rebirthGui:FindFirstChild("AscensionMenu")
+        pcall(function()
+            local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+            if playerGui then
+                local rebirthGui = playerGui:FindFirstChild("Rebirth")
+                local ascensionMenu = rebirthGui and rebirthGui:FindFirstChild("AscensionMenu")
+                
+                -- Path ke Sidebar
+                local sidebarContainer = rebirthGui and rebirthGui:FindFirstChild("Sidebar") and rebirthGui.Sidebar:FindFirstChild("Container")
+                local sidebarAscension = sidebarContainer and sidebarContainer:FindFirstChild("Ascension")
+                
+                if Toggles.AutoAscend then
+                    wasAutoAscendOn = true
                     
                     if ascensionMenu then
-                        -- TRICK 1: Sembunyikan Data > Visible = false
-                        if ascensionMenu.Visible ~= false then ascensionMenu.Visible = false end
+                        -- TRICK 1 (Dinonaktifkan tapi tidak dihapus, hapus "--" di depan jika butuh)
+                        -- if ascensionMenu.Visible ~= false then ascensionMenu.Visible = false end
                         
                         pcall(function()
-                            -- TRICK 3 (NEW BYPASS): Matikan sistem Exclusive
+                            -- TRICK 3: Matikan sistem Exclusive
                             if ascensionMenu:GetAttribute("Exclusive") ~= false then
                                 ascensionMenu:SetAttribute("Exclusive", false)
                             end
@@ -961,13 +1024,18 @@ task.spawn(function()
                             end
                         end)
                         
+                        -- TRICK 4: Paksa Sidebar Ascension Active = true
+                        if sidebarAscension and sidebarAscension.Active ~= true then
+                            sidebarAscension.Active = true
+                        end
+                        
                         local body = ascensionMenu:FindFirstChild("Body")
                         local ascendButton = body and body:FindFirstChild("Ascend")
                         
                         if ascendButton then
                             local currentColor = ascendButton.BackgroundColor3
                             
-                            -- Cek Warna Terbalik: Jika BUKAN abu-abu [80, 80, 80], maka sikat!
+                            -- Cek Warna: Jika BUKAN abu-abu [80, 80, 80], maka sikat!
                             if currentColor ~= Color3.fromRGB(80, 80, 80) then
                                 local MyTycoon = GetMyTycoon()
                                 local remotes = MyTycoon and MyTycoon:FindFirstChild("Remotes")
@@ -985,8 +1053,21 @@ task.spawn(function()
                             end
                         end
                     end
+                    
+                -- JIKA TOGGLE DIMATIKAN (OFF), KEMBALIKAN KE NORMAL
+                elseif wasAutoAscendOn then
+                    if ascensionMenu then
+                        pcall(function()
+                            ascensionMenu:SetAttribute("Exclusive", true)
+                            ascensionMenu:SetAttribute("Visible", false)
+                            if ascensionMenu.Visible == true then ascensionMenu.Visible = false end
+                        end)
+                    end
+                    if sidebarAscension then sidebarAscension.Active = false end
+                    wasAutoAscendOn = false -- Reset status
                 end
-            end)
-        end
+                
+            end
+        end)
     end
 end)
