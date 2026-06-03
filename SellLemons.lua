@@ -23,13 +23,11 @@ local Toggles = {
 
 local RebirthMode = "Multiplier" 
 local RebirthValue = 2
-local UpgradeAmount = 1
 local UpgradeRemotes = {}
 local ToggleObjects = {}
 
 -- Reference elemen Input UI untuk kebutuhan sinkronisasi Load Config
 local RebirthInput
-local UpgradeInput
 
 -- =======================================================
 -- TRIK BRUTAL 3.1: PEMBUNUH LAG AMAN (HANYA SHADOW)
@@ -62,38 +60,6 @@ oldCreate = hookfunction(TweenService.Create, function(self, instance, tweenInfo
     end
     
     return oldCreate(self, instance, tweenInfo, propertyTable)
-end)
-
--- =======================================================
--- TRIK BRUTAL 4.0: MEMBUTAKAN ANIMASI BAWAAN GAME (GOD MODE)
--- =======================================================
-task.spawn(function()
-    while task.wait(2) do -- Pengecekan rutin setiap 2 detik
-        if Toggles.AutoBuy then
-            pcall(function()
-                local MyTycoon = GetMyTycoon()
-                if MyTycoon then
-                    local purchases = MyTycoon:FindFirstChild("Purchases")
-                    
-                    -- Jika eksekutor kamu support getconnections (Krnl, Delta, Fluxus, Codex, dll)
-                    if getconnections then
-                        -- Matikan semua sensor game yang mendeteksi bangunan baru!
-                        if purchases then
-                            for _, connection in ipairs(getconnections(purchases.DescendantAdded)) do
-                                connection:Disable()
-                            end
-                            for _, connection in ipairs(getconnections(purchases.ChildAdded)) do
-                                connection:Disable()
-                            end
-                        end
-                        for _, connection in ipairs(getconnections(MyTycoon.DescendantAdded)) do
-                            connection:Disable()
-                        end
-                    end
-                end
-            end)
-        end
-    end
 end)
 
 -- ==========================================
@@ -220,7 +186,6 @@ local function SaveConfig()
         Toggles = Toggles,
         RebirthMode = RebirthMode,
         RebirthValue = RebirthValue,
-        UpgradeAmount = UpgradeAmount
     }
     pcall(function()
         if writefile then
@@ -253,18 +218,164 @@ local function LoadConfig()
                             RebirthInput:Set(tostring(RebirthValue))
                         end
                     end
-                end
+                   -- =======================================================
+-- LOOP 5: SMART AUTO REBIRTH (WIDE & FLAT SAFEZONE CALCULATION)
+-- =======================================================
+local wasAutoRebirthOn = false
+local visibleTimerRebirth = 0
+local isRebirthing = false 
+local cachedLemonXCFrame = nil 
+local cachedLemonXSize = nil 
+
+-- Fungsi Bikin Pijakan Luas & Pasti Datar
+local function EnsureSafeZone(targetCFrame, targetSize)
+    local safeZoneName = "BrutalSafeZone_LemonX"
+    local safeZone = workspace:FindFirstChild(safeZoneName)
+
+    if not safeZone then
+        safeZone = Instance.new("Part")
+        safeZone.Name = safeZoneName
+        safeZone.Size = Vector3.new(30, 1, 30) -- Diperluas jadi lapangan 30x30, ketebalan solid 1 stud
+        safeZone.Anchored = true
+        safeZone.CanCollide = true
+        safeZone.Transparency = 0.4 
+        safeZone.BrickColor = BrickColor.new("Cyan") 
+        safeZone.Material = Enum.Material.Neon
+        safeZone.Parent = workspace
+    end
+    
+    -- KALKULASI MATEMATIKA PERMUKAAN:
+    -- Cari tahu kordinat Y (ketinggian) paling atas dari part target
+    local targetTopY = targetCFrame.Position.Y + (targetSize.Y / 2)
+    
+    -- Posisikan SafeZone: 
+    -- Ambil koordinat X dan Z dari target.
+    -- Set ketinggian (Y) agar bagian atas SafeZone rata dengan targetTopY.
+    -- (Dikurangi 0.5 karena ketebalan SafeZone kita adalah 1).
+    -- Menggunakan CFrame.new(x,y,z) murni agar platform 100% mendatar tanpa ikut rotasi part target!
+    safeZone.CFrame = CFrame.new(targetCFrame.Position.X, targetTopY - 0.5, targetCFrame.Position.Z)
+end
+
+task.spawn(function()
+    while true do
+        local dt = task.wait(0.05) 
+        pcall(function()
+            local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+            if playerGui then
+                local rebirthGui = playerGui:FindFirstChild("Rebirth")
+                local investorsMenu = rebirthGui and rebirthGui:FindFirstChild("InvestorsMenu")
                 
-                if decoded.UpgradeAmount then 
-                    UpgradeAmount = decoded.UpgradeAmount 
-                    if UpgradeInput and UpgradeInput.Set then
-                        UpgradeInput:Set(tostring(UpgradeAmount))
+                local sidebarContainer = rebirthGui and rebirthGui:FindFirstChild("Sidebar") and rebirthGui.Sidebar:FindFirstChild("Container")
+                local sidebarInvestors = sidebarContainer and sidebarContainer:FindFirstChild("Investors")
+                
+                if Toggles.AutoRebirth then
+                    wasAutoRebirthOn = true
+                    
+                    if investorsMenu then
+                        if investorsMenu.Visible == true then
+                            visibleTimerRebirth = visibleTimerRebirth + dt
+                            if visibleTimerRebirth >= 5 then
+                                investorsMenu.Visible = false
+                                visibleTimerRebirth = 0
+                            end
+                        else
+                            visibleTimerRebirth = 0
+                        end
+                        
+                        pcall(function()
+                            if investorsMenu:GetAttribute("Exclusive") ~= false then investorsMenu:SetAttribute("Exclusive", false) end
+                            if investorsMenu:GetAttribute("Visible") ~= true then investorsMenu:SetAttribute("Visible", true) end
+                        end)
+                        
+                        if sidebarInvestors and sidebarInvestors.Active ~= true then sidebarInvestors.Active = true end
+                        
+                        local body = investorsMenu:FindFirstChild("Body")
+                        local potentialObj = body and body:FindFirstChild("Potential") and body.Potential:FindFirstChild("Quantity")
+                        local amountObj = body and body:FindFirstChild("Amount") and body.Amount:FindFirstChild("Quantity")
+                        
+                        if potentialObj and amountObj then
+                            local basePot, expPot = CleanAndParse(potentialObj.Text)
+                            local baseCur, expCur = CleanAndParse(amountObj.Text)
+                            local shouldRebirth = false
+
+                            if RebirthMode == "Multiplier" then
+                                shouldRebirth = IsPotentialEnough(basePot, expPot, baseCur, expCur, tonumber(RebirthValue) or 2)
+                            elseif RebirthMode == "Target" then
+                                local rVal = tonumber(RebirthValue) or 0
+                                local targetBase, targetExp = 0, 0
+                                if rVal > 0 then
+                                    targetExp = math.floor(math.log10(rVal))
+                                    targetBase = rVal / (10^targetExp)
+                                end
+                                if expPot > targetExp or (expPot == targetExp and basePot >= targetBase) then shouldRebirth = true end
+                            end
+
+                            if shouldRebirth and not isRebirthing then
+                                local MyTycoon = GetMyTycoon()
+                                local rebirthRemote = MyTycoon and MyTycoon:FindFirstChild("Remotes") and MyTycoon.Remotes:FindFirstChild("Rebirth")
+                                
+                                if rebirthRemote and rebirthRemote:IsA("RemoteFunction") then
+                                    isRebirthing = true
+                                    
+                                    pcall(function()
+                                        local decorFolder = MyTycoon:FindFirstChild("Purchases")
+                                            and MyTycoon.Purchases:FindFirstChild("LemonX")
+                                            and MyTycoon.Purchases.LemonX:FindFirstChild("Decor")
+                                            and MyTycoon.Purchases.LemonX.Decor:FindFirstChild("X Edge Lines")
+
+                                        if decorFolder then
+                                            local parts = decorFolder:GetChildren()
+                                            if #parts >= 15 then
+                                                cachedLemonXCFrame = parts[15].CFrame 
+                                                cachedLemonXSize = parts[15].Size 
+                                            end
+                                        end
+                                    end)
+
+                                    task.spawn(function()
+                                        pcall(function() 
+                                            rebirthRemote:InvokeServer()
+                                            UpgradeRemotes = {} 
+                                            
+                                            local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+                                            local root = char:WaitForChild("HumanoidRootPart", 10)
+                                            
+                                            task.wait(1.5) 
+                                            
+                                            if root and cachedLemonXCFrame and cachedLemonXSize then
+                                                -- 1. Buat Pijakan Lapangan 30x30 yang pasti rata
+                                                EnsureSafeZone(cachedLemonXCFrame, cachedLemonXSize)
+                                                
+                                                -- 2. Hitung lagi tinggi atap target untuk posisi jatuh karakter
+                                                local targetTopY = cachedLemonXCFrame.Position.Y + (cachedLemonXSize.Y / 2)
+                                                
+                                                -- 3. TP Karakter tepat di tengah X dan Z target, dan dijatuhkan 3 stud di atas permukaannya
+                                                root.CFrame = CFrame.new(cachedLemonXCFrame.Position.X, targetTopY + 3, cachedLemonXCFrame.Position.Z) 
+                                            end
+                                        end)
+                                        isRebirthing = false 
+                                    end)
+                                end
+                            end
+                        end
                     end
+                    
+                elseif wasAutoRebirthOn then
+                    if investorsMenu then
+                        pcall(function()
+                            investorsMenu:SetAttribute("Exclusive", true)
+                            investorsMenu:SetAttribute("Visible", false)
+                            if investorsMenu.Visible == true then investorsMenu.Visible = false end
+                        end)
+                    end
+                    if sidebarInvestors then sidebarInvestors.Active = false end
+                    wasAutoRebirthOn = false
+                    visibleTimerRebirth = 0
                 end
             end
-        end
-    end)
-end
+        end)
+    end
+end)
 
 local function CleanAndParse(textStr)
     if not textStr or textStr == "" then return 0, 0 end
@@ -531,13 +642,6 @@ RebirthInput = Window:AddInput("Target Rebirth", "Smart (2x) / 100", function(Te
     end
 end)
 
-UpgradeInput = Window:AddInput("Value Upgrade", "1", function(Text)
-    local val = tonumber(Text)
-    if val and val > 0 then
-        UpgradeAmount = math.floor(val)
-    end
-end)
-
 Window:AddButton("Sewer: Collect Cashvine [TAP]", function() task.spawn(TapCollectCashvine) end)
 Window:AddButton("Sewer: Open All Doors [TAP]", function() task.spawn(TapOpenAllDoors) end)
 Window:AddButton("Sewer: Auto Full Sewer [TAP]", function() task.spawn(TapAutoSewer) end)
@@ -733,16 +837,15 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 3: AUTO UPGRADE & CLICK (AGRESIF & HIT-AND-RUN)
+-- LOOP 3: AUTO UPGRADE (DINAMIS MAX CALCULATOR)
 -- =======================================================
+local upgradePriority = {"LemonX", "LemonRepublic", "LemonRobotics", "LemonLabs", "LemonTrading", "LemonDepot", "LemonDash", "LemonStand"}
 local clickTargets = {"LemonDepot", "LemonLabs", "LemonRepublic", "LemonRobotics", "LemonStand", "LemonTrading", "LemonDash", "LemonX"}
-local activeUpgradeThreads = {} 
 
 task.spawn(function()
-    -- [BAGIAN A]: WAKE INCOME STREAM (AUTO CLICK SUPER CEPAT)
+    -- [BAGIAN A]: WAKE INCOME STREAM
     for _, targetName in ipairs(clickTargets) do
         task.spawn(function()
-            -- Jeda diperkecil jadi 0.05 detik (20 klik per detik per target)
             while task.wait(0.05) do 
                 if Toggles.AutoUpgrade then
                     pcall(function()
@@ -750,7 +853,6 @@ task.spawn(function()
                         local wakeRemote = MyTycoon and MyTycoon:FindFirstChild("Remotes") and MyTycoon.Remotes:FindFirstChild("WakeIncomeStream")
                         
                         if wakeRemote and wakeRemote:IsA("RemoteFunction") then
-                            -- BUNGKUS TASK.SPAWN: Tembak dan lupakan, jangan tunggu balasan server!
                             task.spawn(function()
                                 pcall(function() wakeRemote:InvokeServer(targetName) end)
                             end)
@@ -761,42 +863,83 @@ task.spawn(function()
         end)
     end
 
-    -- [BAGIAN B]: AUTO UPGRADE (SPAMMER ENGINE)
-    while task.wait(1) do 
+    -- [BAGIAN B]: AUTO UPGRADE (AUTO MAX MATH ENGINE)
+    while task.wait(0.1) do 
         if Toggles.AutoUpgrade then
             pcall(function()
-                local MyTycoon = GetMyTycoon()
-                if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
-                    for _, desc in ipairs(MyTycoon.Purchases:GetDescendants()) do
-                        if desc:IsA("RemoteFunction") and desc.Name == "Upgrade" then
+                local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+                local manageFolder = playerGui and playerGui:FindFirstChild("Manage") 
+                    and playerGui.Manage:FindFirstChild("ManageMenu")
+                    and playerGui.Manage.ManageMenu:FindFirstChild("Body")
+                    and playerGui.Manage.ManageMenu.Body:FindFirstChild("Frame")
+                    and playerGui.Manage.ManageMenu.Body.Frame:FindFirstChild("Manage")
+                
+                local cashObj = playerGui and playerGui:FindFirstChild("HUD")
+                    and playerGui.HUD:FindFirstChild("Balance")
+                    and playerGui.HUD.Balance:FindFirstChild("Main")
+                    and playerGui.HUD.Balance.Main:FindFirstChild("Cash")
+                
+                if manageFolder and cashObj then
+                    local baseCash, expCash = CleanAndParse(cashObj.Text)
+                    
+                    for _, targetName in ipairs(upgradePriority) do
+                        local itemUI = manageFolder:FindFirstChild(targetName)
+                        if itemUI then
+                            if itemUI.Visible ~= true then itemUI.Visible = true end
                             
-                            if not activeUpgradeThreads[desc] then
-                                activeUpgradeThreads[desc] = true
+                            local priceObj = itemUI:FindFirstChild("Upgrade") and itemUI.Upgrade:FindFirstChild("Price")
+                            if priceObj then
+                                local basePrice, expPrice = CleanAndParse(priceObj.Text)
                                 
-                                task.spawn(function()
-                                    -- JEDA EKSTREM: 0.03 detik (Sangat cepat tapi di ambang batas aman Roblox)
-                                    while task.wait(0.03) do
-                                        if not Toggles.AutoUpgrade then 
-                                            task.wait(0.5) 
-                                            continue 
-                                        end
+                                local diffExp = expCash - expPrice
+                                -- Cek apakah bisa beli minimal 1
+                                if diffExp > 0 or (diffExp == 0 and baseCash >= basePrice) then
+                                    
+                                    -- ==============================================
+                                    -- KALKULATOR "MAX" CUSTOM (Cash / Price)
+                                    -- ==============================================
+                                    local calculatedBuyAmount = 1
+                                    
+                                    -- Mencegah limit matematika error jika uang terlalu overpower (misal beda 10 pangkat)
+                                    -- Karena harga Tycoon tidak linear, kita batasi maksimal pembelian per request di 100 agar server tidak curiga.
+                                    if diffExp > 2 then
+                                        calculatedBuyAmount = 100
+                                    else
+                                        -- Mengkalkulasi murni dari rasio pembagian Cash & Price
+                                        local rawAmount = (baseCash / basePrice) * (10 ^ diffExp)
+                                        calculatedBuyAmount = math.floor(rawAmount)
                                         
-                                        local isValid = false
-                                        pcall(function() if desc and desc.Parent then isValid = true end end)
-                                        
-                                        if isValid then
-                                            -- BUNGKUS TASK.SPAWN: Bypass delay ping!
-                                            task.spawn(function()
-                                                pcall(function() desc:InvokeServer(UpgradeAmount) end)
-                                            end)
-                                        else
-                                            activeUpgradeThreads[desc] = nil
-                                            break 
+                                        -- Safety net
+                                        if calculatedBuyAmount < 1 then calculatedBuyAmount = 1 end
+                                        if calculatedBuyAmount > 100 then calculatedBuyAmount = 100 end
+                                    end
+
+                                    local MyTycoon = GetMyTycoon()
+                                    if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
+                                        local targetFolder = MyTycoon.Purchases:FindFirstChild(targetName)
+                                        if targetFolder then
+                                            local remote = targetFolder:FindFirstChild("Upgrade") or targetFolder:FindFirstChildOfClass("RemoteFunction")
+                                            if not remote then
+                                                for _, desc in ipairs(targetFolder:GetDescendants()) do
+                                                    if desc:IsA("RemoteFunction") and desc.Name == "Upgrade" then
+                                                        remote = desc
+                                                        break
+                                                    end
+                                                end
+                                            end
+                                            
+                                            if remote then
+                                                -- TEMBAKKAN ANGKA HASIL KALKULASI LANGSUNG KE SERVER!
+                                                task.spawn(function()
+                                                    pcall(function() remote:InvokeServer(calculatedBuyAmount) end)
+                                                end)
+                                                
+                                                break -- Break loop ini agar ngecek lagi dari LemonX di siklus berikutnya
+                                            end
                                         end
                                     end
-                                end)
+                                end
                             end
-                            
                         end
                     end
                 end
@@ -831,22 +974,23 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 5: SMART AUTO REBIRTH (INSTANT TP & CACHE SYSTEM)
+-- LOOP 5: SMART AUTO REBIRTH (WIDE & FLAT SAFEZONE CALCULATION)
 -- =======================================================
 local wasAutoRebirthOn = false
 local visibleTimerRebirth = 0
 local isRebirthing = false 
-local cachedLemonXCFrame = nil -- Memori untuk menyimpan lokasi sebelum hancur
+local cachedLemonXCFrame = nil 
+local cachedLemonXSize = nil 
 
--- Fungsi Bikin Pijakan
-local function EnsureSafeZone(targetCFrame)
+-- Fungsi Bikin Pijakan Luas & Pasti Datar
+local function EnsureSafeZone(targetCFrame, targetSize)
     local safeZoneName = "BrutalSafeZone_LemonX"
     local safeZone = workspace:FindFirstChild(safeZoneName)
 
     if not safeZone then
         safeZone = Instance.new("Part")
         safeZone.Name = safeZoneName
-        safeZone.Size = Vector3.new(15, 1, 15) 
+        safeZone.Size = Vector3.new(30, 1, 30) -- Diperluas jadi lapangan 30x30, ketebalan solid 1 stud
         safeZone.Anchored = true
         safeZone.CanCollide = true
         safeZone.Transparency = 0.4 
@@ -854,8 +998,17 @@ local function EnsureSafeZone(targetCFrame)
         safeZone.Material = Enum.Material.Neon
         safeZone.Parent = workspace
     end
-    -- Taruh 4 stud tepat di bawah CFrame target
-    safeZone.CFrame = targetCFrame * CFrame.new(0, -4, 0)
+    
+    -- KALKULASI MATEMATIKA PERMUKAAN:
+    -- Cari tahu kordinat Y (ketinggian) paling atas dari part target
+    local targetTopY = targetCFrame.Position.Y + (targetSize.Y / 2)
+    
+    -- Posisikan SafeZone: 
+    -- Ambil koordinat X dan Z dari target.
+    -- Set ketinggian (Y) agar bagian atas SafeZone rata dengan targetTopY.
+    -- (Dikurangi 0.5 karena ketebalan SafeZone kita adalah 1).
+    -- Menggunakan CFrame.new(x,y,z) murni agar platform 100% mendatar tanpa ikut rotasi part target!
+    safeZone.CFrame = CFrame.new(targetCFrame.Position.X, targetTopY - 0.5, targetCFrame.Position.Z)
 end
 
 task.spawn(function()
@@ -912,9 +1065,6 @@ task.spawn(function()
                                 if expPot > targetExp or (expPot == targetExp and basePot >= targetBase) then shouldRebirth = true end
                             end
 
-                            -- ==========================================
-                            -- EKSEKUSI REBIRTH (MODE INSTANT TP CACHE)
-                            -- ==========================================
                             if shouldRebirth and not isRebirthing then
                                 local MyTycoon = GetMyTycoon()
                                 local rebirthRemote = MyTycoon and MyTycoon:FindFirstChild("Remotes") and MyTycoon.Remotes:FindFirstChild("Rebirth")
@@ -922,7 +1072,6 @@ task.spawn(function()
                                 if rebirthRemote and rebirthRemote:IsA("RemoteFunction") then
                                     isRebirthing = true
                                     
-                                    -- 1. CURI DATA KORDINAT SEBELUM REBIRTH DIKLIK
                                     pcall(function()
                                         local decorFolder = MyTycoon:FindFirstChild("Purchases")
                                             and MyTycoon.Purchases:FindFirstChild("LemonX")
@@ -932,29 +1081,31 @@ task.spawn(function()
                                         if decorFolder then
                                             local parts = decorFolder:GetChildren()
                                             if #parts >= 15 then
-                                                cachedLemonXCFrame = parts[15].CFrame -- Simpan ke memori!
+                                                cachedLemonXCFrame = parts[15].CFrame 
+                                                cachedLemonXSize = parts[15].Size 
                                             end
                                         end
                                     end)
 
-                                    -- 2. EKSEKUSI REBIRTH
                                     task.spawn(function()
                                         pcall(function() 
                                             rebirthRemote:InvokeServer()
                                             UpgradeRemotes = {} 
                                             
-                                            -- Tunggu mati dan respawn
                                             local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
                                             local root = char:WaitForChild("HumanoidRootPart", 10)
                                             
-                                            -- Jeda 1.5 detik agar aman dari sistem Spawn Pad game
                                             task.wait(1.5) 
                                             
-                                            -- 3. TP INSTAN MENGGUNAKAN MEMORI KORDINAT TADI
-                                            if root and cachedLemonXCFrame then
-                                                EnsureSafeZone(cachedLemonXCFrame)
-                                                task.wait(0.1) -- Jeda mikrosekon agar SafeZone solid
-                                                root.CFrame = cachedLemonXCFrame * CFrame.new(0, 3, 0) 
+                                            if root and cachedLemonXCFrame and cachedLemonXSize then
+                                                -- 1. Buat Pijakan Lapangan 30x30 yang pasti rata
+                                                EnsureSafeZone(cachedLemonXCFrame, cachedLemonXSize)
+                                                
+                                                -- 2. Hitung lagi tinggi atap target untuk posisi jatuh karakter
+                                                local targetTopY = cachedLemonXCFrame.Position.Y + (cachedLemonXSize.Y / 2)
+                                                
+                                                -- 3. TP Karakter tepat di tengah X dan Z target, dan dijatuhkan 3 stud di atas permukaannya
+                                                root.CFrame = CFrame.new(cachedLemonXCFrame.Position.X, targetTopY + 3, cachedLemonXCFrame.Position.Z) 
                                             end
                                         end)
                                         isRebirthing = false 
