@@ -32,18 +32,15 @@ local RebirthInput
 local UpgradeInput
 
 -- =======================================================
--- TRIK BRUTAL 3.0: PEMBUNUH LAG ANIMASI JATUH (SHADOW & PHYSICS CULLER)
+-- TRIK BRUTAL 3.1: PEMBUNUH LAG AMAN (HANYA SHADOW)
 -- =======================================================
 Workspace.DescendantAdded:Connect(function(desc)
-    -- Jika AutoBuy menyala dan ada objek bangunan baru yang muncul (jatuh)
+    -- Jika AutoBuy menyala dan ada objek bangunan baru yang muncul
     if Toggles.AutoBuy and desc:IsA("BasePart") then
         pcall(function()
-            -- Jangan sentuh karakter player lain yang baru masuk
-            if not desc.Parent:FindFirstChild("Humanoid") and not desc.Parent.Parent:FindFirstChild("Humanoid") then
-                desc.CastShadow = false -- Matikan bayangan dinamis (Super hemat GPU)
-                desc.CanTouch = false   -- Matikan event sentuhan fisik (Hemat CPU)
-                desc.CanQuery = false   -- Matikan dari spatial query (Hemat CPU)
-            end
+            -- HANYA matikan bayangan dinamis (Super hemat GPU untuk animasi jatuh). 
+            -- Jangan matikan CanTouch agar AutoBuy tidak mogok!
+            desc.CastShadow = false 
         end)
     end
 end)
