@@ -12,16 +12,16 @@ function RZY_Library:MakeWindow(TitleText)
     ScreenGui.Parent = CoreGui
 
     -- ==========================================
-    -- FIX: IKON LOGO RZY (LEBIH RAMPING & JELAS)
+    -- FIX: IKON LOGO RZY (SPASI & FONT TIPIS)
     -- ==========================================
     local RZYIcon = Instance.new("TextButton")
     RZYIcon.Size = UDim2.new(0, 50, 0, 50)
     RZYIcon.Position = UDim2.new(0.5, -25, 0, 20)
     RZYIcon.BackgroundColor3 = Color3.fromRGB(15, 15, 15) 
-    RZYIcon.Text = "RZY"
+    RZYIcon.Text = "R Z Y" -- Diberi spasi agar huruf tidak saling bersentuhan
     RZYIcon.TextColor3 = Color3.fromRGB(0, 170, 255) 
-    RZYIcon.TextSize = 14 -- Diperkecil agar pas dalam lingkaran
-    RZYIcon.Font = Enum.Font.GothamBold -- Diubah dari GothamBlack agar tidak blur/terlalu tebal
+    RZYIcon.TextSize = 13 -- Disesuaikan sedikit agar pas dengan spasi
+    RZYIcon.Font = Enum.Font.Gotham -- Menggunakan versi font tipis (Regular)
     RZYIcon.Visible = false 
     RZYIcon.Active = true
     RZYIcon.Draggable = true 
