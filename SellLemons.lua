@@ -16,7 +16,6 @@ local Toggles = {
     AutoDrop = false,
     AutoBuy = false,
     AutoUpgrade = false,
-    AutoPhone = false,
     AutoRebirth = false,
     AutoEvolve = false,
     AutoAscend = false
@@ -27,6 +26,129 @@ local RebirthValue = 2
 local UpgradeAmount = 1
 local UpgradeRemotes = {}
 local ToggleObjects = {}
+
+-- Reference elemen Input UI untuk kebutuhan sinkronisasi Load Config
+local RebirthInput
+local UpgradeInput
+
+-- ==========================================
+-- 1. IDENTIFIKASI PENGALI (HANYA KATA PENUH SAMPAI CENTILLION)
+-- ==========================================
+local Multipliers = {
+    ["thousand"] = 1e3,
+    ["million"] = 1e6,
+    ["billion"] = 1e9,
+    ["trillion"] = 1e12,
+    ["quadrillion"] = 1e15,
+    ["quintillion"] = 1e18,
+    ["sextillion"] = 1e21,
+    ["septillion"] = 1e24,
+    ["octillion"] = 1e27,
+    ["nonillion"] = 1e30,
+    ["decillion"] = 1e33,
+    ["undecillion"] = 1e36,
+    ["duodecillion"] = 1e39,
+    ["tredecillion"] = 1e42,
+    ["quattuordecillion"] = 1e45,
+    ["quindecillion"] = 1e48,
+    ["sexdecillion"] = 1e51,
+    ["septendecillion"] = 1e54,
+    ["octodecillion"] = 1e57,
+    ["novemdecillion"] = 1e60,
+    ["vigintillion"] = 1e63,
+    ["unvigintillion"] = 1e66,
+    ["duovigintillion"] = 1e69,
+    ["trevingtillion"] = 1e72,
+    ["quattuorvigintillion"] = 1e75,
+    ["quinvigintillion"] = 1e78,
+    ["sexvigintillion"] = 1e81,
+    ["septenvigintillion"] = 1e84,
+    ["octovigintillion"] = 1e87,
+    ["novemvigintillion"] = 1e90,
+    ["trigintillion"] = 1e93,
+    ["untrigintillion"] = 1e96,
+    ["duotrigintillion"] = 1e99,
+    ["tretrigintillion"] = 1e102,
+    ["quattuortrigintillion"] = 1e105,
+    ["quintrigintillion"] = 1e108,
+    ["sextrigintillion"] = 1e111,
+    ["septentrigintillion"] = 1e114,
+    ["octotrigintillion"] = 1e117,
+    ["novemtrigintillion"] = 1e120,
+    ["quadragintillion"] = 1e123,
+    ["unquadragintillion"] = 1e126,
+    ["duoquadragintillion"] = 1e129,
+    ["trequadragintillion"] = 1e132,
+    ["quattuorquadragintillion"] = 1e135,
+    ["quinquadragintillion"] = 1e138,
+    ["sexquadragintillion"] = 1e141,
+    ["septenquadragintillion"] = 1e144,
+    ["octoquadragintillion"] = 1e147,
+    ["novemquadragintillion"] = 1e150,
+    ["quinquagintillion"] = 1e153,
+    ["unquinquagintillion"] = 1e156,
+    ["duoquinquagintillion"] = 1e159,
+    ["trequinquagintillion"] = 1e162,
+    ["quattuorquinquagintillion"] = 1e165,
+    ["quinquinquagintillion"] = 1e168,
+    ["sexquinquagintillion"] = 1e171,
+    ["septenquinquagintillion"] = 1e174,
+    ["octoquinquagintillion"] = 1e177,
+    ["novemquinquagintillion"] = 1e180,
+    ["sexagintillion"] = 1e183,
+    ["unsexagintillion"] = 1e186,
+    ["duosexagintillion"] = 1e189,
+    ["tresexagintillion"] = 1e192,
+    ["quattuorsexagintillion"] = 1e195,
+    ["quinsexagintillion"] = 1e198,
+    ["sexsexagintillion"] = 1e201,
+    ["septensexagintillion"] = 1e204,
+    ["octosexagintillion"] = 1e207,
+    ["novemsexagintillion"] = 1e210,
+    ["septuagintillion"] = 1e213,
+    ["unseptuagintillion"] = 1e216,
+    ["duoseptuagintillion"] = 1e219,
+    ["treseptuagintillion"] = 1e222,
+    ["quattuorseptuagintillion"] = 1e225,
+    ["quinseptuagintillion"] = 1e228,
+    ["sexseptuagintillion"] = 1e231,
+    ["septenseptuagintillion"] = 1e234,
+    ["octoseptuagintillion"] = 1e237,
+    ["novemseptuagintillion"] = 1e240,
+    ["octogintillion"] = 1e243,
+    ["unoctogintillion"] = 1e246,
+    ["duooctogintillion"] = 1e249,
+    ["treoctogintillion"] = 1e252,
+    ["quattuoroctogintillion"] = 1e255,
+    ["quinoctogintillion"] = 1e258,
+    ["sexoctogintillion"] = 1e261,
+    ["septenoctogintillion"] = 1e264,
+    ["octooctogintillion"] = 1e267,
+    ["novemoctogintillion"] = 1e270,
+    ["nonagintillion"] = 1e273,
+    ["unnonagintillion"] = 1e276,
+    ["duononagintillion"] = 1e279,
+    ["trenonagintillion"] = 1e282,
+    ["quattuornonagintillion"] = 1e285,
+    ["quinnonagintillion"] = 1e288,
+    ["sexnonagintillion"] = 1e291,
+    ["septennonagintillion"] = 1e294,
+    ["octononagintillion"] = 1e297,
+    ["novemnonagintillion"] = 1e300,
+    ["centillion"] = 1e303
+}
+
+local function parseStringToNumber(textStr)
+    if not textStr or textStr == "" then return 0 end
+    local clean = string.lower(textStr):gsub("[$,%s]", "")
+    
+    local num, suffix = string.match(clean, "([%d%.]+)(%a+)")
+    if num and suffix and Multipliers[suffix] then
+        return tonumber(num) * Multipliers[suffix]
+    end
+    
+    return tonumber(clean) or 0
+end
 
 local function SaveConfig()
     local configData = {
@@ -50,145 +172,34 @@ local function LoadConfig()
                 if decoded.Toggles then
                     for k, v in pairs(decoded.Toggles) do 
                         Toggles[k] = v 
-                        -- FIX BUG: Paksa visual UI berubah mengikuti data hasil load
                         if ToggleObjects[k] then
                             ToggleObjects[k]:Set(v)
                         end
                     end
                 end
+                
                 if decoded.RebirthMode then RebirthMode = decoded.RebirthMode end
-                if decoded.RebirthValue then RebirthValue = decoded.RebirthValue end
-                if decoded.UpgradeAmount then UpgradeAmount = decoded.UpgradeAmount end
+                if decoded.RebirthValue then 
+                    RebirthValue = decoded.RebirthValue 
+                    if RebirthInput and RebirthInput.Set then
+                        if RebirthMode == "Multiplier" then
+                            RebirthInput:Set(RebirthValue .. "x")
+                        else
+                            RebirthInput:Set(tostring(RebirthValue))
+                        end
+                    end
+                end
+                
+                if decoded.UpgradeAmount then 
+                    UpgradeAmount = decoded.UpgradeAmount 
+                    if UpgradeInput and UpgradeInput.Set then
+                        UpgradeInput:Set(tostring(UpgradeAmount))
+                    end
+                end
             end
         end
     end)
 end
-
--- ==========================================
--- 1. ENGINE VALUE CONVERTER & UTILITIES
--- ==========================================
-local Multipliers = {
-    -- === RIBUAN SAMPAI NONILLION (1e3 - 1e30) ===
-    ["k"] = 1e3, ["thousand"] = 1e3,
-    ["m"] = 1e6, ["million"] = 1e6,
-    ["b"] = 1e9, ["billion"] = 1e9,
-    ["t"] = 1e12, ["trillion"] = 1e12,
-    ["qd"] = 1e15, ["quadrillion"] = 1e15,
-    ["qn"] = 1e18, ["quintillion"] = 1e18,
-    ["sx"] = 1e21, ["sextillion"] = 1e21,
-    ["sp"] = 1e24, ["septillion"] = 1e24,
-    ["o"] = 1e27, ["octillion"] = 1e27,
-    ["n"] = 1e30, ["nonillion"] = 1e30,
-
-    -- === DECILLION SAMPAI NOVEMDECILLION (1e33 - 1e60) ===
-    ["d"] = 1e33, ["decillion"] = 1e33,
-    ["ud"] = 1e36, ["undecillion"] = 1e36,
-    ["dd"] = 1e39, ["duodecillion"] = 1e39,
-    ["td"] = 1e42, ["tredecillion"] = 1e42,
-    ["qtd"] = 1e45, ["quattuordecillion"] = 1e45,
-    ["qnd"] = 1e48, ["quindecillion"] = 1e48,
-    ["sxd"] = 1e51, ["sexdecillion"] = 1e51,
-    ["spd"] = 1e54, ["septendecillion"] = 1e54,
-    ["od"] = 1e57, ["octodecillion"] = 1e57,
-    ["nd"] = 1e60, ["novemdecillion"] = 1e60,
-
-    -- === VIGINTILLION SAMPAI NOVEMVIGINTILLION (1e63 - 1e90) ===
-    ["v"] = 1e63, ["vigintillion"] = 1e63,
-    ["uv"] = 1e66, ["unvigintillion"] = 1e66,
-    ["dv"] = 1e69, ["duovigintillion"] = 1e69,
-    ["tv"] = 1e72, ["trevingtillion"] = 1e72,
-    ["qtv"] = 1e75, ["quattuorvigintillion"] = 1e75,
-    ["qnv"] = 1e78, ["quinvigintillion"] = 1e78,
-    ["sxv"] = 1e81, ["sexvigintillion"] = 1e81,
-    ["spv"] = 1e84, ["septenvigintillion"] = 1e84,
-    ["ov"] = 1e87, ["octovigintillion"] = 1e87,
-    ["nv"] = 1e90, ["novemvigintillion"] = 1e90,
-
-    -- === TRIGINTILLION SAMPAI NOVEMTRIGINTILLION (1e93 - 1e120) ===
-    ["tg"] = 1e93, ["trigintillion"] = 1e93,
-    ["utg"] = 1e96, ["untrigintillion"] = 1e96,
-    ["dtg"] = 1e99, ["duotrigintillion"] = 1e99,
-    ["ttg"] = 1e102, ["tretrigintillion"] = 1e102,
-    ["qtg"] = 1e105, ["quattuortrigintillion"] = 1e105,
-    ["qng"] = 1e108, ["quintrigintillion"] = 1e108,
-    ["sxg"] = 1e111, ["sextrigintillion"] = 1e111,
-    ["spg"] = 1e114, ["septentrigintillion"] = 1e114,
-    ["otg"] = 1e117, ["octotrigintillion"] = 1e117,
-    ["ntg"] = 1e120, ["novemtrigintillion"] = 1e120,
-
-    -- === QUADRAGINTILLION SAMPAI NOVEMQUADRAGINTILLION (1e123 - 1e150) ===
-    ["qag"] = 1e123, ["quadragintillion"] = 1e123,
-    ["uqag"] = 1e126, ["unquadragintillion"] = 1e126,
-    ["dqag"] = 1e129, ["duoquadragintillion"] = 1e129,
-    ["tqag"] = 1e132, ["trequadragintillion"] = 1e132,
-    ["qqag"] = 1e135, ["quattuorquadragintillion"] = 1e135,
-    ["qqg"] = 1e138, ["quinquadragintillion"] = 1e138,
-    ["sxqg"] = 1e141, ["sexquadragintillion"] = 1e141,
-    ["spqg"] = 1e144, ["septenquadragintillion"] = 1e144,
-    ["oqg"] = 1e147, ["octoquadragintillion"] = 1e147,
-    ["nqg"] = 1e150, ["novemquadragintillion"] = 1e150,
-
-    -- === QUINQUAGINTILLION SAMPAI NOVEMQUINQUAGINTILLION (1e153 - 1e180) ===
-    ["qig"] = 1e153, ["quinquagintillion"] = 1e153,
-    ["uqig"] = 1e156, ["unquinquagintillion"] = 1e156,
-    ["dqig"] = 1e159, ["duoquinquagintillion"] = 1e159,
-    ["tqig"] = 1e162, ["trequinquagintillion"] = 1e162,
-    ["qqig"] = 1e165, ["quattuorquinquagintillion"] = 1e165,
-    ["qnqg"] = 1e168, ["quinquinquagintillion"] = 1e168,
-    ["sxqig"] = 1e171, ["sexquinquagintillion"] = 1e171,
-    ["spqig"] = 1e174, ["septenquinquagintillion"] = 1e174,
-    ["oqig"] = 1e177, ["octoquinquagintillion"] = 1e177,
-    ["nqig"] = 1e180, ["novemquinquagintillion"] = 1e180,
-
-    -- === SEXAGINTILLION SAMPAI NOVEMSEXAGINTILLION (1e183 - 1e210) ===
-    ["sxa"] = 1e183, ["sexagintillion"] = 1e183,
-    ["usxa"] = 1e186, ["unsexagintillion"] = 1e186,
-    ["dsxa"] = 1e189, ["duosexagintillion"] = 1e189,
-    ["tsxa"] = 1e192, ["tresexagintillion"] = 1e192,
-    ["qsxa"] = 1e195, ["quattuorsexagintillion"] = 1e195,
-    ["qnsxa"] = 1e198, ["quinsexagintillion"] = 1e198,
-    ["sxsxa"] = 1e201, ["sexsexagintillion"] = 1e201,
-    ["spsxa"] = 1e204, ["septensexagintillion"] = 1e204,
-    ["osxa"] = 1e207, ["octosexagintillion"] = 1e207,
-    ["nsxa"] = 1e210, ["novemsexagintillion"] = 1e210,
-
-    -- === SEPTUAGINTILLION SAMPAI NOVEMSEPTUAGINTILLION (1e213 - 1e240) ===
-    ["spg_alt"] = 1e213, ["septuagintillion"] = 1e213,
-    ["uspg"] = 1e216, ["unseptuagintillion"] = 1e216,
-    ["dspg"] = 1e219, ["duoseptuagintillion"] = 1e219,
-    ["tspg"] = 1e222, ["treseptuagintillion"] = 1e222,
-    ["qspg"] = 1e225, ["quattuorseptuagintillion"] = 1e225,
-    ["qnspg"] = 1e228, ["quinseptuagintillion"] = 1e228,
-    ["sxspg"] = 1e231, ["sexseptuagintillion"] = 1e231,
-    ["spspg"] = 1e234, ["septenseptuagintillion"] = 1e234,
-    ["ospg"] = 1e237, ["octoseptuagintillion"] = 1e237,
-    ["nspg"] = 1e240, ["novemseptuagintillion"] = 1e240,
-
-    -- === OCTOGINTILLION SAMPAI NOVEMOCTOGINTILLION (1e243 - 1e270) ===
-    ["ocg"] = 1e243, ["octogintillion"] = 1e243,
-    ["uocg"] = 1e246, ["unoctogintillion"] = 1e246,
-    ["docg"] = 1e249, ["duooctogintillion"] = 1e249,
-    ["tocg"] = 1e252, ["treoctogintillion"] = 1e252,
-    ["qocg"] = 1e255, ["quattuoroctogintillion"] = 1e255,
-    ["qnocg"] = 1e258, ["quinoctogintillion"] = 1e258,
-    ["sxocg"] = 1e261, ["sexoctogintillion"] = 1e261,
-    ["spocg"] = 1e264, ["septenoctogintillion"] = 1e264,
-    ["oocg"] = 1e267, ["octooctogintillion"] = 1e267,
-    ["nocg"] = 1e270, ["novemoctogintillion"] = 1e270,
-
-    -- === NONAGINTILLION SAMPAI CENTILLION (1e273 - 1e303) ===
-    ["nog"] = 1e273, ["nonagintillion"] = 1e273,
-    ["unog"] = 1e276, ["unnonagintillion"] = 1e276,
-    ["dnog"] = 1e279, ["duononagintillion"] = 1e279,
-    ["tnog"] = 1e282, ["trenonagintillion"] = 1e282,
-    ["qnog"] = 1e285, ["quattuornonagintillion"] = 1e285,
-    ["qnnog"] = 1e288, ["quinnonagintillion"] = 1e288,
-    ["sxnog"] = 1e291, ["sexnonagintillion"] = 1e291,
-    ["spnog"] = 1e294, ["septennonagintillion"] = 1e294,
-    ["onog"] = 1e297, ["octononagintillion"] = 1e297,
-    ["nnog"] = 1e300, ["novemnonagintillion"] = 1e300,
-    ["cen"] = 1e303, ["centillion"] = 1e303,
-}
 
 local function CleanAndParse(textStr)
     if not textStr or textStr == "" then return 0, 0 end
@@ -198,7 +209,7 @@ local function CleanAndParse(textStr)
     if not base then base, exp = string.match(clean, "([%d%.]+)%^(%d+)") end
     if base and exp then return tonumber(base), tonumber(exp) end
     
-    local num, suffix = string.match(clean, "([%d%.]+)([%a_]+)")
+    local num, suffix = string.match(clean, "([%d%.]+)(%a+)")
     if num and suffix and Multipliers[suffix] then
         local realValue = tonumber(num) * Multipliers[suffix]
         local log10 = math.log10(realValue)
@@ -415,7 +426,6 @@ local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcron
 
 local Window = Library:MakeWindow("🍋 Lemon Hub V5.7")
 
--- MENYIMPAN MAKER TOGGLE KE DALAM TABEL AGAR BISA DIKONTROL DARI SKRIP UTAMA
 ToggleObjects.SilentHarvest = Window:AddToggle("Silent Harvest", false, function(Value) Toggles.SilentHarvest = Value end)
 ToggleObjects.AutoHarvest = Window:AddToggle("Auto Steal Lemons", false, function(Value)
     Toggles.AutoHarvest = Value
@@ -431,12 +441,11 @@ end)
 ToggleObjects.AutoDrop = Window:AddToggle("Auto Collect Drops", false, function(Value) Toggles.AutoDrop = Value end)
 ToggleObjects.AutoBuy = Window:AddToggle("Auto Buy Buttons", false, function(Value) Toggles.AutoBuy = Value end)
 ToggleObjects.AutoUpgrade = Window:AddToggle("Auto Upgrade Max", false, function(Value) Toggles.AutoUpgrade = Value end)
-ToggleObjects.AutoPhone = Window:AddToggle("Auto Answer Phone", false, function(Value) Toggles.AutoPhone = Value end)
 ToggleObjects.AutoRebirth = Window:AddToggle("Auto Rebirth", false, function(Value) Toggles.AutoRebirth = Value end)
 ToggleObjects.AutoEvolve = Window:AddToggle("Auto Evolve", false, function(Value) Toggles.AutoEvolve = Value end)
 ToggleObjects.AutoAscend = Window:AddToggle("Auto Ascend", false, function(Value) Toggles.AutoAscend = Value end)
 
-Window:AddInput("Target Rebirth", "Smart (2x) / 100", function(Text)
+RebirthInput = Window:AddInput("Target Rebirth", "Smart (2x) / 100", function(Text)
     local input = string.lower(Text)
     if input == "smart" then
         RebirthMode = "Multiplier"
@@ -448,7 +457,7 @@ Window:AddInput("Target Rebirth", "Smart (2x) / 100", function(Text)
             RebirthValue = mult
         end
     else
-        local val = parseStringToNumber(input)
+        local val = parseStringToNumber(input) 
         if val and val > 0 then 
             RebirthMode = "Target"
             RebirthValue = val 
@@ -456,23 +465,24 @@ Window:AddInput("Target Rebirth", "Smart (2x) / 100", function(Text)
     end
 end)
 
-Window:AddInput("Value Upgrade", "1", function(Text)
+UpgradeInput = Window:AddInput("Value Upgrade", "1", function(Text)
     local val = tonumber(Text)
     if val and val > 0 then
         UpgradeAmount = math.floor(val)
     end
 end)
 
--- Fitur Sewer & Doors
 Window:AddButton("Sewer: Collect Cashvine [TAP]", function() task.spawn(TapCollectCashvine) end)
 Window:AddButton("Sewer: Open All Doors [TAP]", function() task.spawn(TapOpenAllDoors) end)
 Window:AddButton("Sewer: Auto Full Sewer [TAP]", function() task.spawn(TapAutoSewer) end)
 
--- Sistem Penyimpanan Config
 Window:AddButton("💾 Save Configuration", function() SaveConfig() end)
-Window:AddButton("📂 Load Configuration", function() LoadConfig() end)
+Window:AddButton("🔄 Load Configuration", function() LoadConfig() end)
 
--- Anti-AFK Bawaan Engine
+-- NOTE: Menambahkan label teks ke bagian paling bawah UI
+Window:AddLabel("📝 Background Features Active: Auto Buy Power & Auto Answer Phone")
+Window:AddLabel("📝 Keep Rebirth Menu open for Auto Rebirth to work")
+
 LocalPlayer.Idled:Connect(function()
     pcall(function() VirtualUser:CaptureController() VirtualUser:ClickButton2(Vector2.new()) end)
 end)
@@ -488,9 +498,7 @@ task.spawn(function()
             pcall(function()
                 local char = LocalPlayer.Character
                 local rootPart = char and char:FindFirstChild("HumanoidRootPart")
-                
                 if rootPart then
-                    -- Looping ke semua 12 Tycoon untuk mencari buah yang berada di dekat pemain
                     for i = 1, 12 do
                         local tycoon = Workspace:FindFirstChild("Tycoon" .. i)
                         if tycoon then
@@ -502,12 +510,8 @@ task.spawn(function()
                                             if part.Name == "Fruit" then
                                                 local cd = part:FindFirstChildWhichIsA("ClickDetector", true)
                                                 if cd then
-                                                    -- Hitung jarak antara pemain dan buah
                                                     local distance = (part.Position - rootPart.Position).Magnitude
-                                                    -- Ambil batas jarak wajar dari server (default MaxActivationDistance biasanya 32)
                                                     local maxDist = cd.MaxActivationDistance or 32 
-                                                    
-                                                    -- Jika berada di dalam radius, otomatis diambil
                                                     if distance <= (maxDist + 5) then
                                                         fireclickdetector(cd)
                                                     end
@@ -649,8 +653,6 @@ task.spawn(function()
             pcall(function() 
                 local MyTycoon = GetMyTycoon()
                 if MyTycoon then
-                    
-                    -- [1] AUTO CLICK INCOME STREAM
                     if tick() - lastClickTime >= 0.1 then
                         lastClickTime = tick() 
                         local remotes = MyTycoon:FindFirstChild("Remotes")
@@ -666,7 +668,6 @@ task.spawn(function()
                         end
                     end
 
-                    -- [2] AUTO UPGRADE MAX 
                     if #UpgradeRemotes == 0 or (tick() - lastScanTime) > 5 then
                         RefreshUpgradeRemotes()
                         lastScanTime = tick()
@@ -675,7 +676,6 @@ task.spawn(function()
                     for i = #UpgradeRemotes, 1, -1 do
                         if not Toggles.AutoUpgrade then return end
                         local remote = UpgradeRemotes[i]
-                        
                         local isValid = false
                         pcall(function() if remote and remote.Parent then isValid = true end end)
 
@@ -693,30 +693,28 @@ task.spawn(function()
     end
 end)
 
--- LOOP 4: AUTO PHONE
+-- LOOP 4: AUTO PHONE (RUNS IN BACKGROUND SEKARANG)
 task.spawn(function()
     while task.wait(0.5) do
-        if Toggles.AutoPhone then
-            pcall(function() 
-                local MyTycoon = GetMyTycoon()
-                if MyTycoon then
-                    local phoneGui = LocalPlayer.PlayerGui:FindFirstChild("Phone")
-                    local phoneFrame = phoneGui and phoneGui:FindFirstChild("Phone")
-                    if phoneFrame and phoneFrame.Visible then
-                        local remotes = MyTycoon:FindFirstChild("Remotes")
-                        if remotes and remotes:FindFirstChild("PhoneOffer") then
-                            task.wait(0.5)
-                            pcall(function() remotes.PhoneOffer:FireServer("Raise") end)
-                            task.wait(0.5)
-                            pcall(function() remotes.PhoneOffer:FireServer("Accept") end)
-                            task.wait(0.5)
-                            phoneFrame.Visible = false
-                            task.wait(0.5)
-                        end
+        pcall(function() 
+            local MyTycoon = GetMyTycoon()
+            if MyTycoon then
+                local phoneGui = LocalPlayer.PlayerGui:FindFirstChild("Phone")
+                local phoneFrame = phoneGui and phoneGui:FindFirstChild("Phone")
+                if phoneFrame and phoneFrame.Visible then
+                    local remotes = MyTycoon:FindFirstChild("Remotes")
+                    if remotes and remotes:FindFirstChild("PhoneOffer") then
+                        task.wait(0.5)
+                        pcall(function() remotes.PhoneOffer:FireServer("Raise") end)
+                        task.wait(0.5)
+                        pcall(function() remotes.PhoneOffer:FireServer("Accept") end)
+                        task.wait(0.5)
+                        phoneFrame.Visible = false
+                        task.wait(0.5)
                     end
                 end
-            end)
-        end
+            end
+        end)
     end
 end)
 
@@ -867,7 +865,7 @@ task.spawn(function()
     end
 end)
 
--- LOOP 8: AUTO BUY POWER
+-- LOOP 8: AUTO BUY POWER (RUNS IN BACKGROUND)
 task.spawn(function()
     local powerNames = {"Manage", "BuyNext", "ClickFruitValue", "UpgradeStack", "WalkSpeed"}
     while task.wait(5) do
@@ -898,7 +896,7 @@ task.spawn(function()
                         task.spawn(function()
                             pcall(function() 
                                 ascendRemote:InvokeServer() 
-                                UpgradeRemotes = {} -- Bersihkan cache remote upgrade karena ter-reset game setelah Ascend
+                                UpgradeRemotes = {} 
                             end)
                         end)
                     end
