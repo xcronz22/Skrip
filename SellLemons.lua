@@ -735,7 +735,7 @@ local wasAutoRebirthOn = false
 local visibleTimerRebirth = 0 -- Variabel untuk menghitung waktu menu terbuka
 
 task.spawn(function()
-    while task.wait(0.05) do
+    while task.wait(0.1) do
         pcall(function()
             local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
             if playerGui then
@@ -996,7 +996,7 @@ local wasAutoAscendOn = false
 local visibleTimerAscend = 0 -- Timer khusus Ascend
 
 task.spawn(function()
-    while task.wait(0.5) do
+    while task.wait(0.1) do
         pcall(function()
             local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
             if playerGui then
