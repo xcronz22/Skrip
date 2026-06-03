@@ -454,7 +454,7 @@ Window:AddInput("Target Rebirth", "Smart (2x) / 100", function(Text)
     end
 end)
 
-Window:AddInput("Jumlah Upgrade", "1", function(Text)
+Window:AddInput("Value Upgrade", "1", function(Text)
     local val = tonumber(Text)
     if val and val > 0 then
         UpgradeAmount = math.floor(val)
