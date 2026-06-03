@@ -1056,7 +1056,7 @@ task.spawn(function()
                         local originalVisible = investorsMenu.Visible
                         if not investorsMenu.Visible then
                             investorsMenu.Visible = true
-                            task.wait(0.5) 
+                            task.wait(0.05) 
                         end
                         
                         local potentialText = potentialObj.Text
@@ -1107,7 +1107,7 @@ task.spawn(function()
                                         -- ======================================================================
                                         -- [TAMBAHAN BARU] TUNGGU 2 DETIK LALU TELEPORT KE TRADING ROAD BASE
                                         -- ======================================================================
-                                        task.wait(5)
+                                        task.wait(3)
                                         
                                         -- Kita tidak perlu me-hardcode 'Tycoon8', kita langsung panggil fungsi 
                                         -- GetMyTycoon() untuk nyari tycoon punyamu saat ini.
