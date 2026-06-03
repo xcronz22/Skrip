@@ -424,7 +424,8 @@ end
 -- ==========================================
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
 
-local Window = Library:MakeWindow("🍋 Lemon Hub V5.7")
+-- Menggunakan nama string bersih untuk menghindari encoding error
+local Window = Library:MakeWindow("Sell Lemons")
 
 ToggleObjects.SilentHarvest = Window:AddToggle("Silent Harvest", false, function(Value) Toggles.SilentHarvest = Value end)
 ToggleObjects.AutoHarvest = Window:AddToggle("Auto Steal Lemons", false, function(Value)
@@ -476,12 +477,23 @@ Window:AddButton("Sewer: Collect Cashvine [TAP]", function() task.spawn(TapColle
 Window:AddButton("Sewer: Open All Doors [TAP]", function() task.spawn(TapOpenAllDoors) end)
 Window:AddButton("Sewer: Auto Full Sewer [TAP]", function() task.spawn(TapAutoSewer) end)
 
-Window:AddButton("💾 Save Configuration", function() SaveConfig() end)
-Window:AddButton("🔄 Load Configuration", function() LoadConfig() end)
+Window:AddButton("Save Configuration", function() SaveConfig() end)
+Window:AddButton("Load Configuration", function() LoadConfig() end)
 
--- NOTE: Menambahkan label teks ke bagian paling bawah UI
-Window:AddLabel("📝 Background Features Active: Auto Buy Power & Auto Answer Phone")
-Window:AddLabel("📝 Keep Rebirth Menu open for Auto Rebirth to work")
+-- PROTEKSI UTAMA: Menggunakan pcall agar skrip tidak mati total jika library tidak mendukung AddLabel
+local labelSuccess = pcall(function()
+    Window:AddLabel("Background Features Active: Auto Buy Power & Auto Answer Phone")
+    Window:AddLabel("Keep Rebirth Menu open for Auto Rebirth to work")
+end)
+
+-- FALLBACK: Jika AddLabel error (tidak ada di library), otomatis buat catatan berbentuk Button pasif
+if not labelSuccess then
+    pcall(function()
+        Window:AddButton("--------------------------------------------------", function() end)
+        Window:AddButton("Active: Auto Buy Power & Auto Answer Phone", function() end)
+        Window:AddButton("Note: Keep Rebirth Menu open for Auto Rebirth", function() end)
+    end)
+end
 
 LocalPlayer.Idled:Connect(function()
     pcall(function() VirtualUser:CaptureController() VirtualUser:ClickButton2(Vector2.new()) end)
