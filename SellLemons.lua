@@ -64,6 +64,38 @@ oldCreate = hookfunction(TweenService.Create, function(self, instance, tweenInfo
     return oldCreate(self, instance, tweenInfo, propertyTable)
 end)
 
+-- =======================================================
+-- TRIK BRUTAL 4.0: MEMBUTAKAN ANIMASI BAWAAN GAME (GOD MODE)
+-- =======================================================
+task.spawn(function()
+    while task.wait(2) do -- Pengecekan rutin setiap 2 detik
+        if Toggles.AutoBuy then
+            pcall(function()
+                local MyTycoon = GetMyTycoon()
+                if MyTycoon then
+                    local purchases = MyTycoon:FindFirstChild("Purchases")
+                    
+                    -- Jika eksekutor kamu support getconnections (Krnl, Delta, Fluxus, Codex, dll)
+                    if getconnections then
+                        -- Matikan semua sensor game yang mendeteksi bangunan baru!
+                        if purchases then
+                            for _, connection in ipairs(getconnections(purchases.DescendantAdded)) do
+                                connection:Disable()
+                            end
+                            for _, connection in ipairs(getconnections(purchases.ChildAdded)) do
+                                connection:Disable()
+                            end
+                        end
+                        for _, connection in ipairs(getconnections(MyTycoon.DescendantAdded)) do
+                            connection:Disable()
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
 -- ==========================================
 -- 1. IDENTIFIKASI PENGALI (HANYA KATA PENUH SAMPAI CENTILLION)
 -- ==========================================
@@ -701,26 +733,27 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 3: AUTO UPGRADE & CLICK (BRUTAL ASYNCHRONOUS ENGINE)
+-- LOOP 3: AUTO UPGRADE & CLICK (AGRESIF & HIT-AND-RUN)
 -- =======================================================
 local clickTargets = {"LemonDepot", "LemonLabs", "LemonRepublic", "LemonRobotics", "LemonStand", "LemonTrading", "LemonDash", "LemonX"}
-local activeUpgradeThreads = {} -- Menyimpan daftar "bot" yang sedang bertugas
+local activeUpgradeThreads = {} 
 
 task.spawn(function()
-    -- [BAGIAN A]: WAKE INCOME STREAM (AUTO CLICK TANPA AMPUN)
-    -- Kita buat 1 "bot" khusus untuk MASING-MASING target!
+    -- [BAGIAN A]: WAKE INCOME STREAM (AUTO CLICK SUPER CEPAT)
     for _, targetName in ipairs(clickTargets) do
         task.spawn(function()
-            while task.wait() do -- Eksekusi secepat kedipan mata (0 delay)
+            -- Jeda diperkecil jadi 0.05 detik (20 klik per detik per target)
+            while task.wait(0.05) do 
                 if Toggles.AutoUpgrade then
                     pcall(function()
                         local MyTycoon = GetMyTycoon()
                         local wakeRemote = MyTycoon and MyTycoon:FindFirstChild("Remotes") and MyTycoon.Remotes:FindFirstChild("WakeIncomeStream")
                         
                         if wakeRemote and wakeRemote:IsA("RemoteFunction") then
-                            -- InvokeServer nge-pause thread ini sampai server balas. 
-                            -- Begitu dibalas, langsung dihajar lagi di milidetik berikutnya! Kecepatan = Max Ping Server!
-                            wakeRemote:InvokeServer(targetName) 
+                            -- BUNGKUS TASK.SPAWN: Tembak dan lupakan, jangan tunggu balasan server!
+                            task.spawn(function()
+                                pcall(function() wakeRemote:InvokeServer(targetName) end)
+                            end)
                         end
                     end)
                 end
@@ -728,8 +761,8 @@ task.spawn(function()
         end)
     end
 
-    -- [BAGIAN B]: AUTO UPGRADE (SMART DEDICATED THREADS)
-    while task.wait(1) do -- Master loop cuma bertugas patroli cari remote baru tiap 1 detik
+    -- [BAGIAN B]: AUTO UPGRADE (SPAMMER ENGINE)
+    while task.wait(1) do 
         if Toggles.AutoUpgrade then
             pcall(function()
                 local MyTycoon = GetMyTycoon()
@@ -737,13 +770,12 @@ task.spawn(function()
                     for _, desc in ipairs(MyTycoon.Purchases:GetDescendants()) do
                         if desc:IsA("RemoteFunction") and desc.Name == "Upgrade" then
                             
-                            -- Jika remote ini belum punya "bot" khusus, kita rekrut satu!
                             if not activeUpgradeThreads[desc] then
                                 activeUpgradeThreads[desc] = true
                                 
                                 task.spawn(function()
-                                    while task.wait() do
-                                        -- Kalau toggle mati, suruh botnya istirahat biar ga makan RAM
+                                    -- JEDA EKSTREM: 0.03 detik (Sangat cepat tapi di ambang batas aman Roblox)
+                                    while task.wait(0.03) do
                                         if not Toggles.AutoUpgrade then 
                                             task.wait(0.5) 
                                             continue 
@@ -753,10 +785,11 @@ task.spawn(function()
                                         pcall(function() if desc and desc.Parent then isValid = true end end)
                                         
                                         if isValid then
-                                            -- Tembak Upgrade tanpa ampun secepat server sanggup merespon
-                                            pcall(function() desc:InvokeServer(UpgradeAmount) end)
+                                            -- BUNGKUS TASK.SPAWN: Bypass delay ping!
+                                            task.spawn(function()
+                                                pcall(function() desc:InvokeServer(UpgradeAmount) end)
+                                            end)
                                         else
-                                            -- Jika remote hilang (misal karena rebirth / max level), hancurkan bot ini
                                             activeUpgradeThreads[desc] = nil
                                             break 
                                         end
