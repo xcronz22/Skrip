@@ -738,7 +738,7 @@ task.spawn(function()
                                         if isValid then
                                             -- BUNGKUS TASK.SPAWN: Bypass delay ping!
                                             task.spawn(function()
-                                                pcall(function() desc:InvokeServer(UpgradeAmount) end)
+                                                pcall(function() desc:InvokeServer(1) end)
                                             end)
                                         else
                                             activeUpgradeThreads[desc] = nil
