@@ -24,17 +24,6 @@ local RebirthMode = "Multiplier"
 local RebirthValue = 2
 local UpgradeAmount = 1
 local UpgradeRemotes = {}
-local UI_Buttons = {}
-
-local ToggleDefinitions = {
-    {Name = "AutoHarvest", Text = "Auto Steal Lemons"},
-    {Name = "AutoDrop", Text = "Auto Collect Drops"},
-    {Name = "AutoBuy", Text = "Auto Buy Buttons"},
-    {Name = "AutoUpgrade", Text = "Auto Upgrade Max"},
-    {Name = "AutoPhone", Text = "Auto Answer Phone"},
-    {Name = "AutoRebirth", Text = "Auto Rebirth"},
-    {Name = "AutoEvolve", Text = "Auto Evolve"}
-}
 
 local function SaveConfig()
     local configData = {
@@ -67,97 +56,7 @@ local function LoadConfig()
 end
 
 -- ==========================================
--- 1. PEMBUATAN UI MOBILE-FRIENDLY
--- ==========================================
-if CoreGui:FindFirstChild("LemonTycoonGUI") then
-    CoreGui.LemonTycoonGUI:Destroy()
-end
-
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "LemonTycoonGUI"
-ScreenGui.Parent = CoreGui
-
-local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 280, 0, 520) -- Diperpanjang untuk mengakomodasi tombol baru
-MainFrame.Position = UDim2.new(0.5, -140, 0.5, -230)
-MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-MainFrame.BorderSizePixel = 0
-MainFrame.Active = true
-MainFrame.Draggable = true
-MainFrame.Parent = ScreenGui
-
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, -70, 0, 35)
-Title.Position = UDim2.new(0, 10, 0, 0)
-Title.BackgroundTransparency = 1
-Title.Text = "🍋 Lemon Auto V5.6"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.TextSize = 16
-Title.Font = Enum.Font.GothamBold
-Title.TextXAlignment = Enum.TextXAlignment.Left
-Title.Parent = MainFrame
-
-local CloseBtn = Instance.new("TextButton")
-CloseBtn.Size = UDim2.new(0, 30, 0, 35)
-CloseBtn.Position = UDim2.new(1, -30, 0, 0)
-CloseBtn.BackgroundTransparency = 1
-CloseBtn.Text = "X"
-CloseBtn.TextColor3 = Color3.fromRGB(255, 50, 50)
-CloseBtn.TextSize = 16
-CloseBtn.Font = Enum.Font.GothamBold
-CloseBtn.Parent = MainFrame
-
-local MinimizeBtn = Instance.new("TextButton")
-MinimizeBtn.Size = UDim2.new(0, 30, 0, 35)
-MinimizeBtn.Position = UDim2.new(1, -60, 0, 0)
-MinimizeBtn.BackgroundTransparency = 1
-MinimizeBtn.Text = "-"
-MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-MinimizeBtn.TextSize = 24
-MinimizeBtn.Font = Enum.Font.GothamBold
-MinimizeBtn.Parent = MainFrame
-
-local LemonIcon = Instance.new("TextButton")
-LemonIcon.Size = UDim2.new(0, 45, 0, 45)
-LemonIcon.Position = UDim2.new(0.5, -22, 0, 20)
-LemonIcon.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-LemonIcon.Text = "🍋"
-LemonIcon.TextSize = 20
-LemonIcon.Visible = false
-LemonIcon.Active = true
-LemonIcon.Draggable = true
-LemonIcon.Parent = ScreenGui
-
-local UICornerIcon = Instance.new("UICorner")
-UICornerIcon.CornerRadius = UDim.new(1, 0)
-UICornerIcon.Parent = LemonIcon
-
-local UICornerMain = Instance.new("UICorner")
-UICornerMain.CornerRadius = UDim.new(0, 8)
-UICornerMain.Parent = MainFrame
-
-CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
-MinimizeBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false LemonIcon.Visible = true end)
-LemonIcon.MouseButton1Click:Connect(function() MainFrame.Visible = true LemonIcon.Visible = false end)
-
-local Container = Instance.new("ScrollingFrame")
-Container.Size = UDim2.new(1, -20, 1, -45)
-Container.Position = UDim2.new(0, 10, 0, 40)
-Container.BackgroundTransparency = 1
-Container.ScrollBarThickness = 3
-Container.CanvasSize = UDim2.new(0, 0, 0, 0)
-Container.Parent = MainFrame
-
-local UIListLayout = Instance.new("UIListLayout")
-UIListLayout.Padding = UDim.new(0, 8)
-UIListLayout.Parent = Container
-
-UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    Container.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 200)
-end)
-
--- ==========================================
--- 2. ENGINE VALUE CONVERTER & UTILITIES
+-- 1. ENGINE VALUE CONVERTER & UTILITIES
 -- ==========================================
 local Multipliers = {
     -- === RIBUAN SAMPAI NONILLION (1e3 - 1e30) ===
@@ -282,26 +181,16 @@ local Multipliers = {
     ["cen"] = 1e303, ["centillion"] = 1e303,
 }
 
--- FUNGSI UNTUK MEMBONGKAR TEKS ANGKA (BIASA, SUFFIX, MAUPUN EKSPO PONEN ^)
 local function CleanAndParse(textStr)
     if not textStr or textStr == "" then return 0, 0 end
-    
-    -- Ubah ke huruf kecil dan buang simbol seperti $, koma, atau spasi
     local clean = string.lower(textStr):gsub("[$,%s]", "")
     
-    -- FORMAT 1: Eksponen Ilmiah (Contoh: 15.5x10^14139 atau 1.5^14139)
     local base, exp = string.match(clean, "([%d%.]+)x10%^(%d+)")
-    if not base then
-        base, exp = string.match(clean, "([%d%.]+)%^(%d+)")
-    end
-    if base and exp then
-        return tonumber(base), tonumber(exp) -- Mengembalikan angka utama dan jumlah pangkatnya
-    end
+    if not base then base, exp = string.match(clean, "([%d%.]+)%^(%d+)") end
+    if base and exp then return tonumber(base), tonumber(exp) end
     
-    -- FORMAT 2: Suffix Huruf Biasa (Contoh: 16.005qqg atau 10m)
     local num, suffix = string.match(clean, "([%d%.]+)([%a_]+)")
     if num and suffix and Multipliers[suffix] then
-        -- Kita konversi ke format ilmiah buatan biar adil saat dibandingin
         local realValue = tonumber(num) * Multipliers[suffix]
         local log10 = math.log10(realValue)
         local e = math.floor(log10)
@@ -309,48 +198,27 @@ local function CleanAndParse(textStr)
         return b, e
     end
     
-    -- FORMAT 3: Angka Polos Biasa (Contoh: 1250)
     local plainNum = tonumber(clean:match("[%d%.]+")) or 0
     if plainNum > 0 then
         local e = math.floor(math.log10(plainNum))
         local b = plainNum / (10^e)
         return b, e
     end
-    
     return 0, 0
 end
 
--- FUNGSI PERBANDINGAN PINTAR (ANTI BUG 'INF')
 local function IsPotentialEnough(basePot, expPot, baseCur, expCur, targetMultiplier)
-    -- Target multiplier contohnya 2 (artinya 2x lipat dari current)
     local targetBase = baseCur * targetMultiplier
     local targetExp = expCur
     
-    -- Normalisasi jika targetBase melebihi atau sama dengan 10
     while targetBase >= 10 do
         targetBase = targetBase / 10
         targetExp = targetExp + 1
     end
     
-    -- Bandingkan pangkatnya dulu, baru angka utamanya
-    if expPot > targetExp then
-        return true
-    end
-    if expPot == targetExp and basePot >= targetBase then
-        return true
-    end
+    if expPot > targetExp then return true end
+    if expPot == targetExp and basePot >= targetBase then return true end
     return false
-end
-
-local function parseStringToNumber(text)
-    if not text then return 0 end
-    text = string.lower(string.gsub(text, ",", "")) 
-    local numStr = string.match(text, "[%d%.]+") 
-    if not numStr then return 0 end
-    local num = tonumber(numStr) or 0
-    local suffixStr = string.match(text, "[a-z]+") 
-    if suffixStr and Multipliers[suffixStr] then return num * Multipliers[suffixStr] end
-    return num
 end
 
 local function GetMyTycoon()
@@ -387,210 +255,8 @@ end
 LocalPlayer.CharacterAdded:Connect(function() UpgradeRemotes = {} end)
 
 -- ==========================================
--- 3. UI ELEMENTS: SAVE/LOAD BUTTONS
+-- 2. TAP FUNCTIONS (CASHVINE & DOORS)
 -- ==========================================
-local ConfigFrame = Instance.new("Frame")
-ConfigFrame.Size = UDim2.new(1, 0, 0, 35)
-ConfigFrame.BackgroundTransparency = 1
-ConfigFrame.Parent = Container
-
-local SaveBtn = Instance.new("TextButton")
-SaveBtn.Size = UDim2.new(0.48, 0, 1, 0)
-SaveBtn.Position = UDim2.new(0, 0, 0, 0)
-SaveBtn.BackgroundColor3 = Color3.fromRGB(40, 100, 40)
-SaveBtn.Text = "💾 Save"
-SaveBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-SaveBtn.Font = Enum.Font.GothamBold
-SaveBtn.TextSize = 13
-SaveBtn.Parent = ConfigFrame
-
-local UICornerSave = Instance.new("UICorner")
-UICornerSave.CornerRadius = UDim.new(0, 5)
-UICornerSave.Parent = SaveBtn
-
-local LoadBtn = Instance.new("TextButton")
-LoadBtn.Size = UDim2.new(0.48, 0, 1, 0)
-LoadBtn.Position = UDim2.new(0.52, 0, 0, 0)
-LoadBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 100)
-LoadBtn.Text = "📂 Load"
-LoadBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-LoadBtn.Font = Enum.Font.GothamBold
-LoadBtn.TextSize = 13
-LoadBtn.Parent = ConfigFrame
-
-local UICornerLoad = Instance.new("UICorner")
-UICornerLoad.CornerRadius = UDim.new(0, 5)
-UICornerLoad.Parent = LoadBtn
-
--- ==========================================
--- 4. UI ELEMENTS: TOGGLES & INPUTS
--- ==========================================
-local function CreateToggle(name, text)
-    local Btn = Instance.new("TextButton")
-    Btn.Size = UDim2.new(1, 0, 0, 35)
-    Btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-    Btn.Text = text .. " [OFF]"
-    Btn.TextColor3 = Color3.fromRGB(255, 100, 100)
-    Btn.Font = Enum.Font.GothamBold
-    Btn.TextSize = 13
-    Btn.Parent = Container
-    
-    local Corner = Instance.new("UICorner")
-    Corner.CornerRadius = UDim.new(0, 5)
-    Corner.Parent = Btn
-
-    UI_Buttons[name] = Btn
-
-    Btn.MouseButton1Click:Connect(function()
-        Toggles[name] = not Toggles[name]
-        
-        -- FAILSAFE: Pembebas Kunci PlatformStand
-        if name == "AutoHarvest" and not Toggles[name] then
-            pcall(function()
-                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-                    LocalPlayer.Character.Humanoid.PlatformStand = false
-                end
-            end)
-        end
-
-        if Toggles[name] then
-            Btn.Text = text .. " [ON]"
-            Btn.TextColor3 = Color3.fromRGB(100, 255, 100)
-        else
-            Btn.Text = text .. " [OFF]"
-            Btn.TextColor3 = Color3.fromRGB(255, 100, 100)
-        end
-    end)
-end
-
-for _, def in pairs(ToggleDefinitions) do
-    CreateToggle(def.Name, def.Text)
-end
-
--- INPUT 1: TARGET REBIRTH
-local InputFrame = Instance.new("Frame")
-InputFrame.Size = UDim2.new(1, 0, 0, 40)
-InputFrame.BackgroundTransparency = 1
-InputFrame.Parent = Container
-
-local InputLabel = Instance.new("TextLabel")
-InputLabel.Size = UDim2.new(0.4, 0, 1, 0)
-InputLabel.Text = "Target Rebirth:"
-InputLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-InputLabel.Font = Enum.Font.GothamBold
-InputLabel.TextSize = 12
-InputLabel.BackgroundTransparency = 1
-InputLabel.Parent = InputFrame
-
-local TextBox = Instance.new("TextBox")
-TextBox.Size = UDim2.new(0.55, 0, 0.8, 0)
-TextBox.Position = UDim2.new(0.45, 0, 0.1, 0)
-TextBox.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-TextBox.Text = "Smart (2x)"
-TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-TextBox.Font = Enum.Font.Gotham
-TextBox.TextSize = 12
-TextBox.ClearTextOnFocus = false
-TextBox.Parent = InputFrame
-
-local UICornerBox = Instance.new("UICorner")
-UICornerBox.CornerRadius = UDim.new(0, 4)
-UICornerBox.Parent = TextBox
-
-TextBox.FocusLost:Connect(function()
-    local input = string.lower(TextBox.Text)
-    if input == "smart" then
-        RebirthMode = "Multiplier"
-        RebirthValue = 2
-        TextBox.Text = "Smart (2x)"
-    elseif string.match(input, "^[%d%.]+x$") then
-        local mult = tonumber(string.match(input, "[%d%.]+"))
-        if mult then
-            RebirthMode = "Multiplier"
-            RebirthValue = mult
-            TextBox.Text = mult .. "x"
-        end
-    else
-        local val = parseStringToNumber(input)
-        if val and val > 0 then 
-            RebirthMode = "Target"
-            RebirthValue = val 
-            TextBox.Text = tostring(val)
-        else 
-            if RebirthMode == "Multiplier" then TextBox.Text = RebirthValue .. "x" else TextBox.Text = tostring(RebirthValue) end
-        end
-    end
-end)
-
--- INPUT 2: JUMLAH UPGRADE 
-local UpgradeInputFrame = Instance.new("Frame")
-UpgradeInputFrame.Size = UDim2.new(1, 0, 0, 40)
-UpgradeInputFrame.BackgroundTransparency = 1
-UpgradeInputFrame.Parent = Container
-
-local UpgradeInputLabel = Instance.new("TextLabel")
-UpgradeInputLabel.Size = UDim2.new(0.4, 0, 1, 0)
-UpgradeInputLabel.Text = "Jumlah Upgrade:"
-UpgradeInputLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-UpgradeInputLabel.Font = Enum.Font.GothamBold
-UpgradeInputLabel.TextSize = 12
-UpgradeInputLabel.BackgroundTransparency = 1
-UpgradeInputLabel.Parent = UpgradeInputFrame
-
-local UpgradeTextBox = Instance.new("TextBox")
-UpgradeTextBox.Size = UDim2.new(0.55, 0, 0.8, 0)
-UpgradeTextBox.Position = UDim2.new(0.45, 0, 0.1, 0)
-UpgradeTextBox.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-UpgradeTextBox.Text = "1"
-UpgradeTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-UpgradeTextBox.Font = Enum.Font.Gotham
-UpgradeTextBox.TextSize = 12
-UpgradeTextBox.ClearTextOnFocus = false
-UpgradeTextBox.Parent = UpgradeInputFrame
-
-local UICornerUpgradeBox = Instance.new("UICorner")
-UICornerUpgradeBox.CornerRadius = UDim.new(0, 4)
-UICornerUpgradeBox.Parent = UpgradeTextBox
-
-UpgradeTextBox.FocusLost:Connect(function()
-    local val = tonumber(UpgradeTextBox.Text)
-    if val and val > 0 then
-        UpgradeAmount = math.floor(val)
-        UpgradeTextBox.Text = tostring(UpgradeAmount)
-    else
-        UpgradeTextBox.Text = tostring(UpgradeAmount)
-    end
-end)
-
--- ==========================================
--- 5. BUTTON SEWER & DOORS (TAP FUNCTIONS)
--- ==========================================
-local function CreateTapButton(text, callback)
-    local Btn = Instance.new("TextButton")
-    Btn.Size = UDim2.new(1, 0, 0, 35)
-    Btn.BackgroundColor3 = Color3.fromRGB(60, 100, 160)
-    Btn.Text = text
-    Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Btn.Font = Enum.Font.GothamBold
-    Btn.TextSize = 13
-    Btn.Parent = Container
-    
-    local Corner = Instance.new("UICorner")
-    Corner.CornerRadius = UDim.new(0, 5)
-    Corner.Parent = Btn
-
-    Btn.MouseButton1Click:Connect(function()
-        Btn.Text = "⏳ Processing..."
-        task.spawn(function()
-            pcall(callback)
-            task.wait(1)
-            Btn.Text = text
-        end)
-    end)
-    return Btn
-end
-
--- FUNGSI FIX (BERDASARKAN DEX): TP -> PROXIMITY PROMPT -> BALIK
 local function TapCollectCashvine()
     pcall(function()
         local char = LocalPlayer.Character
@@ -598,48 +264,26 @@ local function TapCollectCashvine()
         local humanoid = char and char:FindFirstChild("Humanoid")
         if not rootPart or not humanoid then return end
         
-        -- 1. Cari ProximityPrompt CashVine secara dinamis berdasarkan info Dex kamu
         local sewer = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Sewer")
         local cashVineFolder = sewer and sewer:FindFirstChild("CashVine")
         local targetPrompt = cashVineFolder and cashVineFolder:FindFirstChild("Prompt", true)
-        
-        -- Ambil part fisik tempat nempelnya prompt (Prompt -> Attachment -> CashVine Part)
         local targetPart = targetPrompt and targetPrompt.Parent and targetPrompt.Parent.Parent
         
         if targetPrompt and targetPart and targetPart:IsA("BasePart") then
-            -- Kunci koordinat posisi awal kamu berdiri sekarang
             local originalCFrame = rootPart.CFrame
-            
-            -- Amankan karakter (PlatformStand) agar tidak jatuh/slip saat TP
             humanoid.PlatformStand = true
-            
-            -- 2. Teleport tepat ke koordinat part CashVine (+3 tinggi Y agar pas di depan pohon)
             rootPart.CFrame = targetPart.CFrame * CFrame.new(0, 3, 0)
-            
-            -- Jeda mikro agar game mendeteksi posisi baru kamu
             task.wait(0.15)
-            
-            -- 3. Eksekusi Ambil Cashvine lewat ProximityPrompt langsung
             fireproximityprompt(targetPrompt)
-            
-            -- Jeda mikro biar server selesai memproses klaimnya
             task.wait(0.15)
-            
-            -- 4. Teleport instan balik ke posisi semula
             rootPart.CFrame = originalCFrame
-            
-            -- Lepaskan pengunci karakter agar bisa jalan lagi normal
             task.wait(0.1)
             humanoid.PlatformStand = false
         end
     end)
 end
--- [YANG BARU] DAFTAR TOMBOL DI UI MENU KAMU
-CreateTapButton("Collect Cashvine [TAP]", function()
-    TapCollectCashvine()
-end)
 
-CreateTapButton("Open All Doors [TAP]", function()
+local function TapOpenAllDoors()
     pcall(function()
         local sewer = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Sewer")
         if sewer then
@@ -664,43 +308,33 @@ CreateTapButton("Open All Doors [TAP]", function()
             end
         end
     end)
-end)
+end
 
-CreateTapButton("Auto Sewer [TAP]", function()
+local function TapAutoSewer()
     local char = LocalPlayer.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
     if not root then return end
-
     local sewer = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Sewer")
     if not sewer then return end
 
-    -- [FITUR BARU] Tembak InvestorsRevealed SEBELUM mengambil kunci
     pcall(function()
-        local args = {
-            "InvestorsRevealed",
-            true
-        }
+        local args = {"InvestorsRevealed", true}
         game:GetService("ReplicatedStorage"):WaitForChild("Core"):WaitForChild("PlayerSettings"):WaitForChild("Set"):FireServer(unpack(args))
     end)
 
-    -- 1. Trigger SewerAlien, Talk, Ambil Kunci UFO, & Langsung Unlock VineDoor
     pcall(function()
         local alienFolder = sewer:FindFirstChild("SewerAlien")
         if alienFolder then
             local trig = alienFolder:FindFirstChild("Trigger")
             if trig and trig:IsA("RemoteFunction") then trig:InvokeServer() end
-            
             local alien = alienFolder:FindFirstChild("Alien")
             if alien then
                 local alienRoot = alien:FindFirstChild("HumanoidRootPart")
                 if alienRoot then
                     local talkPrompt = alienRoot:FindFirstChild("Prompt")
-                    if talkPrompt and talkPrompt:IsA("ProximityPrompt") then
-                        fireproximityprompt(talkPrompt)
-                    end
+                    if talkPrompt and talkPrompt:IsA("ProximityPrompt") then fireproximityprompt(talkPrompt) end
                 end
             end
-            
             local ufoKey = alienFolder:FindFirstChild("UFOKey")
             if ufoKey then
                 local ti = ufoKey:FindFirstChild("TouchInterest")
@@ -712,18 +346,10 @@ CreateTapButton("Auto Sewer [TAP]", function()
                 if coll and coll:IsA("RemoteEvent") then coll:FireServer() end
             end
         end
-
-        local vineUnlock = sewer:FindFirstChild("CashVine") 
-            and sewer.CashVine:FindFirstChild("VineDoor") 
-            and sewer.CashVine.VineDoor:FindFirstChild("Door") 
-            and sewer.CashVine.VineDoor.Door:FindFirstChild("Unlock")
-            
-        if vineUnlock and vineUnlock:IsA("RemoteFunction") then
-            vineUnlock:InvokeServer()
-        end
+        local vineUnlock = sewer:FindFirstChild("CashVine") and sewer.CashVine:FindFirstChild("VineDoor") and sewer.CashVine.VineDoor:FindFirstChild("Door") and sewer.CashVine.VineDoor.Door:FindFirstChild("Unlock")
+        if vineUnlock and vineUnlock:IsA("RemoteFunction") then vineUnlock:InvokeServer() end
     end)
 
-    -- 2. Temukan dan Interaksi dengan Alien Tersembunyi di DoorsGreen (DENGAN JEDA 15 DETIK)
     pcall(function()
         local doorsGreen = sewer:FindFirstChild("DoorsGreen")
         if doorsGreen then
@@ -731,7 +357,6 @@ CreateTapButton("Auto Sewer [TAP]", function()
                 if desc:IsA("Humanoid") then
                     local alienModel = desc.Parent
                     local alienRoot = alienModel:FindFirstChild("HumanoidRootPart")
-                    
                     if alienRoot then
                         root.CFrame = alienRoot.CFrame
                         task.wait(0.5)
@@ -739,7 +364,7 @@ CreateTapButton("Auto Sewer [TAP]", function()
                     local prompt = alienModel:FindFirstChild("ListenPrompt", true) or alienModel:FindFirstChildWhichIsA("ProximityPrompt", true)
                     if prompt then 
                         fireproximityprompt(prompt)
-                        task.wait(10) -- << JEDA DI SINI AGAR TIDAK STUCK DI BO
+                        task.wait(10) 
                     end
                     break 
                 end
@@ -747,7 +372,6 @@ CreateTapButton("Auto Sewer [TAP]", function()
         end
     end)
 
-    -- 3. Ambil VineKey & Ekstra Buka Kunci (Backup)
     pcall(function()
         local cvFolder = sewer:FindFirstChild("CashVine")
         if cvFolder then
@@ -761,69 +385,93 @@ CreateTapButton("Auto Sewer [TAP]", function()
                 local coll = vineKey:FindFirstChild("Collected")
                 if coll and coll:IsA("RemoteEvent") then coll:FireServer() end
             end
-
             local unlock = cvFolder:FindFirstChild("VineDoor") and cvFolder.VineDoor:FindFirstChild("Door") and cvFolder.VineDoor.Door:FindFirstChild("Unlock")
-            if unlock and unlock:IsA("RemoteFunction") then
-                unlock:InvokeServer()
-            end
+            if unlock and unlock:IsA("RemoteFunction") then unlock:InvokeServer() end
         end
-        -- Menunggu pintu dibuka jika baru pertama kali
         task.wait(10)
     end)
 
-    -- 4. Eksekusi ProximityPrompt Sewer Bo
     pcall(function()
         local bo = sewer:FindFirstChild("Bo")
         local promptFolder = bo and bo:FindFirstChild("Prompt")
         local thePrompt = promptFolder and promptFolder:FindFirstChild("Prompt")
-
-        if thePrompt and thePrompt:IsA("ProximityPrompt") then
-            fireproximityprompt(thePrompt)
-            print("[+] Sukses nembak Prompt Sewer Bo setelah obrolan selesai!")
-        else
-            warn("[-] Gagal: Prompt Sewer Bo tidak ditemukan atau belum siap.")
-        end
+        if thePrompt and thePrompt:IsA("ProximityPrompt") then fireproximityprompt(thePrompt) end
     end)
-
-end)
-
--- ==========================================
--- 6. FULLY SHIELDED MULTI-THREAD ENGINE (V5.6)
--- ==========================================
-
-local function SyncLoadedDataToUI()
-    for _, def in pairs(ToggleDefinitions) do
-        local btn = UI_Buttons[def.Name]
-        if btn then
-            if Toggles[def.Name] then
-                btn.Text = def.Text .. " [ON]"
-                btn.TextColor3 = Color3.fromRGB(100, 255, 100)
-            else
-                btn.Text = def.Text .. " [OFF]"
-                btn.TextColor3 = Color3.fromRGB(255, 100, 100)
-            end
-        end
-    end
-    if RebirthMode == "Multiplier" then
-        if RebirthValue == 2 then
-            TextBox.Text = "Smart (2x)"
-        else
-            TextBox.Text = RebirthValue .. "x"
-        end
-    else
-        TextBox.Text = tostring(RebirthValue)
-    end
-    UpgradeTextBox.Text = tostring(UpgradeAmount)
 end
 
-SaveBtn.MouseButton1Click:Connect(function() SaveConfig() SaveBtn.Text = "✅ Saved!" task.wait(1) SaveBtn.Text = "💾 Save" end)
-LoadBtn.MouseButton1Click:Connect(function() LoadConfig() SyncLoadedDataToUI() LoadBtn.Text = "✅ Loaded!" task.wait(1) LoadBtn.Text = "📂 Load" end)
+-- ==========================================
+-- 3. UI GENERATION (SESUAI ASLI RZY_LIBRARY)
+-- ==========================================
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
 
+-- Menggunakan method bawaan asli: MakeWindow
+local Window = Library:MakeWindow("🍋 Lemon Hub V5.6")
+
+-- Karena tidak ada sistem Tab, semua elemen langsung dipasang ke objek 'Window'
+Window:AddToggle("Auto Steal Lemons", false, function(Value)
+    Toggles.AutoHarvest = Value
+    if not Value then
+        pcall(function()
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+                LocalPlayer.Character.Humanoid.PlatformStand = false
+            end
+        end)
+    end
+end)
+
+Window:AddToggle("Auto Collect Drops", false, function(Value) Toggles.AutoDrop = Value end)
+Window:AddToggle("Auto Buy Buttons", false, function(Value) Toggles.AutoBuy = Value end)
+Window:AddToggle("Auto Upgrade Max", false, function(Value) Toggles.AutoUpgrade = Value end)
+Window:AddToggle("Auto Answer Phone", false, function(Value) Toggles.AutoPhone = Value end)
+Window:AddToggle("Auto Rebirth", false, function(Value) Toggles.AutoRebirth = Value end)
+Window:AddToggle("Auto Evolve", false, function(Value) Toggles.AutoEvolve = Value end)
+
+Window:AddInput("Target Rebirth", "Smart (2x) / 100", function(Text)
+    local input = string.lower(Text)
+    if input == "smart" then
+        RebirthMode = "Multiplier"
+        RebirthValue = 2
+    elseif string.match(input, "^[%d%.]+x$") then
+        local mult = tonumber(string.match(input, "[%d%.]+"))
+        if mult then
+            RebirthMode = "Multiplier"
+            RebirthValue = mult
+        end
+    else
+        local val = parseStringToNumber(input)
+        if val and val > 0 then 
+            RebirthMode = "Target"
+            RebirthValue = val 
+        end
+    end
+end)
+
+Window:AddInput("Jumlah Upgrade", "1", function(Text)
+    local val = tonumber(Text)
+    if val and val > 0 then
+        UpgradeAmount = math.floor(val)
+    end
+end)
+
+-- Fitur Sewer & Doors
+Window:AddButton("Sewer: Collect Cashvine [TAP]", function() task.spawn(TapCollectCashvine) end)
+Window:AddButton("Sewer: Open All Doors [TAP]", function() task.spawn(TapOpenAllDoors) end)
+Window:AddButton("Sewer: Auto Full Sewer [TAP]", function() task.spawn(TapAutoSewer) end)
+
+-- Sistem Penyimpanan Config
+Window:AddButton("💾 Save Configuration", function() SaveConfig() end)
+Window:AddButton("📂 Load Configuration", function() LoadConfig() end)
+
+-- Anti-AFK Bawaan Engine
 LocalPlayer.Idled:Connect(function()
     pcall(function() VirtualUser:CaptureController() VirtualUser:ClickButton2(Vector2.new()) end)
 end)
 
--- LOOP 1: AUTO HARVEST (PERBAIKAN ANTI-NYANGKUT)
+-- ==========================================
+-- 4. MULTI-THREAD FARMING ENGINE
+-- ==========================================
+
+-- LOOP 1: AUTO HARVEST
 task.spawn(function()
     while task.wait(0.1) do
         if Toggles.AutoHarvest then
@@ -845,10 +493,7 @@ task.spawn(function()
                             local constantFolder = tycoon:FindFirstChild("Constant")
                             if constantFolder and constantFolder:FindFirstChild("Trees") then
                                 for _, tree in pairs(constantFolder.Trees:GetChildren()) do
-                                    if not Toggles.AutoHarvest then 
-                                        stopFarming = true 
-                                        break 
-                                    end
+                                    if not Toggles.AutoHarvest then stopFarming = true break end
                                     if tree.Name == "LemonTree" then
                                         local readyFruits = {}
                                         for _, part in pairs(tree:GetChildren()) do
@@ -896,7 +541,7 @@ task.spawn(function()
     end
 end)
 
--- LOOP 2: AUTO BUY (Anti-Crash)
+-- LOOP 2: AUTO BUY
 task.spawn(function()
     while task.wait(0.2) do
         if Toggles.AutoBuy then
@@ -922,9 +567,7 @@ task.spawn(function()
                                             if target then
                                                 firetouchinterest(rootPart, target, 0)
                                                 task.wait(0.2)
-                                                if target and target.Parent then 
-                                                    firetouchinterest(rootPart, target, 1)
-                                                end
+                                                if target and target.Parent then firetouchinterest(rootPart, target, 1) end
                                             end
                                         elseif item:IsA("ProximityPrompt") then
                                             fireproximityprompt(item)
@@ -940,47 +583,36 @@ task.spawn(function()
     end
 end)
 
--- LOOP 3: AUTO UPGRADE & AUTO CLICK TERPISAH (1 DETIK)
+-- LOOP 3: AUTO UPGRADE & CLICK
 local lastScanTime = 0
 local clickTargets = {"LemonDepot", "LemonLabs", "LemonRepublic", "LemonRobotics", "LemonStand", "LemonTrading", "LemonDash", "LemonX"}
 local clickIndex = 1 
-local lastClickTime = 0 -- Variabel baru untuk jeda Auto Click
+local lastClickTime = 0 
 
 task.spawn(function()
-    while task.wait(0.04) do -- Mesin utama tetap ngebut 0.04 detik untuk Upgrade
+    while task.wait(0.04) do 
         if Toggles.AutoUpgrade then
             pcall(function() 
                 local MyTycoon = GetMyTycoon()
                 if MyTycoon then
                     
-                    -- ==========================================
-                    -- [1] AUTO CLICK (BERJALAN TIAP 0.1 DETIK)
-                    -- ==========================================
+                    -- [1] AUTO CLICK INCOME STREAM
                     if tick() - lastClickTime >= 0.1 then
-                        lastClickTime = tick() -- Reset timer ke waktu sekarang
-                        
+                        lastClickTime = tick() 
                         local remotes = MyTycoon:FindFirstChild("Remotes")
                         local wakeRemote = remotes and remotes:FindFirstChild("WakeIncomeStream")
                         
                         if wakeRemote and wakeRemote:IsA("RemoteFunction") then
                             local targetName = clickTargets[clickIndex]
-                            
                             task.spawn(function()
-                                pcall(function() 
-                                    wakeRemote:InvokeServer(targetName) 
-                                end)
+                                pcall(function() wakeRemote:InvokeServer(targetName) end)
                             end)
-                            
                             clickIndex = clickIndex + 1
-                            if clickIndex > #clickTargets then
-                                clickIndex = 1 
-                            end
+                            if clickIndex > #clickTargets then clickIndex = 1 end
                         end
                     end
 
-                    -- ==========================================
-                    -- [2] AUTO UPGRADE MAX (BERJALAN TIAP 0.04 DETIK)
-                    -- ==========================================
+                    -- [2] AUTO UPGRADE MAX 
                     if #UpgradeRemotes == 0 or (tick() - lastScanTime) > 5 then
                         RefreshUpgradeRemotes()
                         lastScanTime = tick()
@@ -995,15 +627,12 @@ task.spawn(function()
 
                         if isValid then
                             task.spawn(function()
-                                pcall(function() 
-                                    remote:InvokeServer(UpgradeAmount) 
-                                end)
+                                pcall(function() remote:InvokeServer(UpgradeAmount) end)
                             end)
                         else
                             table.remove(UpgradeRemotes, i)
                         end
                     end
-                    
                 end
             end)
         end
@@ -1035,14 +664,12 @@ task.spawn(function()
     end
 end)
 
--- LOOP 5: SMART AUTO REBIRTH (DEX PATH + GHOST FLASHING + TP TRADING ROAD)
+-- LOOP 5: SMART AUTO REBIRTH
 task.spawn(function()
     while task.wait(2) do 
         if Toggles.AutoRebirth then
             pcall(function()
-                local player = game:GetService("Players").LocalPlayer
-                local playerGui = player:FindFirstChild("PlayerGui")
-                
+                local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
                 if playerGui then
                     local rebirthGui = playerGui:FindFirstChild("Rebirth")
                     local investorsMenu = rebirthGui and rebirthGui:FindFirstChild("InvestorsMenu")
@@ -1052,7 +679,6 @@ task.spawn(function()
                     local amountObj = body and body:FindFirstChild("Amount") and body.Amount:FindFirstChild("Quantity")
                     
                     if potentialObj and amountObj and investorsMenu then
-                        
                         local originalVisible = investorsMenu.Visible
                         if not investorsMenu.Visible then
                             investorsMenu.Visible = true
@@ -1068,13 +694,11 @@ task.spawn(function()
                         
                         local basePot, expPot = CleanAndParse(potentialText)
                         local baseCur, expCur = CleanAndParse(amountText)
-                        
                         local shouldRebirth = false
 
                         if RebirthMode == "Multiplier" then
                             local multiplier = tonumber(RebirthValue) or 2
                             shouldRebirth = IsPotentialEnough(basePot, expPot, baseCur, expCur, multiplier)
-                            
                         elseif RebirthMode == "Target" then
                             local rVal = tonumber(RebirthValue) or 0
                             local targetBase = 0
@@ -1092,7 +716,6 @@ task.spawn(function()
                             end
                         end
 
-                        -- Eksekusi Rebirth
                         if shouldRebirth then
                             local MyTycoon = GetMyTycoon()
                             local remotes = MyTycoon and MyTycoon:FindFirstChild("Remotes")
@@ -1104,41 +727,26 @@ task.spawn(function()
                                         rebirthRemote:InvokeServer()
                                         UpgradeRemotes = {} 
                                         
-                                        -- ======================================================================
-                                        -- [UPDATE] SISTEM TELEPORT ANTI GAGAL (TUNGGU RESPAWN & LOADING)
-                                        -- ======================================================================
-                                        -- 1. Tunggu loading awal setelah pencet rebirth
                                         task.wait(2)
-                                        
-                                        -- 2. Pastikan kita ngambil Karakter yang PALING BARU (setelah respawn)
                                         local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-                                        local root = char:WaitForChild("HumanoidRootPart", 5) -- Tunggu max 5 detik
+                                        local root = char:WaitForChild("HumanoidRootPart", 5)
                                         
                                         if root then
                                             local ActiveTycoon = GetMyTycoon()
                                             local targetPart = nil
                                             
-                                            -- 3. Coba cari tombol Trading Road berulang kali selama max 5 detik
                                             for i = 1, 10 do
-                                                if ActiveTycoon 
-                                                    and ActiveTycoon:FindFirstChild("Purchases")
-                                                    and ActiveTycoon.Purchases:FindFirstChild("Hills")
-                                                    and ActiveTycoon.Purchases.Hills:FindFirstChild("Buttons")
-                                                    and ActiveTycoon.Purchases.Hills.Buttons:FindFirstChild("Roads")
-                                                    and ActiveTycoon.Purchases.Hills.Buttons.Roads:FindFirstChild("Trading Road") then
-                                                    
+                                                if ActiveTycoon and ActiveTycoon:FindFirstChild("Purchases") and ActiveTycoon.Purchases:FindFirstChild("Hills") and ActiveTycoon.Purchases.Hills:FindFirstChild("Buttons") and ActiveTycoon.Purchases.Hills.Buttons:FindFirstChild("Roads") and ActiveTycoon.Purchases.Hills.Buttons.Roads:FindFirstChild("Trading Road") then
                                                     targetPart = ActiveTycoon.Purchases.Hills.Buttons.Roads["Trading Road"]:FindFirstChild("Base")
                                                     if targetPart then break end
                                                 end
                                                 task.wait(0.5)
                                             end
                                             
-                                            -- 4. Eksekusi Teleport jika part sudah terkonfirmasi ada
                                             if targetPart then
                                                 root.CFrame = targetPart.CFrame * CFrame.new(0, 3, 3)
                                             end
                                         end
-                                        -- ======================================================================
                                     end)
                                 end)
                             end
@@ -1150,7 +758,7 @@ task.spawn(function()
     end
 end)
 
--- LOOP 6: AUTO EVOLVE (BLIND FIRE METHOD)
+-- LOOP 6: AUTO EVOLVE
 task.spawn(function()
     while task.wait(5) do
         if Toggles.AutoEvolve then
@@ -1161,7 +769,6 @@ task.spawn(function()
                     local evolveRemote = remotes and remotes:FindFirstChild("Evolve")
                     
                     if evolveRemote and evolveRemote:IsA("RemoteFunction") then
-                        -- Tembak langsung!
                         task.spawn(function()
                             pcall(function() 
                                 evolveRemote:InvokeServer() 
@@ -1204,25 +811,18 @@ task.spawn(function()
     end
 end)
 
--- LOOP 8: AUTO BUY POWER (CLEAN REMOTE METHOD)
+-- LOOP 8: AUTO BUY POWER
 task.spawn(function()
     local powerNames = {"Manage", "BuyNext", "ClickFruitValue", "UpgradeStack", "WalkSpeed"}
-    
-    while task.wait(2) do -- Pengecekan tiap 2 detik
+    while task.wait(2) do
         pcall(function()
             local MyTycoon = GetMyTycoon()
-            local upgradeRemote = MyTycoon 
-                and MyTycoon:FindFirstChild("Remotes") 
-                and MyTycoon.Remotes:FindFirstChild("UpgradePowerLevel")
+            local upgradeRemote = MyTycoon and MyTycoon:FindFirstChild("Remotes") and MyTycoon.Remotes:FindFirstChild("UpgradePowerLevel")
 
             if upgradeRemote and upgradeRemote:IsA("RemoteFunction") then
                 for _, powerName in ipairs(powerNames) do
-                    -- Gunakan task.spawn untuk tiap request agar loop tidak tertahan (yield)
                     task.spawn(function()
-                        pcall(function()
-                            -- Langsung request beli ke server tanpa cek warna UI
-                            upgradeRemote:InvokeServer(powerName)
-                        end)
+                        pcall(function() upgradeRemote:InvokeServer(powerName) end)
                     end)
                 end
             end
