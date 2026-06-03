@@ -11,6 +11,7 @@ local FILE_NAME = "LemonConfigV56.json"
 -- 0. DEFAULT CONFIGURATION & STORAGE
 -- ==========================================
 local Toggles = {
+    SilentHarvest = false,
     AutoHarvest = false,
     AutoDrop = false,
     AutoBuy = false,
@@ -415,6 +416,7 @@ local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcron
 local Window = Library:MakeWindow("🍋 Lemon Hub V5.7")
 
 -- MENYIMPAN MAKER TOGGLE KE DALAM TABEL AGAR BISA DIKONTROL DARI SKRIP UTAMA
+ToggleObjects.SilentHarvest = Window:AddToggle("Silent Harvest", false, function(Value) Toggles.SilentHarvest = Value end)
 ToggleObjects.AutoHarvest = Window:AddToggle("Auto Steal Lemons", false, function(Value)
     Toggles.AutoHarvest = Value
     if not Value then
@@ -478,6 +480,50 @@ end)
 -- ==========================================
 -- 4. MULTI-THREAD FARMING ENGINE
 -- ==========================================
+
+-- LOOP 0: SILENT HARVEST
+task.spawn(function()
+    while task.wait(0.1) do
+        if Toggles.SilentHarvest then
+            pcall(function()
+                local char = LocalPlayer.Character
+                local rootPart = char and char:FindFirstChild("HumanoidRootPart")
+                
+                if rootPart then
+                    -- Looping ke semua 12 Tycoon untuk mencari buah yang berada di dekat pemain
+                    for i = 1, 12 do
+                        local tycoon = Workspace:FindFirstChild("Tycoon" .. i)
+                        if tycoon then
+                            local constantFolder = tycoon:FindFirstChild("Constant")
+                            if constantFolder and constantFolder:FindFirstChild("Trees") then
+                                for _, tree in pairs(constantFolder.Trees:GetChildren()) do
+                                    if tree.Name == "LemonTree" then
+                                        for _, part in pairs(tree:GetChildren()) do
+                                            if part.Name == "Fruit" then
+                                                local cd = part:FindFirstChildWhichIsA("ClickDetector", true)
+                                                if cd then
+                                                    -- Hitung jarak antara pemain dan buah
+                                                    local distance = (part.Position - rootPart.Position).Magnitude
+                                                    -- Ambil batas jarak wajar dari server (default MaxActivationDistance biasanya 32)
+                                                    local maxDist = cd.MaxActivationDistance or 32 
+                                                    
+                                                    -- Jika berada di dalam radius, otomatis diambil
+                                                    if distance <= (maxDist + 5) then
+                                                        fireclickdetector(cd)
+                                                    end
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
 
 -- LOOP 1: AUTO HARVEST
 task.spawn(function()
