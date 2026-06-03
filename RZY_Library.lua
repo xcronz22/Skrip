@@ -11,17 +11,15 @@ function RZY_Library:MakeWindow(TitleText)
     ScreenGui.Name = "RZY_Hub"
     ScreenGui.Parent = CoreGui
 
-    -- ==========================================
-    -- FIX: IKON LOGO RZY (SPASI & FONT TIPIS)
-    -- ==========================================
+    -- Ikon Logo RZY
     local RZYIcon = Instance.new("TextButton")
     RZYIcon.Size = UDim2.new(0, 50, 0, 50)
     RZYIcon.Position = UDim2.new(0.5, -25, 0, 20)
     RZYIcon.BackgroundColor3 = Color3.fromRGB(15, 15, 15) 
-    RZYIcon.Text = "R Z Y" -- Diberi spasi agar huruf tidak saling bersentuhan
+    RZYIcon.Text = "R Z Y" 
     RZYIcon.TextColor3 = Color3.fromRGB(0, 170, 255) 
-    RZYIcon.TextSize = 13 -- Disesuaikan sedikit agar pas dengan spasi
-    RZYIcon.Font = Enum.Font.Gotham -- Menggunakan versi font tipis (Regular)
+    RZYIcon.TextSize = 13 
+    RZYIcon.Font = Enum.Font.Gotham 
     RZYIcon.Visible = false 
     RZYIcon.Active = true
     RZYIcon.Draggable = true 
@@ -116,7 +114,7 @@ function RZY_Library:MakeWindow(TitleText)
     UIListLayout.Parent = Container
 
     UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        Container.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 40)
+        Container.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 1000)
     end)
 
     CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
@@ -125,16 +123,21 @@ function RZY_Library:MakeWindow(TitleText)
 
     local WindowElements = {}
 
+    -- FIX: MENAMBAHKAN HANDLER RETURN AGAR BISA DIKENDALIKAN SAAT LOAD CONFIG
     function WindowElements:AddToggle(Text, DefaultState, Callback)
         local state = DefaultState or false
         local ToggleBtn = Instance.new("TextButton")
         ToggleBtn.Size = UDim2.new(1, -10, 0, 35)
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-        ToggleBtn.Text = Text .. (state and " [ON]" or " [OFF]")
-        ToggleBtn.TextColor3 = state and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(255, 100, 100)
         ToggleBtn.Font = Enum.Font.GothamBold
         ToggleBtn.TextSize = 13
         ToggleBtn.Parent = Container
+
+        local function UpdateVisuals()
+            ToggleBtn.Text = Text .. (state and " [ON]" or " [OFF]")
+            ToggleBtn.TextColor3 = state and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(255, 100, 100)
+        end
+        UpdateVisuals()
 
         local ToggleCorner = Instance.new("UICorner")
         ToggleCorner.CornerRadius = UDim.new(0, 5)
@@ -147,10 +150,16 @@ function RZY_Library:MakeWindow(TitleText)
 
         ToggleBtn.MouseButton1Click:Connect(function()
             state = not state
-            ToggleBtn.Text = Text .. (state and " [ON]" or " [OFF]")
-            ToggleBtn.TextColor3 = state and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(255, 100, 100)
+            UpdateVisuals()
             pcall(Callback, state)
         end)
+
+        local ToggleHandler = {}
+        function ToggleHandler:Set(Value)
+            state = Value
+            UpdateVisuals()
+        end
+        return ToggleHandler
     end
 
     function WindowElements:AddButton(Text, Callback)
