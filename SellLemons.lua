@@ -684,15 +684,16 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 3: AUTO UPGRADE (DINAMIS MAX CALCULATOR)
+-- LOOP 3: AUTO UPGRADE & CLICK (AGRESIF & HIT-AND-RUN)
 -- =======================================================
-local upgradePriority = {"LemonX", "LemonRepublic", "LemonRobotics", "LemonLabs", "LemonTrading", "LemonDepot", "LemonDash", "LemonStand"}
 local clickTargets = {"LemonDepot", "LemonLabs", "LemonRepublic", "LemonRobotics", "LemonStand", "LemonTrading", "LemonDash", "LemonX"}
+local activeUpgradeThreads = {} 
 
 task.spawn(function()
-    -- [BAGIAN A]: WAKE INCOME STREAM
+    -- [BAGIAN A]: WAKE INCOME STREAM (AUTO CLICK SUPER CEPAT)
     for _, targetName in ipairs(clickTargets) do
         task.spawn(function()
+            -- Jeda diperkecil jadi 0.05 detik (20 klik per detik per target)
             while task.wait(0.05) do 
                 if Toggles.AutoUpgrade then
                     pcall(function()
@@ -700,6 +701,7 @@ task.spawn(function()
                         local wakeRemote = MyTycoon and MyTycoon:FindFirstChild("Remotes") and MyTycoon.Remotes:FindFirstChild("WakeIncomeStream")
                         
                         if wakeRemote and wakeRemote:IsA("RemoteFunction") then
+                            -- BUNGKUS TASK.SPAWN: Tembak dan lupakan, jangan tunggu balasan server!
                             task.spawn(function()
                                 pcall(function() wakeRemote:InvokeServer(targetName) end)
                             end)
@@ -710,83 +712,42 @@ task.spawn(function()
         end)
     end
 
-    -- [BAGIAN B]: AUTO UPGRADE (AUTO MAX MATH ENGINE)
-    while task.wait(0.1) do 
+    -- [BAGIAN B]: AUTO UPGRADE (SPAMMER ENGINE)
+    while task.wait(1) do 
         if Toggles.AutoUpgrade then
             pcall(function()
-                local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-                local manageFolder = playerGui and playerGui:FindFirstChild("Manage") 
-                    and playerGui.Manage:FindFirstChild("ManageMenu")
-                    and playerGui.Manage.ManageMenu:FindFirstChild("Body")
-                    and playerGui.Manage.ManageMenu.Body:FindFirstChild("Frame")
-                    and playerGui.Manage.ManageMenu.Body.Frame:FindFirstChild("Manage")
-                
-                local cashObj = playerGui and playerGui:FindFirstChild("HUD")
-                    and playerGui.HUD:FindFirstChild("Balance")
-                    and playerGui.HUD.Balance:FindFirstChild("Main")
-                    and playerGui.HUD.Balance.Main:FindFirstChild("Cash")
-                
-                if manageFolder and cashObj then
-                    local baseCash, expCash = CleanAndParse(cashObj.Text)
-                    
-                    for _, targetName in ipairs(upgradePriority) do
-                        local itemUI = manageFolder:FindFirstChild(targetName)
-                        if itemUI then
-                            if itemUI.Visible ~= true then itemUI.Visible = true end
+                local MyTycoon = GetMyTycoon()
+                if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
+                    for _, desc in ipairs(MyTycoon.Purchases:GetDescendants()) do
+                        if desc:IsA("RemoteFunction") and desc.Name == "Upgrade" then
                             
-                            local priceObj = itemUI:FindFirstChild("Upgrade") and itemUI.Upgrade:FindFirstChild("Price")
-                            if priceObj then
-                                local basePrice, expPrice = CleanAndParse(priceObj.Text)
+                            if not activeUpgradeThreads[desc] then
+                                activeUpgradeThreads[desc] = true
                                 
-                                local diffExp = expCash - expPrice
-                                -- Cek apakah bisa beli minimal 1
-                                if diffExp > 0 or (diffExp == 0 and baseCash >= basePrice) then
-                                    
-                                    -- ==============================================
-                                    -- KALKULATOR "MAX" CUSTOM (Cash / Price)
-                                    -- ==============================================
-                                    local calculatedBuyAmount = 1
-                                    
-                                    -- Mencegah limit matematika error jika uang terlalu overpower (misal beda 10 pangkat)
-                                    -- Karena harga Tycoon tidak linear, kita batasi maksimal pembelian per request di 100 agar server tidak curiga.
-                                    if diffExp > 2 then
-                                        calculatedBuyAmount = 100
-                                    else
-                                        -- Mengkalkulasi murni dari rasio pembagian Cash & Price
-                                        local rawAmount = (baseCash / basePrice) * (10 ^ diffExp)
-                                        calculatedBuyAmount = math.floor(rawAmount)
+                                task.spawn(function()
+                                    -- JEDA EKSTREM: 0.03 detik (Sangat cepat tapi di ambang batas aman Roblox)
+                                    while task.wait(0.03) do
+                                        if not Toggles.AutoUpgrade then 
+                                            task.wait(0.5) 
+                                            continue 
+                                        end
                                         
-                                        -- Safety net
-                                        if calculatedBuyAmount < 1 then calculatedBuyAmount = 1 end
-                                        if calculatedBuyAmount > 100 then calculatedBuyAmount = 100 end
-                                    end
-
-                                    local MyTycoon = GetMyTycoon()
-                                    if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
-                                        local targetFolder = MyTycoon.Purchases:FindFirstChild(targetName)
-                                        if targetFolder then
-                                            local remote = targetFolder:FindFirstChild("Upgrade") or targetFolder:FindFirstChildOfClass("RemoteFunction")
-                                            if not remote then
-                                                for _, desc in ipairs(targetFolder:GetDescendants()) do
-                                                    if desc:IsA("RemoteFunction") and desc.Name == "Upgrade" then
-                                                        remote = desc
-                                                        break
-                                                    end
-                                                end
-                                            end
-                                            
-                                            if remote then
-                                                -- TEMBAKKAN ANGKA HASIL KALKULASI LANGSUNG KE SERVER!
-                                                task.spawn(function()
-                                                    pcall(function() remote:InvokeServer(calculatedBuyAmount) end)
-                                                end)
-                                                
-                                                break -- Break loop ini agar ngecek lagi dari LemonX di siklus berikutnya
-                                            end
+                                        local isValid = false
+                                        pcall(function() if desc and desc.Parent then isValid = true end end)
+                                        
+                                        if isValid then
+                                            -- BUNGKUS TASK.SPAWN: Bypass delay ping!
+                                            task.spawn(function()
+                                                pcall(function() desc:InvokeServer(UpgradeAmount) end)
+                                            end)
+                                        else
+                                            activeUpgradeThreads[desc] = nil
+                                            break 
                                         end
                                     end
-                                end
+                                end)
                             end
+                            
                         end
                     end
                 end
@@ -837,7 +798,7 @@ local function EnsureSafeZone(targetCFrame, targetSize)
     if not safeZone then
         safeZone = Instance.new("Part")
         safeZone.Name = safeZoneName
-        safeZone.Size = Vector3.new(30, 1, 30) -- Diperluas jadi lapangan 30x30, ketebalan solid 1 stud
+        safeZone.Size = Vector3.new(10, 1, 10) -- Diperluas jadi lapangan 30x30, ketebalan solid 1 stud
         safeZone.Anchored = true
         safeZone.CanCollide = true
         safeZone.Transparency = 0.4 
