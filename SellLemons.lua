@@ -1035,16 +1035,15 @@ task.spawn(function()
     end
 end)
 
--- LOOP 5: SMART AUTO REBIRTH (DEX PATH + GHOST FLASHING VERSION)
+-- LOOP 5: SMART AUTO REBIRTH (DEX PATH + GHOST FLASHING + TP TRADING ROAD)
 task.spawn(function()
-    while task.wait(0.5) do -- Mengecek setiap 0.5 detik agar responsif
+    while task.wait(0.5) do 
         if Toggles.AutoRebirth then
             pcall(function()
                 local player = game:GetService("Players").LocalPlayer
                 local playerGui = player:FindFirstChild("PlayerGui")
                 
                 if playerGui then
-                    -- Menggunakan jalur pasti dari hasil temuan Dex Explorer kamu
                     local rebirthGui = playerGui:FindFirstChild("Rebirth")
                     local investorsMenu = rebirthGui and rebirthGui:FindFirstChild("InvestorsMenu")
                     local body = investorsMenu and investorsMenu:FindFirstChild("Body")
@@ -1054,31 +1053,22 @@ task.spawn(function()
                     
                     if potentialObj and amountObj and investorsMenu then
                         
-                        -- ==========================================
-                        -- TRIK ANTI-MEMBEKU (GHOST FLASHING)
-                        -- ==========================================
                         local originalVisible = investorsMenu.Visible
                         if not investorsMenu.Visible then
                             investorsMenu.Visible = true
-                            task.wait(0.05) -- Jeda super mikro agar LocalScript game memperbarui teks Quantity
+                            task.wait(0.5) 
                         end
                         
-                        -- Membaca teks ter-update yang sudah dipaksa segar
                         local potentialText = potentialObj.Text
                         local amountText = amountObj.Text
                         
-                        -- Kembalikan visibilitas menu ke kondisi semula agar tidak mengganggu layar
                         if investorsMenu.Visible ~= originalVisible then
                             investorsMenu.Visible = originalVisible
                         end
                         
-                        -- ==========================================
-                        -- PROSES STRIP & HITUNG ANGKA RAKSASA
-                        -- ==========================================
                         local basePot, expPot = CleanAndParse(potentialText)
                         local baseCur, expCur = CleanAndParse(amountText)
                         
-                        -- Mengecek sesuai settingan UI (Multiplier atau Target)
                         local shouldRebirth = false
 
                         if RebirthMode == "Multiplier" then
@@ -1086,7 +1076,6 @@ task.spawn(function()
                             shouldRebirth = IsPotentialEnough(basePot, expPot, baseCur, expCur, multiplier)
                             
                         elseif RebirthMode == "Target" then
-                            -- Konversi RebirthValue secara matematis ke format base & exp (Sangat Aman)
                             local rVal = tonumber(RebirthValue) or 0
                             local targetBase = 0
                             local targetExp = 0
@@ -1096,7 +1085,6 @@ task.spawn(function()
                                 targetBase = rVal / (10^targetExp)
                             end
                             
-                            -- Kalau Potential >= Target, maka rebirth
                             if expPot > targetExp then
                                 shouldRebirth = true
                             elseif expPot == targetExp and basePot >= targetBase then
@@ -1114,7 +1102,32 @@ task.spawn(function()
                                 task.spawn(function()
                                     pcall(function() 
                                         rebirthRemote:InvokeServer()
-                                        UpgradeRemotes = {} -- Reset cache upgrade setelah sukses rebirth
+                                        UpgradeRemotes = {} 
+                                        
+                                        -- ======================================================================
+                                        -- [TAMBAHAN BARU] TUNGGU 2 DETIK LALU TELEPORT KE TRADING ROAD BASE
+                                        -- ======================================================================
+                                        task.wait(2)
+                                        
+                                        -- Kita tidak perlu me-hardcode 'Tycoon8', kita langsung panggil fungsi 
+                                        -- GetMyTycoon() untuk nyari tycoon punyamu saat ini.
+                                        local ActiveTycoon = GetMyTycoon()
+                                        local targetPart = ActiveTycoon 
+                                            and ActiveTycoon:FindFirstChild("Purchases")
+                                            and ActiveTycoon.Purchases:FindFirstChild("Hills")
+                                            and ActiveTycoon.Purchases.Hills:FindFirstChild("Buttons")
+                                            and ActiveTycoon.Purchases.Hills.Buttons:FindFirstChild("Roads")
+                                            and ActiveTycoon.Purchases.Hills.Buttons.Roads:FindFirstChild("Trading Road")
+                                            and ActiveTycoon.Purchases.Hills.Buttons.Roads["Trading Road"]:FindFirstChild("Base")
+                                        
+                                        local char = LocalPlayer.Character
+                                        local root = char and char:FindFirstChild("HumanoidRootPart")
+                                        
+                                        if targetPart and root then
+                                            -- Teleportasi 3 Stud di depan objek dengan offset Y+3 agar tidak amblas/stuck
+                                            root.CFrame = targetPart.CFrame * CFrame.new(0, 3, 3)
+                                        end
+                                        -- ======================================================================
                                     end)
                                 end)
                             end
