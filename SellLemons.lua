@@ -1124,8 +1124,8 @@ task.spawn(function()
                                         local root = char and char:FindFirstChild("HumanoidRootPart")
                                         
                                         if targetPart and root then
-                                            -- Teleportasi 3 Stud di depan objek dengan offset Y+3 agar tidak amblas/stuck
-                                            root.CFrame = targetPart.CFrame * CFrame.new(0, 3, 3)
+                                            -- Teleportasi X Stud di depan objek dengan offset Y+X agar tidak amblas/stuck
+                                            root.CFrame = targetPart.CFrame * CFrame.new(0, 5, 5)
                                         end
                                         -- ======================================================================
                                     end)
