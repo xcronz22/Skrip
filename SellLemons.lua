@@ -1124,7 +1124,7 @@ task.spawn(function()
                                         local root = char and char:FindFirstChild("HumanoidRootPart")
                                         
                                         if targetPart and root then
-                                            root.CFrame = targetPart.CFrame * CFrame.new(0, 0, 0)
+                                            root.CFrame = targetPart.CFrame * CFrame.new(5, 5, 5)
                                         end
                                         -- ======================================================================
                                     end)
