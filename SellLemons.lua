@@ -31,6 +31,27 @@ local ToggleObjects = {}
 local RebirthInput
 local UpgradeInput
 
+-- TRIK ANTI-LAG TYCOON: BYPASS ANIMASI TWEEN (INSTANT BUILD)
+local TweenService = game:GetService("TweenService")
+local oldCreate = TweenService.Create
+
+hookfunction(TweenService.Create, function(self, instance, tweenInfo, propertyTable)
+    -- Jika yang di-animasikan adalah bagian dari objek Tycoon (punya properti CFrame/Size/Transparency)
+    if instance and (instance:IsA("BasePart") or instance:IsA("MeshPart")) then
+        -- Jika AutoBuy menyala, paksa bypass animasinya langsung ke hasil akhir!
+        if Toggles.AutoBuy then
+            pcall(function()
+                for property, value in pairs(propertyTable) do
+                    instance[property] = value
+                end
+            end)
+            -- Kembalikan tween kosong berdurasi 0 detik agar skrip game tidak error
+            return oldCreate(self, instance, TweenInfo.new(0), {})
+        end
+    end
+    return oldCreate(self, instance, tweenInfo, propertyTable)
+end)
+
 -- ==========================================
 -- 1. IDENTIFIKASI PENGALI (HANYA KATA PENUH SAMPAI CENTILLION)
 -- ==========================================
@@ -612,9 +633,9 @@ task.spawn(function()
     end
 end)
 
--- LOOP 2: AUTO BUY
+-- LOOP 2: AUTO BUY (SUPER ULTRA OPTIMIZED - NO LAG)
 task.spawn(function()
-    while task.wait(0.2) do
+    while task.wait(0.3) do -- 0.3 detik sudah sangat cepat karena jalannya instant
         if Toggles.AutoBuy then
             pcall(function() 
                 local MyTycoon = GetMyTycoon()
@@ -624,26 +645,36 @@ task.spawn(function()
                 if MyTycoon and rootPart then
                     local purchases = MyTycoon:FindFirstChild("Purchases")
                     if purchases then
-                        local purchaseItems = purchases:GetChildren()
-                        for _, purchaseItem in pairs(purchaseItems) do
+                        -- Gunakan ipairs karena jauh lebih cepat daripada pairs untuk array
+                        for _, purchaseItem in ipairs(purchases:GetChildren()) do
                             if not Toggles.AutoBuy then return end
+                            
                             local buttonsFolder = purchaseItem:FindFirstChild("Buttons")
                             if buttonsFolder then
-                                local buttons = buttonsFolder:GetDescendants()
-                                for _, item in pairs(buttons) do
+                                for _, item in ipairs(buttonsFolder:GetDescendants()) do
                                     if not Toggles.AutoBuy then return end
-                                    pcall(function() 
-                                        if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
-                                            local target = item.Parent
-                                            if target then
-                                                firetouchinterest(rootPart, target, 0)
-                                                task.wait(0.1)
-                                                if target and target.Parent then firetouchinterest(rootPart, target, 1) end
-                                            end
-                                        elseif item:IsA("ProximityPrompt") then
-                                            fireproximityprompt(item)
+                                    
+                                    if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
+                                        local target = item.Parent
+                                        
+                                        -- FILTER KRITIS: Hanya injak tombol yang AKTIF & KELIHATAN di game
+                                        if target and target:IsA("BasePart") and target.Transparency < 0.8 and target.CanTouch then
+                                            -- Jalankan di thread terpisah agar task.wait(0.05) tidak menyumbat loop utama!
+                                            task.spawn(function()
+                                                pcall(function()
+                                                    firetouchinterest(rootPart, target, 0)
+                                                    task.wait(0.05) -- Perkecil jeda sentuh biar makin instant
+                                                    firetouchinterest(rootPart, target, 1)
+                                                end)
+                                            end)
                                         end
-                                    end)
+                                        
+                                    elseif item:IsA("ProximityPrompt") then
+                                        -- Hanya eksekusi jika Proximity Prompt-nya aktif
+                                        if item.Enabled and item.Parent and item.Parent:IsA("BasePart") and item.Parent.Transparency < 0.8 then
+                                            task.spawn(fireproximityprompt, item)
+                                        end
+                                    end
                                 end
                             end
                         end
