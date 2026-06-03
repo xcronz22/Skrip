@@ -730,17 +730,28 @@ task.spawn(function()
     end
 end)
 
--- LOOP 5: SMART AUTO REBIRTH (DENGAN BYPASS ATTRIBUTE)
+-- ============================================================================================
+-- GABUNGAN UTUH LOOP 5 & 6: ANTI-BENTROK SMART AUTO REBIRTH & SMART AUTO EVOLVE (FULL LOGIC)
+-- ============================================================================================
 task.spawn(function()
-    while task.wait(0.05) do
-        if Toggles.AutoRebirth then
-            pcall(function()
-                local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-                if playerGui then
-                    local rebirthGui = playerGui:FindFirstChild("Rebirth")
-                    local investorsMenu = rebirthGui and rebirthGui:FindFirstChild("InvestorsMenu")
+    while task.wait(0.05) do -- Kecepatan interval disamakan dengan bawaan skrip aslimu
+        pcall(function()
+            local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+            if playerGui then
+                local rebirthGui = playerGui:FindFirstChild("Rebirth")
+                if rebirthGui then
+                    local investorsMenu = rebirthGui:FindFirstChild("InvestorsMenu")
+                    local evolutionMenu = rebirthGui:FindFirstChild("EvolutionMenu")
                     
-                    if investorsMenu then
+                    -- ==========================================
+                    -- [SEKTOR A] SMART AUTO REBIRTH (FULL)
+                    -- ==========================================
+                    if Toggles.AutoRebirth and investorsMenu then
+                        -- ANTI-BENTROK: Tutup fisik menu evolve saat rebirth sedang membaca data
+                        if evolutionMenu and evolutionMenu.Visible then 
+                            evolutionMenu.Visible = false 
+                        end
+                        
                         -- TRICK 1: Paksa Data > Visible = false agar tidak mengganggu layar
                         if investorsMenu.Visible ~= false then
                             investorsMenu.Visible = false
@@ -822,33 +833,63 @@ task.spawn(function()
                             end
                         end
                     end
-                end
-            end)
-        end
-    end
-end)
 
--- LOOP 6: AUTO EVOLVE
-task.spawn(function()
-    while task.wait(5) do
-        if Toggles.AutoEvolve then
-            pcall(function() 
-                local MyTycoon = GetMyTycoon()
-                if MyTycoon then
-                    local remotes = MyTycoon:FindFirstChild("Remotes")
-                    local evolveRemote = remotes and remotes:FindFirstChild("Evolve")
-                    
-                    if evolveRemote and evolveRemote:IsA("RemoteFunction") then
-                        task.spawn(function()
-                            pcall(function() 
-                                evolveRemote:InvokeServer() 
-                                UpgradeRemotes = {}
-                            end)
+                    -- Jeda mikro agar engine UI roblox sempat berganti fokus scanning tanpa lag
+                    task.wait(0.01)
+
+                    -- ==========================================
+                    -- [SEKTOR B] SMART AUTO EVOLVE (FULL & TEXT DETECT)
+                    -- ==========================================
+                    if Toggles.AutoEvolve and evolutionMenu then
+                        -- ANTI-BENTROK: Tutup fisik menu rebirth saat evolve sedang membaca data
+                        if investorsMenu and investorsMenu.Visible then 
+                            investorsMenu.Visible = false 
+                        end
+
+                        -- TRICK 1: Paksa Data > Visible = false agar tidak bocor ke layar gameplay
+                        if evolutionMenu.Visible ~= false then
+                            evolutionMenu.Visible = false
+                        end
+                        
+                        -- TRICK 2: Paksa Attributes > Visible = true agar local script memperbarui angka progressnya
+                        pcall(function()
+                            if evolutionMenu:GetAttribute("Visible") ~= true then
+                                evolutionMenu:SetAttribute("Visible", true)
+                            end
                         end)
+
+                        -- Sesuai dengan Path asli Dex milikmu: Rebirth.EvolutionMenu.Body.Progress
+                        local body = evolutionMenu:FindFirstChild("Body")
+                        local progressObj = body and body:FindFirstChild("Progress")
+                        
+                        if progressObj then
+                            local evolveText = progressObj.Text
+                            
+                            -- Deteksi Pintar: Hanya jalankan remote jika teks menyentuh angka 100%
+                            if string.find(evolveText, "100%%") or evolveText == "100%" then
+                                local MyTycoon = GetMyTycoon()
+                                if MyTycoon then
+                                    local remotes = MyTycoon:FindFirstChild("Remotes")
+                                    local evolveRemote = remotes and remotes:FindFirstChild("Evolve")
+                                    
+                                    if evolveRemote and evolveRemote:IsA("RemoteFunction") then
+                                        task.spawn(function()
+                                            pcall(function() 
+                                                evolveRemote:InvokeServer() 
+                                                UpgradeRemotes = {} -- Bersihkan cache tombol setelah evolve
+                                            end)
+                                        end)
+                                        -- Jeda pelindung internal agar tidak mengirim spam remote saat UI memproses reset ke 0%
+                                        task.wait(2)
+                                    end
+                                end
+                            end
+                        end
                     end
+
                 end
-            end)
-        end
+            end
+        end)
     end
 end)
 
