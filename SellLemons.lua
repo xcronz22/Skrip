@@ -31,24 +31,22 @@ local ToggleObjects = {}
 local RebirthInput
 local UpgradeInput
 
--- TRIK ANTI-LAG TYCOON: BYPASS ANIMASI TWEEN (INSTANT BUILD)
+-- =======================================================
+-- TRIK ANTI-LAG TYCOON BRUTAL 2.0: NATIVE C++ ENGINE BYPASS
+-- =======================================================
 local TweenService = game:GetService("TweenService")
-local oldCreate = TweenService.Create
+local oldCreate
 
-hookfunction(TweenService.Create, function(self, instance, tweenInfo, propertyTable)
-    -- Jika yang di-animasikan adalah bagian dari objek Tycoon (punya properti CFrame/Size/Transparency)
-    if instance and (instance:IsA("BasePart") or instance:IsA("MeshPart")) then
-        -- Jika AutoBuy menyala, paksa bypass animasinya langsung ke hasil akhir!
-        if Toggles.AutoBuy then
-            pcall(function()
-                for property, value in pairs(propertyTable) do
-                    instance[property] = value
-                end
-            end)
-            -- Kembalikan tween kosong berdurasi 0 detik agar skrip game tidak error
-            return oldCreate(self, instance, TweenInfo.new(0), {})
-        end
+oldCreate = hookfunction(TweenService.Create, function(self, instance, tweenInfo, propertyTable)
+    -- Jika AutoBuy menyala, kita bajak semua animasi yang mencoba berjalan!
+    if Toggles.AutoBuy and instance then
+        -- Paksa durasi animasi menjadi 0 detik (Instan) tanpa mengubah fungsi asli properties-nya
+        local instantInfo = TweenInfo.new(0, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, 0, false, 0)
+        
+        -- Lempar kembali ke engine Roblox (C++ Native) agar diproses tanpa lag Lua
+        return oldCreate(self, instance, instantInfo, propertyTable)
     end
+    
     return oldCreate(self, instance, tweenInfo, propertyTable)
 end)
 
@@ -633,9 +631,11 @@ task.spawn(function()
     end
 end)
 
--- LOOP 2: AUTO BUY (SUPER ULTRA OPTIMIZED - NO LAG)
+-- =======================================================
+-- LOOP 2: AUTO BUY (BRUTAL PACING - ZERO FPS DROP)
+-- =======================================================
 task.spawn(function()
-    while task.wait(0.1) do -- 0.1 detik sudah sangat cepat karena jalannya instant
+    while task.wait(0.1) do -- Interval dinaikkan sedikit agar lebih responsif
         if Toggles.AutoBuy then
             pcall(function() 
                 local MyTycoon = GetMyTycoon()
@@ -645,7 +645,6 @@ task.spawn(function()
                 if MyTycoon and rootPart then
                     local purchases = MyTycoon:FindFirstChild("Purchases")
                     if purchases then
-                        -- Gunakan ipairs karena jauh lebih cepat daripada pairs untuk array
                         for _, purchaseItem in ipairs(purchases:GetChildren()) do
                             if not Toggles.AutoBuy then return end
                             
@@ -657,22 +656,24 @@ task.spawn(function()
                                     if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
                                         local target = item.Parent
                                         
-                                        -- FILTER KRITIS: Hanya injak tombol yang AKTIF & KELIHATAN di game
+                                        -- FILTER: Aktif & Kelihatan
                                         if target and target:IsA("BasePart") and target.Transparency < 0.8 and target.CanTouch then
-                                            -- Jalankan di thread terpisah agar task.wait(0.05) tidak menyumbat loop utama!
-                                            task.spawn(function()
-                                                pcall(function()
-                                                    firetouchinterest(rootPart, target, 0)
-                                                    task.wait(0.05) -- Perkecil jeda sentuh biar makin instant
-                                                    firetouchinterest(rootPart, target, 1)
-                                                end)
+                                            -- DIBUAT ANTREAN BERUNTUN TANPA SPAM THREAD:
+                                            pcall(function()
+                                                firetouchinterest(rootPart, target, 0)
+                                                task.wait() -- Jeda ~0.01 detik agar server & render engine tidak choke
+                                                firetouchinterest(rootPart, target, 1)
                                             end)
+                                            -- Tambahkan jeda ~0.01 lagi agar bangunan sempat ter-render sebelum menginjak tombol selanjutnya
+                                            task.wait() 
                                         end
                                         
                                     elseif item:IsA("ProximityPrompt") then
-                                        -- Hanya eksekusi jika Proximity Prompt-nya aktif
                                         if item.Enabled and item.Parent and item.Parent:IsA("BasePart") and item.Parent.Transparency < 0.8 then
-                                            task.spawn(fireproximityprompt, item)
+                                            pcall(function()
+                                                fireproximityprompt(item)
+                                                task.wait() -- Jeda anti-choke
+                                            end)
                                         end
                                     end
                                 end
