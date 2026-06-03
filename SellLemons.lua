@@ -730,91 +730,95 @@ task.spawn(function()
     end
 end)
 
--- LOOP 5: SMART AUTO REBIRTH
+-- LOOP 5: SMART AUTO REBIRTH (DENGAN BYPASS ATTRIBUTE)
 task.spawn(function()
-    while task.wait(2) do 
+    while task.wait(0.05) do
         if Toggles.AutoRebirth then
             pcall(function()
                 local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
                 if playerGui then
                     local rebirthGui = playerGui:FindFirstChild("Rebirth")
                     local investorsMenu = rebirthGui and rebirthGui:FindFirstChild("InvestorsMenu")
-                    local body = investorsMenu and investorsMenu:FindFirstChild("Body")
                     
-                    local potentialObj = body and body:FindFirstChild("Potential") and body.Potential:FindFirstChild("Quantity")
-                    local amountObj = body and body:FindFirstChild("Amount") and body.Amount:FindFirstChild("Quantity")
-                    
-                    if potentialObj and amountObj and investorsMenu then
-                        local originalVisible = investorsMenu.Visible
-                        if not investorsMenu.Visible then
-                            investorsMenu.Visible = true
-                            task.wait(0.05) 
+                    if investorsMenu then
+                        -- TRICK 1: Paksa Data > Visible = false agar tidak mengganggu layar
+                        if investorsMenu.Visible ~= false then
+                            investorsMenu.Visible = false
                         end
                         
-                        local potentialText = potentialObj.Text
-                        local amountText = amountObj.Text
-                        
-                        if investorsMenu.Visible ~= originalVisible then
-                            investorsMenu.Visible = originalVisible
-                        end
-                        
-                        local basePot, expPot = CleanAndParse(potentialText)
-                        local baseCur, expCur = CleanAndParse(amountText)
-                        local shouldRebirth = false
-
-                        if RebirthMode == "Multiplier" then
-                            local multiplier = tonumber(RebirthValue) or 2
-                            shouldRebirth = IsPotentialEnough(basePot, expPot, baseCur, expCur, multiplier)
-                        elseif RebirthMode == "Target" then
-                            local rVal = tonumber(RebirthValue) or 0
-                            local targetBase = 0
-                            local targetExp = 0
-                            
-                            if rVal > 0 then
-                                targetExp = math.floor(math.log10(rVal))
-                                targetBase = rVal / (10^targetExp)
+                        -- TRICK 2: Paksa Attributes > Visible = true agar game tetap memperbarui angkanya
+                        pcall(function()
+                            if investorsMenu:GetAttribute("Visible") ~= true then
+                                investorsMenu:SetAttribute("Visible", true)
                             end
+                        end)
+                        
+                        local body = investorsMenu:FindFirstChild("Body")
+                        local potentialObj = body and body:FindFirstChild("Potential") and body.Potential:FindFirstChild("Quantity")
+                        local amountObj = body and body:FindFirstChild("Amount") and body.Amount:FindFirstChild("Quantity")
+                        
+                        if potentialObj and amountObj then
+                            local potentialText = potentialObj.Text
+                            local amountText = amountObj.Text
                             
-                            if expPot > targetExp then
-                                shouldRebirth = true
-                            elseif expPot == targetExp and basePot >= targetBase then
-                                shouldRebirth = true
-                            end
-                        end
+                            local basePot, expPot = CleanAndParse(potentialText)
+                            local baseCur, expCur = CleanAndParse(amountText)
+                            local shouldRebirth = false
 
-                        if shouldRebirth then
-                            local MyTycoon = GetMyTycoon()
-                            local remotes = MyTycoon and MyTycoon:FindFirstChild("Remotes")
-                            local rebirthRemote = remotes and remotes:FindFirstChild("Rebirth")
-                            
-                            if rebirthRemote and rebirthRemote:IsA("RemoteFunction") then
-                                task.spawn(function()
-                                    pcall(function() 
-                                        rebirthRemote:InvokeServer()
-                                        UpgradeRemotes = {} 
-                                        
-                                        task.wait(2)
-                                        local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-                                        local root = char:WaitForChild("HumanoidRootPart", 5)
-                                        
-                                        if root then
-                                            local ActiveTycoon = GetMyTycoon()
-                                            local targetPart = nil
+                            if RebirthMode == "Multiplier" then
+                                local multiplier = tonumber(RebirthValue) or 2
+                                shouldRebirth = IsPotentialEnough(basePot, expPot, baseCur, expCur, multiplier)
+                            elseif RebirthMode == "Target" then
+                                local rVal = tonumber(RebirthValue) or 0
+                                local targetBase = 0
+                                local targetExp = 0
+                                
+                                if rVal > 0 then
+                                    targetExp = math.floor(math.log10(rVal))
+                                    targetBase = rVal / (10^targetExp)
+                                end
+                                
+                                if expPot > targetExp then
+                                    shouldRebirth = true
+                                elseif expPot == targetExp and basePot >= targetBase then
+                                    shouldRebirth = true
+                                end
+                            end
+
+                            if shouldRebirth then
+                                local MyTycoon = GetMyTycoon()
+                                local remotes = MyTycoon and MyTycoon:FindFirstChild("Remotes")
+                                local rebirthRemote = remotes and remotes:FindFirstChild("Rebirth")
+                                
+                                if rebirthRemote and rebirthRemote:IsA("RemoteFunction") then
+                                    task.spawn(function()
+                                        pcall(function() 
+                                            rebirthRemote:InvokeServer()
+                                            UpgradeRemotes = {} 
                                             
-                                            for i = 1, 10 do
-                                                if ActiveTycoon and ActiveTycoon:FindFirstChild("Purchases") and ActiveTycoon.Purchases:FindFirstChild("Hills") and ActiveTycoon.Purchases.Hills:FindFirstChild("Buttons") and ActiveTycoon.Purchases.Hills.Buttons:FindFirstChild("Roads") and ActiveTycoon.Purchases.Hills.Buttons.Roads:FindFirstChild("Trading Road") then
-                                                    targetPart = ActiveTycoon.Purchases.Hills.Buttons.Roads["Trading Road"]:FindFirstChild("Base")
-                                                    if targetPart then break end
+                                            task.wait(2)
+                                            local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+                                            local root = char:WaitForChild("HumanoidRootPart", 5)
+                                            
+                                            if root then
+                                                local ActiveTycoon = GetMyTycoon()
+                                                local targetPart = nil
+                                                
+                                                for i = 1, 10 do
+                                                    if ActiveTycoon and ActiveTycoon:FindFirstChild("Purchases") and ActiveTycoon.Purchases:FindFirstChild("Hills") and ActiveTycoon.Purchases.Hills:FindFirstChild("Buttons") and ActiveTycoon.Purchases.Hills.Buttons:FindFirstChild("Roads") and ActiveTycoon.Purchases.Hills.Buttons.Roads:FindFirstChild("Trading Road") then
+                                                        targetPart = ActiveTycoon.Purchases.Hills.Buttons.Roads["Trading Road"]:FindFirstChild("Base")
+                                                        if targetPart then break end
+                                                    end
+                                                    task.wait(0.5)
                                                 end
-                                                task.wait(0.5)
+                                                
+                                                if targetPart then
+                                                    root.CFrame = targetPart.CFrame * CFrame.new(0, 3, 3)
+                                                end
                                             end
-                                            
-                                            if targetPart then
-                                                root.CFrame = targetPart.CFrame * CFrame.new(0, 3, 3)
-                                            end
-                                        end
+                                        end)
                                     end)
-                                end)
+                                end
                             end
                         end
                     end
