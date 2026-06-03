@@ -428,7 +428,7 @@ local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcron
 local Window = Library:MakeWindow("Sell Lemons")
 
 ToggleObjects.SilentHarvest = Window:AddToggle("Silent Harvest", false, function(Value) Toggles.SilentHarvest = Value end)
-ToggleObjects.AutoHarvest = Window:AddToggle("Auto Steal Lemons", false, function(Value)
+ToggleObjects.AutoHarvest = Window:AddToggle("Auto Harvest Lemons (TP)", false, function(Value)
     Toggles.AutoHarvest = Value
     if not Value then
         pcall(function()
@@ -441,7 +441,7 @@ end)
 
 ToggleObjects.AutoDrop = Window:AddToggle("Auto Collect Drops", false, function(Value) Toggles.AutoDrop = Value end)
 ToggleObjects.AutoBuy = Window:AddToggle("Auto Buy Buttons", false, function(Value) Toggles.AutoBuy = Value end)
-ToggleObjects.AutoUpgrade = Window:AddToggle("Auto Upgrade Max", false, function(Value) Toggles.AutoUpgrade = Value end)
+ToggleObjects.AutoUpgrade = Window:AddToggle("Auto Upgrade", false, function(Value) Toggles.AutoUpgrade = Value end)
 ToggleObjects.AutoRebirth = Window:AddToggle("Auto Rebirth", false, function(Value) Toggles.AutoRebirth = Value end)
 ToggleObjects.AutoEvolve = Window:AddToggle("Auto Evolve", false, function(Value) Toggles.AutoEvolve = Value end)
 ToggleObjects.AutoAscend = Window:AddToggle("Auto Ascend", false, function(Value) Toggles.AutoAscend = Value end)
@@ -483,7 +483,8 @@ Window:AddButton("Load Configuration", function() LoadConfig() end)
 -- PROTEKSI UTAMA: Menggunakan pcall agar skrip tidak mati total jika library tidak mendukung AddLabel
 local labelSuccess = pcall(function()
     Window:AddLabel("Background Features Active: Auto Buy Power & Auto Answer Phone")
-    Window:AddLabel("Keep Rebirth Menu open for Auto Rebirth to work")
+    Window:AddLabel("Turn off Auto Rebirth/Evolve/Ascend to restore the menu to its normal state")
+    Window:AddLabel("Silent Harvest: Approach fruit-bearing trees to collect the results")
 end)
 
 -- FALLBACK: Jika AddLabel error (tidak ada di library), otomatis buat catatan berbentuk Button pasif
