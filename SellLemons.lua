@@ -484,6 +484,7 @@ Window:AddButton("Load Configuration", function() LoadConfig() end)
 local labelSuccess = pcall(function()
     Window:AddLabel("Background Features Active: Auto Buy Power & Auto Answer Phone.")
     Window:AddLabel("Silent Harvest: Approach fruit-bearing trees to collect the results.")
+    Window:AddLabel("For UI Rebirth Evolve Ascension will close after certain time")
 end)
 
 -- FALLBACK: Jika AddLabel error (tidak ada di library), otomatis buat catatan berbentuk Button pasif
@@ -732,10 +733,12 @@ end)
 
 -- LOOP 5: SMART AUTO REBIRTH
 local wasAutoRebirthOn = false
-local visibleTimerRebirth = 0 -- Variabel untuk menghitung waktu menu terbuka
+local visibleTimerRebirth = 0
+local isRebirthing = false -- Debounce agar tidak spam remote
 
 task.spawn(function()
-    while task.wait(0.1) do
+    while true do
+        local dt = task.wait(0.05) -- dt menangkap durasi nyata yang dilewati game
         pcall(function()
             local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
             if playerGui then
@@ -749,49 +752,35 @@ task.spawn(function()
                     wasAutoRebirthOn = true
                     
                     if investorsMenu then
-                        -- TRICK 1 (AUTO-CLOSE 5 DETIK): 
+                        -- TIMER 5 DETIK BERBASIS DELTA TIME (AKURAT)
                         if investorsMenu.Visible == true then
-                            visibleTimerRebirth = visibleTimerRebirth + 0.05 -- Tambah waktu sesuai durasi task.wait
+                            visibleTimerRebirth = visibleTimerRebirth + dt
                             if visibleTimerRebirth >= 5 then
                                 investorsMenu.Visible = false
-                                visibleTimerRebirth = 0 -- Reset timer setelah ditutup
+                                visibleTimerRebirth = 0
                             end
                         else
-                            visibleTimerRebirth = 0 -- Reset timer jika ditutup manual
+                            visibleTimerRebirth = 0
                         end
                         
                         pcall(function()
-                            -- TRICK 3: Matikan sistem Exclusive
-                            if investorsMenu:GetAttribute("Exclusive") ~= false then
-                                investorsMenu:SetAttribute("Exclusive", false)
-                            end
-                            
-                            -- TRICK 2: Paksa Attributes > Visible = true
-                            if investorsMenu:GetAttribute("Visible") ~= true then
-                                investorsMenu:SetAttribute("Visible", true)
-                            end
+                            if investorsMenu:GetAttribute("Exclusive") ~= false then investorsMenu:SetAttribute("Exclusive", false) end
+                            if investorsMenu:GetAttribute("Visible") ~= true then investorsMenu:SetAttribute("Visible", true) end
                         end)
                         
-                        -- TRICK 4: Paksa Sidebar Investors Active = true
-                        if sidebarInvestors and sidebarInvestors.Active ~= true then
-                            sidebarInvestors.Active = true
-                        end
+                        if sidebarInvestors and sidebarInvestors.Active ~= true then sidebarInvestors.Active = true end
                         
                         local body = investorsMenu:FindFirstChild("Body")
                         local potentialObj = body and body:FindFirstChild("Potential") and body.Potential:FindFirstChild("Quantity")
                         local amountObj = body and body:FindFirstChild("Amount") and body.Amount:FindFirstChild("Quantity")
                         
                         if potentialObj and amountObj then
-                            local potentialText = potentialObj.Text
-                            local amountText = amountObj.Text
-                            
-                            local basePot, expPot = CleanAndParse(potentialText)
-                            local baseCur, expCur = CleanAndParse(amountText)
+                            local basePot, expPot = CleanAndParse(potentialObj.Text)
+                            local baseCur, expCur = CleanAndParse(amountObj.Text)
                             local shouldRebirth = false
 
                             if RebirthMode == "Multiplier" then
-                                local multiplier = tonumber(RebirthValue) or 2
-                                shouldRebirth = IsPotentialEnough(basePot, expPot, baseCur, expCur, multiplier)
+                                shouldRebirth = IsPotentialEnough(basePot, expPot, baseCur, expCur, tonumber(RebirthValue) or 2)
                             elseif RebirthMode == "Target" then
                                 local rVal = tonumber(RebirthValue) or 0
                                 local targetBase, targetExp = 0, 0
@@ -802,37 +791,36 @@ task.spawn(function()
                                 if expPot > targetExp or (expPot == targetExp and basePot >= targetBase) then shouldRebirth = true end
                             end
 
-                            if shouldRebirth then
+                            -- Eksekusi Rebirth aman dengan Debounce
+                            if shouldRebirth and not isRebirthing then
                                 local MyTycoon = GetMyTycoon()
-                                local remotes = MyTycoon and MyTycoon:FindFirstChild("Remotes")
-                                local rebirthRemote = remotes and remotes:FindFirstChild("Rebirth")
+                                local rebirthRemote = MyTycoon and MyTycoon:FindFirstChild("Remotes") and MyTycoon.Remotes:FindFirstChild("Rebirth")
                                 
                                 if rebirthRemote and rebirthRemote:IsA("RemoteFunction") then
+                                    isRebirthing = true
                                     task.spawn(function()
                                         pcall(function() 
                                             rebirthRemote:InvokeServer()
                                             UpgradeRemotes = {} 
                                             
-                                            task.wait(1.5) -- KEMBALI KE WAKTU NORMALMU
-                                            
-                                            -- KEMBALI MENGGUNAKAN LOGIKA CHARACTER LAMA YANG TERBUKTI LANCAR
+                                            task.wait(1.5)
                                             local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
                                             local root = char:WaitForChild("HumanoidRootPart", 5)
                                             
                                             if root then
                                                 local targetPart = nil
                                                 for i = 1, 10 do
-                                                    -- Tapi tetap fetch Tycoon di dalam loop agar ter-update setelah direset server
                                                     local ActiveTycoon = GetMyTycoon()
                                                     if ActiveTycoon and ActiveTycoon:FindFirstChild("Purchases") and ActiveTycoon.Purchases:FindFirstChild("Hills") and ActiveTycoon.Purchases.Hills:FindFirstChild("Buttons") and ActiveTycoon.Purchases.Hills.Buttons:FindFirstChild("Roads") and ActiveTycoon.Purchases.Hills.Buttons.Roads:FindFirstChild("Trading Road") then
                                                         targetPart = ActiveTycoon.Purchases.Hills.Buttons.Roads["Trading Road"]:FindFirstChild("Base")
                                                         if targetPart then break end
                                                     end
-                                                    task.wait(0.3) -- KEMBALI KE WAKTU NORMALMU
+                                                    task.wait(0.3)
                                                 end
                                                 if targetPart then root.CFrame = targetPart.CFrame * CFrame.new(0, 3, 3) end
                                             end
                                         end)
+                                        isRebirthing = false -- Open lagi setelah seluruh proses TP selesai
                                     end)
                                 end
                             end
@@ -849,7 +837,7 @@ task.spawn(function()
                     end
                     if sidebarInvestors then sidebarInvestors.Active = false end
                     wasAutoRebirthOn = false
-                    visibleTimerRebirth = 0 -- Reset juga saat dimatikan
+                    visibleTimerRebirth = 0
                 end
             end
         end)
@@ -858,10 +846,12 @@ end)
 
 -- LOOP 6: SMART AUTO EVOLVE
 local wasAutoEvolveOn = false
-local visibleTimerEvolve = 0 -- Timer khusus Evolve
+local visibleTimerEvolve = 0
+local isEvolving = false -- Debounce
 
 task.spawn(function()
-    while task.wait(0.1) do
+    while true do
+        local dt = task.wait(0.1) -- dt tangkap durasi nyata
         pcall(function() 
             local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
             if playerGui then
@@ -875,9 +865,9 @@ task.spawn(function()
                     wasAutoEvolveOn = true
                     
                     if evolutionMenu then
-                        -- TRICK 1 (AUTO-CLOSE 5 DETIK)
+                        -- TIMER 5 DETIK BERBASIS DELTA TIME
                         if evolutionMenu.Visible == true then
-                            visibleTimerEvolve = visibleTimerEvolve + 0.1 -- Ditambah 0.1 karena task.wait(0.1)
+                            visibleTimerEvolve = visibleTimerEvolve + dt
                             if visibleTimerEvolve >= 5 then
                                 evolutionMenu.Visible = false
                                 visibleTimerEvolve = 0
@@ -887,40 +877,31 @@ task.spawn(function()
                         end
                         
                         pcall(function()
-                            -- TRICK 3
-                            if evolutionMenu:GetAttribute("Exclusive") ~= false then
-                                evolutionMenu:SetAttribute("Exclusive", false)
-                            end
-                            
-                            -- TRICK 2
-                            if evolutionMenu:GetAttribute("Visible") ~= true then
-                                evolutionMenu:SetAttribute("Visible", true)
-                            end
+                            if evolutionMenu:GetAttribute("Exclusive") ~= false then evolutionMenu:SetAttribute("Exclusive", false) end
+                            if evolutionMenu:GetAttribute("Visible") ~= true then evolutionMenu:SetAttribute("Visible", true) end
                         end)
 
-                        -- TRICK 4
-                        if sidebarEvolution and sidebarEvolution.Active ~= true then
-                            sidebarEvolution.Active = true
-                        end
+                        if sidebarEvolution and sidebarEvolution.Active ~= true then sidebarEvolution.Active = true end
 
                         local body = evolutionMenu:FindFirstChild("Body")
                         local progressObj = body and body:FindFirstChild("Progress")
                         
                         if progressObj then
                             local evolveText = progressObj.Text
-                            if string.find(evolveText, "100%%") or evolveText == "100%" then
+                            if (string.find(evolveText, "100%%") or evolveText == "100%") and not isEvolving then
                                 local MyTycoon = GetMyTycoon()
-                                local remotes = MyTycoon and MyTycoon:FindFirstChild("Remotes")
-                                local evolveRemote = remotes and remotes:FindFirstChild("Evolve")
+                                local evolveRemote = MyTycoon and MyTycoon:FindFirstChild("Remotes") and MyTycoon.Remotes:FindFirstChild("Evolve")
                                 
                                 if evolveRemote and evolveRemote:IsA("RemoteFunction") then
+                                    isEvolving = true
                                     task.spawn(function()
                                         pcall(function() 
                                             evolveRemote:InvokeServer() 
                                             UpgradeRemotes = {} 
                                         end)
+                                        task.wait(2) -- Delay cooldown aman di dalam thread terpisah, loop utama tidak terganggu
+                                        isEvolving = false
                                     end)
-                                    task.wait(2)
                                 end
                             end
                         end
@@ -993,10 +974,12 @@ end)
 
 -- LOOP 9: SMART AUTO ASCEND
 local wasAutoAscendOn = false
-local visibleTimerAscend = 0 -- Timer khusus Ascend
+local visibleTimerAscend = 0
+local isAscending = false -- Debounce
 
 task.spawn(function()
-    while task.wait(0.1) do
+    while true do
+        local dt = task.wait(0.5) -- dt tangkap durasi nyata
         pcall(function()
             local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
             if playerGui then
@@ -1010,9 +993,9 @@ task.spawn(function()
                     wasAutoAscendOn = true
                     
                     if ascensionMenu then
-                        -- TRICK 1 (AUTO-CLOSE 5 DETIK)
+                        -- TIMER 5 DETIK BERBASIS DELTA TIME (FIXED!)
                         if ascensionMenu.Visible == true then
-                            visibleTimerAscend = visibleTimerAscend + 0.5 -- Ditambah 0.5 karena task.wait(0.5)
+                            visibleTimerAscend = visibleTimerAscend + dt
                             if visibleTimerAscend >= 5 then
                                 ascensionMenu.Visible = false
                                 visibleTimerAscend = 0
@@ -1022,40 +1005,31 @@ task.spawn(function()
                         end
                         
                         pcall(function()
-                            -- TRICK 3
-                            if ascensionMenu:GetAttribute("Exclusive") ~= false then
-                                ascensionMenu:SetAttribute("Exclusive", false)
-                            end
-                            
-                            -- TRICK 2
-                            if ascensionMenu:GetAttribute("Visible") ~= true then
-                                ascensionMenu:SetAttribute("Visible", true)
-                            end
+                            if ascensionMenu:GetAttribute("Exclusive") ~= false then ascensionMenu:SetAttribute("Exclusive", false) end
+                            if ascensionMenu:GetAttribute("Visible") ~= true then ascensionMenu:SetAttribute("Visible", true) end
                         end)
                         
-                        -- TRICK 4
-                        if sidebarAscension and sidebarAscension.Active ~= true then
-                            sidebarAscension.Active = true
-                        end
+                        if sidebarAscension and sidebarAscension.Active ~= true then sidebarAscension.Active = true end
                         
                         local body = ascensionMenu:FindFirstChild("Body")
                         local ascendButton = body and body:FindFirstChild("Ascend")
                         
                         if ascendButton then
                             local currentColor = ascendButton.BackgroundColor3
-                            if currentColor ~= Color3.fromRGB(80, 80, 80) then
+                            if currentColor ~= Color3.fromRGB(80, 80, 80) and not isAscending then
                                 local MyTycoon = GetMyTycoon()
-                                local remotes = MyTycoon and MyTycoon:FindFirstChild("Remotes")
-                                local ascendRemote = remotes and remotes:FindFirstChild("Ascend")
+                                local ascendRemote = MyTycoon and MyTycoon:FindFirstChild("Remotes") and MyTycoon.Remotes:FindFirstChild("Ascend")
                                 
                                 if ascendRemote and ascendRemote:IsA("RemoteFunction") then
+                                    isAscending = true
                                     task.spawn(function()
                                         pcall(function() 
                                             ascendRemote:InvokeServer() 
                                             UpgradeRemotes = {} 
                                         end)
+                                        task.wait(3) -- Pindah ke dalam thread terpisah! Timer UI sekarang berjalan lancar jaya!
+                                        isAscending = false
                                     end)
-                                    task.wait(3) 
                                 end
                             end
                         end
