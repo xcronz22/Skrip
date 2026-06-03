@@ -730,34 +730,19 @@ task.spawn(function()
     end
 end)
 
--- ============================================================================================
--- GABUNGAN UTUH LOOP 5 & 6: ANTI-BENTROK SMART AUTO REBIRTH & SMART AUTO EVOLVE (FULL LOGIC)
--- ============================================================================================
+-- LOOP 5: SMART AUTO REBIRTH
 task.spawn(function()
-    while task.wait(0.05) do -- Kecepatan interval disamakan dengan bawaan skrip aslimu
-        pcall(function()
-            local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-            if playerGui then
-                local rebirthGui = playerGui:FindFirstChild("Rebirth")
-                if rebirthGui then
-                    local investorsMenu = rebirthGui:FindFirstChild("InvestorsMenu")
-                    local evolutionMenu = rebirthGui:FindFirstChild("EvolutionMenu")
+    while task.wait(0.5) do
+        if Toggles.AutoRebirth then
+            pcall(function()
+                local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+                if playerGui then
+                    local rebirthGui = playerGui:FindFirstChild("Rebirth")
+                    local investorsMenu = rebirthGui and rebirthGui:FindFirstChild("InvestorsMenu")
                     
-                    -- ==========================================
-                    -- [SEKTOR A] SMART AUTO REBIRTH (FULL)
-                    -- ==========================================
-                    if Toggles.AutoRebirth and investorsMenu then
-                        -- ANTI-BENTROK: Tutup fisik menu evolve saat rebirth sedang membaca data
-                        if evolutionMenu and evolutionMenu.Visible then 
-                            evolutionMenu.Visible = false 
-                        end
-                        
-                        -- TRICK 1: Paksa Data > Visible = false agar tidak mengganggu layar
-                        if investorsMenu.Visible ~= false then
-                            investorsMenu.Visible = false
-                        end
-                        
-                        -- TRICK 2: Paksa Attributes > Visible = true agar game tetap memperbarui angkanya
+                    if investorsMenu then
+                        -- TRICK: Sembunyikan dari layar tapi paksa attribute aktif
+                        if investorsMenu.Visible ~= false then investorsMenu.Visible = false end
                         pcall(function()
                             if investorsMenu:GetAttribute("Visible") ~= true then
                                 investorsMenu:SetAttribute("Visible", true)
@@ -833,63 +818,59 @@ task.spawn(function()
                             end
                         end
                     end
+                end
+            end)
+        end
+    end
+end)
 
-                    -- Jeda mikro agar engine UI roblox sempat berganti fokus scanning tanpa lag
-                    task.wait(0.01)
-
-                    -- ==========================================
-                    -- [SEKTOR B] SMART AUTO EVOLVE (FULL & TEXT DETECT)
-                    -- ==========================================
-                    if Toggles.AutoEvolve and evolutionMenu then
-                        -- ANTI-BENTROK: Tutup fisik menu rebirth saat evolve sedang membaca data
-                        if investorsMenu and investorsMenu.Visible then 
-                            investorsMenu.Visible = false 
-                        end
-
-                        -- TRICK 1: Paksa Data > Visible = false agar tidak bocor ke layar gameplay
-                        if evolutionMenu.Visible ~= false then
-                            evolutionMenu.Visible = false
-                        end
-                        
-                        -- TRICK 2: Paksa Attributes > Visible = true agar local script memperbarui angka progressnya
+-- LOOP 6: SMART AUTO EVOLVE
+task.spawn(function()
+    while task.wait(0.5) do -- Kecepatan disesuaikan agar responsif menangkap text 100%
+        if Toggles.AutoEvolve then
+            pcall(function() 
+                local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+                if playerGui then
+                    local rebirthGui = playerGui:FindFirstChild("Rebirth")
+                    local evolutionMenu = rebirthGui and rebirthGui:FindFirstChild("EvolutionMenu")
+                    
+                    if evolutionMenu then
+                        -- TRICK: Sembunyikan dari layar tapi paksa attribute aktif
+                        if evolutionMenu.Visible ~= false then evolutionMenu.Visible = false end
                         pcall(function()
                             if evolutionMenu:GetAttribute("Visible") ~= true then
                                 evolutionMenu:SetAttribute("Visible", true)
                             end
                         end)
 
-                        -- Sesuai dengan Path asli Dex milikmu: Rebirth.EvolutionMenu.Body.Progress
+                        -- Presisi menggunakan path kirimanmu: Rebirth.EvolutionMenu.Body.Progress
                         local body = evolutionMenu:FindFirstChild("Body")
                         local progressObj = body and body:FindFirstChild("Progress")
                         
                         if progressObj then
                             local evolveText = progressObj.Text
                             
-                            -- Deteksi Pintar: Hanya jalankan remote jika teks menyentuh angka 100%
+                            -- Deteksi Pintar: Eksekusi jika text menunjukkan angka 100%
                             if string.find(evolveText, "100%%") or evolveText == "100%" then
                                 local MyTycoon = GetMyTycoon()
-                                if MyTycoon then
-                                    local remotes = MyTycoon:FindFirstChild("Remotes")
-                                    local evolveRemote = remotes and remotes:FindFirstChild("Evolve")
-                                    
-                                    if evolveRemote and evolveRemote:IsA("RemoteFunction") then
-                                        task.spawn(function()
-                                            pcall(function() 
-                                                evolveRemote:InvokeServer() 
-                                                UpgradeRemotes = {} -- Bersihkan cache tombol setelah evolve
-                                            end)
+                                local remotes = MyTycoon and MyTycoon:FindFirstChild("Remotes")
+                                local evolveRemote = remotes and remotes:FindFirstChild("Evolve")
+                                
+                                if evolveRemote and evolveRemote:IsA("RemoteFunction") then
+                                    task.spawn(function()
+                                        pcall(function() 
+                                            evolveRemote:InvokeServer() 
+                                            UpgradeRemotes = {} -- Bersihkan cache tombol setelah reset data
                                         end)
-                                        -- Jeda pelindung internal agar tidak mengirim spam remote saat UI memproses reset ke 0%
-                                        task.wait(2)
-                                    end
+                                    end)
+                                    task.wait(2) -- Cooldown pelindung transisi data GUI
                                 end
                             end
                         end
                     end
-
                 end
-            end
-        end)
+            end)
+        end
     end
 end)
 
@@ -943,19 +924,47 @@ end)
 
 -- LOOP 9: AUTO ASCEND
 task.spawn(function()
-    while task.wait(5) do
+    while task.wait(0.5) do -- Setiap 0.5 detik sekali untuk menghemat RAM karena deteksi warna sangat cepat
         if Toggles.AutoAscend then
             pcall(function()
-                local MyTycoon = GetMyTycoon()
-                if MyTycoon then
-                    local ascendRemote = MyTycoon:FindFirstChild("Remotes") and MyTycoon.Remotes:FindFirstChild("Ascend")
-                    if ascendRemote and ascendRemote:IsA("RemoteFunction") then
-                        task.spawn(function()
-                            pcall(function() 
-                                ascendRemote:InvokeServer() 
-                                UpgradeRemotes = {} 
-                            end)
+                local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+                if playerGui then
+                    local rebirthGui = playerGui:FindFirstChild("Rebirth")
+                    local ascensionMenu = rebirthGui and rebirthGui:FindFirstChild("AscensionMenu")
+                    
+                    if ascensionMenu then
+                        -- TRICK: Sembunyikan dari layar tapi paksa attribute aktif
+                        if ascensionMenu.Visible ~= false then ascensionMenu.Visible = false end
+                        pcall(function()
+                            if ascensionMenu:GetAttribute("Visible") ~= true then
+                                ascensionMenu:SetAttribute("Visible", true)
+                            end
                         end)
+                        
+                        -- Presisi menggunakan path kirimanmu: Rebirth.AscensionMenu.Body.Ascend
+                        local body = ascensionMenu:FindFirstChild("Body")
+                        local ascendButton = body and body:FindFirstChild("Ascend")
+                        
+                        if ascendButton then
+                            local currentColor = ascendButton.BackgroundColor3
+                            
+                            -- LOGIKA TERBALIK: Jika warnanya BUKAN abu-abu terkunci (80, 80, 80), artinya tombol SIAP ditekan!
+                            if currentColor ~= Color3.fromRGB(80, 80, 80) then
+                                local MyTycoon = GetMyTycoon()
+                                local remotes = MyTycoon and MyTycoon:FindFirstChild("Remotes")
+                                local ascendRemote = remotes and remotes:FindFirstChild("Ascend")
+                                
+                                if ascendRemote and ascendRemote:IsA("RemoteFunction") then
+                                    task.spawn(function()
+                                        pcall(function() 
+                                            ascendRemote:InvokeServer() 
+                                            UpgradeRemotes = {} -- Reset cache tombol setelah data di-wipe total
+                                        end)
+                                    end)
+                                    task.wait(3) -- Jeda aman pasca-Ascend agar karakter selesai reload
+                                end
+                            end
+                        end
                     end
                 end
             end)
