@@ -181,7 +181,6 @@ function RZY_Library:MakeWindow(TitleText)
             ToggleBtn.Text = Text .. (state and " [ON]" or " [OFF]")
             ToggleBtn.TextColor3 = state and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(255, 100, 100)
             
-            -- Panggil fungsi yang ada di script luar
             pcall(Callback, state)
         end)
     end
@@ -208,6 +207,56 @@ function RZY_Library:MakeWindow(TitleText)
                 task.wait(0.5)
                 Btn.Text = Text
             end)
+        end)
+    end
+
+    -- BARU! Cetakan untuk Input Box (Ketik Teks / Angka)
+    function WindowElements:AddInput(Text, Placeholder, Callback)
+        local InputFrame = Instance.new("Frame")
+        InputFrame.Size = UDim2.new(1, -10, 0, 40)
+        InputFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+        InputFrame.Parent = Container
+
+        local InputCorner = Instance.new("UICorner")
+        InputCorner.CornerRadius = UDim.new(0, 5)
+        InputCorner.Parent = InputFrame
+
+        local InputStroke = Instance.new("UIStroke")
+        InputStroke.Color = Color3.fromRGB(0, 100, 150)
+        InputStroke.Thickness = 1
+        InputStroke.Parent = InputFrame
+
+        local Label = Instance.new("TextLabel")
+        Label.Size = UDim2.new(0.5, 0, 1, 0)
+        Label.Position = UDim2.new(0, 10, 0, 0)
+        Label.BackgroundTransparency = 1
+        Label.Text = Text
+        Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+        Label.Font = Enum.Font.GothamBold
+        Label.TextSize = 12
+        Label.TextXAlignment = Enum.TextXAlignment.Left
+        Label.Parent = InputFrame
+
+        local TextBox = Instance.new("TextBox")
+        TextBox.Size = UDim2.new(0.4, 0, 0, 26)
+        TextBox.Position = UDim2.new(0.6, -5, 0.5, -13)
+        TextBox.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+        TextBox.Text = ""
+        TextBox.PlaceholderText = Placeholder or "Ketik..."
+        TextBox.PlaceholderColor3 = Color3.fromRGB(100, 100, 100)
+        TextBox.TextColor3 = Color3.fromRGB(0, 170, 255)
+        TextBox.Font = Enum.Font.GothamBold
+        TextBox.TextSize = 12
+        TextBox.ClearTextOnFocus = true
+        TextBox.Parent = InputFrame
+
+        local TBCorner = Instance.new("UICorner")
+        TBCorner.CornerRadius = UDim.new(0, 4)
+        TBCorner.Parent = TextBox
+
+        -- Triger berjalan saat user menekan 'Enter' atau klik di luar kotak input
+        TextBox.FocusLost:Connect(function(enterPressed)
+            pcall(Callback, TextBox.Text)
         end)
     end
 
