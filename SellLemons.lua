@@ -635,7 +635,7 @@ end)
 
 -- LOOP 2: AUTO BUY (SUPER ULTRA OPTIMIZED - NO LAG)
 task.spawn(function()
-    while task.wait(0.05) do -- 0.1 detik sudah sangat cepat karena jalannya instant
+    while task.wait(0.1) do -- 0.1 detik sudah sangat cepat karena jalannya instant
         if Toggles.AutoBuy then
             pcall(function() 
                 local MyTycoon = GetMyTycoon()
