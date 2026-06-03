@@ -830,14 +830,37 @@ task.spawn(function()
     end
 end)
 
--- LOOP 5: SMART AUTO REBIRTH
+-- =======================================================
+-- LOOP 5: SMART AUTO REBIRTH (INSTANT TP & CACHE SYSTEM)
+-- =======================================================
 local wasAutoRebirthOn = false
 local visibleTimerRebirth = 0
-local isRebirthing = false -- Debounce agar tidak spam remote
+local isRebirthing = false 
+local cachedLemonXCFrame = nil -- Memori untuk menyimpan lokasi sebelum hancur
+
+-- Fungsi Bikin Pijakan
+local function EnsureSafeZone(targetCFrame)
+    local safeZoneName = "BrutalSafeZone_LemonX"
+    local safeZone = workspace:FindFirstChild(safeZoneName)
+
+    if not safeZone then
+        safeZone = Instance.new("Part")
+        safeZone.Name = safeZoneName
+        safeZone.Size = Vector3.new(15, 1, 15) 
+        safeZone.Anchored = true
+        safeZone.CanCollide = true
+        safeZone.Transparency = 0.4 
+        safeZone.BrickColor = BrickColor.new("Cyan") 
+        safeZone.Material = Enum.Material.Neon
+        safeZone.Parent = workspace
+    end
+    -- Taruh 4 stud tepat di bawah CFrame target
+    safeZone.CFrame = targetCFrame * CFrame.new(0, -4, 0)
+end
 
 task.spawn(function()
     while true do
-        local dt = task.wait(0.05) -- dt menangkap durasi nyata yang dilewati game
+        local dt = task.wait(0.05) 
         pcall(function()
             local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
             if playerGui then
@@ -851,7 +874,6 @@ task.spawn(function()
                     wasAutoRebirthOn = true
                     
                     if investorsMenu then
-                        -- TIMER 5 DETIK BERBASIS DELTA TIME (AKURAT)
                         if investorsMenu.Visible == true then
                             visibleTimerRebirth = visibleTimerRebirth + dt
                             if visibleTimerRebirth >= 5 then
@@ -890,36 +912,52 @@ task.spawn(function()
                                 if expPot > targetExp or (expPot == targetExp and basePot >= targetBase) then shouldRebirth = true end
                             end
 
-                            -- Eksekusi Rebirth aman dengan Debounce
+                            -- ==========================================
+                            -- EKSEKUSI REBIRTH (MODE INSTANT TP CACHE)
+                            -- ==========================================
                             if shouldRebirth and not isRebirthing then
                                 local MyTycoon = GetMyTycoon()
                                 local rebirthRemote = MyTycoon and MyTycoon:FindFirstChild("Remotes") and MyTycoon.Remotes:FindFirstChild("Rebirth")
                                 
                                 if rebirthRemote and rebirthRemote:IsA("RemoteFunction") then
                                     isRebirthing = true
+                                    
+                                    -- 1. CURI DATA KORDINAT SEBELUM REBIRTH DIKLIK
+                                    pcall(function()
+                                        local decorFolder = MyTycoon:FindFirstChild("Purchases")
+                                            and MyTycoon.Purchases:FindFirstChild("LemonX")
+                                            and MyTycoon.Purchases.LemonX:FindFirstChild("Decor")
+                                            and MyTycoon.Purchases.LemonX.Decor:FindFirstChild("X Edge Lines")
+
+                                        if decorFolder then
+                                            local parts = decorFolder:GetChildren()
+                                            if #parts >= 15 then
+                                                cachedLemonXCFrame = parts[15].CFrame -- Simpan ke memori!
+                                            end
+                                        end
+                                    end)
+
+                                    -- 2. EKSEKUSI REBIRTH
                                     task.spawn(function()
                                         pcall(function() 
                                             rebirthRemote:InvokeServer()
                                             UpgradeRemotes = {} 
                                             
-                                            task.wait(1.5)
+                                            -- Tunggu mati dan respawn
                                             local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-                                            local root = char:WaitForChild("HumanoidRootPart", 5)
+                                            local root = char:WaitForChild("HumanoidRootPart", 10)
                                             
-                                            if root then
-                                                local targetPart = nil
-                                                for i = 1, 10 do
-                                                    local ActiveTycoon = GetMyTycoon()
-                                                    if ActiveTycoon and ActiveTycoon:FindFirstChild("Purchases") and ActiveTycoon.Purchases:FindFirstChild("Hills") and ActiveTycoon.Purchases.Hills:FindFirstChild("Buttons") and ActiveTycoon.Purchases.Hills.Buttons:FindFirstChild("Roads") and ActiveTycoon.Purchases.Hills.Buttons.Roads:FindFirstChild("Trading Road") then
-                                                        targetPart = ActiveTycoon.Purchases.Hills.Buttons.Roads["Trading Road"]:FindFirstChild("Base")
-                                                        if targetPart then break end
-                                                    end
-                                                    task.wait(0.3)
-                                                end
-                                                if targetPart then root.CFrame = targetPart.CFrame * CFrame.new(0, 3, 3) end
+                                            -- Jeda 1.5 detik agar aman dari sistem Spawn Pad game
+                                            task.wait(1.5) 
+                                            
+                                            -- 3. TP INSTAN MENGGUNAKAN MEMORI KORDINAT TADI
+                                            if root and cachedLemonXCFrame then
+                                                EnsureSafeZone(cachedLemonXCFrame)
+                                                task.wait(0.1) -- Jeda mikrosekon agar SafeZone solid
+                                                root.CFrame = cachedLemonXCFrame * CFrame.new(0, 3, 0) 
                                             end
                                         end)
-                                        isRebirthing = false -- Open lagi setelah seluruh proses TP selesai
+                                        isRebirthing = false 
                                     end)
                                 end
                             end
