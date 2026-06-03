@@ -1037,7 +1037,7 @@ end)
 
 -- LOOP 5: SMART AUTO REBIRTH (DEX PATH + GHOST FLASHING + TP TRADING ROAD)
 task.spawn(function()
-    while task.wait(0.5) do 
+    while task.wait(2) do 
         if Toggles.AutoRebirth then
             pcall(function()
                 local player = game:GetService("Players").LocalPlayer
@@ -1105,32 +1105,43 @@ task.spawn(function()
                                         UpgradeRemotes = {} 
                                         
                                         -- ======================================================================
-                                        -- [TAMBAHAN BARU] TUNGGU 2 DETIK LALU TELEPORT KE TRADING ROAD BASE
+                                        -- [UPDATE] SISTEM TELEPORT ANTI GAGAL (TUNGGU RESPAWN & LOADING)
                                         -- ======================================================================
-                                        task.wait(3)
+                                        -- 1. Tunggu loading awal setelah pencet rebirth
+                                        task.wait(2)
                                         
-                                        -- Kita tidak perlu me-hardcode 'Tycoon8', kita langsung panggil fungsi 
-                                        -- GetMyTycoon() untuk nyari tycoon punyamu saat ini.
-                                        local ActiveTycoon = GetMyTycoon()
-                                        local targetPart = ActiveTycoon 
-                                            and ActiveTycoon:FindFirstChild("Purchases")
-                                            and ActiveTycoon.Purchases:FindFirstChild("Hills")
-                                            and ActiveTycoon.Purchases.Hills:FindFirstChild("Buttons")
-                                            and ActiveTycoon.Purchases.Hills.Buttons:FindFirstChild("Roads")
-                                            and ActiveTycoon.Purchases.Hills.Buttons.Roads:FindFirstChild("Trading Road")
-                                            and ActiveTycoon.Purchases.Hills.Buttons.Roads["Trading Road"]:FindFirstChild("Base")
+                                        -- 2. Pastikan kita ngambil Karakter yang PALING BARU (setelah respawn)
+                                        local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+                                        local root = char:WaitForChild("HumanoidRootPart", 5) -- Tunggu max 5 detik
                                         
-                                        local char = LocalPlayer.Character
-                                        local root = char and char:FindFirstChild("HumanoidRootPart")
-                                        
-                                        if targetPart and root then
-                                            root.CFrame = targetPart.CFrame * CFrame.new(5, 5, 5)
+                                        if root then
+                                            local ActiveTycoon = GetMyTycoon()
+                                            local targetPart = nil
+                                            
+                                            -- 3. Coba cari tombol Trading Road berulang kali selama max 5 detik
+                                            for i = 1, 10 do
+                                                if ActiveTycoon 
+                                                    and ActiveTycoon:FindFirstChild("Purchases")
+                                                    and ActiveTycoon.Purchases:FindFirstChild("Hills")
+                                                    and ActiveTycoon.Purchases.Hills:FindFirstChild("Buttons")
+                                                    and ActiveTycoon.Purchases.Hills.Buttons:FindFirstChild("Roads")
+                                                    and ActiveTycoon.Purchases.Hills.Buttons.Roads:FindFirstChild("Trading Road") then
+                                                    
+                                                    targetPart = ActiveTycoon.Purchases.Hills.Buttons.Roads["Trading Road"]:FindFirstChild("Base")
+                                                    if targetPart then break end
+                                                end
+                                                task.wait(0.5)
+                                            end
+                                            
+                                            -- 4. Eksekusi Teleport jika part sudah terkonfirmasi ada
+                                            if targetPart then
+                                                root.CFrame = targetPart.CFrame * CFrame.new(0, 3, 3)
+                                            end
                                         end
                                         -- ======================================================================
                                     end)
                                 end)
                             end
-                            
                         end
                     end
                 end
