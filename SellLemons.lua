@@ -731,7 +731,7 @@ task.spawn(function()
     end
 end)
 
--- LOOP 5: SMART AUTO REBIRTH
+-- LOOP 5: SMART AUTO REBIRTH (TRIPLE BYPASS TRICK)
 task.spawn(function()
     while task.wait(0.5) do
         if Toggles.AutoRebirth then
@@ -742,9 +742,16 @@ task.spawn(function()
                     local investorsMenu = rebirthGui and rebirthGui:FindFirstChild("InvestorsMenu")
                     
                     if investorsMenu then
-                        -- TRICK: Sembunyikan dari layar tapi paksa attribute aktif
+                        -- TRICK 1: Sembunyikan Data > Visible = false agar tidak mengganggu layar
                         if investorsMenu.Visible ~= false then investorsMenu.Visible = false end
+                        
                         pcall(function()
+                            -- TRICK 3 (NEW BYPASS): Matikan sistem Exclusive agar tidak bentrok dengan menu lain
+                            if investorsMenu:GetAttribute("Exclusive") ~= false then
+                                investorsMenu:SetAttribute("Exclusive", false)
+                            end
+                            
+                            -- TRICK 2: Paksa Attributes > Visible = true agar game tetap memperbarui angkanya
                             if investorsMenu:GetAttribute("Visible") ~= true then
                                 investorsMenu:SetAttribute("Visible", true)
                             end
@@ -825,9 +832,9 @@ task.spawn(function()
     end
 end)
 
--- LOOP 6: SMART AUTO EVOLVE
+-- LOOP 6: SMART AUTO EVOLVE (TRIPLE BYPASS TRICK)
 task.spawn(function()
-    while task.wait(0.5) do -- Kecepatan disesuaikan agar responsif menangkap text 100%
+    while task.wait(0.5) do
         if Toggles.AutoEvolve then
             pcall(function() 
                 local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
@@ -836,22 +843,27 @@ task.spawn(function()
                     local evolutionMenu = rebirthGui and rebirthGui:FindFirstChild("EvolutionMenu")
                     
                     if evolutionMenu then
-                        -- TRICK: Sembunyikan dari layar tapi paksa attribute aktif
+                        -- TRICK 1: Sembunyikan Data > Visible = false
                         if evolutionMenu.Visible ~= false then evolutionMenu.Visible = false end
+                        
                         pcall(function()
+                            -- TRICK 3 (NEW BYPASS): Matikan sistem Exclusive
+                            if evolutionMenu:GetAttribute("Exclusive") ~= false then
+                                evolutionMenu:SetAttribute("Exclusive", false)
+                            end
+                            
+                            -- TRICK 2: Paksa Attributes > Visible = true
                             if evolutionMenu:GetAttribute("Visible") ~= true then
                                 evolutionMenu:SetAttribute("Visible", true)
                             end
                         end)
 
-                        -- Presisi menggunakan path kirimanmu: Rebirth.EvolutionMenu.Body.Progress
                         local body = evolutionMenu:FindFirstChild("Body")
                         local progressObj = body and body:FindFirstChild("Progress")
                         
                         if progressObj then
                             local evolveText = progressObj.Text
                             
-                            -- Deteksi Pintar: Eksekusi jika text menunjukkan angka 100%
                             if string.find(evolveText, "100%%") or evolveText == "100%" then
                                 local MyTycoon = GetMyTycoon()
                                 local remotes = MyTycoon and MyTycoon:FindFirstChild("Remotes")
@@ -861,10 +873,10 @@ task.spawn(function()
                                     task.spawn(function()
                                         pcall(function() 
                                             evolveRemote:InvokeServer() 
-                                            UpgradeRemotes = {} -- Bersihkan cache tombol setelah reset data
+                                            UpgradeRemotes = {} 
                                         end)
                                     end)
-                                    task.wait(2) -- Cooldown pelindung transisi data GUI
+                                    task.wait(2)
                                 end
                             end
                         end
@@ -923,9 +935,9 @@ task.spawn(function()
     end
 end)
 
--- LOOP 9: AUTO ASCEND
+-- LOOP 9: SMART AUTO ASCEND (TRIPLE BYPASS TRICK)
 task.spawn(function()
-    while task.wait(0.5) do -- Setiap 0.5 detik sekali untuk menghemat RAM karena deteksi warna sangat cepat
+    while task.wait(0.5) do
         if Toggles.AutoAscend then
             pcall(function()
                 local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
@@ -934,22 +946,28 @@ task.spawn(function()
                     local ascensionMenu = rebirthGui and rebirthGui:FindFirstChild("AscensionMenu")
                     
                     if ascensionMenu then
-                        -- TRICK: Sembunyikan dari layar tapi paksa attribute aktif
+                        -- TRICK 1: Sembunyikan Data > Visible = false
                         if ascensionMenu.Visible ~= false then ascensionMenu.Visible = false end
+                        
                         pcall(function()
+                            -- TRICK 3 (NEW BYPASS): Matikan sistem Exclusive
+                            if ascensionMenu:GetAttribute("Exclusive") ~= false then
+                                ascensionMenu:SetAttribute("Exclusive", false)
+                            end
+                            
+                            -- TRICK 2: Paksa Attributes > Visible = true
                             if ascensionMenu:GetAttribute("Visible") ~= true then
                                 ascensionMenu:SetAttribute("Visible", true)
                             end
                         end)
                         
-                        -- Presisi menggunakan path kirimanmu: Rebirth.AscensionMenu.Body.Ascend
                         local body = ascensionMenu:FindFirstChild("Body")
                         local ascendButton = body and body:FindFirstChild("Ascend")
                         
                         if ascendButton then
                             local currentColor = ascendButton.BackgroundColor3
                             
-                            -- LOGIKA TERBALIK: Jika warnanya BUKAN abu-abu terkunci (80, 80, 80), artinya tombol SIAP ditekan!
+                            -- Cek Warna Terbalik: Jika BUKAN abu-abu [80, 80, 80], maka sikat!
                             if currentColor ~= Color3.fromRGB(80, 80, 80) then
                                 local MyTycoon = GetMyTycoon()
                                 local remotes = MyTycoon and MyTycoon:FindFirstChild("Remotes")
@@ -959,10 +977,10 @@ task.spawn(function()
                                     task.spawn(function()
                                         pcall(function() 
                                             ascendRemote:InvokeServer() 
-                                            UpgradeRemotes = {} -- Reset cache tombol setelah data di-wipe total
+                                            UpgradeRemotes = {} 
                                         end)
                                     end)
-                                    task.wait(3) -- Jeda aman pasca-Ascend agar karakter selesai reload
+                                    task.wait(3) 
                                 end
                             end
                         end
