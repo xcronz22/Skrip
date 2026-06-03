@@ -123,7 +123,41 @@ function RZY_Library:MakeWindow(TitleText)
 
     local WindowElements = {}
 
-    -- FIX: MENAMBAHKAN HANDLER RETURN AGAR BISA DIKENDALIKAN SAAT LOAD CONFIG
+    -- [FITUR BARU] AddLabel
+    function WindowElements:AddLabel(Text)
+        local LabelFrame = Instance.new("Frame")
+        LabelFrame.Size = UDim2.new(1, -10, 0, 30)
+        LabelFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25) -- Background sedikit lebih gelap
+        LabelFrame.Parent = Container
+
+        local LabelCorner = Instance.new("UICorner")
+        LabelCorner.CornerRadius = UDim.new(0, 5)
+        LabelCorner.Parent = LabelFrame
+
+        local LabelStroke = Instance.new("UIStroke")
+        LabelStroke.Color = Color3.fromRGB(0, 100, 150)
+        LabelStroke.Thickness = 1
+        LabelStroke.Parent = LabelFrame
+
+        local TextLabel = Instance.new("TextLabel")
+        TextLabel.Size = UDim2.new(1, -20, 1, 0)
+        TextLabel.Position = UDim2.new(0, 10, 0, 0)
+        TextLabel.BackgroundTransparency = 1
+        TextLabel.Text = Text
+        TextLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+        TextLabel.Font = Enum.Font.Gotham
+        TextLabel.TextSize = 12
+        TextLabel.TextWrapped = true
+        TextLabel.TextXAlignment = Enum.TextXAlignment.Center
+        TextLabel.Parent = LabelFrame
+
+        local LabelHandler = {}
+        function LabelHandler:Set(NewText)
+            TextLabel.Text = NewText
+        end
+        return LabelHandler
+    end
+
     function WindowElements:AddToggle(Text, DefaultState, Callback)
         local state = DefaultState or false
         local ToggleBtn = Instance.new("TextButton")
