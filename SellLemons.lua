@@ -730,8 +730,9 @@ task.spawn(function()
     end
 end)
 
--- LOOP 5: SMART AUTO REBIRTH (ULTIMATE BYPASS TRICK)
-local wasAutoRebirthOn = false -- Detektor untuk mengembalikan menu ke normal
+-- LOOP 5: SMART AUTO REBIRTH
+local wasAutoRebirthOn = false
+local visibleTimerRebirth = 0 -- Variabel untuk menghitung waktu menu terbuka
 
 task.spawn(function()
     while task.wait(0.05) do
@@ -741,7 +742,6 @@ task.spawn(function()
                 local rebirthGui = playerGui:FindFirstChild("Rebirth")
                 local investorsMenu = rebirthGui and rebirthGui:FindFirstChild("InvestorsMenu")
                 
-                -- Path ke Sidebar
                 local sidebarContainer = rebirthGui and rebirthGui:FindFirstChild("Sidebar") and rebirthGui.Sidebar:FindFirstChild("Container")
                 local sidebarInvestors = sidebarContainer and sidebarContainer:FindFirstChild("Investors")
                 
@@ -749,8 +749,16 @@ task.spawn(function()
                     wasAutoRebirthOn = true
                     
                     if investorsMenu then
-                        -- TRICK 1 (Dinonaktifkan tapi tidak dihapus)
-                        -- if investorsMenu.Visible ~= false then investorsMenu.Visible = false end
+                        -- TRICK 1 (AUTO-CLOSE 5 DETIK): 
+                        if investorsMenu.Visible == true then
+                            visibleTimerRebirth = visibleTimerRebirth + 0.05 -- Tambah waktu sesuai durasi task.wait
+                            if visibleTimerRebirth >= 5 then
+                                investorsMenu.Visible = false
+                                visibleTimerRebirth = 0 -- Reset timer setelah ditutup
+                            end
+                        else
+                            visibleTimerRebirth = 0 -- Reset timer jika ditutup manual
+                        end
                         
                         pcall(function()
                             -- TRICK 3: Matikan sistem Exclusive
@@ -802,40 +810,27 @@ task.spawn(function()
                                 if rebirthRemote and rebirthRemote:IsA("RemoteFunction") then
                                     task.spawn(function()
                                         pcall(function() 
-                                            -- 1. Eksekusi Rebirth
                                             rebirthRemote:InvokeServer()
                                             UpgradeRemotes = {} 
                                             
-                                            -- 2. Tunggu server membunuh karakter dan me-reset Tycoon
-                                            task.wait(3)
+                                            task.wait(1.5) -- KEMBALI KE WAKTU NORMALMU
                                             
-                                            -- 3. Ambil karakter BARU (hindari Ghost Character)
+                                            -- KEMBALI MENGGUNAKAN LOGIKA CHARACTER LAMA YANG TERBUKTI LANCAR
                                             local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-                                            if not char:FindFirstChild("HumanoidRootPart") then
-                                                char = LocalPlayer.CharacterAdded:Wait()
-                                            end
                                             local root = char:WaitForChild("HumanoidRootPart", 5)
                                             
                                             if root then
                                                 local targetPart = nil
-                                                
-                                                -- 4. Cari Tycoon & Tombol di DALAM loop agar datanya selalu update!
-                                                for i = 1, 15 do -- Coba sampai 7.5 detik (menunggu map loading)
-                                                    local freshTycoon = GetMyTycoon()
-                                                    if freshTycoon then
-                                                        local purchases = freshTycoon:FindFirstChild("Purchases")
-                                                        if purchases and purchases:FindFirstChild("Hills") and purchases.Hills:FindFirstChild("Buttons") and purchases.Hills.Buttons:FindFirstChild("Roads") and purchases.Hills.Buttons.Roads:FindFirstChild("Trading Road") then
-                                                            targetPart = purchases.Hills.Buttons.Roads["Trading Road"]:FindFirstChild("Base")
-                                                            if targetPart then break end -- Jika ketemu, langsung stop loop-nya
-                                                        end
+                                                for i = 1, 10 do
+                                                    -- Tapi tetap fetch Tycoon di dalam loop agar ter-update setelah direset server
+                                                    local ActiveTycoon = GetMyTycoon()
+                                                    if ActiveTycoon and ActiveTycoon:FindFirstChild("Purchases") and ActiveTycoon.Purchases:FindFirstChild("Hills") and ActiveTycoon.Purchases.Hills:FindFirstChild("Buttons") and ActiveTycoon.Purchases.Hills.Buttons:FindFirstChild("Roads") and ActiveTycoon.Purchases.Hills.Buttons.Roads:FindFirstChild("Trading Road") then
+                                                        targetPart = ActiveTycoon.Purchases.Hills.Buttons.Roads["Trading Road"]:FindFirstChild("Base")
+                                                        if targetPart then break end
                                                     end
-                                                    task.wait(0.5)
+                                                    task.wait(0.3) -- KEMBALI KE WAKTU NORMALMU
                                                 end
-                                                
-                                                -- 5. Eksekusi Teleportasi
-                                                if targetPart then
-                                                    root.CFrame = targetPart.CFrame * CFrame.new(0, 3, 3)
-                                                end
+                                                if targetPart then root.CFrame = targetPart.CFrame * CFrame.new(0, 3, 3) end
                                             end
                                         end)
                                     end)
@@ -844,7 +839,6 @@ task.spawn(function()
                         end
                     end
                     
-                -- JIKA TOGGLE DIMATIKAN (OFF), KEMBALIKAN KE NORMAL
                 elseif wasAutoRebirthOn then
                     if investorsMenu then
                         pcall(function()
@@ -855,25 +849,25 @@ task.spawn(function()
                     end
                     if sidebarInvestors then sidebarInvestors.Active = false end
                     wasAutoRebirthOn = false
+                    visibleTimerRebirth = 0 -- Reset juga saat dimatikan
                 end
-                
             end
         end)
     end
 end)
 
--- LOOP 6: SMART AUTO EVOLVE (ULTIMATE BYPASS TRICK)
-local wasAutoEvolveOn = false -- Detektor untuk mengembalikan menu ke normal
+-- LOOP 6: SMART AUTO EVOLVE
+local wasAutoEvolveOn = false
+local visibleTimerEvolve = 0 -- Timer khusus Evolve
 
 task.spawn(function()
-    while task.wait(0.5) do
+    while task.wait(0.1) do
         pcall(function() 
             local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
             if playerGui then
                 local rebirthGui = playerGui:FindFirstChild("Rebirth")
                 local evolutionMenu = rebirthGui and rebirthGui:FindFirstChild("EvolutionMenu")
                 
-                -- Path ke Sidebar
                 local sidebarContainer = rebirthGui and rebirthGui:FindFirstChild("Sidebar") and rebirthGui.Sidebar:FindFirstChild("Container")
                 local sidebarEvolution = sidebarContainer and sidebarContainer:FindFirstChild("Evolution")
                 
@@ -881,22 +875,30 @@ task.spawn(function()
                     wasAutoEvolveOn = true
                     
                     if evolutionMenu then
-                        -- TRICK 1 (Dinonaktifkan tapi tidak dihapus, hapus "--" di depan jika butuh)
-                        -- if evolutionMenu.Visible ~= false then evolutionMenu.Visible = false end
+                        -- TRICK 1 (AUTO-CLOSE 5 DETIK)
+                        if evolutionMenu.Visible == true then
+                            visibleTimerEvolve = visibleTimerEvolve + 0.1 -- Ditambah 0.1 karena task.wait(0.1)
+                            if visibleTimerEvolve >= 5 then
+                                evolutionMenu.Visible = false
+                                visibleTimerEvolve = 0
+                            end
+                        else
+                            visibleTimerEvolve = 0
+                        end
                         
                         pcall(function()
-                            -- TRICK 3: Matikan sistem Exclusive
+                            -- TRICK 3
                             if evolutionMenu:GetAttribute("Exclusive") ~= false then
                                 evolutionMenu:SetAttribute("Exclusive", false)
                             end
                             
-                            -- TRICK 2: Paksa Attributes > Visible = true
+                            -- TRICK 2
                             if evolutionMenu:GetAttribute("Visible") ~= true then
                                 evolutionMenu:SetAttribute("Visible", true)
                             end
                         end)
 
-                        -- TRICK 4: Paksa Sidebar Evolution Active = true
+                        -- TRICK 4
                         if sidebarEvolution and sidebarEvolution.Active ~= true then
                             sidebarEvolution.Active = true
                         end
@@ -924,7 +926,6 @@ task.spawn(function()
                         end
                     end
                     
-                -- JIKA TOGGLE DIMATIKAN (OFF), KEMBALIKAN KE NORMAL
                 elseif wasAutoEvolveOn then
                     if evolutionMenu then
                         pcall(function()
@@ -934,9 +935,9 @@ task.spawn(function()
                         end)
                     end
                     if sidebarEvolution then sidebarEvolution.Active = false end
-                    wasAutoEvolveOn = false -- Reset status
+                    wasAutoEvolveOn = false
+                    visibleTimerEvolve = 0
                 end
-                
             end
         end)
     end
@@ -990,8 +991,9 @@ task.spawn(function()
     end
 end)
 
--- LOOP 9: SMART AUTO ASCEND (ULTIMATE BYPASS TRICK)
-local wasAutoAscendOn = false -- Detektor untuk mengembalikan menu ke normal
+-- LOOP 9: SMART AUTO ASCEND
+local wasAutoAscendOn = false
+local visibleTimerAscend = 0 -- Timer khusus Ascend
 
 task.spawn(function()
     while task.wait(0.5) do
@@ -1001,7 +1003,6 @@ task.spawn(function()
                 local rebirthGui = playerGui:FindFirstChild("Rebirth")
                 local ascensionMenu = rebirthGui and rebirthGui:FindFirstChild("AscensionMenu")
                 
-                -- Path ke Sidebar
                 local sidebarContainer = rebirthGui and rebirthGui:FindFirstChild("Sidebar") and rebirthGui.Sidebar:FindFirstChild("Container")
                 local sidebarAscension = sidebarContainer and sidebarContainer:FindFirstChild("Ascension")
                 
@@ -1009,22 +1010,30 @@ task.spawn(function()
                     wasAutoAscendOn = true
                     
                     if ascensionMenu then
-                        -- TRICK 1 (Dinonaktifkan tapi tidak dihapus, hapus "--" di depan jika butuh)
-                        -- if ascensionMenu.Visible ~= false then ascensionMenu.Visible = false end
+                        -- TRICK 1 (AUTO-CLOSE 5 DETIK)
+                        if ascensionMenu.Visible == true then
+                            visibleTimerAscend = visibleTimerAscend + 0.5 -- Ditambah 0.5 karena task.wait(0.5)
+                            if visibleTimerAscend >= 5 then
+                                ascensionMenu.Visible = false
+                                visibleTimerAscend = 0
+                            end
+                        else
+                            visibleTimerAscend = 0
+                        end
                         
                         pcall(function()
-                            -- TRICK 3: Matikan sistem Exclusive
+                            -- TRICK 3
                             if ascensionMenu:GetAttribute("Exclusive") ~= false then
                                 ascensionMenu:SetAttribute("Exclusive", false)
                             end
                             
-                            -- TRICK 2: Paksa Attributes > Visible = true
+                            -- TRICK 2
                             if ascensionMenu:GetAttribute("Visible") ~= true then
                                 ascensionMenu:SetAttribute("Visible", true)
                             end
                         end)
                         
-                        -- TRICK 4: Paksa Sidebar Ascension Active = true
+                        -- TRICK 4
                         if sidebarAscension and sidebarAscension.Active ~= true then
                             sidebarAscension.Active = true
                         end
@@ -1034,8 +1043,6 @@ task.spawn(function()
                         
                         if ascendButton then
                             local currentColor = ascendButton.BackgroundColor3
-                            
-                            -- Cek Warna: Jika BUKAN abu-abu [80, 80, 80], maka sikat!
                             if currentColor ~= Color3.fromRGB(80, 80, 80) then
                                 local MyTycoon = GetMyTycoon()
                                 local remotes = MyTycoon and MyTycoon:FindFirstChild("Remotes")
@@ -1054,7 +1061,6 @@ task.spawn(function()
                         end
                     end
                     
-                -- JIKA TOGGLE DIMATIKAN (OFF), KEMBALIKAN KE NORMAL
                 elseif wasAutoAscendOn then
                     if ascensionMenu then
                         pcall(function()
@@ -1064,9 +1070,9 @@ task.spawn(function()
                         end)
                     end
                     if sidebarAscension then sidebarAscension.Active = false end
-                    wasAutoAscendOn = false -- Reset status
+                    wasAutoAscendOn = false
+                    visibleTimerAscend = 0
                 end
-                
             end
         end)
     end
