@@ -17,13 +17,15 @@ local Toggles = {
     AutoUpgrade = false,
     AutoPhone = false,
     AutoRebirth = false,
-    AutoEvolve = false
+    AutoEvolve = false,
+    AutoAscend = false
 }
 
 local RebirthMode = "Multiplier" 
 local RebirthValue = 2
 local UpgradeAmount = 1
 local UpgradeRemotes = {}
+local ToggleObjects = {}
 
 local function SaveConfig()
     local configData = {
@@ -45,7 +47,13 @@ local function LoadConfig()
             local decoded = HttpService:JSONDecode(readfile(FILE_NAME))
             if decoded then
                 if decoded.Toggles then
-                    for k, v in pairs(decoded.Toggles) do Toggles[k] = v end
+                    for k, v in pairs(decoded.Toggles) do 
+                        Toggles[k] = v 
+                        -- FIX BUG: Paksa visual UI berubah mengikuti data hasil load
+                        if ToggleObjects[k] then
+                            ToggleObjects[k]:Set(v)
+                        end
+                    end
                 end
                 if decoded.RebirthMode then RebirthMode = decoded.RebirthMode end
                 if decoded.RebirthValue then RebirthValue = decoded.RebirthValue end
@@ -400,15 +408,14 @@ local function TapAutoSewer()
 end
 
 -- ==========================================
--- 3. UI GENERATION (SESUAI ASLI RZY_LIBRARY)
+-- 3. UI GENERATION
 -- ==========================================
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
 
--- Menggunakan method bawaan asli: MakeWindow
-local Window = Library:MakeWindow("🍋 Lemon Hub V5.6")
+local Window = Library:MakeWindow("🍋 Lemon Hub V5.7")
 
--- Karena tidak ada sistem Tab, semua elemen langsung dipasang ke objek 'Window'
-Window:AddToggle("Auto Steal Lemons", false, function(Value)
+-- MENYIMPAN MAKER TOGGLE KE DALAM TABEL AGAR BISA DIKONTROL DARI SKRIP UTAMA
+ToggleObjects.AutoHarvest = Window:AddToggle("Auto Steal Lemons", false, function(Value)
     Toggles.AutoHarvest = Value
     if not Value then
         pcall(function()
@@ -419,12 +426,13 @@ Window:AddToggle("Auto Steal Lemons", false, function(Value)
     end
 end)
 
-Window:AddToggle("Auto Collect Drops", false, function(Value) Toggles.AutoDrop = Value end)
-Window:AddToggle("Auto Buy Buttons", false, function(Value) Toggles.AutoBuy = Value end)
-Window:AddToggle("Auto Upgrade Max", false, function(Value) Toggles.AutoUpgrade = Value end)
-Window:AddToggle("Auto Answer Phone", false, function(Value) Toggles.AutoPhone = Value end)
-Window:AddToggle("Auto Rebirth", false, function(Value) Toggles.AutoRebirth = Value end)
-Window:AddToggle("Auto Evolve", false, function(Value) Toggles.AutoEvolve = Value end)
+ToggleObjects.AutoDrop = Window:AddToggle("Auto Collect Drops", false, function(Value) Toggles.AutoDrop = Value end)
+ToggleObjects.AutoBuy = Window:AddToggle("Auto Buy Buttons", false, function(Value) Toggles.AutoBuy = Value end)
+ToggleObjects.AutoUpgrade = Window:AddToggle("Auto Upgrade Max", false, function(Value) Toggles.AutoUpgrade = Value end)
+ToggleObjects.AutoPhone = Window:AddToggle("Auto Answer Phone", false, function(Value) Toggles.AutoPhone = Value end)
+ToggleObjects.AutoRebirth = Window:AddToggle("Auto Rebirth", false, function(Value) Toggles.AutoRebirth = Value end)
+ToggleObjects.AutoEvolve = Window:AddToggle("Auto Evolve", false, function(Value) Toggles.AutoEvolve = Value end)
+ToggleObjects.AutoAscend = Window:AddToggle("Auto Ascend", false, function(Value) Toggles.AutoAscend = Value end)
 
 Window:AddInput("Target Rebirth", "Smart (2x) / 100", function(Text)
     local input = string.lower(Text)
@@ -814,7 +822,7 @@ end)
 -- LOOP 8: AUTO BUY POWER
 task.spawn(function()
     local powerNames = {"Manage", "BuyNext", "ClickFruitValue", "UpgradeStack", "WalkSpeed"}
-    while task.wait(2) do
+    while task.wait(5) do
         pcall(function()
             local MyTycoon = GetMyTycoon()
             local upgradeRemote = MyTycoon and MyTycoon:FindFirstChild("Remotes") and MyTycoon.Remotes:FindFirstChild("UpgradePowerLevel")
@@ -827,5 +835,27 @@ task.spawn(function()
                 end
             end
         end)
+    end
+end)
+
+-- LOOP 9: AUTO ASCEND
+task.spawn(function()
+    while task.wait(5) do
+        if Toggles.AutoAscend then
+            pcall(function()
+                local MyTycoon = GetMyTycoon()
+                if MyTycoon then
+                    local ascendRemote = MyTycoon:FindFirstChild("Remotes") and MyTycoon.Remotes:FindFirstChild("Ascend")
+                    if ascendRemote and ascendRemote:IsA("RemoteFunction") then
+                        task.spawn(function()
+                            pcall(function() 
+                                ascendRemote:InvokeServer() 
+                                UpgradeRemotes = {} -- Bersihkan cache remote upgrade karena ter-reset game setelah Ascend
+                            end)
+                        end)
+                    end
+                end
+            end)
+        end
     end
 end)
