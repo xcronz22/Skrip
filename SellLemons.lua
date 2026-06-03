@@ -635,7 +635,7 @@ end)
 
 -- LOOP 2: AUTO BUY (SUPER ULTRA OPTIMIZED - NO LAG)
 task.spawn(function()
-    while task.wait(0.1) do -- 0.1 detik sudah sangat cepat karena jalannya instant
+    while task.wait(0.05) do -- 0.1 detik sudah sangat cepat karena jalannya instant
         if Toggles.AutoBuy then
             pcall(function() 
                 local MyTycoon = GetMyTycoon()
@@ -663,7 +663,7 @@ task.spawn(function()
                                             task.spawn(function()
                                                 pcall(function()
                                                     firetouchinterest(rootPart, target, 0)
-                                                    task.wait(0.01) -- Perkecil jeda sentuh biar makin instant
+                                                    task.wait(0.05) -- Perkecil jeda sentuh biar makin instant
                                                     firetouchinterest(rootPart, target, 1)
                                                 end)
                                             end)
