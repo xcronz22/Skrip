@@ -1056,7 +1056,7 @@ task.spawn(function()
                         local originalVisible = investorsMenu.Visible
                         if not investorsMenu.Visible then
                             investorsMenu.Visible = true
-                            task.wait(0.5) 
+                            task.wait(5) 
                         end
                         
                         local potentialText = potentialObj.Text
@@ -1107,7 +1107,7 @@ task.spawn(function()
                                         -- ======================================================================
                                         -- [TAMBAHAN BARU] TUNGGU 2 DETIK LALU TELEPORT KE TRADING ROAD BASE
                                         -- ======================================================================
-                                        task.wait(2)
+                                        task.wait(5)
                                         
                                         -- Kita tidak perlu me-hardcode 'Tycoon8', kita langsung panggil fungsi 
                                         -- GetMyTycoon() untuk nyari tycoon punyamu saat ini.
@@ -1125,7 +1125,7 @@ task.spawn(function()
                                         
                                         if targetPart and root then
                                             -- Teleportasi X Stud di depan objek dengan offset Y+X agar tidak amblas/stuck
-                                            root.CFrame = targetPart.CFrame * CFrame.new(0, 10, 5)
+                                            root.CFrame = targetPart.CFrame * CFrame.new(0, 15, 0)
                                         end
                                         -- ======================================================================
                                     end)
