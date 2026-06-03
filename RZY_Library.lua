@@ -3,51 +3,47 @@ local RZY_Library = {}
 function RZY_Library:MakeWindow(TitleText)
     local CoreGui = game:GetService("CoreGui")
     
-    -- Bersihkan GUI lama kalau di-execute ulang (biar nggak numpuk)
     if CoreGui:FindFirstChild("RZY_Hub") then
         CoreGui.RZY_Hub:Destroy()
     end
 
-    -- ==========================================
-    -- 1. PEMBUATAN SCREEN GUI & LOGO MINIMIZE
-    -- ==========================================
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "RZY_Hub"
     ScreenGui.Parent = CoreGui
 
-    -- Ikon Logo RZY (Saat di-minimize)
+    -- ==========================================
+    -- FIX: IKON LOGO RZY (LEBIH RAMPING & JELAS)
+    -- ==========================================
     local RZYIcon = Instance.new("TextButton")
     RZYIcon.Size = UDim2.new(0, 50, 0, 50)
     RZYIcon.Position = UDim2.new(0.5, -25, 0, 20)
-    RZYIcon.BackgroundColor3 = Color3.fromRGB(15, 15, 15) -- Hitam gelap
+    RZYIcon.BackgroundColor3 = Color3.fromRGB(15, 15, 15) 
     RZYIcon.Text = "RZY"
-    RZYIcon.TextColor3 = Color3.fromRGB(0, 170, 255) -- Biru Neon
-    RZYIcon.TextSize = 18
-    RZYIcon.Font = Enum.Font.GothamBlack
-    RZYIcon.Visible = false -- Disembunyikan saat panel utama terbuka
+    RZYIcon.TextColor3 = Color3.fromRGB(0, 170, 255) 
+    RZYIcon.TextSize = 14 -- Diperkecil agar pas dalam lingkaran
+    RZYIcon.Font = Enum.Font.GothamBold -- Diubah dari GothamBlack agar tidak blur/terlalu tebal
+    RZYIcon.Visible = false 
     RZYIcon.Active = true
-    RZYIcon.Draggable = true -- Bisa digeser
+    RZYIcon.Draggable = true 
     RZYIcon.Parent = ScreenGui
 
     local IconCorner = Instance.new("UICorner")
-    IconCorner.CornerRadius = UDim.new(1, 0) -- Bikin bulat sempurna
+    IconCorner.CornerRadius = UDim.new(1, 0) 
     IconCorner.Parent = RZYIcon
 
     local IconStroke = Instance.new("UIStroke")
     IconStroke.Color = Color3.fromRGB(0, 170, 255)
-    IconStroke.Thickness = 2
+    IconStroke.Thickness = 1.5
     IconStroke.Parent = RZYIcon
 
-    -- ==========================================
-    -- 2. PEMBUATAN PANEL UTAMA
-    -- ==========================================
+    -- Panel Utama
     local MainFrame = Instance.new("Frame")
     MainFrame.Size = UDim2.new(0, 300, 0, 450)
     MainFrame.Position = UDim2.new(0.5, -150, 0.5, -225)
-    MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20) -- Hitam
+    MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20) 
     MainFrame.BorderSizePixel = 0
     MainFrame.Active = true
-    MainFrame.Draggable = true -- Bisa digeser
+    MainFrame.Draggable = true 
     MainFrame.Parent = ScreenGui
 
     local MainCorner = Instance.new("UICorner")
@@ -55,13 +51,10 @@ function RZY_Library:MakeWindow(TitleText)
     MainCorner.Parent = MainFrame
 
     local MainStroke = Instance.new("UIStroke")
-    MainStroke.Color = Color3.fromRGB(0, 170, 255) -- Garis pinggir biru
+    MainStroke.Color = Color3.fromRGB(0, 170, 255) 
     MainStroke.Thickness = 1.5
     MainStroke.Parent = MainFrame
 
-    -- ==========================================
-    -- 3. BAGIAN ATAS (TOP BAR & TOMBOL)
-    -- ==========================================
     local TopBar = Instance.new("Frame")
     TopBar.Size = UDim2.new(1, 0, 0, 40)
     TopBar.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
@@ -71,7 +64,6 @@ function RZY_Library:MakeWindow(TitleText)
     TopCorner.CornerRadius = UDim.new(0, 8)
     TopCorner.Parent = TopBar
 
-    -- Menutupi sudut bawah TopBar agar rata dengan MainFrame
     local TopCover = Instance.new("Frame")
     TopCover.Size = UDim2.new(1, 0, 0, 10)
     TopCover.Position = UDim2.new(0, 0, 1, -10)
@@ -83,14 +75,13 @@ function RZY_Library:MakeWindow(TitleText)
     Title.Size = UDim2.new(1, -90, 1, 0)
     Title.Position = UDim2.new(0, 15, 0, 0)
     Title.BackgroundTransparency = 1
-    Title.Text = TitleText -- NAMA JUDUL DINAMIS DARI LUAR
-    Title.TextColor3 = Color3.fromRGB(0, 170, 255) -- Biru
+    Title.Text = TitleText 
+    Title.TextColor3 = Color3.fromRGB(0, 170, 255) 
     Title.Font = Enum.Font.GothamBold
     Title.TextSize = 16
     Title.TextXAlignment = Enum.TextXAlignment.Left
     Title.Parent = TopBar
 
-    -- Tombol Close
     local CloseBtn = Instance.new("TextButton")
     CloseBtn.Size = UDim2.new(0, 30, 0, 30)
     CloseBtn.Position = UDim2.new(1, -35, 0, 5)
@@ -101,7 +92,6 @@ function RZY_Library:MakeWindow(TitleText)
     CloseBtn.TextSize = 16
     CloseBtn.Parent = TopBar
 
-    -- Tombol Minimize
     local MinBtn = Instance.new("TextButton")
     MinBtn.Size = UDim2.new(0, 30, 0, 30)
     MinBtn.Position = UDim2.new(1, -70, 0, 5)
@@ -112,9 +102,6 @@ function RZY_Library:MakeWindow(TitleText)
     MinBtn.TextSize = 24
     MinBtn.Parent = TopBar
 
-    -- ==========================================
-    -- 4. CONTAINER UNTUK DAFTAR TOMBOL
-    -- ==========================================
     local Container = Instance.new("ScrollingFrame")
     Container.Size = UDim2.new(1, -20, 1, -55)
     Container.Position = UDim2.new(0, 10, 0, 45)
@@ -129,35 +116,17 @@ function RZY_Library:MakeWindow(TitleText)
     UIListLayout.Parent = Container
 
     UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        Container.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 200)
+        Container.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 40)
     end)
 
-    -- ==========================================
-    -- 5. LOGIK FUNGSI MINIMIZE & CLOSE
-    -- ==========================================
-    CloseBtn.MouseButton1Click:Connect(function()
-        ScreenGui:Destroy()
-    end)
+    CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
+    MinBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false RZYIcon.Visible = true end)
+    RZYIcon.MouseButton1Click:Connect(function() MainFrame.Visible = true RZYIcon.Visible = false end)
 
-    MinBtn.MouseButton1Click:Connect(function()
-        MainFrame.Visible = false
-        RZYIcon.Visible = true
-    end)
-
-    RZYIcon.MouseButton1Click:Connect(function()
-        MainFrame.Visible = true
-        RZYIcon.Visible = false
-    end)
-
-    -- ==========================================
-    -- 6. FUNGSI UNTUK MENAMBAH FITUR KE DALAM PANEL
-    -- ==========================================
     local WindowElements = {}
 
-    -- Cetakan untuk Toggle (On/Off)
     function WindowElements:AddToggle(Text, DefaultState, Callback)
         local state = DefaultState or false
-
         local ToggleBtn = Instance.new("TextButton")
         ToggleBtn.Size = UDim2.new(1, -10, 0, 35)
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
@@ -180,16 +149,14 @@ function RZY_Library:MakeWindow(TitleText)
             state = not state
             ToggleBtn.Text = Text .. (state and " [ON]" or " [OFF]")
             ToggleBtn.TextColor3 = state and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(255, 100, 100)
-            
             pcall(Callback, state)
         end)
     end
 
-    -- Cetakan untuk Tombol Biasa (Sekali Tekan)
     function WindowElements:AddButton(Text, Callback)
         local Btn = Instance.new("TextButton")
         Btn.Size = UDim2.new(1, -10, 0, 35)
-        Btn.BackgroundColor3 = Color3.fromRGB(0, 100, 180) -- Biru RZY
+        Btn.BackgroundColor3 = Color3.fromRGB(0, 100, 180)
         Btn.Text = Text
         Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
         Btn.Font = Enum.Font.GothamBold
@@ -210,7 +177,6 @@ function RZY_Library:MakeWindow(TitleText)
         end)
     end
 
-    -- BARU! Cetakan untuk Input Box (Ketik Teks / Angka)
     function WindowElements:AddInput(Text, Placeholder, Callback)
         local InputFrame = Instance.new("Frame")
         InputFrame.Size = UDim2.new(1, -10, 0, 40)
@@ -254,7 +220,6 @@ function RZY_Library:MakeWindow(TitleText)
         TBCorner.CornerRadius = UDim.new(0, 4)
         TBCorner.Parent = TextBox
 
-        -- Triger berjalan saat user menekan 'Enter' atau klik di luar kotak input
         TextBox.FocusLost:Connect(function(enterPressed)
             pcall(Callback, TextBox.Text)
         end)
