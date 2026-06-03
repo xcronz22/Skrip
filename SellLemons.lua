@@ -1056,7 +1056,7 @@ task.spawn(function()
                         local originalVisible = investorsMenu.Visible
                         if not investorsMenu.Visible then
                             investorsMenu.Visible = true
-                            task.wait(5) 
+                            task.wait(0.5) 
                         end
                         
                         local potentialText = potentialObj.Text
@@ -1124,8 +1124,7 @@ task.spawn(function()
                                         local root = char and char:FindFirstChild("HumanoidRootPart")
                                         
                                         if targetPart and root then
-                                            -- Teleportasi X Stud di depan objek dengan offset Y+X agar tidak amblas/stuck
-                                            root.CFrame = targetPart.CFrame * CFrame.new(0, 15, 0)
+                                            root.CFrame = targetPart.CFrame * CFrame.new(0, 0, 0)
                                         end
                                         -- ======================================================================
                                     end)
