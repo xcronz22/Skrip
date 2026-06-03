@@ -32,6 +32,23 @@ local RebirthInput
 local UpgradeInput
 
 -- =======================================================
+-- TRIK BRUTAL 3.0: PEMBUNUH LAG ANIMASI JATUH (SHADOW & PHYSICS CULLER)
+-- =======================================================
+Workspace.DescendantAdded:Connect(function(desc)
+    -- Jika AutoBuy menyala dan ada objek bangunan baru yang muncul (jatuh)
+    if Toggles.AutoBuy and desc:IsA("BasePart") then
+        pcall(function()
+            -- Jangan sentuh karakter player lain yang baru masuk
+            if not desc.Parent:FindFirstChild("Humanoid") and not desc.Parent.Parent:FindFirstChild("Humanoid") then
+                desc.CastShadow = false -- Matikan bayangan dinamis (Super hemat GPU)
+                desc.CanTouch = false   -- Matikan event sentuhan fisik (Hemat CPU)
+                desc.CanQuery = false   -- Matikan dari spatial query (Hemat CPU)
+            end
+        end)
+    end
+end)
+
+-- =======================================================
 -- TRIK ANTI-LAG TYCOON BRUTAL 2.0: NATIVE C++ ENGINE BYPASS
 -- =======================================================
 local TweenService = game:GetService("TweenService")
@@ -686,50 +703,70 @@ task.spawn(function()
     end
 end)
 
--- LOOP 3: AUTO UPGRADE & CLICK
-local lastScanTime = 0
+-- =======================================================
+-- LOOP 3: AUTO UPGRADE & CLICK (BRUTAL ASYNCHRONOUS ENGINE)
+-- =======================================================
 local clickTargets = {"LemonDepot", "LemonLabs", "LemonRepublic", "LemonRobotics", "LemonStand", "LemonTrading", "LemonDash", "LemonX"}
-local clickIndex = 1 
-local lastClickTime = 0 
+local activeUpgradeThreads = {} -- Menyimpan daftar "bot" yang sedang bertugas
 
 task.spawn(function()
-    while task.wait(0.04) do 
-        if Toggles.AutoUpgrade then
-            pcall(function() 
-                local MyTycoon = GetMyTycoon()
-                if MyTycoon then
-                    if tick() - lastClickTime >= 0.1 then
-                        lastClickTime = tick() 
-                        local remotes = MyTycoon:FindFirstChild("Remotes")
-                        local wakeRemote = remotes and remotes:FindFirstChild("WakeIncomeStream")
+    -- [BAGIAN A]: WAKE INCOME STREAM (AUTO CLICK TANPA AMPUN)
+    -- Kita buat 1 "bot" khusus untuk MASING-MASING target!
+    for _, targetName in ipairs(clickTargets) do
+        task.spawn(function()
+            while task.wait() do -- Eksekusi secepat kedipan mata (0 delay)
+                if Toggles.AutoUpgrade then
+                    pcall(function()
+                        local MyTycoon = GetMyTycoon()
+                        local wakeRemote = MyTycoon and MyTycoon:FindFirstChild("Remotes") and MyTycoon.Remotes:FindFirstChild("WakeIncomeStream")
                         
                         if wakeRemote and wakeRemote:IsA("RemoteFunction") then
-                            local targetName = clickTargets[clickIndex]
-                            task.spawn(function()
-                                pcall(function() wakeRemote:InvokeServer(targetName) end)
-                            end)
-                            clickIndex = clickIndex + 1
-                            if clickIndex > #clickTargets then clickIndex = 1 end
+                            -- InvokeServer nge-pause thread ini sampai server balas. 
+                            -- Begitu dibalas, langsung dihajar lagi di milidetik berikutnya! Kecepatan = Max Ping Server!
+                            wakeRemote:InvokeServer(targetName) 
                         end
-                    end
+                    end)
+                end
+            end
+        end)
+    end
 
-                    if #UpgradeRemotes == 0 or (tick() - lastScanTime) > 5 then
-                        RefreshUpgradeRemotes()
-                        lastScanTime = tick()
-                    end
-
-                    for i = #UpgradeRemotes, 1, -1 do
-                        if not Toggles.AutoUpgrade then return end
-                        local remote = UpgradeRemotes[i]
-                        local isValid = false
-                        pcall(function() if remote and remote.Parent then isValid = true end end)
-
-                        if isValid then
-                            task.spawn(function()
-                                pcall(function() remote:InvokeServer(UpgradeAmount) end)
-                            end)
-                        else
-                            table.remove(UpgradeRemotes, i)
+    -- [BAGIAN B]: AUTO UPGRADE (SMART DEDICATED THREADS)
+    while task.wait(1) do -- Master loop cuma bertugas patroli cari remote baru tiap 1 detik
+        if Toggles.AutoUpgrade then
+            pcall(function()
+                local MyTycoon = GetMyTycoon()
+                if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
+                    for _, desc in ipairs(MyTycoon.Purchases:GetDescendants()) do
+                        if desc:IsA("RemoteFunction") and desc.Name == "Upgrade" then
+                            
+                            -- Jika remote ini belum punya "bot" khusus, kita rekrut satu!
+                            if not activeUpgradeThreads[desc] then
+                                activeUpgradeThreads[desc] = true
+                                
+                                task.spawn(function()
+                                    while task.wait() do
+                                        -- Kalau toggle mati, suruh botnya istirahat biar ga makan RAM
+                                        if not Toggles.AutoUpgrade then 
+                                            task.wait(0.5) 
+                                            continue 
+                                        end
+                                        
+                                        local isValid = false
+                                        pcall(function() if desc and desc.Parent then isValid = true end end)
+                                        
+                                        if isValid then
+                                            -- Tembak Upgrade tanpa ampun secepat server sanggup merespon
+                                            pcall(function() desc:InvokeServer(UpgradeAmount) end)
+                                        else
+                                            -- Jika remote hilang (misal karena rebirth / max level), hancurkan bot ini
+                                            activeUpgradeThreads[desc] = nil
+                                            break 
+                                        end
+                                    end
+                                end)
+                            end
+                            
                         end
                     end
                 end
