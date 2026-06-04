@@ -51,28 +51,34 @@ oldCreate = hookfunction(TweenService.Create, function(self, instance, tweenInfo
 end)
 
 -- =======================================================
--- TRIK BRUTAL 3.1: ULTRA ANTI-LAG REBIRTH ENGINE (GOD MODE)
+-- TRIK BRUTAL 3.1: AUTOMATIC INVISIBLE TYCOON (WITH RESTORE MEMORY)
 -- =======================================================
 Workspace.DescendantAdded:Connect(function(desc)
     if Toggles.AutoBuy and desc:IsA("BasePart") then
-        -- Menggunakan task.spawn agar proses pembersihan tidak mengganggu alur data utama
         task.spawn(function()
             pcall(function()
-                desc.CastShadow = false -- Matikan bayangan (Beban berat pencahayaan)[span_5](start_span)[span_5](end_span)
-                
-                -- OPTIMASI REBIRTH: Paksa material ke SmoothPlastic
-                -- Ini menghentikan beban rendering tekstur berat secara instan saat bangunan muncul kembali
-                if desc.Material ~= Enum.Material.SmoothPlastic then
-                    desc.Material = Enum.Material.SmoothPlastic
-                end
-                
-                -- Singkirkan tekstur/decal gambar bawaan bangunan yang bikin GPU choke
-                if desc:FindFirstChildOfClass("Texture") or desc:FindFirstChildOfClass("Decal") then
-                    for _, effect in ipairs(desc:GetChildren()) do
-                        if effect:IsA("Texture") or effect:IsA("Decal") then
-                            effect:Destroy()
+                local MyTycoon = GetMyTycoon()
+                if MyTycoon and MyTycoon:FindFirstChild("Purchases") and desc:IsDescendantOf(MyTycoon.Purchases) then
+                    
+                    -- HANYA sembunyikan jika part aslinya memang terlihat (bukan hitbox gaib bawaan game)
+                    if desc.Transparency < 1 then
+                        -- TINGGALKAN CATATAN: Simpan wujud asli ke dalam memori part itu sendiri
+                        desc:SetAttribute("OriTrans", desc.Transparency)
+                        desc:SetAttribute("OriMat", desc.Material.Name)
+                        
+                        -- JADIKAN GAIB UNTUK ANTI-LAG
+                        desc.Transparency = 1 
+                        desc.CastShadow = false
+                        desc.Material = Enum.Material.SmoothPlastic 
+                        
+                        -- Hapus tekstur berat (Catatan: Tekstur stiker ini hangus permanen untuk hemat VRAM GPU)
+                        for _, effect in ipairs(desc:GetChildren()) do
+                            if effect:IsA("Texture") or effect:IsA("Decal") then
+                                effect:Destroy()
+                            end
                         end
                     end
+                    
                 end
             end)
         end)
@@ -485,7 +491,45 @@ ToggleObjects.AutoHarvest = Window:AddToggle("Auto Harvest Lemons (TP)", false, 
 end)
 
 ToggleObjects.AutoDrop = Window:AddToggle("Auto Collect Drops", false, function(Value) Toggles.AutoDrop = Value end)
-ToggleObjects.AutoBuy = Window:AddToggle("Auto Buy Buttons", false, function(Value) Toggles.AutoBuy = Value end)
+ToggleObjects.AutoBuy = Window:AddToggle("Auto Buy Buttons", false, function(Value) 
+    Toggles.AutoBuy = Value 
+    
+    -- JIKA AUTO BUY DIMATIKAN, KEMBALIKAN WUJUD BANGUNAN!
+    if not Value then
+        task.spawn(function()
+            pcall(function()
+                local MyTycoon = GetMyTycoon()
+                if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
+                    -- Scan seluruh isi Tycoon
+                    for _, desc in ipairs(MyTycoon.Purchases:GetDescendants()) do
+                        if desc:IsA("BasePart") then
+                            
+                            -- Cek apakah part ini punya catatan "OriTrans" dari Trik Brutal 3.1 kita
+                            local oriTrans = desc:GetAttribute("OriTrans")
+                            local oriMat = desc:GetAttribute("OriMat")
+                            
+                            if oriTrans then
+                                -- KEMBALIKAN KE WUJUD ASLI!
+                                desc.Transparency = oriTrans
+                                desc.CastShadow = true
+                                
+                                if oriMat then
+                                    pcall(function() desc.Material = Enum.Material[oriMat] end)
+                                end
+                                
+                                -- Bersihkan catatannya agar tidak membebani memori
+                                desc:SetAttribute("OriTrans", nil)
+                                desc:SetAttribute("OriMat", nil)
+                            end
+                            
+                        end
+                    end
+                end
+            end)
+        end)
+    end
+end)
+
 ToggleObjects.AutoUpgrade = Window:AddToggle("Auto Upgrade", false, function(Value) Toggles.AutoUpgrade = Value end)
 ToggleObjects.AutoRebirth = Window:AddToggle("Auto Rebirth", false, function(Value) Toggles.AutoRebirth = Value end)
 ToggleObjects.AutoEvolve = Window:AddToggle("Auto Evolve", false, function(Value) Toggles.AutoEvolve = Value end)
