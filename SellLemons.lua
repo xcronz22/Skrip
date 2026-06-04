@@ -841,11 +841,13 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 5: ULTRA FAST AUTO REBIRTH (NO ANCHORED, NO DELAY)
+-- LOOP 5: DYNAMIC SMART AUTO REBIRTH (AUTO-SHIFT GEAR)
 -- =======================================================
 local wasAutoRebirthOn = false
 local visibleTimerRebirth = 0
-local lastRebirthAttemptTime = 0 -- Cooldown Anti-Spam TP
+local isRebirthing = false 
+local cachedTargetCFrame = nil 
+local cachedTargetSize = nil 
 
 local function EnsureSafeZone(targetCFrame, targetSize)
     local safeZoneName = "BrutalSafeZone_Void"
@@ -856,39 +858,52 @@ local function EnsureSafeZone(targetCFrame, targetSize)
         safeZone.Name = safeZoneName
         safeZone.Size = Vector3.new(5, 1, 5) 
         safeZone.Anchored = true
-        safeZone.CanCollide = true -- Bisa dipijak, tubuh bebas bergerak!
-        safeZone.Transparency = 1 
+        safeZone.CanCollide = true
+        safeZone.Transparency = 0.5
+        safeZone.BrickColor = BrickColor.new("Purple") 
+        safeZone.Material = Enum.Material.Neon
         safeZone.Parent = workspace
     end
+    
     local targetTopY = targetCFrame.Position.Y + (targetSize.Y / 2)
     safeZone.CFrame = CFrame.new(targetCFrame.Position.X, targetTopY - 0.5, targetCFrame.Position.Z)
 end
 
 task.spawn(function()
     while true do
-        local dt = task.wait(0.1) 
+        local dt = task.wait(0.05) 
         pcall(function()
             local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
             if playerGui then
                 local rebirthGui = playerGui:FindFirstChild("Rebirth")
                 local investorsMenu = rebirthGui and rebirthGui:FindFirstChild("InvestorsMenu")
+                local sidebarContainer = rebirthGui and rebirthGui:FindFirstChild("Sidebar") and rebirthGui.Sidebar:FindFirstChild("Container")
+                local sidebarInvestors = sidebarContainer and sidebarContainer:FindFirstChild("Investors")
                 
                 if Toggles.AutoRebirth then
-                    if not wasAutoRebirthOn then LastRebirthTime = os.clock() end
+                    -- RESET TIMER SAAT BARU DINYALAKAN (Mencegah instant downgrade)
+                    if not wasAutoRebirthOn then
+                        LastRebirthTime = os.clock() 
+                    end
                     wasAutoRebirthOn = true
                     
                     if investorsMenu then
-                        -- (Kode penyembunyi UI tetap sama agar layar bersih)
                         if investorsMenu.Visible == true then
                             visibleTimerRebirth = visibleTimerRebirth + dt
-                            if visibleTimerRebirth >= 5 then investorsMenu.Visible = false visibleTimerRebirth = 0 end
+                            if visibleTimerRebirth >= 5 then
+                                investorsMenu.Visible = false
+                                visibleTimerRebirth = 0
+                            end
                         else
                             visibleTimerRebirth = 0
                         end
+                        
                         pcall(function()
                             if investorsMenu:GetAttribute("Exclusive") ~= false then investorsMenu:SetAttribute("Exclusive", false) end
                             if investorsMenu:GetAttribute("Visible") ~= true then investorsMenu:SetAttribute("Visible", true) end
                         end)
+                        
+                        if sidebarInvestors and sidebarInvestors.Active ~= true then sidebarInvestors.Active = true end
                         
                         local body = investorsMenu:FindFirstChild("Body")
                         local potentialObj = body and body:FindFirstChild("Potential") and body.Potential:FindFirstChild("Quantity")
@@ -899,13 +914,19 @@ task.spawn(function()
                             local baseCur, expCur = CleanAndParse(amountObj.Text)
                             local shouldRebirth = false
 
+                            -- ==================================================
+                            -- FITUR DOWNGRADE (AUTO-SHIFT KE 2X)
+                            -- ==================================================
                             if RebirthMode == "Smart" and SmartMultiplier == 10 then
-                                if LastRebirthTime > 0 and (os.clock() - LastRebirthTime > 30) then SmartMultiplier = 2 end
+                                if LastRebirthTime > 0 and (os.clock() - LastRebirthTime > 30) then
+                                    SmartMultiplier = 2 -- Ngeden kelamaan, balik ke 2x!
+                                end
                             end
 
                             if RebirthMode == "Multiplier" then
                                 shouldRebirth = IsPotentialEnough(basePot, expPot, baseCur, expCur, tonumber(RebirthValue) or 2)
                             elseif RebirthMode == "Smart" then
+                                -- Gunakan SmartMultiplier yang dinamis (2 atau 10)
                                 shouldRebirth = IsPotentialEnough(basePot, expPot, baseCur, expCur, SmartMultiplier)
                             elseif RebirthMode == "Target" then
                                 local rVal = tonumber(RebirthValue) or 0
@@ -917,49 +938,54 @@ task.spawn(function()
                                 if expPot > targetExp or (expPot == targetExp and basePot >= targetBase) then shouldRebirth = true end
                             end
 
-                            if shouldRebirth then
-                                local currentTime = os.clock()
-                                
-                                -- FIX: COOLDOWN 2 DETIK ANTI SPAM TP! (Tanpa menghentikan skrip)
-                                if currentTime - lastRebirthAttemptTime < 2 then return end 
-                                lastRebirthAttemptTime = currentTime
-
+                            if shouldRebirth and not isRebirthing then
                                 local MyTycoon = GetMyTycoon()
                                 local rebirthRemote = MyTycoon and MyTycoon:FindFirstChild("Remotes") and MyTycoon.Remotes:FindFirstChild("Rebirth")
                                 
                                 if rebirthRemote and rebirthRemote:IsA("RemoteFunction") then
+                                    isRebirthing = true
+                                    
+                                    -- ==================================================
+                                    -- FITUR UPGRADE (AUTO-SHIFT KE 10X)
+                                    -- ==================================================
                                     if RebirthMode == "Smart" then
+                                        local currentTime = os.clock()
+                                        -- Jika waktu tembus < 5 detik saat di gigi 2x, persiapkan gigi 10x untuk putaran depan
                                         if LastRebirthTime > 0 and (currentTime - LastRebirthTime <= 5) and SmartMultiplier == 2 then
                                             SmartMultiplier = 10
                                         end
-                                        LastRebirthTime = currentTime 
+                                        LastRebirthTime = currentTime -- Catat waktu eksekusi
                                     end
 
-                                    local targetCFrame, targetSize
                                     pcall(function()
                                         local voidFolder = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Void")
                                         if voidFolder then
                                             local parts = voidFolder:GetChildren()
                                             if parts[6] and parts[6]:IsA("BasePart") then
-                                                targetCFrame, targetSize = parts[6].CFrame, parts[6].Size 
+                                                cachedTargetCFrame = parts[6].CFrame 
+                                                cachedTargetSize = parts[6].Size 
                                             end
                                         end
                                     end)
 
                                     task.spawn(function()
-                                        local char = LocalPlayer.Character
-                                        local root = char and char:FindFirstChild("HumanoidRootPart")
-                                        
-                                        -- Eksekusi Rebirth!
-                                        pcall(function() rebirthRemote:InvokeServer() end)
-                                        UpgradeRemotes = {} 
-                                        
-                                        -- TP Super Cepat Tanpa Anchored
-                                        if root and targetCFrame and targetSize then
-                                            EnsureSafeZone(targetCFrame, targetSize)
-                                            local targetTopY = targetCFrame.Position.Y + (targetSize.Y / 2)
-                                            root.CFrame = CFrame.new(targetCFrame.Position.X, targetTopY + 3, targetCFrame.Position.Z) 
-                                        end
+                                        pcall(function() 
+                                            rebirthRemote:InvokeServer()
+                                            UpgradeRemotes = {} 
+                                            
+                                            local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+                                            local root = char:WaitForChild("HumanoidRootPart", 10)
+                                            
+                                            task.wait(1.5) 
+                                            
+                                            if root and cachedTargetCFrame and cachedTargetSize then
+                                                EnsureSafeZone(cachedTargetCFrame, cachedTargetSize)
+                                                local targetTopY = cachedTargetCFrame.Position.Y + (cachedTargetSize.Y / 2)
+                                                root.CFrame = CFrame.new(cachedTargetCFrame.Position.X, targetTopY + 3, cachedTargetCFrame.Position.Z) 
+                                                root.Anchored = false
+                                            end
+                                        end)
+                                        isRebirthing = false 
                                     end)
                                 end
                             end
@@ -967,6 +993,21 @@ task.spawn(function()
                     end
                     
                 elseif wasAutoRebirthOn then
+                    if investorsMenu then
+                        pcall(function()
+                            investorsMenu:SetAttribute("Exclusive", true)
+                            investorsMenu:SetAttribute("Visible", false)
+                            if investorsMenu.Visible == true then investorsMenu.Visible = false end
+                        end)
+                    end
+                    if sidebarInvestors then sidebarInvestors.Active = false end
+                    
+                    pcall(function()
+                        local char = LocalPlayer.Character
+                        local root = char and char:FindFirstChild("HumanoidRootPart")
+                        if root and root.Anchored then root.Anchored = false end
+                    end)
+                    
                     wasAutoRebirthOn = false
                     visibleTimerRebirth = 0
                 end
