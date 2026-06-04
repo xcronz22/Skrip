@@ -17,6 +17,7 @@ local Toggles = {
     AutoBuy = false,
     AutoUpgrade = false,
     AutoRebirth = false,
+    RebirthTP = true,
     AutoEvolve = false,
     AutoAscend = false
 }
@@ -531,6 +532,7 @@ end)
 
 ToggleObjects.AutoUpgrade = Window:AddToggle("Auto Upgrade", false, function(Value) Toggles.AutoUpgrade = Value end)
 ToggleObjects.AutoRebirth = Window:AddToggle("Auto Rebirth", false, function(Value) Toggles.AutoRebirth = Value end)
+ToggleObjects.RebirthTP = Window:AddToggle("TP After Rebirth", true, function(Value) Toggles.RebirthTP = Value end)
 ToggleObjects.AutoEvolve = Window:AddToggle("Auto Evolve", false, function(Value) Toggles.AutoEvolve = Value end)
 ToggleObjects.AutoAscend = Window:AddToggle("Auto Ascend", false, function(Value) Toggles.AutoAscend = Value end)
 
@@ -981,16 +983,19 @@ task.spawn(function()
                                             rebirthRemote:InvokeServer()
                                             UpgradeRemotes = {} 
                                             
-                                            local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-                                            local root = char:WaitForChild("HumanoidRootPart", 10)
-                                            
-                                            task.wait(1.5) 
-                                            
-                                            if root and cachedTargetCFrame and cachedTargetSize then
-                                                EnsureSafeZone(cachedTargetCFrame, cachedTargetSize)
-                                                local targetTopY = cachedTargetCFrame.Position.Y + (cachedTargetSize.Y / 2)
-                                                root.CFrame = CFrame.new(cachedTargetCFrame.Position.X, targetTopY + 3, cachedTargetCFrame.Position.Z) 
-                                                root.Anchored = false
+                                            -- HANYA TELEPORT JIKA TOGGLE MENYALA
+                                            if Toggles.RebirthTP then
+                                                local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+                                                local root = char:WaitForChild("HumanoidRootPart", 10)
+                                                
+                                                task.wait(1.5) 
+                                                
+                                                if root and cachedTargetCFrame and cachedTargetSize then
+                                                    EnsureSafeZone(cachedTargetCFrame, cachedTargetSize)
+                                                    local targetTopY = cachedTargetCFrame.Position.Y + (cachedTargetSize.Y / 2)
+                                                    root.CFrame = CFrame.new(cachedTargetCFrame.Position.X, targetTopY + 3, cachedTargetCFrame.Position.Z) 
+                                                    root.Anchored = false
+                                                end
                                             end
                                         end)
                                         isRebirthing = false 
