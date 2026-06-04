@@ -437,6 +437,23 @@ local function TapAutoSewer()
     end)
 end
 
+-- UNLOCK POWERS SECARA INSTAN
+local function TapUnlockPowers()
+    pcall(function()
+        local MyTycoon = GetMyTycoon()
+        if MyTycoon then
+            local permFolder = MyTycoon:FindFirstChild("Values") and MyTycoon.Values:FindFirstChild("Powers") and MyTycoon.Values.Powers:FindFirstChild("Permanent")
+            if permFolder then
+                permFolder:SetAttribute("BuyNext", 1)
+                permFolder:SetAttribute("ClickFruitValue", 3)
+                permFolder:SetAttribute("Manage", 1)
+                permFolder:SetAttribute("UpgradeStack", 4)
+                permFolder:SetAttribute("WalkSpeed", 4)
+            end
+        end
+    end)
+end
+
 -- ==========================================
 -- 3. UI GENERATION
 -- ==========================================
@@ -559,9 +576,30 @@ RebirthInput = Window:AddInput("Target Rebirth", "Smart / 100 / 2x", function(Te
     end
 end)
 
+-- TELEPORT DROPDOWN
+local tpLocations = {"Spawn", "Lemon Stand", "Lemon Dash", "Lemon Depot", "Lemon Trading", "Lemon Labs", "Lemon Robotics", "Lemon Republic", "LemonX", "Staircase"}
+Window:AddDropdown("Teleport To", tpLocations, function(SelectedLocation)
+    pcall(function()
+        local MyTycoon = GetMyTycoon()
+        local char = LocalPlayer.Character
+        local rootPart = char and char:FindFirstChild("HumanoidRootPart")
+        
+        if MyTycoon and rootPart then
+            local locFolder = MyTycoon:FindFirstChild("Locations")
+            if locFolder then
+                local targetPart = locFolder:FindFirstChild(SelectedLocation)
+                if targetPart and targetPart:IsA("BasePart") then
+                    rootPart.CFrame = targetPart.CFrame * CFrame.new(0, 3, 0)
+                end
+            end
+        end
+    end)
+end)
+
 Window:AddButton("Sewer: Collect Cashvine [TAP]", function() task.spawn(TapCollectCashvine) end)
 Window:AddButton("Sewer: Open All Doors [TAP]", function() task.spawn(TapOpenAllDoors) end)
 Window:AddButton("Sewer: Auto Full Sewer [TAP]", function() task.spawn(TapAutoSewer) end)
+Window:AddButton("Unlock Power Attributes [TAP]", function() task.spawn(TapUnlockPowers) end)
 
 Window:AddButton("Save Configuration", function() SaveConfig() end)
 Window:AddButton("Load Configuration", function() LoadConfig() end)
