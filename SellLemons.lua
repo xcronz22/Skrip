@@ -701,7 +701,7 @@ end)
 -- LOOP 2: AUTO BUY (BRUTAL PACING - ZERO FPS DROP)
 -- =======================================================
 task.spawn(function()
-    while task.wait(0.1) do -- Interval dinaikkan sedikit agar lebih responsif
+    while task.wait(0.3) do -- Interval dinaikkan sedikit agar lebih responsif
         if Toggles.AutoBuy then
             pcall(function() 
                 local MyTycoon = GetMyTycoon()
@@ -869,8 +869,8 @@ local function EnsureSafeZone(targetCFrame, targetSize)
         safeZone.Size = Vector3.new(5, 1, 5) 
         safeZone.Anchored = true
         safeZone.CanCollide = true
-        safeZone.Transparency = 0.5
-        safeZone.BrickColor = BrickColor.new("Purple") 
+        safeZone.Transparency = 0.7
+        safeZone.BrickColor = BrickColor.new("Black") 
         safeZone.Material = Enum.Material.Neon
         safeZone.Parent = workspace
     end
