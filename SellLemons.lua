@@ -32,20 +32,6 @@ local ToggleObjects = {}
 local RebirthInput
 
 -- =======================================================
--- TRIK BRUTAL 3.1: PEMBUNUH LAG AMAN (HANYA SHADOW)
--- =======================================================
-Workspace.DescendantAdded:Connect(function(desc)
-    -- Jika AutoBuy menyala dan ada objek bangunan baru yang muncul
-    if Toggles.AutoBuy and desc:IsA("BasePart") then
-        pcall(function()
-            -- HANYA matikan bayangan dinamis (Super hemat GPU untuk animasi jatuh). 
-            -- Jangan matikan CanTouch agar AutoBuy tidak mogok!
-            desc.CastShadow = false 
-        end)
-    end
-end)
-
--- =======================================================
 -- TRIK ANTI-LAG TYCOON BRUTAL 2.0: NATIVE C++ ENGINE BYPASS
 -- =======================================================
 local TweenService = game:GetService("TweenService")
@@ -62,6 +48,35 @@ oldCreate = hookfunction(TweenService.Create, function(self, instance, tweenInfo
     end
     
     return oldCreate(self, instance, tweenInfo, propertyTable)
+end)
+
+-- =======================================================
+-- TRIK BRUTAL 3.1: ULTRA ANTI-LAG REBIRTH ENGINE (GOD MODE)
+-- =======================================================
+Workspace.DescendantAdded:Connect(function(desc)
+    if Toggles.AutoBuy and desc:IsA("BasePart") then
+        -- Menggunakan task.spawn agar proses pembersihan tidak mengganggu alur data utama
+        task.spawn(function()
+            pcall(function()
+                desc.CastShadow = false -- Matikan bayangan (Beban berat pencahayaan)[span_5](start_span)[span_5](end_span)
+                
+                -- OPTIMASI REBIRTH: Paksa material ke SmoothPlastic
+                -- Ini menghentikan beban rendering tekstur berat secara instan saat bangunan muncul kembali
+                if desc.Material ~= Enum.Material.SmoothPlastic then
+                    desc.Material = Enum.Material.SmoothPlastic
+                end
+                
+                -- Singkirkan tekstur/decal gambar bawaan bangunan yang bikin GPU choke
+                if desc:FindFirstChildOfClass("Texture") or desc:FindFirstChildOfClass("Decal") then
+                    for _, effect in ipairs(desc:GetChildren()) do
+                        if effect:IsA("Texture") or effect:IsA("Decal") then
+                            effect:Destroy()
+                        end
+                    end
+                end
+            end)
+        end)
+    end
 end)
 
 -- ==========================================
