@@ -23,6 +23,8 @@ local Toggles = {
 
 local RebirthMode = "Multiplier" 
 local RebirthValue = 2
+local SmartMultiplier = 2 -- FITUR BARU: Gigi otomatis untuk Smart Mode (2x atau 10x)
+local LastRebirthTime = 0 -- FITUR BARU: Stopwatch pintar penghitung jeda
 local UpgradeRemotes = {}
 local ToggleObjects = {}
 
@@ -181,6 +183,7 @@ local function parseStringToNumber(textStr)
     return tonumber(clean) or 0
 end
 
+-- SAVE CONFIG
 local function SaveConfig()
     local configData = {
         Toggles = Toggles,
@@ -194,6 +197,7 @@ local function SaveConfig()
     end)
 end
 
+-- LOAD CONFIG
 local function LoadConfig()
     pcall(function()
         if isfile and readfile and isfile(FILE_NAME) then
@@ -209,14 +213,15 @@ local function LoadConfig()
                 end
                 
                 if decoded.RebirthMode then RebirthMode = decoded.RebirthMode end
-                if decoded.RebirthValue then 
-                    RebirthValue = decoded.RebirthValue 
-                    if RebirthInput and RebirthInput.Set then
-                        if RebirthMode == "Multiplier" then
-                            RebirthInput:Set(RebirthValue .. "x")
-                        else
-                            RebirthInput:Set(tostring(RebirthValue))
-                        end
+                if decoded.RebirthValue then RebirthValue = decoded.RebirthValue end
+                
+                if RebirthInput and RebirthInput.Set then
+                    if RebirthMode == "Smart" then
+                        RebirthInput:Set("Smart")
+                    elseif RebirthMode == "Multiplier" then
+                        RebirthInput:Set(RebirthValue .. "x")
+                    else
+                        RebirthInput:Set(tostring(RebirthValue))
                     end
                 end
             end
@@ -224,6 +229,7 @@ local function LoadConfig()
     end)
 end
 
+-- CLEAN AND PARSE
 local function CleanAndParse(textStr)
     if not textStr or textStr == "" then return 0, 0 end
     local clean = string.lower(textStr):gsub("[$,%s]", "")
@@ -264,6 +270,7 @@ local function IsPotentialEnough(basePot, expPot, baseCur, expCur, targetMultipl
     return false
 end
 
+-- MENCARI TYCOON OTOMATIS
 local function GetMyTycoon()
     local foundTycoon = nil
     pcall(function()
@@ -469,11 +476,13 @@ ToggleObjects.AutoRebirth = Window:AddToggle("Auto Rebirth", false, function(Val
 ToggleObjects.AutoEvolve = Window:AddToggle("Auto Evolve", false, function(Value) Toggles.AutoEvolve = Value end)
 ToggleObjects.AutoAscend = Window:AddToggle("Auto Ascend", false, function(Value) Toggles.AutoAscend = Value end)
 
-RebirthInput = Window:AddInput("Target Rebirth", "Smart (2x) / 100", function(Text)
+-- REBIRTH INPUT
+RebirthInput = Window:AddInput("Target Rebirth", "Smart / 100 / 2x", function(Text)
     local input = string.lower(Text)
     if input == "smart" then
-        RebirthMode = "Multiplier"
-        RebirthValue = 2
+        RebirthMode = "Smart"
+        SmartMultiplier = 2        -- Reset ke gigi 1
+        LastRebirthTime = os.clock() -- Reset timer
     elseif string.match(input, "^[%d%.]+x$") then
         local mult = tonumber(string.match(input, "[%d%.]+"))
         if mult then
@@ -782,7 +791,7 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 5: SMART AUTO REBIRTH (VOID SAFEZONE & AUTO-ANCHOR)
+-- LOOP 5: DYNAMIC SMART AUTO REBIRTH (AUTO-SHIFT GEAR)
 -- =======================================================
 local wasAutoRebirthOn = false
 local visibleTimerRebirth = 0
@@ -790,7 +799,6 @@ local isRebirthing = false
 local cachedTargetCFrame = nil 
 local cachedTargetSize = nil 
 
--- Fungsi Bikin Pijakan Luas & Pasti Datar
 local function EnsureSafeZone(targetCFrame, targetSize)
     local safeZoneName = "BrutalSafeZone_Void"
     local safeZone = workspace:FindFirstChild(safeZoneName)
@@ -801,7 +809,7 @@ local function EnsureSafeZone(targetCFrame, targetSize)
         safeZone.Size = Vector3.new(5, 1, 5) 
         safeZone.Anchored = true
         safeZone.CanCollide = true
-        safeZone.Transparency = 0.7
+        safeZone.Transparency = 0.5
         safeZone.BrickColor = BrickColor.new("Black") 
         safeZone.Material = Enum.Material.Neon
         safeZone.Parent = workspace
@@ -819,11 +827,14 @@ task.spawn(function()
             if playerGui then
                 local rebirthGui = playerGui:FindFirstChild("Rebirth")
                 local investorsMenu = rebirthGui and rebirthGui:FindFirstChild("InvestorsMenu")
-                
                 local sidebarContainer = rebirthGui and rebirthGui:FindFirstChild("Sidebar") and rebirthGui.Sidebar:FindFirstChild("Container")
                 local sidebarInvestors = sidebarContainer and sidebarContainer:FindFirstChild("Investors")
                 
                 if Toggles.AutoRebirth then
+                    -- RESET TIMER SAAT BARU DINYALAKAN (Mencegah instant downgrade)
+                    if not wasAutoRebirthOn then
+                        LastRebirthTime = os.clock() 
+                    end
                     wasAutoRebirthOn = true
                     
                     if investorsMenu then
@@ -853,8 +864,20 @@ task.spawn(function()
                             local baseCur, expCur = CleanAndParse(amountObj.Text)
                             local shouldRebirth = false
 
+                            -- ==================================================
+                            -- FITUR DOWNGRADE (AUTO-SHIFT KE 2X)
+                            -- ==================================================
+                            if RebirthMode == "Smart" and SmartMultiplier == 10 then
+                                if LastRebirthTime > 0 and (os.clock() - LastRebirthTime > 30) then
+                                    SmartMultiplier = 2 -- Ngeden kelamaan, balik ke 2x!
+                                end
+                            end
+
                             if RebirthMode == "Multiplier" then
                                 shouldRebirth = IsPotentialEnough(basePot, expPot, baseCur, expCur, tonumber(RebirthValue) or 2)
+                            elseif RebirthMode == "Smart" then
+                                -- Gunakan SmartMultiplier yang dinamis (2 atau 10)
+                                shouldRebirth = IsPotentialEnough(basePot, expPot, baseCur, expCur, SmartMultiplier)
                             elseif RebirthMode == "Target" then
                                 local rVal = tonumber(RebirthValue) or 0
                                 local targetBase, targetExp = 0, 0
@@ -872,9 +895,20 @@ task.spawn(function()
                                 if rebirthRemote and rebirthRemote:IsA("RemoteFunction") then
                                     isRebirthing = true
                                     
+                                    -- ==================================================
+                                    -- FITUR UPGRADE (AUTO-SHIFT KE 10X)
+                                    -- ==================================================
+                                    if RebirthMode == "Smart" then
+                                        local currentTime = os.clock()
+                                        -- Jika waktu tembus < 5 detik saat di gigi 2x, persiapkan gigi 10x untuk putaran depan
+                                        if LastRebirthTime > 0 and (currentTime - LastRebirthTime <= 5) and SmartMultiplier == 2 then
+                                            SmartMultiplier = 10
+                                        end
+                                        LastRebirthTime = currentTime -- Catat waktu eksekusi
+                                    end
+
                                     pcall(function()
                                         local voidFolder = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Void")
-
                                         if voidFolder then
                                             local parts = voidFolder:GetChildren()
                                             if parts[6] and parts[6]:IsA("BasePart") then
@@ -895,14 +929,9 @@ task.spawn(function()
                                             task.wait(1.5) 
                                             
                                             if root and cachedTargetCFrame and cachedTargetSize then
-                                                -- 1. Buat Pijakan
                                                 EnsureSafeZone(cachedTargetCFrame, cachedTargetSize)
-                                                
-                                                -- 2. Hitung Y & Teleport
                                                 local targetTopY = cachedTargetCFrame.Position.Y + (cachedTargetSize.Y / 2)
                                                 root.CFrame = CFrame.new(cachedTargetCFrame.Position.X, targetTopY + 3, cachedTargetCFrame.Position.Z) 
-                                                
-                                                -- 3. FITUR BARU: Bekukan karakter setelah TP agar AFK 100% aman
                                                 root.Anchored = false
                                             end
                                         end)
@@ -923,15 +952,10 @@ task.spawn(function()
                     end
                     if sidebarInvestors then sidebarInvestors.Active = false end
                     
-                    -- =======================================================
-                    -- FITUR BARU: KEMBALIKAN KARAKTER KE SEMULA SAAT DIMATIKAN
-                    -- =======================================================
                     pcall(function()
                         local char = LocalPlayer.Character
                         local root = char and char:FindFirstChild("HumanoidRootPart")
-                        if root and root.Anchored then
-                            root.Anchored = false
-                        end
+                        if root and root.Anchored then root.Anchored = false end
                     end)
                     
                     wasAutoRebirthOn = false
