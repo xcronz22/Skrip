@@ -11,7 +11,6 @@ function RZY_Library:MakeWindow(TitleText)
     ScreenGui.Name = "RZY_Hub"
     ScreenGui.Parent = CoreGui
 
-    -- Ikon Logo RZY
     local RZYIcon = Instance.new("TextButton")
     RZYIcon.Size = UDim2.new(0, 50, 0, 50)
     RZYIcon.Position = UDim2.new(0.5, -25, 0, 20)
@@ -25,16 +24,11 @@ function RZY_Library:MakeWindow(TitleText)
     RZYIcon.Draggable = true 
     RZYIcon.Parent = ScreenGui
 
-    local IconCorner = Instance.new("UICorner")
-    IconCorner.CornerRadius = UDim.new(1, 0) 
-    IconCorner.Parent = RZYIcon
-
-    local IconStroke = Instance.new("UIStroke")
+    Instance.new("UICorner", RZYIcon).CornerRadius = UDim.new(1, 0) 
+    local IconStroke = Instance.new("UIStroke", RZYIcon)
     IconStroke.Color = Color3.fromRGB(0, 170, 255)
     IconStroke.Thickness = 1.5
-    IconStroke.Parent = RZYIcon
 
-    -- Panel Utama
     local MainFrame = Instance.new("Frame")
     MainFrame.Size = UDim2.new(0, 300, 0, 450)
     MainFrame.Position = UDim2.new(0.5, -150, 0.5, -225)
@@ -44,23 +38,16 @@ function RZY_Library:MakeWindow(TitleText)
     MainFrame.Draggable = true 
     MainFrame.Parent = ScreenGui
 
-    local MainCorner = Instance.new("UICorner")
-    MainCorner.CornerRadius = UDim.new(0, 8)
-    MainCorner.Parent = MainFrame
-
-    local MainStroke = Instance.new("UIStroke")
+    Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
+    local MainStroke = Instance.new("UIStroke", MainFrame)
     MainStroke.Color = Color3.fromRGB(0, 170, 255) 
     MainStroke.Thickness = 1.5
-    MainStroke.Parent = MainFrame
 
     local TopBar = Instance.new("Frame")
     TopBar.Size = UDim2.new(1, 0, 0, 40)
     TopBar.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
     TopBar.Parent = MainFrame
-
-    local TopCorner = Instance.new("UICorner")
-    TopCorner.CornerRadius = UDim.new(0, 8)
-    TopCorner.Parent = TopBar
+    Instance.new("UICorner", TopBar).CornerRadius = UDim.new(0, 8)
 
     local TopCover = Instance.new("Frame")
     TopCover.Size = UDim2.new(1, 0, 0, 10)
@@ -123,21 +110,16 @@ function RZY_Library:MakeWindow(TitleText)
 
     local WindowElements = {}
 
-    -- [FITUR BARU] AddLabel
     function WindowElements:AddLabel(Text)
         local LabelFrame = Instance.new("Frame")
         LabelFrame.Size = UDim2.new(1, -10, 0, 30)
-        LabelFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25) -- Background sedikit lebih gelap
+        LabelFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
         LabelFrame.Parent = Container
 
-        local LabelCorner = Instance.new("UICorner")
-        LabelCorner.CornerRadius = UDim.new(0, 5)
-        LabelCorner.Parent = LabelFrame
-
-        local LabelStroke = Instance.new("UIStroke")
+        Instance.new("UICorner", LabelFrame).CornerRadius = UDim.new(0, 5)
+        local LabelStroke = Instance.new("UIStroke", LabelFrame)
         LabelStroke.Color = Color3.fromRGB(0, 100, 150)
         LabelStroke.Thickness = 1
-        LabelStroke.Parent = LabelFrame
 
         local TextLabel = Instance.new("TextLabel")
         TextLabel.Size = UDim2.new(1, -20, 1, 0)
@@ -158,6 +140,75 @@ function RZY_Library:MakeWindow(TitleText)
         return LabelHandler
     end
 
+    -- [FITUR BARU] AddDropdown
+    function WindowElements:AddDropdown(Text, Options, Callback)
+        local DropdownFrame = Instance.new("Frame")
+        DropdownFrame.Size = UDim2.new(1, -10, 0, 35)
+        DropdownFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+        DropdownFrame.ClipsDescendants = true
+        DropdownFrame.Parent = Container
+
+        Instance.new("UICorner", DropdownFrame).CornerRadius = UDim.new(0, 5)
+        local UIStroke = Instance.new("UIStroke", DropdownFrame)
+        UIStroke.Color = Color3.fromRGB(0, 100, 150)
+        UIStroke.Thickness = 1
+
+        local TitleBtn = Instance.new("TextButton")
+        TitleBtn.Size = UDim2.new(1, 0, 0, 35)
+        TitleBtn.BackgroundTransparency = 1
+        TitleBtn.Text = Text .. " ▼"
+        TitleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        TitleBtn.Font = Enum.Font.GothamBold
+        TitleBtn.TextSize = 12
+        TitleBtn.Parent = DropdownFrame
+
+        local DropdownList = Instance.new("ScrollingFrame")
+        DropdownList.Size = UDim2.new(1, -10, 1, -40)
+        DropdownList.Position = UDim2.new(0, 5, 0, 35)
+        DropdownList.BackgroundTransparency = 1
+        DropdownList.ScrollBarThickness = 2
+        DropdownList.Parent = DropdownFrame
+
+        local ListLayout = Instance.new("UIListLayout", DropdownList)
+        ListLayout.Padding = UDim.new(0, 4)
+        ListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+        local isOpen = false
+        TitleBtn.MouseButton1Click:Connect(function()
+            isOpen = not isOpen
+            if isOpen then
+                DropdownFrame.Size = UDim2.new(1, -10, 0, 140) -- Buka
+                TitleBtn.Text = Text .. " ▲"
+            else
+                DropdownFrame.Size = UDim2.new(1, -10, 0, 35) -- Tutup
+                TitleBtn.Text = Text .. " ▼"
+            end
+        end)
+
+        for _, option in ipairs(Options) do
+            local OptBtn = Instance.new("TextButton")
+            OptBtn.Size = UDim2.new(1, 0, 0, 25)
+            OptBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+            OptBtn.Text = option
+            OptBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+            OptBtn.Font = Enum.Font.Gotham
+            OptBtn.TextSize = 12
+            OptBtn.Parent = DropdownList
+            Instance.new("UICorner", OptBtn).CornerRadius = UDim.new(0, 4)
+
+            OptBtn.MouseButton1Click:Connect(function()
+                TitleBtn.Text = Text .. " : " .. option
+                isOpen = false
+                DropdownFrame.Size = UDim2.new(1, -10, 0, 35)
+                pcall(Callback, option)
+            end)
+        end
+
+        ListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            DropdownList.CanvasSize = UDim2.new(0, 0, 0, ListLayout.AbsoluteContentSize.Y)
+        end)
+    end
+
     function WindowElements:AddToggle(Text, DefaultState, Callback)
         local state = DefaultState or false
         local ToggleBtn = Instance.new("TextButton")
@@ -173,14 +224,10 @@ function RZY_Library:MakeWindow(TitleText)
         end
         UpdateVisuals()
 
-        local ToggleCorner = Instance.new("UICorner")
-        ToggleCorner.CornerRadius = UDim.new(0, 5)
-        ToggleCorner.Parent = ToggleBtn
-
-        local ToggleStroke = Instance.new("UIStroke")
+        Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 5)
+        local ToggleStroke = Instance.new("UIStroke", ToggleBtn)
         ToggleStroke.Color = Color3.fromRGB(0, 100, 150)
         ToggleStroke.Thickness = 1
-        ToggleStroke.Parent = ToggleBtn
 
         ToggleBtn.MouseButton1Click:Connect(function()
             state = not state
@@ -206,9 +253,7 @@ function RZY_Library:MakeWindow(TitleText)
         Btn.TextSize = 13
         Btn.Parent = Container
 
-        local BtnCorner = Instance.new("UICorner")
-        BtnCorner.CornerRadius = UDim.new(0, 5)
-        BtnCorner.Parent = Btn
+        Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 5)
 
         Btn.MouseButton1Click:Connect(function()
             Btn.Text = "Loading..."
@@ -226,14 +271,10 @@ function RZY_Library:MakeWindow(TitleText)
         InputFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
         InputFrame.Parent = Container
 
-        local InputCorner = Instance.new("UICorner")
-        InputCorner.CornerRadius = UDim.new(0, 5)
-        InputCorner.Parent = InputFrame
-
-        local InputStroke = Instance.new("UIStroke")
+        Instance.new("UICorner", InputFrame).CornerRadius = UDim.new(0, 5)
+        local InputStroke = Instance.new("UIStroke", InputFrame)
         InputStroke.Color = Color3.fromRGB(0, 100, 150)
         InputStroke.Thickness = 1
-        InputStroke.Parent = InputFrame
 
         local Label = Instance.new("TextLabel")
         Label.Size = UDim2.new(0.5, 0, 1, 0)
@@ -259,13 +300,17 @@ function RZY_Library:MakeWindow(TitleText)
         TextBox.ClearTextOnFocus = true
         TextBox.Parent = InputFrame
 
-        local TBCorner = Instance.new("UICorner")
-        TBCorner.CornerRadius = UDim.new(0, 4)
-        TBCorner.Parent = TextBox
+        Instance.new("UICorner", TextBox).CornerRadius = UDim.new(0, 4)
 
         TextBox.FocusLost:Connect(function(enterPressed)
             pcall(Callback, TextBox.Text)
         end)
+        
+        local InputHandler = {}
+        function InputHandler:Set(NewText)
+            TextBox.Text = NewText
+        end
+        return InputHandler
     end
 
     return WindowElements
