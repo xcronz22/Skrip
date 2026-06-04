@@ -782,7 +782,7 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 5: SMART AUTO REBIRTH (WIDE & FLAT SAFEZONE CALCULATION)
+-- LOOP 5: SMART AUTO REBIRTH (VOID SAFEZONE & AUTO-ANCHOR)
 -- =======================================================
 local wasAutoRebirthOn = false
 local visibleTimerRebirth = 0
@@ -798,7 +798,7 @@ local function EnsureSafeZone(targetCFrame, targetSize)
     if not safeZone then
         safeZone = Instance.new("Part")
         safeZone.Name = safeZoneName
-        safeZone.Size = Vector3.new(5, 1, 5) -- Pijakan di-set agar luas dan aman
+        safeZone.Size = Vector3.new(5, 1, 5) 
         safeZone.Anchored = true
         safeZone.CanCollide = true
         safeZone.Transparency = 0.1
@@ -807,15 +807,7 @@ local function EnsureSafeZone(targetCFrame, targetSize)
         safeZone.Parent = workspace
     end
     
-    -- KALKULASI MATEMATIKA PERMUKAAN:
-    -- Cari tahu kordinat Y (ketinggian) paling atas dari part target
     local targetTopY = targetCFrame.Position.Y + (targetSize.Y / 2)
-    
-    -- Posisikan SafeZone: 
-    -- Ambil koordinat X dan Z dari target.
-    -- Set ketinggian (Y) agar bagian atas SafeZone rata persis dengan targetTopY.
-    -- (Dikurangi 0.5 karena ketebalan Y SafeZone kita adalah 1).
-    -- Menggunakan CFrame.new(x,y,z) murni agar platform 100% mendatar tanpa ikut rotasi part target!
     safeZone.CFrame = CFrame.new(targetCFrame.Position.X, targetTopY - 0.5, targetCFrame.Position.Z)
 end
 
@@ -880,15 +872,11 @@ task.spawn(function()
                                 if rebirthRemote and rebirthRemote:IsA("RemoteFunction") then
                                     isRebirthing = true
                                     
-                                    -- ==========================================
-                                    -- MENGAMBIL TARGET DARI WORKSPACE.MAP.VOID
-                                    -- ==========================================
                                     pcall(function()
                                         local voidFolder = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Void")
 
                                         if voidFolder then
                                             local parts = voidFolder:GetChildren()
-                                            -- Pastikan index ke-6 ada dan merupakan BasePart
                                             if parts[6] and parts[6]:IsA("BasePart") then
                                                 cachedTargetCFrame = parts[6].CFrame 
                                                 cachedTargetSize = parts[6].Size 
@@ -907,14 +895,15 @@ task.spawn(function()
                                             task.wait(1.5) 
                                             
                                             if root and cachedTargetCFrame and cachedTargetSize then
-                                                -- 1. Buat Pijakan Lapangan yang pasti rata
+                                                -- 1. Buat Pijakan
                                                 EnsureSafeZone(cachedTargetCFrame, cachedTargetSize)
                                                 
-                                                -- 2. Hitung lagi tinggi atap target untuk posisi jatuh karakter
+                                                -- 2. Hitung Y & Teleport
                                                 local targetTopY = cachedTargetCFrame.Position.Y + (cachedTargetSize.Y / 2)
-                                                
-                                                -- 3. TP Karakter tepat di tengah X dan Z target, dan dijatuhkan 3 stud di atas permukaannya
                                                 root.CFrame = CFrame.new(cachedTargetCFrame.Position.X, targetTopY + 3, cachedTargetCFrame.Position.Z) 
+                                                
+                                                -- 3. FITUR BARU: Bekukan karakter setelah TP agar AFK 100% aman
+                                                root.Anchored = true
                                             end
                                         end)
                                         isRebirthing = false 
@@ -933,6 +922,18 @@ task.spawn(function()
                         end)
                     end
                     if sidebarInvestors then sidebarInvestors.Active = false end
+                    
+                    -- =======================================================
+                    -- FITUR BARU: KEMBALIKAN KARAKTER KE SEMULA SAAT DIMATIKAN
+                    -- =======================================================
+                    pcall(function()
+                        local char = LocalPlayer.Character
+                        local root = char and char:FindFirstChild("HumanoidRootPart")
+                        if root and root.Anchored then
+                            root.Anchored = false
+                        end
+                    end)
+                    
                     wasAutoRebirthOn = false
                     visibleTimerRebirth = 0
                 end
