@@ -903,7 +903,7 @@ task.spawn(function()
                                                 root.CFrame = CFrame.new(cachedTargetCFrame.Position.X, targetTopY + 3, cachedTargetCFrame.Position.Z) 
                                                 
                                                 -- 3. FITUR BARU: Bekukan karakter setelah TP agar AFK 100% aman
-                                                root.Anchored = true
+                                                root.Anchored = false
                                             end
                                         end)
                                         isRebirthing = false 
