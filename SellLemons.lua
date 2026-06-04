@@ -544,47 +544,40 @@ ToggleObjects.AutoHarvest = Window:AddToggle("Auto Harvest Lemons (TP)", false, 
 end)
 
 ToggleObjects.AutoDrop = Window:AddToggle("Auto Collect Drops", false, function(Value) Toggles.AutoDrop = Value end)
+-- =======================================================
+-- TOMBOL UI AUTO BUY (BAGIAN 3. UI GENERATION)
+-- =======================================================
 ToggleObjects.AutoBuy = Window:AddToggle("Auto Buy Buttons", false, function(Value) 
     Toggles.AutoBuy = Value 
-    task.spawn(function()
-        pcall(function()
-            local MyTycoon = GetMyTycoon()
-            if not MyTycoon or not MyTycoon:FindFirstChild("Purchases") then return end
-            
-            for _, desc in ipairs(MyTycoon.Purchases:GetDescendants()) do
-                if desc:IsA("BasePart") then
-                    local isButton = false
-                    if desc:FindFirstChild("TouchInterest") or desc:FindFirstChildWhichIsA("TouchTransmitter") or desc:FindFirstChildWhichIsA("ProximityPrompt") then isButton = true end
-                    local curr = desc
-                    while curr and not isButton do
-                        if curr.Name == "Buttons" then isButton = true break end
-                        curr = curr.Parent
-                    end
-
-                    if not isButton then
-                        if Value then
-                            if desc.Transparency < 1 then
-                                desc:SetAttribute("OriTrans", desc.Transparency)
-                                desc:SetAttribute("OriMat", desc.Material.Name)
-                                desc.Transparency = 1
-                                desc.CastShadow = false
-                            end
-                        else
-                            local oriTrans = desc:GetAttribute("OriTrans")
-                            local oriMat = desc:GetAttribute("OriMat")
-                            if oriTrans then
-                                desc.Transparency = oriTrans
-                                desc.CastShadow = true
-                                if oriMat then pcall(function() desc.Material = Enum.Material[oriMat] end) end
-                                desc:SetAttribute("OriTrans", nil)
-                                desc:SetAttribute("OriMat", nil)
-                            end
+    
+    -- JIKA AUTO BUY DIMATIKAN (OFF), KEMBALIKAN WUJUD ASLI SEMUA BANGUNAN
+    if not Value then
+        task.spawn(function()
+            pcall(function()
+                local MyTycoon = GetMyTycoon()
+                if not MyTycoon or not MyTycoon:FindFirstChild("Purchases") then return end
+                
+                for _, desc in ipairs(MyTycoon.Purchases:GetDescendants()) do
+                    if desc:IsA("BasePart") then
+                        -- Cek apakah part ini sebelumnya disembunyikan oleh Dual-Core
+                        local oriTrans = desc:GetAttribute("OriTrans")
+                        local oriMat = desc:GetAttribute("OriMat")
+                        
+                        if oriTrans then
+                            -- Munculkan kembali!
+                            desc.Transparency = oriTrans
+                            desc.CastShadow = true
+                            if oriMat then pcall(function() desc.Material = Enum.Material[oriMat] end) end
+                            
+                            -- Hapus catatannya biar memori bersih
+                            desc:SetAttribute("OriTrans", nil)
+                            desc:SetAttribute("OriMat", nil)
                         end
                     end
                 end
-            end
+            end)
         end)
-    end)
+    end
 end)
 
 ToggleObjects.AutoUpgrade = Window:AddToggle("Auto Upgrade", false, function(Value) Toggles.AutoUpgrade = Value end)
