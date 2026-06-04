@@ -801,7 +801,7 @@ local function EnsureSafeZone(targetCFrame, targetSize)
         safeZone.Size = Vector3.new(5, 1, 5) 
         safeZone.Anchored = true
         safeZone.CanCollide = true
-        safeZone.Transparency = 0.1
+        safeZone.Transparency = 0.7
         safeZone.BrickColor = BrickColor.new("Black") 
         safeZone.Material = Enum.Material.Neon
         safeZone.Parent = workspace
