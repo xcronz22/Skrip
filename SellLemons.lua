@@ -701,7 +701,7 @@ end)
 -- LOOP 2: AUTO BUY (BRUTAL PACING - ZERO FPS DROP)
 -- =======================================================
 task.spawn(function()
-    while task.wait(0.3) do -- Interval dinaikkan sedikit agar lebih responsif
+    while task.wait(0.1) do -- Interval dinaikkan sedikit agar lebih responsif
         if Toggles.AutoBuy then
             pcall(function() 
                 local MyTycoon = GetMyTycoon()
