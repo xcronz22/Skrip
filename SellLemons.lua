@@ -89,6 +89,7 @@ local Multipliers = {
     ["untrigintillion"] = 1e96,
     ["duotrigintillion"] = 1e99,
     ["tretrigintillion"] = 1e102,
+    ["trestrigintillion"] = 1e102,
     ["quattuortrigintillion"] = 1e105,
     ["quintrigintillion"] = 1e108,
     ["sextrigintillion"] = 1e111,
