@@ -787,22 +787,22 @@ end)
 local wasAutoRebirthOn = false
 local visibleTimerRebirth = 0
 local isRebirthing = false 
-local cachedLemonXCFrame = nil 
-local cachedLemonXSize = nil 
+local cachedTargetCFrame = nil 
+local cachedTargetSize = nil 
 
 -- Fungsi Bikin Pijakan Luas & Pasti Datar
 local function EnsureSafeZone(targetCFrame, targetSize)
-    local safeZoneName = "BrutalSafeZone_LemonX"
+    local safeZoneName = "BrutalSafeZone_Void"
     local safeZone = workspace:FindFirstChild(safeZoneName)
 
     if not safeZone then
         safeZone = Instance.new("Part")
         safeZone.Name = safeZoneName
-        safeZone.Size = Vector3.new(10, 1, 10) -- Diperluas jadi lapangan 30x30, ketebalan solid 1 stud
+        safeZone.Size = Vector3.new(5, 1, 5) -- Pijakan di-set agar luas dan aman
         safeZone.Anchored = true
         safeZone.CanCollide = true
-        safeZone.Transparency = 0.4 
-        safeZone.BrickColor = BrickColor.new("Cyan") 
+        safeZone.Transparency = 0.1
+        safeZone.BrickColor = BrickColor.new("Black") 
         safeZone.Material = Enum.Material.Neon
         safeZone.Parent = workspace
     end
@@ -813,8 +813,8 @@ local function EnsureSafeZone(targetCFrame, targetSize)
     
     -- Posisikan SafeZone: 
     -- Ambil koordinat X dan Z dari target.
-    -- Set ketinggian (Y) agar bagian atas SafeZone rata dengan targetTopY.
-    -- (Dikurangi 0.5 karena ketebalan SafeZone kita adalah 1).
+    -- Set ketinggian (Y) agar bagian atas SafeZone rata persis dengan targetTopY.
+    -- (Dikurangi 0.5 karena ketebalan Y SafeZone kita adalah 1).
     -- Menggunakan CFrame.new(x,y,z) murni agar platform 100% mendatar tanpa ikut rotasi part target!
     safeZone.CFrame = CFrame.new(targetCFrame.Position.X, targetTopY - 0.5, targetCFrame.Position.Z)
 end
@@ -880,17 +880,18 @@ task.spawn(function()
                                 if rebirthRemote and rebirthRemote:IsA("RemoteFunction") then
                                     isRebirthing = true
                                     
+                                    -- ==========================================
+                                    -- MENGAMBIL TARGET DARI WORKSPACE.MAP.VOID
+                                    -- ==========================================
                                     pcall(function()
-                                        local decorFolder = MyTycoon:FindFirstChild("Purchases")
-                                            and MyTycoon.Purchases:FindFirstChild("LemonX")
-                                            and MyTycoon.Purchases.LemonX:FindFirstChild("Decor")
-                                            and MyTycoon.Purchases.LemonX.Decor:FindFirstChild("X Edge Lines")
+                                        local voidFolder = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Void")
 
-                                        if decorFolder then
-                                            local parts = decorFolder:GetChildren()
-                                            if #parts >= 15 then
-                                                cachedLemonXCFrame = parts[15].CFrame 
-                                                cachedLemonXSize = parts[15].Size 
+                                        if voidFolder then
+                                            local parts = voidFolder:GetChildren()
+                                            -- Pastikan index ke-6 ada dan merupakan BasePart
+                                            if parts[6] and parts[6]:IsA("BasePart") then
+                                                cachedTargetCFrame = parts[6].CFrame 
+                                                cachedTargetSize = parts[6].Size 
                                             end
                                         end
                                     end)
@@ -905,15 +906,15 @@ task.spawn(function()
                                             
                                             task.wait(1.5) 
                                             
-                                            if root and cachedLemonXCFrame and cachedLemonXSize then
-                                                -- 1. Buat Pijakan Lapangan 30x30 yang pasti rata
-                                                EnsureSafeZone(cachedLemonXCFrame, cachedLemonXSize)
+                                            if root and cachedTargetCFrame and cachedTargetSize then
+                                                -- 1. Buat Pijakan Lapangan yang pasti rata
+                                                EnsureSafeZone(cachedTargetCFrame, cachedTargetSize)
                                                 
                                                 -- 2. Hitung lagi tinggi atap target untuk posisi jatuh karakter
-                                                local targetTopY = cachedLemonXCFrame.Position.Y + (cachedLemonXSize.Y / 2)
+                                                local targetTopY = cachedTargetCFrame.Position.Y + (cachedTargetSize.Y / 2)
                                                 
                                                 -- 3. TP Karakter tepat di tengah X dan Z target, dan dijatuhkan 3 stud di atas permukaannya
-                                                root.CFrame = CFrame.new(cachedLemonXCFrame.Position.X, targetTopY + 3, cachedLemonXCFrame.Position.Z) 
+                                                root.CFrame = CFrame.new(cachedTargetCFrame.Position.X, targetTopY + 3, cachedTargetCFrame.Position.Z) 
                                             end
                                         end)
                                         isRebirthing = false 
