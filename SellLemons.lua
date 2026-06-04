@@ -50,46 +50,6 @@ oldCreate = hookfunction(TweenService.Create, function(self, instance, tweenInfo
     return oldCreate(self, instance, tweenInfo, propertyTable)
 end)
 
--- =======================================================
--- TRIK BRUTAL 3.1: THE ULTIMATE "FORCE-INVISIBLE" (EXTREME MODE)
--- =======================================================
-task.spawn(function()
-    while task.wait(0.5) do
-        if Toggles.AutoBuy then
-            task.spawn(function()
-                pcall(function()
-                    local MyTycoon = GetMyTycoon()
-                    if not MyTycoon then return end
-                    
-                    -- SCAN SEMUA PART DI DALAM TYCOON, APAPUN NAMA FOLDERNYA
-                    for _, desc in ipairs(MyTycoon:GetDescendants()) do
-                        if desc:IsA("BasePart") then
-                            
-                            -- CEK: Apakah part ini milik bangunan? (Bukan tombol)
-                            local isButton = desc:FindFirstChild("TouchInterest") or desc:FindFirstChildWhichIsA("TouchTransmitter")
-                            
-                            if not isButton and desc.Transparency < 1 then
-                                -- FORCE INVISIBLE
-                                desc:SetAttribute("OriTrans", desc.Transparency)
-                                desc:SetAttribute("OriMat", desc.Material.Name)
-                                
-                                desc.Transparency = 1 
-                                desc.CastShadow = false
-                                desc.Material = Enum.Material.SmoothPlastic 
-                                
-                                -- Hapus tekstur
-                                for _, effect in ipairs(desc:GetChildren()) do
-                                    if effect:IsA("Texture") or effect:IsA("Decal") then effect:Destroy() end
-                                end
-                            end
-                        end
-                    end
-                end)
-            end)
-        end
-    end
-end)
-
 -- ==========================================
 -- 1. IDENTIFIKASI PENGALI (HANYA KATA PENUH SAMPAI CENTILLION)
 -- ==========================================
@@ -497,31 +457,68 @@ end)
 
 ToggleObjects.AutoDrop = Window:AddToggle("Auto Collect Drops", false, function(Value) Toggles.AutoDrop = Value end)
 -- =======================================================
--- TOMBOL UI AUTO BUY (BAGIAN 3. UI GENERATION)
+-- SISTEM INVISIBLE BARU (ANTI LAG & LEBIH RESPONSIF)
 -- =======================================================
+local InvisibleConnection = nil
+
+local function MakeInvisible(desc)
+    if desc:IsA("BasePart") then
+        local isButton = desc:FindFirstChild("TouchInterest") or desc:FindFirstChildWhichIsA("TouchTransmitter")
+        if not isButton and desc.Transparency < 1 then
+            desc:SetAttribute("OriTrans", desc.Transparency)
+            desc:SetAttribute("OriMat", desc.Material.Name)
+            
+            desc.Transparency = 1
+            desc.CastShadow = false
+            desc.Material = Enum.Material.SmoothPlastic
+            
+            for _, effect in ipairs(desc:GetChildren()) do
+                if effect:IsA("Texture") or effect:IsA("Decal") then effect:Destroy() end
+            end
+        end
+    end
+end
+
 ToggleObjects.AutoBuy = Window:AddToggle("Auto Buy Buttons", false, function(Value) 
     Toggles.AutoBuy = Value 
+    local MyTycoon = GetMyTycoon()
     
-    -- JIKA AUTO BUY DIMATIKAN (OFF), KEMBALIKAN WUJUD ASLI SEMUA BANGUNAN
-    if not Value then
+    if Value then
+        if MyTycoon then
+            -- 1. Sembunyikan bangunan yang SUDAH ADA (Satu kali scan, tidak bikin lag)
+            for _, desc in ipairs(MyTycoon:GetDescendants()) do
+                MakeInvisible(desc)
+            end
+            
+            -- 2. Pasang event listener: Sembunyikan otomatis bangunan BARU tanpa loop
+            InvisibleConnection = MyTycoon.DescendantAdded:Connect(function(desc)
+                task.wait(0.05) -- Jeda sangat tipis agar game merender properties-nya dulu
+                if Toggles.AutoBuy then MakeInvisible(desc) end
+            end)
+        end
+    else
+        -- JIKA DIMATIKAN (OFF): Matikan listener dan kembalikan wujud asli
+        if InvisibleConnection then
+            InvisibleConnection:Disconnect()
+            InvisibleConnection = nil
+        end
+        
         task.spawn(function()
             pcall(function()
-                local MyTycoon = GetMyTycoon()
-                if not MyTycoon or not MyTycoon:FindFirstChild("Purchases") then return end
+                if not MyTycoon then return end
                 
-                for _, desc in ipairs(MyTycoon.Purchases:GetDescendants()) do
+                -- Kembalikan semua part ke wujud asalnya
+                for _, desc in ipairs(MyTycoon:GetDescendants()) do
                     if desc:IsA("BasePart") then
-                        -- Cek apakah part ini sebelumnya disembunyikan oleh Dual-Core
                         local oriTrans = desc:GetAttribute("OriTrans")
                         local oriMat = desc:GetAttribute("OriMat")
                         
                         if oriTrans then
-                            -- Munculkan kembali!
                             desc.Transparency = oriTrans
                             desc.CastShadow = true
                             if oriMat then pcall(function() desc.Material = Enum.Material[oriMat] end) end
                             
-                            -- Hapus catatannya biar memori bersih
+                            -- Hapus atribut memori
                             desc:SetAttribute("OriTrans", nil)
                             desc:SetAttribute("OriMat", nil)
                         end
