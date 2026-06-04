@@ -51,35 +51,86 @@ oldCreate = hookfunction(TweenService.Create, function(self, instance, tweenInfo
 end)
 
 -- =======================================================
--- TRIK BRUTAL 3.1: AUTOMATIC INVISIBLE TYCOON (BUTTON PROTECTOR)
+-- TRIK BRUTAL 3.1: DUAL-CORE INVISIBLE ENGINE (ANTI-NYANGKUT)
 -- =======================================================
+
+-- ⚙️ CORE 1: MESIN PENYAPU ABADI (Sapu ulang tiap 0.5 detik)
+task.spawn(function()
+    while task.wait(0.5) do
+        if Toggles.AutoBuy then
+            -- Bungkus dalam spawn baru agar loop UTAMA tidak pernah macet/mati
+            task.spawn(function()
+                pcall(function()
+                    local MyTycoon = GetMyTycoon()
+                    if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
+                        for _, desc in ipairs(MyTycoon.Purchases:GetDescendants()) do
+                            if desc:IsA("BasePart") and desc.Transparency < 1 then
+                                
+                                -- PROTEKSI TOMBOL
+                                local isButton = false
+                                if desc:FindFirstChild("TouchInterest") or desc:FindFirstChildWhichIsA("TouchTransmitter") or desc:FindFirstChildWhichIsA("ProximityPrompt") then 
+                                    isButton = true 
+                                end
+                                
+                                local curr = desc
+                                while curr and not isButton do
+                                    if curr.Name == "Buttons" then isButton = true break end
+                                    if curr == MyTycoon then break end -- Stop cek jika sudah sampai pucuk folder
+                                    curr = curr.Parent
+                                end
+
+                                -- EKSEKUSI GAIB
+                                if not isButton then
+                                    desc:SetAttribute("OriTrans", desc.Transparency)
+                                    desc:SetAttribute("OriMat", desc.Material.Name)
+                                    desc.Transparency = 1 
+                                    desc.CastShadow = false
+                                    desc.Material = Enum.Material.SmoothPlastic 
+                                    for _, effect in ipairs(desc:GetChildren()) do
+                                        if effect:IsA("Texture") or effect:IsA("Decal") then effect:Destroy() end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end)
+            end)
+        end
+    end
+end)
+
+-- ⚙️ CORE 2: PENANGKAP INSTAN (Menghapus part sedetik setelah turun dari langit)
 Workspace.DescendantAdded:Connect(function(desc)
     if Toggles.AutoBuy and desc:IsA("BasePart") then
         task.spawn(function()
-            task.wait(0.1) -- Jeda aman agar folder tersusun
+            task.wait(0.2) -- Kasih nafas 0.2 detik biar Roblox masukin part ke folder Purchases
             pcall(function()
-                -- PROTEKSI TOMBOL: Cek apakah part ini adalah tombol
-                if desc:FindFirstChild("TouchInterest") or desc:FindFirstChildWhichIsA("TouchTransmitter") or desc:FindFirstChildWhichIsA("ProximityPrompt") then return end
-                
-                local isButton = false
-                local curr = desc
-                while curr do
-                    if curr.Name == "Buttons" then isButton = true break end
-                    curr = curr.Parent
-                end
-                if isButton then return end -- Jangan sembunyikan jika ada di folder Buttons
-
                 local MyTycoon = GetMyTycoon()
                 if MyTycoon and MyTycoon:FindFirstChild("Purchases") and desc:IsDescendantOf(MyTycoon.Purchases) then
                     if desc.Transparency < 1 then
-                        desc:SetAttribute("OriTrans", desc.Transparency)
-                        desc:SetAttribute("OriMat", desc.Material.Name)
-                        desc.Transparency = 1 
-                        desc.CastShadow = false
-                        desc.Material = Enum.Material.SmoothPlastic 
-                        for _, effect in ipairs(desc:GetChildren()) do
-                            if effect:IsA("Texture") or effect:IsA("Decal") then effect:Destroy() end
+                        
+                        -- PROTEKSI TOMBOL
+                        local isButton = false
+                        if desc:FindFirstChild("TouchInterest") or desc:FindFirstChildWhichIsA("TouchTransmitter") or desc:FindFirstChildWhichIsA("ProximityPrompt") then isButton = true end
+                        local curr = desc
+                        while curr and not isButton do
+                            if curr.Name == "Buttons" then isButton = true break end
+                            if curr == MyTycoon then break end
+                            curr = curr.Parent
                         end
+
+                        -- EKSEKUSI GAIB INSTAN
+                        if not isButton then
+                            desc:SetAttribute("OriTrans", desc.Transparency)
+                            desc:SetAttribute("OriMat", desc.Material.Name)
+                            desc.Transparency = 1 
+                            desc.CastShadow = false
+                            desc.Material = Enum.Material.SmoothPlastic 
+                            for _, effect in ipairs(desc:GetChildren()) do
+                                if effect:IsA("Texture") or effect:IsA("Decal") then effect:Destroy() end
+                            end
+                        end
+                        
                     end
                 end
             end)
