@@ -662,6 +662,7 @@ end)
 
 -- =======================================================
 -- MESIN HIBRIDA: LOOP 1 & 2 (A-B INTERLEAVED BRUTAL FIRE)
+-- MODIFIKASI: Rasio 1 Buah : 5 Tombol
 -- =======================================================
 local kedalaman = 17 
 local buttonIndex = 1 -- Memori urutan tombol agar muter terus
@@ -734,10 +735,10 @@ task.spawn(function()
                 end
 
                 -- =======================================
-                -- [TAHAP 3] EKSEKUSI TEMBAKAN SILANG (A-B-A-B)
+                -- [TAHAP 3] EKSEKUSI (RASIO 1 BUAH : 5 TOMBOL)
                 -- =======================================
-                -- Cari iterasi terpanjang antara jumlah buah atau jumlah tombol
-                local maxIter = math.max(#fruitTargets, #btnTargets)
+                -- Karena 1 iterasi sekarang mengeksekusi 5 tombol, maxIter untuk tombol dibagi 5
+                local maxIter = math.max(#fruitTargets, math.ceil(#btnTargets / 5))
                 
                 if maxIter > 0 then
                     local originalCFrame = rootPart.CFrame
@@ -747,7 +748,7 @@ task.spawn(function()
                         -- Rem darurat kalau toggle tiba-tiba dimatikan saat loop berjalan
                         if not Toggles.AutoHarvest and not Toggles.AutoBuy then break end
 
-                        -- 🍓 FIRE A: PANEN BUAH
+                        -- 🍓 FIRE A: PANEN BUAH (Dieksekusi 1 kali per iterasi)
                         if Toggles.AutoHarvest and fruitTargets[i] then
                             hasTeleported = true
                             humanoid.PlatformStand = true
@@ -761,24 +762,26 @@ task.spawn(function()
                             pcall(function() fireclickdetector(fruitTargets[i].CD) end)
                         end
 
-                        -- 🛒 FIRE B: BELI TOMBOL (Dari jarak jauh / posisi manapun)
+                        -- 🛒 FIRE B: BELI TOMBOL (Dieksekusi 5 kali beruntun per 1 iterasi)
                         if Toggles.AutoBuy and #btnTargets > 0 then
-                            -- Pastikan index berputar dari awal kalau sudah capai ujung list tombol
-                            if buttonIndex > #btnTargets then buttonIndex = 1 end
-                            local btn = btnTargets[buttonIndex]
-                            
-                            if btn.Type == "Touch" then
-                                pcall(function()
-                                    firetouchinterest(rootPart, btn.Target, 0)
-                                    firetouchinterest(rootPart, btn.Target, 1)
-                                end)
-                            elseif btn.Type == "Prompt" then
-                                pcall(function() fireproximityprompt(btn.Target) end)
+                            for b = 1, 5 do
+                                -- Pastikan index berputar dari awal kalau sudah capai ujung list tombol
+                                if buttonIndex > #btnTargets then buttonIndex = 1 end
+                                local btn = btnTargets[buttonIndex]
+                                
+                                if btn.Type == "Touch" then
+                                    pcall(function()
+                                        firetouchinterest(rootPart, btn.Target, 0)
+                                        firetouchinterest(rootPart, btn.Target, 1)
+                                    end)
+                                elseif btn.Type == "Prompt" then
+                                    pcall(function() fireproximityprompt(btn.Target) end)
+                                end
+                                buttonIndex = buttonIndex + 1
                             end
-                            buttonIndex = buttonIndex + 1
                         end
 
-                        -- 💨 NAFAS JARINGAN (Jeda super tipis di setiap putaran A-B)
+                        -- 💨 NAFAS JARINGAN (Jeda super tipis di setiap putaran)
                         task.wait()
                     end
 
@@ -796,7 +799,6 @@ task.spawn(function()
         end
     end
 end)
-
 -- =======================================================
 -- LOOP 3: AUTO UPGRADE & CLICK (MACHINE GUN ENGINE)
 -- =======================================================
