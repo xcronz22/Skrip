@@ -666,7 +666,7 @@ end)
 local kedalaman = 17 
 
 task.spawn(function()
-    while task.wait(0.2) do
+    while task.wait(0.5) do
         if Toggles.AutoHarvest then
             pcall(function() 
                 local char = LocalPlayer.Character
