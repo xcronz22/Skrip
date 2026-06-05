@@ -661,138 +661,126 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 1: STEALTH BRUTAL HARVEST (COOLDOWN SYSTEM)
+-- MESIN HIBRIDA: LOOP 1 & 2 (A-B INTERLEAVED BRUTAL FIRE)
 -- =======================================================
 local kedalaman = 17 
+local buttonIndex = 1 -- Memori urutan tombol agar muter terus
 
 task.spawn(function()
-    while task.wait(0.5) do
-        if Toggles.AutoHarvest then
-            pcall(function() 
+    while task.wait(0.1) do
+        -- Hanya jalan kalau minimal salah satu toggle menyala
+        if Toggles.AutoHarvest or Toggles.AutoBuy then
+            pcall(function()
                 local char = LocalPlayer.Character
                 local rootPart = char and char:FindFirstChild("HumanoidRootPart")
                 local humanoid = char and char:FindFirstChild("Humanoid")
-                
-                if rootPart and humanoid and humanoid.Health > 0 then
-                    local originalCFrame = rootPart.CFrame
-                    local hasTeleported = false
+                if not rootPart or not humanoid or humanoid.Health <= 0 then return end
 
+                -- =======================================
+                -- [TAHAP 1] KUMPULKAN DAFTAR TOMBOL (B)
+                -- =======================================
+                local btnTargets = {}
+                if Toggles.AutoBuy then
+                    local MyTycoon = GetMyTycoon()
+                    if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
+                        for _, item in ipairs(MyTycoon.Purchases:GetDescendants()) do
+                            if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
+                                if item.Parent and item.Parent:IsA("BasePart") then
+                                    table.insert(btnTargets, {Type = "Touch", Target = item.Parent})
+                                end
+                            elseif item:IsA("ProximityPrompt") and item.Enabled and item.Parent and item.Parent.Transparency < 0.8 then
+                                table.insert(btnTargets, {Type = "Prompt", Target = item})
+                            end
+                        end
+                    end
+                end
+
+                -- =======================================
+                -- [TAHAP 2] KUMPULKAN DAFTAR BUAH (A)
+                -- =======================================
+                local fruitTargets = {}
+                if Toggles.AutoHarvest then
+                    local currentTime = os.clock()
                     for i = 1, 12 do
-                        if not Toggles.AutoHarvest then break end 
                         local tycoon = Workspace:FindFirstChild("Tycoon" .. i)
-                        
                         if tycoon then
                             local trees = tycoon:FindFirstChild("Constant", true) and tycoon.Constant:FindFirstChild("Trees")
                             if trees then
                                 for _, tree in pairs(trees:GetChildren()) do
-                                    if not Toggles.AutoHarvest then break end
-                                    
                                     if tree.Name == "LemonTree" then
-                                        local readyFruits = {}
-                                        local currentTime = os.clock() -- Ambil waktu sekarang
-                                        
-                                        -- 1. Kumpulkan buah pakai sistem COOLDOWN
                                         for _, part in pairs(tree:GetChildren()) do
                                             if part.Name == "Fruit" then
-                                                -- Cek kapan terakhir buah ini dicoba diambil (default 0)
+                                                local cd = part:FindFirstChildWhichIsA("ClickDetector", true)
                                                 local lastHarvest = part:GetAttribute("WaktuAmbil") or 0
-                                                
-                                                -- Jika belum pernah diambil, ATAU sudah lewat 1.5 detik tapi masih nyangkut di pohon (berarti server nolak klik sebelumnya)
-                                                if currentTime - lastHarvest > 1.5 then
-                                                    local cd = part:FindFirstChildWhichIsA("ClickDetector", true)
-                                                    if cd then 
-                                                        table.insert(readyFruits, {Part = part, CD = cd}) 
-                                                    end
+                                                -- Cek buah yang sudah siap (cooldown 1.5 detik)
+                                                if cd and (currentTime - lastHarvest > 1.5) then
+                                                    table.insert(fruitTargets, {Part = part, CD = cd})
                                                 end
                                             end
-                                        end
-
-                                        -- 2. Eksekusi
-                                        if #readyFruits > 0 then
-                                            hasTeleported = true
-                                            humanoid.PlatformStand = true
-                                            rootPart.Velocity = Vector3.new(0, 0, 0) 
-                                            
-                                            local targetPos = readyFruits[1].Part.Position
-                                            rootPart.CFrame = CFrame.new(targetPos.X, targetPos.Y - kedalaman, targetPos.Z) * CFrame.Angles(math.rad(90), 0, 0)
-                                            
-                                            task.wait(0.05) 
-                                            
-                                            for _, fruitData in ipairs(readyFruits) do
-                                                -- Beri cap WAKTU (Stopwatch), bukan True/False
-                                                fruitData.Part:SetAttribute("WaktuAmbil", currentTime)
-                                                
-                                                task.spawn(function()
-                                                    pcall(function() 
-                                                        fireclickdetector(fruitData.CD) 
-                                                        fireclickdetector(fruitData.CD) 
-                                                    end)
-                                                end)
-                                            end
-                                            
-                                            task.wait(0.05) 
                                         end
                                     end
                                 end
                             end
                         end
                     end
-                    
-                    -- 3. Kembali dengan aman
+                end
+
+                -- =======================================
+                -- [TAHAP 3] EKSEKUSI TEMBAKAN SILANG (A-B-A-B)
+                -- =======================================
+                -- Cari iterasi terpanjang antara jumlah buah atau jumlah tombol
+                local maxIter = math.max(#fruitTargets, #btnTargets)
+                
+                if maxIter > 0 then
+                    local originalCFrame = rootPart.CFrame
+                    local hasTeleported = false
+
+                    for i = 1, maxIter do
+                        -- Rem darurat kalau toggle tiba-tiba dimatikan saat loop berjalan
+                        if not Toggles.AutoHarvest and not Toggles.AutoBuy then break end
+
+                        -- 🍓 FIRE A: PANEN BUAH
+                        if Toggles.AutoHarvest and fruitTargets[i] then
+                            hasTeleported = true
+                            humanoid.PlatformStand = true
+                            rootPart.Velocity = Vector3.new(0, 0, 0)
+                            
+                            -- Karakter TP ke buah
+                            local tPos = fruitTargets[i].Part.Position
+                            rootPart.CFrame = CFrame.new(tPos.X, tPos.Y - kedalaman, tPos.Z) * CFrame.Angles(math.rad(90), 0, 0)
+                            
+                            fruitTargets[i].Part:SetAttribute("WaktuAmbil", os.clock())
+                            pcall(function() fireclickdetector(fruitTargets[i].CD) end)
+                        end
+
+                        -- 🛒 FIRE B: BELI TOMBOL (Dari jarak jauh / posisi manapun)
+                        if Toggles.AutoBuy and #btnTargets > 0 then
+                            -- Pastikan index berputar dari awal kalau sudah capai ujung list tombol
+                            if buttonIndex > #btnTargets then buttonIndex = 1 end
+                            local btn = btnTargets[buttonIndex]
+                            
+                            if btn.Type == "Touch" then
+                                pcall(function()
+                                    firetouchinterest(rootPart, btn.Target, 0)
+                                    firetouchinterest(rootPart, btn.Target, 1)
+                                end)
+                            elseif btn.Type == "Prompt" then
+                                pcall(function() fireproximityprompt(btn.Target) end)
+                            end
+                            buttonIndex = buttonIndex + 1
+                        end
+
+                        -- 💨 NAFAS JARINGAN (Jeda super tipis di setiap putaran A-B)
+                        task.wait()
+                    end
+
+                    -- KEMBALI KE POSISI ASAL JIKA TADI SEMPAT TP HARVEST
                     if hasTeleported then
                         task.wait(0.1)
                         if LocalPlayer.Character == char and rootPart.Parent ~= nil and humanoid.Health > 0 then
                             humanoid.PlatformStand = false
                             rootPart.Velocity = Vector3.new(0, 0, 0)
                             rootPart.CFrame = originalCFrame
-                        end
-                    end
-                end
-            end)
-        end
-    end
-end)
-
--- =======================================================
--- LOOP 2: AUTO BUY (SUPER OPTIMIZED - ZERO FPS DROP)
--- =======================================================
-task.spawn(function()
-    while task.wait(0.2) do
-        if Toggles.AutoBuy then
-            pcall(function() 
-                local MyTycoon = GetMyTycoon()
-                local char = LocalPlayer.Character
-                local rootPart = char and char:FindFirstChild("HumanoidRootPart")
-                
-                if MyTycoon and rootPart then
-                    local purchases = MyTycoon:FindFirstChild("Purchases")
-                    if purchases then
-                        for _, purchaseItem in ipairs(purchases:GetChildren()) do
-                            if not Toggles.AutoBuy then return end
-                            
-                            local buttonsFolder = purchaseItem:FindFirstChild("Buttons")
-                            if buttonsFolder then
-                                for _, item in ipairs(buttonsFolder:GetDescendants()) do
-                                    if not Toggles.AutoBuy then return end
-                                    
-                                    if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
-                                        local target = item.Parent
-                                        
-                                        -- INSTAN: Hapus inner task.wait() agar skrip jalan mulus
-                                        if target and target:IsA("BasePart") and target.CanTouch then
-                                            pcall(function()
-                                                firetouchinterest(rootPart, target, 0)
-                                                firetouchinterest(rootPart, target, 1)
-                                            end)
-                                        end
-                                        
-                                    elseif item:IsA("ProximityPrompt") then
-                                        if item.Enabled and item.Parent and item.Parent:IsA("BasePart") and item.Parent.Transparency < 0.8 then
-                                            pcall(function() fireproximityprompt(item) end)
-                                        end
-                                    end
-                                end
-                            end
                         end
                     end
                 end
