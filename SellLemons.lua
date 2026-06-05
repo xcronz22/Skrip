@@ -798,30 +798,35 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 3: SMART AUTO UPGRADE (UI PARSING)
+-- LOOP 3: AUTO UPGRADE & CLICK (MACHINE GUN ENGINE)
 -- =======================================================
 local clickTargets = {"LemonDepot", "LemonLabs", "LemonRepublic", "LemonRobotics", "LemonStand", "LemonTrading", "LemonDash", "LemonX"}
+local activeUpgradeThreads = {} 
 
 task.spawn(function()
-    -- [BAGIAN A]: WAKE INCOME STREAM (AUTO CLICK)
-    for _, targetName in ipairs(clickTargets) do
-        task.spawn(function()
-            while task.wait(0.05) do 
-                if Toggles.AutoUpgrade then
-                    pcall(function()
-                        local MyTycoon = GetMyTycoon()
-                        local wakeRemote = MyTycoon and MyTycoon:FindFirstChild("Remotes") and MyTycoon.Remotes:FindFirstChild("WakeIncomeStream")
-                        if wakeRemote and wakeRemote:IsA("RemoteFunction") then
-                            task.spawn(function() pcall(function() wakeRemote:InvokeServer(targetName) end) end)
+    -- [BAGIAN A]: AUTO CLICKER (Berjalan terpisah 100% agar tidak pernah nyangkut!)
+    task.spawn(function()
+        while task.wait(0.03) do -- Kecepatan klik super ngebut
+            if Toggles.AutoUpgrade then
+                pcall(function()
+                    local MyTycoon = GetMyTycoon()
+                    local wakeRemote = MyTycoon and MyTycoon:FindFirstChild("Remotes") and MyTycoon.Remotes:FindFirstChild("WakeIncomeStream")
+                    
+                    if wakeRemote and wakeRemote:IsA("RemoteFunction") then
+                        for _, targetName in ipairs(clickTargets) do
+                            -- Tembak dan tinggalkan, jangan tunggu balasan server
+                            task.spawn(function() 
+                                pcall(function() wakeRemote:InvokeServer(targetName) end) 
+                            end)
                         end
-                    end)
-                end
+                    end
+                end)
             end
-        end)
-    end
+        end
+    end)
 
-    -- [BAGIAN B]: SMART UPGRADE SESUAI UANG
-    while task.wait(0.5) do 
+    -- [BAGIAN B]: MACHINE GUN AUTO UPGRADE (+1 SUPER SPEED)
+    while task.wait(1) do 
         if Toggles.AutoUpgrade then
             pcall(function()
                 local MyTycoon = GetMyTycoon()
@@ -829,26 +834,33 @@ task.spawn(function()
                     for _, desc in ipairs(MyTycoon.Purchases:GetDescendants()) do
                         if desc:IsA("RemoteFunction") and desc.Name == "Upgrade" then
                             
-                            local buyAmount = 1 -- Default ke 1
-                            pcall(function()
-                                local upgradeName = desc.Parent.Name
-                                local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-                                local uiContainer = playerGui and playerGui:FindFirstChild(upgradeName, true) 
+                            if not activeUpgradeThreads[desc] then
+                                activeUpgradeThreads[desc] = true
                                 
-                                if uiContainer then
-                                    local upgradeBtn = uiContainer:FindFirstChild("Upgrade", true)
-                                    if upgradeBtn and (upgradeBtn:IsA("TextLabel") or upgradeBtn:IsA("TextButton")) then
-                                        local extractedNumber = string.match(upgradeBtn.Text, "%d+")
-                                        if extractedNumber then
-                                            buyAmount = tonumber(extractedNumber)
+                                task.spawn(function()
+                                    while task.wait(0.05) do -- Jeda sangat tipis
+                                        if not Toggles.AutoUpgrade then 
+                                            task.wait(0.5) 
+                                            continue 
+                                        end
+                                        
+                                        local isValid = false
+                                        pcall(function() if desc and desc.Parent then isValid = true end end)
+                                        
+                                        if isValid then
+                                            -- TRIK MESIN PENGGILING: 
+                                            -- Buka 3 thread secara BERSAMAAN tanpa antre! 
+                                            -- Ini menghasilkan ~60 pembelian per detik (Bypass lag server)
+                                            for i = 1, 3 do
+                                                task.spawn(function()
+                                                    pcall(function() desc:InvokeServer(1) end)
+                                                end)
+                                            end
+                                        else
+                                            activeUpgradeThreads[desc] = nil
+                                            break 
                                         end
                                     end
-                                end
-                            end)
-                            
-                            if buyAmount > 0 then
-                                task.spawn(function()
-                                    pcall(function() desc:InvokeServer(buyAmount) end)
                                 end)
                             end
                             
