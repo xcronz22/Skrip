@@ -757,7 +757,7 @@ end)
 -- LOOP 2: AUTO BUY (SUPER OPTIMIZED - ZERO FPS DROP)
 -- =======================================================
 task.spawn(function()
-    while task.wait(0.5) do -- Jeda dinaikkan jadi 0.5s agar tidak spam CPU
+    while task.wait(0.2) do
         if Toggles.AutoBuy then
             pcall(function() 
                 local MyTycoon = GetMyTycoon()
