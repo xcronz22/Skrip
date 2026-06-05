@@ -476,10 +476,13 @@ ToggleObjects.AutoHarvest = Window:AddToggle("Auto Harvest Lemons (TP)", false, 
 end)
 
 ToggleObjects.AutoDrop = Window:AddToggle("Auto Collect Drops", false, function(Value) Toggles.AutoDrop = Value end)
+
 -- =======================================================
 -- SISTEM INVISIBLE BARU (ANTI LAG & LEBIH RESPONSIF)
 -- =======================================================
 local InvisibleConnection = nil
+local pendingInvisible = {}
+local processingInvisible = false
 
 local function MakeInvisible(desc)
     if desc:IsA("BasePart") then
@@ -505,29 +508,40 @@ ToggleObjects.AutoBuy = Window:AddToggle("Auto Buy Buttons", false, function(Val
     
     if Value then
         if MyTycoon then
-            -- 1. Sembunyikan bangunan yang SUDAH ADA (Satu kali scan, tidak bikin lag)
+            -- 1. Sembunyikan bangunan yang SUDAH ADA
             for _, desc in ipairs(MyTycoon:GetDescendants()) do
                 MakeInvisible(desc)
             end
             
-            -- 2. Pasang event listener: Sembunyikan otomatis bangunan BARU tanpa loop
+            -- 2. Sistem Batching (Mencegah Lag FPS Drop!)
             InvisibleConnection = MyTycoon.DescendantAdded:Connect(function(desc)
-                task.wait(0.05) -- Jeda sangat tipis agar game merender properties-nya dulu
-                if Toggles.AutoBuy then MakeInvisible(desc) end
+                if not Toggles.AutoBuy then return end
+                table.insert(pendingInvisible, desc)
+                
+                -- Proses antrean secara massal tiap 0.1 detik (Cuma pakai 1 thread)
+                if not processingInvisible then
+                    processingInvisible = true
+                    task.delay(0.1, function()
+                        for _, part in ipairs(pendingInvisible) do
+                            pcall(function() MakeInvisible(part) end)
+                        end
+                        table.clear(pendingInvisible)
+                        processingInvisible = false
+                    end)
+                end
             end)
         end
     else
-        -- JIKA DIMATIKAN (OFF): Matikan listener dan kembalikan wujud asli
         if InvisibleConnection then
             InvisibleConnection:Disconnect()
             InvisibleConnection = nil
         end
+        table.clear(pendingInvisible)
+        processingInvisible = false
         
         task.spawn(function()
             pcall(function()
                 if not MyTycoon then return end
-                
-                -- Kembalikan semua part ke wujud asalnya
                 for _, desc in ipairs(MyTycoon:GetDescendants()) do
                     if desc:IsA("BasePart") then
                         local oriTrans = desc:GetAttribute("OriTrans")
@@ -537,8 +551,6 @@ ToggleObjects.AutoBuy = Window:AddToggle("Auto Buy Buttons", false, function(Val
                             desc.Transparency = oriTrans
                             desc.CastShadow = true
                             if oriMat then pcall(function() desc.Material = Enum.Material[oriMat] end) end
-                            
-                            -- Hapus atribut memori
                             desc:SetAttribute("OriTrans", nil)
                             desc:SetAttribute("OriMat", nil)
                         end
@@ -738,10 +750,10 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 2: AUTO BUY (BRUTAL PACING - ZERO FPS DROP)
+-- LOOP 2: AUTO BUY (SUPER OPTIMIZED - ZERO FPS DROP)
 -- =======================================================
 task.spawn(function()
-    while task.wait(0.3) do -- Interval dinaikkan sedikit agar lebih responsif
+    while task.wait(0.5) do -- Jeda dinaikkan jadi 0.5s agar tidak spam CPU
         if Toggles.AutoBuy then
             pcall(function() 
                 local MyTycoon = GetMyTycoon()
@@ -762,24 +774,17 @@ task.spawn(function()
                                     if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
                                         local target = item.Parent
                                         
-                                        -- FILTER: Aktif & Kelihatan
+                                        -- INSTAN: Hapus inner task.wait() agar skrip jalan mulus
                                         if target and target:IsA("BasePart") and target.CanTouch then
-                                            -- DIBUAT ANTREAN BERUNTUN TANPA SPAM THREAD:
                                             pcall(function()
                                                 firetouchinterest(rootPart, target, 0)
-                                                task.wait() -- Jeda ~0.01 detik agar server & render engine tidak choke
                                                 firetouchinterest(rootPart, target, 1)
                                             end)
-                                            -- Tambahkan jeda ~0.01 lagi agar bangunan sempat ter-render sebelum menginjak tombol selanjutnya
-                                            task.wait() 
                                         end
                                         
                                     elseif item:IsA("ProximityPrompt") then
                                         if item.Enabled and item.Parent and item.Parent:IsA("BasePart") and item.Parent.Transparency < 0.8 then
-                                            pcall(function()
-                                                fireproximityprompt(item)
-                                                task.wait() -- Jeda anti-choke
-                                            end)
+                                            pcall(function() fireproximityprompt(item) end)
                                         end
                                     end
                                 end
