@@ -683,13 +683,21 @@ task.spawn(function()
                 if Toggles.AutoBuy then
                     local MyTycoon = GetMyTycoon()
                     if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
-                        for _, item in ipairs(MyTycoon.Purchases:GetDescendants()) do
-                            if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
-                                if item.Parent and item.Parent:IsA("BasePart") then
-                                    table.insert(btnTargets, {Type = "Touch", Target = item.Parent})
+                        -- FILTER KETAT: Hanya cari di dalam folder "Buttons" (Anti-Macet)
+                        for _, purchaseItem in ipairs(MyTycoon.Purchases:GetChildren()) do
+                            local buttonsFolder = purchaseItem:FindFirstChild("Buttons")
+                            if buttonsFolder then
+                                for _, item in ipairs(buttonsFolder:GetDescendants()) do
+                                    if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
+                                        local target = item.Parent
+                                        -- Pastikan part-nya bisa disentuh (CanTouch = true)
+                                        if target and target:IsA("BasePart") and target.CanTouch then
+                                            table.insert(btnTargets, {Type = "Touch", Target = target})
+                                        end
+                                    elseif item:IsA("ProximityPrompt") and item.Enabled and item.Parent and item.Parent:IsA("BasePart") and item.Parent.Transparency < 0.8 then
+                                        table.insert(btnTargets, {Type = "Prompt", Target = item})
+                                    end
                                 end
-                            elseif item:IsA("ProximityPrompt") and item.Enabled and item.Parent and item.Parent.Transparency < 0.8 then
-                                table.insert(btnTargets, {Type = "Prompt", Target = item})
                             end
                         end
                     end
