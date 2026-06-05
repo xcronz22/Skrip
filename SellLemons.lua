@@ -1281,3 +1281,21 @@ task.spawn(function()
         end)
     end
 end)
+
+-- LOOP 10: AUTO SPOOF FRIEND BONUS (RUNS IN BACKGROUND)
+task.spawn(function()
+    while task.wait(1) do -- Berjalan setiap 1 detik agar hemat CPU tapi tetap responsif
+        pcall(function()
+            local MyTycoon = GetMyTycoon()
+            if MyTycoon then
+                local valuesFolder = MyTycoon:FindFirstChild("Values")
+                if valuesFolder then
+                    -- Cek dulu, kalau angkanya bukan 9, langsung paksa jadi 9
+                    if valuesFolder:GetAttribute("FriendCount") ~= 9 then
+                        valuesFolder:SetAttribute("FriendCount", 9)
+                    end
+                end
+            end
+        end)
+    end
+end)
