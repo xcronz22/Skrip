@@ -661,11 +661,10 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- MESIN HIBRIDA: LOOP 1 & 2 (A-B INTERLEAVED BRUTAL FIRE)
--- MODIFIKASI: Rasio 1 Buah : 5 Tombol
+-- MESIN HIBRIDA: EKSEKUSI PARALEL (BUAH & TOMBOL BERSAMAAN)
+-- MODIFIKASI: Multithreading Anti-Macet
 -- =======================================================
 local kedalaman = 17 
-local buttonIndex = 1 -- Memori urutan tombol agar muter terus
 
 task.spawn(function()
     while task.wait(0.1) do
@@ -684,14 +683,12 @@ task.spawn(function()
                 if Toggles.AutoBuy then
                     local MyTycoon = GetMyTycoon()
                     if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
-                        -- FILTER KETAT: Hanya cari di dalam folder "Buttons" (Anti-Macet)
                         for _, purchaseItem in ipairs(MyTycoon.Purchases:GetChildren()) do
                             local buttonsFolder = purchaseItem:FindFirstChild("Buttons")
                             if buttonsFolder then
                                 for _, item in ipairs(buttonsFolder:GetDescendants()) do
                                     if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
                                         local target = item.Parent
-                                        -- Pastikan part-nya bisa disentuh (CanTouch = true)
                                         if target and target:IsA("BasePart") and target.CanTouch then
                                             table.insert(btnTargets, {Type = "Touch", Target = target})
                                         end
@@ -721,7 +718,6 @@ task.spawn(function()
                                             if part.Name == "Fruit" then
                                                 local cd = part:FindFirstChildWhichIsA("ClickDetector", true)
                                                 local lastHarvest = part:GetAttribute("WaktuAmbil") or 0
-                                                -- Cek buah yang sudah siap (cooldown 1.5 detik)
                                                 if cd and (currentTime - lastHarvest > 1.5) then
                                                     table.insert(fruitTargets, {Part = part, CD = cd})
                                                 end
@@ -735,40 +731,18 @@ task.spawn(function()
                 end
 
                 -- =======================================
-                -- [TAHAP 3] EKSEKUSI (RASIO 1 BUAH : 5 TOMBOL)
+                -- [TAHAP 3] EKSEKUSI PARALEL (JALUR GANDA)
                 -- =======================================
-                -- Karena 1 iterasi sekarang mengeksekusi 5 tombol, maxIter untuk tombol dibagi 5
-                local maxIter = math.max(#fruitTargets, math.ceil(#btnTargets / 5))
-                
-                if maxIter > 0 then
-                    local originalCFrame = rootPart.CFrame
-                    local hasTeleported = false
+                local originalCFrame = rootPart.CFrame
+                local hasTeleported = false
 
-                    for i = 1, maxIter do
-                        -- Rem darurat kalau toggle tiba-tiba dimatikan saat loop berjalan
-                        if not Toggles.AutoHarvest and not Toggles.AutoBuy then break end
-
-                        -- 🍓 FIRE A: PANEN BUAH (Dieksekusi 1 kali per iterasi)
-                        if Toggles.AutoHarvest and fruitTargets[i] then
-                            hasTeleported = true
-                            humanoid.PlatformStand = true
-                            rootPart.Velocity = Vector3.new(0, 0, 0)
-                            
-                            -- Karakter TP ke buah
-                            local tPos = fruitTargets[i].Part.Position
-                            rootPart.CFrame = CFrame.new(tPos.X, tPos.Y - kedalaman, tPos.Z) * CFrame.Angles(math.rad(90), 0, 0)
-                            
-                            fruitTargets[i].Part:SetAttribute("WaktuAmbil", os.clock())
-                            pcall(function() fireclickdetector(fruitTargets[i].CD) end)
-                        end
-
-                        -- 🛒 FIRE B: BELI TOMBOL (Dieksekusi 5 kali beruntun per 1 iterasi)
-                        if Toggles.AutoBuy and #btnTargets > 0 then
-                            for b = 1, 5 do
-                                -- Pastikan index berputar dari awal kalau sudah capai ujung list tombol
-                                if buttonIndex > #btnTargets then buttonIndex = 1 end
-                                local btn = btnTargets[buttonIndex]
-                                
+                -- 🛒 JALUR 1: SPAM TOMBOL (Di latar belakang, tanpa nunggu TP)
+                if Toggles.AutoBuy and #btnTargets > 0 then
+                    task.spawn(function()
+                        -- Spam seluruh tombol berulang kali secepat mungkin
+                        for _ = 1, 3 do 
+                            if not Toggles.AutoBuy then break end
+                            for _, btn in ipairs(btnTargets) do
                                 if btn.Type == "Touch" then
                                     pcall(function()
                                         firetouchinterest(rootPart, btn.Target, 0)
@@ -777,28 +751,46 @@ task.spawn(function()
                                 elseif btn.Type == "Prompt" then
                                     pcall(function() fireproximityprompt(btn.Target) end)
                                 end
-                                buttonIndex = buttonIndex + 1
                             end
+                            task.wait() -- Nafas jaringan agar server tidak kaget
                         end
+                    end)
+                end
 
-                        -- 💨 NAFAS JARINGAN (Jeda super tipis di setiap putaran)
-                        task.wait()
+                -- 🍓 JALUR 2: PANEN BUAH & TELEPORT (Di antrean utama)
+                if Toggles.AutoHarvest and #fruitTargets > 0 then
+                    for i = 1, #fruitTargets do
+                        if not Toggles.AutoHarvest then break end
+                        
+                        hasTeleported = true
+                        humanoid.PlatformStand = true
+                        rootPart.Velocity = Vector3.new(0, 0, 0)
+                        
+                        -- Karakter TP ke buah
+                        local tPos = fruitTargets[i].Part.Position
+                        rootPart.CFrame = CFrame.new(tPos.X, tPos.Y - kedalaman, tPos.Z) * CFrame.Angles(math.rad(90), 0, 0)
+                        
+                        fruitTargets[i].Part:SetAttribute("WaktuAmbil", os.clock())
+                        pcall(function() fireclickdetector(fruitTargets[i].CD) end)
+                        
+                        task.wait() -- Jeda TP (tidak akan menahan jalur tombol lagi)
                     end
+                end
 
-                    -- KEMBALI KE POSISI ASAL JIKA TADI SEMPAT TP HARVEST
-                    if hasTeleported then
-                        task.wait(0.1)
-                        if LocalPlayer.Character == char and rootPart.Parent ~= nil and humanoid.Health > 0 then
-                            humanoid.PlatformStand = false
-                            rootPart.Velocity = Vector3.new(0, 0, 0)
-                            rootPart.CFrame = originalCFrame
-                        end
+                -- KEMBALI KE POSISI ASAL JIKA TADI SEMPAT TP
+                if hasTeleported then
+                    task.wait(0.1)
+                    if LocalPlayer.Character == char and rootPart.Parent ~= nil and humanoid.Health > 0 then
+                        humanoid.PlatformStand = false
+                        rootPart.Velocity = Vector3.new(0, 0, 0)
+                        rootPart.CFrame = originalCFrame
                     end
                 end
             end)
         end
     end
 end)
+
 -- =======================================================
 -- LOOP 3: AUTO UPGRADE & CLICK (MACHINE GUN ENGINE)
 -- =======================================================
