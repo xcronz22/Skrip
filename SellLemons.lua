@@ -32,25 +32,6 @@ local ToggleObjects = {}
 -- Reference elemen Input UI untuk kebutuhan sinkronisasi Load Config
 local RebirthInput
 
--- =======================================================
--- TRIK ANTI-LAG TYCOON BRUTAL 2.0: NATIVE C++ ENGINE BYPASS
--- =======================================================
-local TweenService = game:GetService("TweenService")
-local oldCreate
-
-oldCreate = hookfunction(TweenService.Create, function(self, instance, tweenInfo, propertyTable)
-    -- Jika AutoBuy menyala, kita bajak semua animasi yang mencoba berjalan!
-    if Toggles.AutoBuy and instance then
-        -- Paksa durasi animasi menjadi 0 detik (Instan) tanpa mengubah fungsi asli properties-nya
-        local instantInfo = TweenInfo.new(0, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, 0, false, 0)
-        
-        -- Lempar kembali ke engine Roblox (C++ Native) agar diproses tanpa lag Lua
-        return oldCreate(self, instance, instantInfo, propertyTable)
-    end
-    
-    return oldCreate(self, instance, tweenInfo, propertyTable)
-end)
-
 -- ==========================================
 -- 1. IDENTIFIKASI PENGALI (HANYA KATA PENUH SAMPAI CENTILLION)
 -- ==========================================
@@ -685,7 +666,7 @@ end)
 local kedalaman = 17 
 
 task.spawn(function()
-    while task.wait(0.1) do
+    while task.wait(0.2) do
         if Toggles.AutoHarvest then
             pcall(function() 
                 local char = LocalPlayer.Character
