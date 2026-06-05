@@ -680,15 +680,14 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 1: STEALTH BRUTAL HARVEST (100% REBIRTH SAFE)
+-- LOOP 1: STEALTH BRUTAL HARVEST (COOLDOWN SYSTEM)
 -- =======================================================
-local kedalaman = 15 
+local kedalaman = 17 
 
 task.spawn(function()
     while task.wait(0.1) do
         if Toggles.AutoHarvest then
             pcall(function() 
-                -- Simpan referensi karakter SAAT INI
                 local char = LocalPlayer.Character
                 local rootPart = char and char:FindFirstChild("HumanoidRootPart")
                 local humanoid = char and char:FindFirstChild("Humanoid")
@@ -709,16 +708,25 @@ task.spawn(function()
                                     
                                     if tree.Name == "LemonTree" then
                                         local readyFruits = {}
+                                        local currentTime = os.clock() -- Ambil waktu sekarang
                                         
+                                        -- 1. Kumpulkan buah pakai sistem COOLDOWN
                                         for _, part in pairs(tree:GetChildren()) do
-                                            if part.Name == "Fruit" and not part:GetAttribute("SudahDiambil") then
-                                                local cd = part:FindFirstChildWhichIsA("ClickDetector", true)
-                                                if cd then 
-                                                    table.insert(readyFruits, {Part = part, CD = cd}) 
+                                            if part.Name == "Fruit" then
+                                                -- Cek kapan terakhir buah ini dicoba diambil (default 0)
+                                                local lastHarvest = part:GetAttribute("WaktuAmbil") or 0
+                                                
+                                                -- Jika belum pernah diambil, ATAU sudah lewat 1.5 detik tapi masih nyangkut di pohon (berarti server nolak klik sebelumnya)
+                                                if currentTime - lastHarvest > 1.5 then
+                                                    local cd = part:FindFirstChildWhichIsA("ClickDetector", true)
+                                                    if cd then 
+                                                        table.insert(readyFruits, {Part = part, CD = cd}) 
+                                                    end
                                                 end
                                             end
                                         end
 
+                                        -- 2. Eksekusi
                                         if #readyFruits > 0 then
                                             hasTeleported = true
                                             humanoid.PlatformStand = true
@@ -730,7 +738,9 @@ task.spawn(function()
                                             task.wait(0.05) 
                                             
                                             for _, fruitData in ipairs(readyFruits) do
-                                                fruitData.Part:SetAttribute("SudahDiambil", true)
+                                                -- Beri cap WAKTU (Stopwatch), bukan True/False
+                                                fruitData.Part:SetAttribute("WaktuAmbil", currentTime)
+                                                
                                                 task.spawn(function()
                                                     pcall(function() 
                                                         fireclickdetector(fruitData.CD) 
@@ -747,12 +757,9 @@ task.spawn(function()
                         end
                     end
                     
-                    -- 5. KEMBALI KE TEMPAT SEMULA DENGAN AMAN (REBIRTH SYNC)
+                    -- 3. Kembali dengan aman
                     if hasTeleported then
                         task.wait(0.1)
-                        -- CEK KEAMANAN: Apakah karakter kita masih wujud yang SAMA dan MASIH HIDUP?
-                        -- Jika kita kena Reset/Rebirth di tengah jalan, LocalPlayer.Character akan berubah,
-                        -- sehingga blok kode di bawah ini TIDAK AKAN dieksekusi (Mencegah Glitch Teleport ke Void).
                         if LocalPlayer.Character == char and rootPart.Parent ~= nil and humanoid.Health > 0 then
                             humanoid.PlatformStand = false
                             rootPart.Velocity = Vector3.new(0, 0, 0)
