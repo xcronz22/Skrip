@@ -1290,9 +1290,8 @@ task.spawn(function()
             if MyTycoon then
                 local valuesFolder = MyTycoon:FindFirstChild("Values")
                 if valuesFolder then
-                    -- Cek dulu, kalau angkanya bukan 9, langsung paksa jadi 9
-                    if valuesFolder:GetAttribute("FriendCount") ~= 9 then
-                        valuesFolder:SetAttribute("FriendCount", 9)
+                    if valuesFolder:GetAttribute("FriendCount") <= 1 then
+                        valuesFolder:SetAttribute("FriendCount", 1)
                     end
                 end
             end
