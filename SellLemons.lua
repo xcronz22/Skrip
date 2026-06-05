@@ -798,27 +798,21 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 3: AUTO UPGRADE & CLICK (AGRESIF & HIT-AND-RUN)
+-- LOOP 3: SMART AUTO UPGRADE (UI PARSING)
 -- =======================================================
 local clickTargets = {"LemonDepot", "LemonLabs", "LemonRepublic", "LemonRobotics", "LemonStand", "LemonTrading", "LemonDash", "LemonX"}
-local activeUpgradeThreads = {} 
 
 task.spawn(function()
-    -- [BAGIAN A]: WAKE INCOME STREAM (AUTO CLICK SUPER CEPAT)
+    -- [BAGIAN A]: WAKE INCOME STREAM (AUTO CLICK)
     for _, targetName in ipairs(clickTargets) do
         task.spawn(function()
-            -- Jeda diperkecil jadi 0.05 detik (20 klik per detik per target)
             while task.wait(0.05) do 
                 if Toggles.AutoUpgrade then
                     pcall(function()
                         local MyTycoon = GetMyTycoon()
                         local wakeRemote = MyTycoon and MyTycoon:FindFirstChild("Remotes") and MyTycoon.Remotes:FindFirstChild("WakeIncomeStream")
-                        
                         if wakeRemote and wakeRemote:IsA("RemoteFunction") then
-                            -- BUNGKUS TASK.SPAWN: Tembak dan lupakan, jangan tunggu balasan server!
-                            task.spawn(function()
-                                pcall(function() wakeRemote:InvokeServer(targetName) end)
-                            end)
+                            task.spawn(function() pcall(function() wakeRemote:InvokeServer(targetName) end) end)
                         end
                     end)
                 end
@@ -826,8 +820,8 @@ task.spawn(function()
         end)
     end
 
-    -- [BAGIAN B]: AUTO UPGRADE (SPAMMER ENGINE)
-    while task.wait(1) do 
+    -- [BAGIAN B]: SMART UPGRADE SESUAI UANG
+    while task.wait(0.5) do 
         if Toggles.AutoUpgrade then
             pcall(function()
                 local MyTycoon = GetMyTycoon()
@@ -835,30 +829,26 @@ task.spawn(function()
                     for _, desc in ipairs(MyTycoon.Purchases:GetDescendants()) do
                         if desc:IsA("RemoteFunction") and desc.Name == "Upgrade" then
                             
-                            if not activeUpgradeThreads[desc] then
-                                activeUpgradeThreads[desc] = true
+                            local buyAmount = 1 -- Default ke 1
+                            pcall(function()
+                                local upgradeName = desc.Parent.Name
+                                local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+                                local uiContainer = playerGui and playerGui:FindFirstChild(upgradeName, true) 
                                 
-                                task.spawn(function()
-                                    -- JEDA EKSTREM: 0.03 detik (Sangat cepat tapi di ambang batas aman Roblox)
-                                    while task.wait(0.03) do
-                                        if not Toggles.AutoUpgrade then 
-                                            task.wait(0.5) 
-                                            continue 
-                                        end
-                                        
-                                        local isValid = false
-                                        pcall(function() if desc and desc.Parent then isValid = true end end)
-                                        
-                                        if isValid then
-                                            -- BUNGKUS TASK.SPAWN: Bypass delay ping!
-                                            task.spawn(function()
-                                                pcall(function() desc:InvokeServer(1) end)
-                                            end)
-                                        else
-                                            activeUpgradeThreads[desc] = nil
-                                            break 
+                                if uiContainer then
+                                    local upgradeBtn = uiContainer:FindFirstChild("Upgrade", true)
+                                    if upgradeBtn and (upgradeBtn:IsA("TextLabel") or upgradeBtn:IsA("TextButton")) then
+                                        local extractedNumber = string.match(upgradeBtn.Text, "%d+")
+                                        if extractedNumber then
+                                            buyAmount = tonumber(extractedNumber)
                                         end
                                     end
+                                end
+                            end)
+                            
+                            if buyAmount > 0 then
+                                task.spawn(function()
+                                    pcall(function() desc:InvokeServer(buyAmount) end)
                                 end)
                             end
                             
