@@ -679,58 +679,67 @@ task.spawn(function()
     end
 end)
 
--- LOOP 1: AUTO HARVEST
+-- =======================================================
+-- LOOP 1: STEALTH BRUTAL HARVEST (100% REBIRTH SAFE)
+-- =======================================================
+local kedalaman = 15 
+
 task.spawn(function()
     while task.wait(0.1) do
         if Toggles.AutoHarvest then
             pcall(function() 
-                local MyTycoon = GetMyTycoon()
+                -- Simpan referensi karakter SAAT INI
                 local char = LocalPlayer.Character
                 local rootPart = char and char:FindFirstChild("HumanoidRootPart")
                 local humanoid = char and char:FindFirstChild("Humanoid")
                 
-                if MyTycoon and rootPart and humanoid and humanoid.Health > 0 then
+                if rootPart and humanoid and humanoid.Health > 0 then
                     local originalCFrame = rootPart.CFrame
                     local hasTeleported = false
-                    local stopFarming = false 
 
                     for i = 1, 12 do
-                        if not Toggles.AutoHarvest or stopFarming then break end 
+                        if not Toggles.AutoHarvest then break end 
                         local tycoon = Workspace:FindFirstChild("Tycoon" .. i)
+                        
                         if tycoon then
-                            local constantFolder = tycoon:FindFirstChild("Constant")
-                            if constantFolder and constantFolder:FindFirstChild("Trees") then
-                                for _, tree in pairs(constantFolder.Trees:GetChildren()) do
-                                    if not Toggles.AutoHarvest then stopFarming = true break end
+                            local trees = tycoon:FindFirstChild("Constant", true) and tycoon.Constant:FindFirstChild("Trees")
+                            if trees then
+                                for _, tree in pairs(trees:GetChildren()) do
+                                    if not Toggles.AutoHarvest then break end
+                                    
                                     if tree.Name == "LemonTree" then
                                         local readyFruits = {}
+                                        
                                         for _, part in pairs(tree:GetChildren()) do
-                                            if part.Name == "Fruit" then
-                                                local clickDetector = part:FindFirstChildWhichIsA("ClickDetector", true)
-                                                if clickDetector then table.insert(readyFruits, {Part = part, CD = clickDetector}) end
+                                            if part.Name == "Fruit" and not part:GetAttribute("SudahDiambil") then
+                                                local cd = part:FindFirstChildWhichIsA("ClickDetector", true)
+                                                if cd then 
+                                                    table.insert(readyFruits, {Part = part, CD = cd}) 
+                                                end
                                             end
                                         end
 
                                         if #readyFruits > 0 then
                                             hasTeleported = true
-                                            humanoid.PlatformStand = true 
-                                            rootPart.CFrame = CFrame.new(readyFruits[1].Part.Position - Vector3.new(0, 15, 0)) * CFrame.Angles(math.rad(90), 0, 0)
-                                            task.wait(0.2) 
-                                            while #readyFruits > 0 and Toggles.AutoHarvest and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") do
-                                                for _, fruitData in pairs(readyFruits) do
+                                            humanoid.PlatformStand = true
+                                            rootPart.Velocity = Vector3.new(0, 0, 0) 
+                                            
+                                            local targetPos = readyFruits[1].Part.Position
+                                            rootPart.CFrame = CFrame.new(targetPos.X, targetPos.Y - kedalaman, targetPos.Z) * CFrame.Angles(math.rad(90), 0, 0)
+                                            
+                                            task.wait(0.05) 
+                                            
+                                            for _, fruitData in ipairs(readyFruits) do
+                                                fruitData.Part:SetAttribute("SudahDiambil", true)
+                                                task.spawn(function()
                                                     pcall(function() 
-                                                        if fruitData.Part and fruitData.Part.Parent then fireclickdetector(fruitData.CD) end
+                                                        fireclickdetector(fruitData.CD) 
+                                                        fireclickdetector(fruitData.CD) 
                                                     end)
-                                                end
-                                                task.wait(0.1) 
-                                                readyFruits = {}
-                                                for _, part in pairs(tree:GetChildren()) do
-                                                    if part.Name == "Fruit" and part:FindFirstChildWhichIsA("ClickDetector", true) then
-                                                        table.insert(readyFruits, {Part = part, CD = part:FindFirstChildWhichIsA("ClickDetector", true)})
-                                                    end
-                                                end
+                                                end)
                                             end
-                                            task.wait(0.1)
+                                            
+                                            task.wait(0.05) 
                                         end
                                     end
                                 end
@@ -738,10 +747,17 @@ task.spawn(function()
                         end
                     end
                     
-                    if hasTeleported and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character:FindFirstChild("Humanoid") then
-                        task.wait(0.2)
-                        LocalPlayer.Character.Humanoid.PlatformStand = false
-                        LocalPlayer.Character.HumanoidRootPart.CFrame = originalCFrame
+                    -- 5. KEMBALI KE TEMPAT SEMULA DENGAN AMAN (REBIRTH SYNC)
+                    if hasTeleported then
+                        task.wait(0.1)
+                        -- CEK KEAMANAN: Apakah karakter kita masih wujud yang SAMA dan MASIH HIDUP?
+                        -- Jika kita kena Reset/Rebirth di tengah jalan, LocalPlayer.Character akan berubah,
+                        -- sehingga blok kode di bawah ini TIDAK AKAN dieksekusi (Mencegah Glitch Teleport ke Void).
+                        if LocalPlayer.Character == char and rootPart.Parent ~= nil and humanoid.Health > 0 then
+                            humanoid.PlatformStand = false
+                            rootPart.Velocity = Vector3.new(0, 0, 0)
+                            rootPart.CFrame = originalCFrame
+                        end
                     end
                 end
             end)
