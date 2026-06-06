@@ -744,11 +744,11 @@ task.spawn(function()
                                     if target and target:IsA("BasePart") and target.CanTouch then
                                         firetouchinterest(rootPart, target, 0)
                                         firetouchinterest(rootPart, target, 1)
-                                        task.wait(0.3) 
+                                        task.wait(0.05) 
                                     end
                                 elseif item:IsA("ProximityPrompt") and item.Enabled and item.Parent and item.Parent:IsA("BasePart") and item.Parent.Transparency < 0.8 then
                                     fireproximityprompt(item)
-                                    task.wait()
+                                    task.wait(0.05)
                                 end
                             end
                         end
@@ -832,7 +832,7 @@ local activeUpgradeThreads = {}
 task.spawn(function()
     -- [BAGIAN A]: AUTO CLICKER (Berjalan terpisah 100% agar tidak pernah nyangkut!)
     task.spawn(function()
-        while task.wait(0.03) do -- Kecepatan klik super ngebut
+        while task.wait(0.1) do -- Kecepatan klik super ngebut
             if Toggles.AutoUpgrade then
                 pcall(function()
                     local MyTycoon = GetMyTycoon()
