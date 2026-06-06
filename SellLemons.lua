@@ -684,7 +684,7 @@ end)
 -- =======================================================
 local kedalaman = 15
 
--- 🛒 [CORE 1] MESIN KHUSUS AUTO BUY (TOMBOL)
+-- LOOP 1: [CORE 1] MESIN KHUSUS AUTO BUY (TOMBOL)
 task.spawn(function()
     while task.wait(0.1) do
         if Toggles.AutoBuy then
@@ -692,26 +692,6 @@ task.spawn(function()
                 local char = LocalPlayer.Character
                 local rootPart = char and char:FindFirstChild("HumanoidRootPart")
                 if not rootPart then return end
-
-                -- ==========================================
-                -- PEMBACAAN CASH DARI LEADERSTATS (PINTAR & AMAN)
-                -- ==========================================
-                local playerBase, playerExp = 0, 0
-                local leaderstats = LocalPlayer:FindFirstChild("leaderstats")
-                local cashStat = leaderstats and leaderstats:FindFirstChild("Cash")
-                
-                if cashStat then
-                    if cashStat:IsA("NumberValue") or cashStat:IsA("IntValue") then
-                        local rawVal = tonumber(cashStat.Value) or 0
-                        if rawVal > 0 then
-                            playerExp = math.floor(math.log10(rawVal))
-                            playerBase = rawVal / (10^playerExp)
-                        end
-                    else
-                        -- Jika berupa StringValue (Mendukung Singkatan Tnog/Qtnog & Kata Penuh)
-                        playerBase, playerExp = CleanAndParse(tostring(cashStat.Value))
-                    end
-                end
 
                 local MyTycoon = GetMyTycoon()
                 if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
@@ -725,54 +705,13 @@ task.spawn(function()
                                 if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
                                     local target = item.Parent
                                     if target and target:IsA("BasePart") and target.CanTouch then
-                                        
-                                        -- SCAN HARGA TOMBOL DARI TEXTLABEL DI DALAMNYA
-                                        local priceText = nil
-                                        for _, desc in ipairs(target:GetDescendants()) do
-                                            if desc:IsA("TextLabel") and string.match(desc.Text, "%d") then
-                                                priceText = desc.Text
-                                                break
-                                            end
-                                        end
-
-                                        local canBuy = true
-                                        if priceText then
-                                            local btnBase, btnExp = CleanAndParse(priceText)
-                                            if playerExp < btnExp or (playerExp == btnExp and playerBase < btnBase) then
-                                                canBuy = false -- Uang tidak cukup
-                                            end
-                                        end
-
-                                        if canBuy then
-                                            firetouchinterest(rootPart, target, 0)
-                                            firetouchinterest(rootPart, target, 1)
-                                            task.wait(0.05) 
-                                        end
+                                        firetouchinterest(rootPart, target, 0)
+                                        firetouchinterest(rootPart, target, 1)
+                                        task.wait(0.1) 
                                     end
                                 elseif item:IsA("ProximityPrompt") and item.Enabled and item.Parent and item.Parent:IsA("BasePart") and item.Parent.Transparency < 0.8 then
-                                    local target = item.Parent
-                                    
-                                    -- SCAN HARGA TOMBOL DARI TEXTLABEL DI DALAMNYA
-                                    local priceText = nil
-                                    for _, desc in ipairs(target:GetDescendants()) do
-                                        if desc:IsA("TextLabel") and string.match(desc.Text, "%d") then
-                                            priceText = desc.Text
-                                            break
-                                        end
-                                    end
-
-                                    local canBuy = true
-                                    if priceText then
-                                        local btnBase, btnExp = CleanAndParse(priceText)
-                                        if playerExp < btnExp or (playerExp == btnExp and playerBase < btnBase) then
-                                            canBuy = false -- Uang tidak cukup
-                                        end
-                                    end
-
-                                    if canBuy then
-                                        fireproximityprompt(item)
-                                        task.wait(0.05)
-                                    end
+                                    fireproximityprompt(item)
+                                    task.wait(0.1)
                                 end
                             end
                         end
@@ -783,7 +722,7 @@ task.spawn(function()
     end
 end)
 
--- 🍓 [CORE 2] MESIN KHUSUS AUTO HARVEST (BUAH & TP BRUTAL)
+-- LOOP 2: [CORE 2] MESIN KHUSUS AUTO HARVEST (BUAH & TP BRUTAL)
 task.spawn(function()
     while task.wait(0.1) do
         if Toggles.AutoHarvest then
