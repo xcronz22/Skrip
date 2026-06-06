@@ -750,7 +750,7 @@ task.spawn(function()
                                             local lastHarvest = part:GetAttribute("WaktuAmbil") or 0
                                             
                                             -- Cek buah yang sudah siap (cooldown 1.5 detik)
-                                            if cd and (currentTime - lastHarvest > 1.5) then
+                                            if cd and (currentTime - lastHarvest > 0.1) then
                                                 hasTeleported = true
                                                 humanoid.PlatformStand = true
                                                 rootPart.Velocity = Vector3.new(0, 0, 0)
@@ -762,7 +762,7 @@ task.spawn(function()
                                                 pcall(function() fireclickdetector(cd) end)
                                                 
                                                 -- Jeda tipis agar TP berjalan mulus tanpa tertahan
-                                                task.wait(0.05) 
+                                                task.wait(0.1) 
                                             end
                                         end
                                     end
@@ -863,7 +863,7 @@ end)
 
 -- LOOP 4: AUTO PHONE (RUNS IN BACKGROUND SEKARANG)
 task.spawn(function()
-    while task.wait(0.5) do
+    while task.wait(0.1) do
         pcall(function() 
             local MyTycoon = GetMyTycoon()
             if MyTycoon then
@@ -872,13 +872,13 @@ task.spawn(function()
                 if phoneFrame and phoneFrame.Visible then
                     local remotes = MyTycoon:FindFirstChild("Remotes")
                     if remotes and remotes:FindFirstChild("PhoneOffer") then
-                        task.wait(0.5)
+                        task.wait(0.1)
                         pcall(function() remotes.PhoneOffer:FireServer("Raise") end)
-                        task.wait(0.5)
+                        task.wait(0.1)
                         pcall(function() remotes.PhoneOffer:FireServer("Accept") end)
-                        task.wait(0.5)
+                        task.wait(0.1)
                         phoneFrame.Visible = false
-                        task.wait(0.5)
+                        task.wait(0.1)
                     end
                 end
             end
