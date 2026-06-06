@@ -33,119 +33,82 @@ local ToggleObjects = {}
 local RebirthInput
 
 -- ==========================================
--- 1. IDENTIFIKASI PENGALI (HANYA KATA PENUH SAMPAI CENTILLION)
+-- 1. IDENTIFIKASI PENGALI (KATA PENUH & SINGKATAN IN-GAME)
 -- ==========================================
 local Multipliers = {
-    ["thousand"] = 1e3,
-    ["million"] = 1e6,
-    ["billion"] = 1e9,
-    ["trillion"] = 1e12,
-    ["quadrillion"] = 1e15,
-    ["quintillion"] = 1e18,
-    ["sextillion"] = 1e21,
-    ["septillion"] = 1e24,
-    ["octillion"] = 1e27,
-    ["nonillion"] = 1e30,
-    ["decillion"] = 1e33,
-    ["undecillion"] = 1e36,
-    ["duodecillion"] = 1e39,
-    ["tredecillion"] = 1e42,
-    ["tresdecillion"] = 1e42, -- typo
-    ["quattuordecillion"] = 1e45,
-    ["quindecillion"] = 1e48,
-    ["sexdecillion"] = 1e51,
-    ["septendecillion"] = 1e54,
-    ["octodecillion"] = 1e57,
-    ["novemdecillion"] = 1e60,
-    ["vigintillion"] = 1e63,
-    ["unvigintillion"] = 1e66,
-    ["duovigintillion"] = 1e69,
-    ["trevigintillion"] = 1e72,
-    ["tresvigintillion"] = 1e72, -- typo in game
-    ["quattuorvigintillion"] = 1e75,
-    ["quinvigintillion"] = 1e78,
-    ["sexvigintillion"] = 1e81,
-    ["septenvigintillion"] = 1e84,
-    ["octovigintillion"] = 1e87,
-    ["novemvigintillion"] = 1e90,
-    ["trigintillion"] = 1e93,
-    ["untrigintillion"] = 1e96,
-    ["duotrigintillion"] = 1e99,
-    ["tretrigintillion"] = 1e102,
-    ["trestrigintillion"] = 1e102, -- in-game typo dev tre(s)
-    ["quattuortrigintillion"] = 1e105,
-    ["quintrigintillion"] = 1e108,
-    ["sextrigintillion"] = 1e111,
-    ["septentrigintillion"] = 1e114,
-    ["octotrigintillion"] = 1e117,
-    ["novemtrigintillion"] = 1e120,
-    ["quadragintillion"] = 1e123,
-    ["unquadragintillion"] = 1e126,
-    ["duoquadragintillion"] = 1e129,
-    ["trequadragintillion"] = 1e132,
-    ["tresquadragintillion"] = 1e132, -- typo
-    ["quattuorquadragintillion"] = 1e135,
-    ["quinquadragintillion"] = 1e138,
-    ["sexquadragintillion"] = 1e141,
-    ["septenquadragintillion"] = 1e144,
-    ["octoquadragintillion"] = 1e147,
-    ["novemquadragintillion"] = 1e150,
-    ["quinquagintillion"] = 1e153,
-    ["unquinquagintillion"] = 1e156,
-    ["duoquinquagintillion"] = 1e159,
-    ["trequinquagintillion"] = 1e162,
-    ["tresquinquagintillion"] = 1e162, -- in-game typoe dev tre(s)
-    ["quattuorquinquagintillion"] = 1e165,
-    ["quinquinquagintillion"] = 1e168,
-    ["sexquinquagintillion"] = 1e171,
-    ["septenquinquagintillion"] = 1e174,
-    ["octoquinquagintillion"] = 1e177,
-    ["novemquinquagintillion"] = 1e180,
-    ["sexagintillion"] = 1e183,
-    ["unsexagintillion"] = 1e186,
-    ["duosexagintillion"] = 1e189,
-    ["tresexagintillion"] = 1e192,
-    ["tressexagintillion"] = 1e192, -- typo
-    ["quattuorsexagintillion"] = 1e195,
-    ["quinsexagintillion"] = 1e198,
-    ["sexsexagintillion"] = 1e201,
-    ["septensexagintillion"] = 1e204,
-    ["octosexagintillion"] = 1e207,
-    ["novemsexagintillion"] = 1e210,
-    ["septuagintillion"] = 1e213,
-    ["unseptuagintillion"] = 1e216,
-    ["duoseptuagintillion"] = 1e219,
-    ["treseptuagintillion"] = 1e222,
-    ["tresseptuagintillion"] = 1e222, -- typo
-    ["quattuorseptuagintillion"] = 1e225,
-    ["quinseptuagintillion"] = 1e228,
-    ["sexseptuagintillion"] = 1e231,
-    ["septenseptuagintillion"] = 1e234,
-    ["octoseptuagintillion"] = 1e237,
-    ["novemseptuagintillion"] = 1e240,
-    ["octogintillion"] = 1e243,
-    ["unoctogintillion"] = 1e246,
-    ["duooctogintillion"] = 1e249,
-    ["treoctogintillion"] = 1e252,
-    ["tresoctogintillion"] = 1e252, -- typo dev in game
-    ["quattuoroctogintillion"] = 1e255,
-    ["quinoctogintillion"] = 1e258,
-    ["sexoctogintillion"] = 1e261,
-    ["septenoctogintillion"] = 1e264,
-    ["octooctogintillion"] = 1e267,
-    ["novemoctogintillion"] = 1e270,
-    ["nonagintillion"] = 1e273,
-    ["unnonagintillion"] = 1e276,
-    ["duononagintillion"] = 1e279,
-    ["trenonagintillion"] = 1e282,
-    ["tresnonagintillion"] = 1e282, -- typo dev in game
-    ["quattuornonagintillion"] = 1e285,
-    ["quinnonagintillion"] = 1e288,
-    ["sexnonagintillion"] = 1e291,
-    ["septennonagintillion"] = 1e294,
-    ["octononagintillion"] = 1e297,
-    ["novemnonagintillion"] = 1e300,
-    ["centillion"] = 1e303
+    -- [KATA PENUH ASLI BAWAAN SKRIP]
+    ["thousand"] = 1e3, ["million"] = 1e6, ["billion"] = 1e9, ["trillion"] = 1e12,
+    ["quadrillion"] = 1e15, ["quintillion"] = 1e18, ["sextillion"] = 1e21, ["septillion"] = 1e24,
+    ["octillion"] = 1e27, ["nonillion"] = 1e30, ["decillion"] = 1e33, ["undecillion"] = 1e36,
+    ["duodecillion"] = 1e39, ["tredecillion"] = 1e42, ["tresdecillion"] = 1e42, ["quattuordecillion"] = 1e45,
+    ["quindecillion"] = 1e48, ["sexdecillion"] = 1e51, ["septendecillion"] = 1e54, ["octodecillion"] = 1e57,
+    ["novemdecillion"] = 1e60, ["vigintillion"] = 1e63, ["unvigintillion"] = 1e66, ["duovigintillion"] = 1e69,
+    ["trevigintillion"] = 1e72, ["tresvigintillion"] = 1e72, ["quattuorvigintillion"] = 1e75, ["quinvigintillion"] = 1e78,
+    ["sexvigintillion"] = 1e81, ["septenvigintillion"] = 1e84, ["octovigintillion"] = 1e87, ["novemvigintillion"] = 1e90,
+    ["trigintillion"] = 1e93, ["untrigintillion"] = 1e96, ["duotrigintillion"] = 1e99, ["tretrigintillion"] = 1e102,
+    ["trestrigintillion"] = 1e102, ["quattuortrigintillion"] = 1e105, ["quintrigintillion"] = 1e108, ["sextrigintillion"] = 1e111,
+    ["septentrigintillion"] = 1e114, ["octotrigintillion"] = 1e117, ["novemtrigintillion"] = 1e120, ["quadragintillion"] = 1e123,
+    ["unquadragintillion"] = 1e126, ["duoquadragintillion"] = 1e129, ["trequadragintillion"] = 1e132, ["tresquadragintillion"] = 1e132,
+    ["quattuorquadragintillion"] = 1e135, ["quinquadragintillion"] = 1e138, ["sexquadragintillion"] = 1e141, ["septenquadragintillion"] = 1e144,
+    ["octoquadragintillion"] = 1e147, ["novemquadragintillion"] = 1e150, ["quinquagintillion"] = 1e153, ["unquinquagintillion"] = 1e156,
+    ["duoquinquagintillion"] = 1e159, ["trequinquagintillion"] = 1e162, ["tresquinquagintillion"] = 1e162, ["quattuorquinquagintillion"] = 1e165,
+    ["quinquinquagintillion"] = 1e168, ["sexquinquagintillion"] = 1e171, ["septenquinquagintillion"] = 1e174, ["octoquinquagintillion"] = 1e177,
+    ["novemquinquagintillion"] = 1e180, ["sexagintillion"] = 1e183, ["unsexagintillion"] = 1e186, ["duosexagintillion"] = 1e189,
+    ["tresexagintillion"] = 1e192, ["tressexagintillion"] = 1e192, ["quattuorsexagintillion"] = 1e195, ["quinsexagintillion"] = 1e198,
+    ["sexsexagintillion"] = 1e201, ["septensexagintillion"] = 1e204, ["octosexagintillion"] = 1e207, ["novemsexagintillion"] = 1e210,
+    ["septuagintillion"] = 1e213, ["unseptuagintillion"] = 1e216, ["duoseptuagintillion"] = 1e219, ["treseptuagintillion"] = 1e222,
+    ["tresseptuagintillion"] = 1e222, ["quattuorseptuagintillion"] = 1e225, ["quinseptuagintillion"] = 1e228, ["sexseptuagintillion"] = 1e231,
+    ["septenseptuagintillion"] = 1e234, ["octoseptuagintillion"] = 1e237, ["novemseptuagintillion"] = 1e240, ["octogintillion"] = 1e243,
+    ["unoctogintillion"] = 1e246, ["duooctogintillion"] = 1e249, ["treoctogintillion"] = 1e252, ["tresoctogintillion"] = 1e252,
+    ["quattuoroctogintillion"] = 1e255, ["quinoctogintillion"] = 1e258, ["sexoctogintillion"] = 1e261, ["septenoctogintillion"] = 1e264,
+    ["octooctogintillion"] = 1e267, ["novemoctogintillion"] = 1e270, ["nonagintillion"] = 1e273, ["unnonagintillion"] = 1e276,
+    ["duononagintillion"] = 1e279, ["trenonagintillion"] = 1e282, ["tresnonagintillion"] = 1e282, ["quattuornonagintillion"] = 1e285,
+    ["quinnonagintillion"] = 1e288, ["sexnonagintillion"] = 1e291, ["septennonagintillion"] = 1e294, ["octononagintillion"] = 1e297,
+    ["novemnonagintillion"] = 1e300, ["centillion"] = 1e303,
+
+    -- =======================================================
+    -- [SINGKATAN KHUSUS LEADERSTATS (PREFIX+SUFFIX PATTERN)]
+    -- =======================================================
+    ["k"] = 1e3, ["m"] = 1e6, ["b"] = 1e9, ["t"] = 1e12,
+    ["qd"] = 1e15, ["qn"] = 1e18, ["sx"] = 1e21, ["sp"] = 1e24, ["o"] = 1e27, ["n"] = 1e30,
+    
+    -- Decillions (Sufiks: de)
+    ["de"] = 1e33, ["ude"] = 1e36, ["dde"] = 1e39, ["tde"] = 1e42, ["qtde"] = 1e45,
+    ["qnde"] = 1e48, ["sxde"] = 1e51, ["spde"] = 1e54, ["ode"] = 1e57, ["nde"] = 1e60,
+    
+    -- Vigintillions (Sufiks: vg)
+    ["vg"] = 1e63, ["uvg"] = 1e66, ["dvg"] = 1e69, ["tvg"] = 1e72, ["qtvg"] = 1e75,
+    ["qnvg"] = 1e78, ["sxvg"] = 1e81, ["spvg"] = 1e84, ["ovg"] = 1e87, ["nvg"] = 1e90,
+    
+    -- Trigintillions (Sufiks: tg)
+    ["tg"] = 1e93, ["utg"] = 1e96, ["dtg"] = 1e99, ["ttg"] = 1e102, ["qttg"] = 1e105,
+    ["qntg"] = 1e108, ["sxtg"] = 1e111, ["sptg"] = 1e114, ["otg"] = 1e117, ["ntg"] = 1e120,
+    
+    -- Quadragintillions (Sufiks: qdg)
+    ["qdg"] = 1e123, ["uqdg"] = 1e126, ["dqdg"] = 1e129, ["tqdg"] = 1e132, ["qtqdg"] = 1e135,
+    ["qnqdg"] = 1e138, ["sxqdg"] = 1e141, ["spqdg"] = 1e144, ["oqdg"] = 1e147, ["nqdg"] = 1e150,
+    
+    -- Quinquagintillions (Sufiks: qng)
+    ["qng"] = 1e153, ["uqng"] = 1e156, ["dqng"] = 1e159, ["tqng"] = 1e162, ["qtqng"] = 1e165,
+    ["qnqng"] = 1e168, ["sxqng"] = 1e171, ["spqng"] = 1e174, ["oqng"] = 1e177, ["nqng"] = 1e180,
+    
+    -- Sexagintillions (Sufiks: sxg)
+    ["sxg"] = 1e183, ["usxg"] = 1e186, ["dsxg"] = 1e189, ["tsxg"] = 1e192, ["qtsxg"] = 1e195,
+    ["qnsxg"] = 1e198, ["sxsxg"] = 1e201, ["spsxg"] = 1e204, ["osxg"] = 1e207, ["nsxg"] = 1e210,
+    
+    -- Septuagintillions (Sufiks: spg)
+    ["spg"] = 1e213, ["uspg"] = 1e216, ["dspg"] = 1e219, ["tspg"] = 1e222, ["qtspg"] = 1e225,
+    ["qnspg"] = 1e228, ["sxspg"] = 1e231, ["spspg"] = 1e234, ["ospg"] = 1e237, ["nspg"] = 1e240,
+    
+    -- Octogintillions (Sufiks: og)
+    ["og"] = 1e243, ["uog"] = 1e246, ["dog"] = 1e249, ["tog"] = 1e252, ["qtog"] = 1e255,
+    ["qnog"] = 1e258, ["sxog"] = 1e261, ["spog"] = 1e264, ["oog"] = 1e267, ["nvog"] = 1e270,
+    
+    -- Nonagintillions (Sufiks: nog) -> Seperti contohmu: Tnog, Qtnog
+    ["nog"] = 1e273, ["unog"] = 1e276, ["dnog"] = 1e279, ["tnog"] = 1e282, ["qtnog"] = 1e285,
+    ["qnnog"] = 1e288, ["sxnog"] = 1e291, ["spnog"] = 1e294, ["onog"] = 1e297, ["nnog"] = 1e300,
+    
+    ["c"] = 1e303, ["ce"] = 1e303
 }
 
 local function parseStringToNumber(textStr)
