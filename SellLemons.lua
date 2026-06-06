@@ -661,119 +661,100 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- MESIN HIBRIDA: EKSEKUSI PARALEL (BUAH & TOMBOL BERSAMAAN)
--- MODIFIKASI: Multithreading Anti-Macet
+-- MESIN DUAL-CORE: PEKERJA TERPISAH (ANTI-MACET/ANTI-LIMIT)
+-- REVISI: Penyesuaian Jeda Server Tombol (0.3 Detik)
 -- =======================================================
 local kedalaman = 17 
 
+-- 🛒 [CORE 1] MESIN KHUSUS AUTO BUY (TOMBOL)
 task.spawn(function()
     while task.wait(0.1) do
-        -- Hanya jalan kalau minimal salah satu toggle menyala
-        if Toggles.AutoHarvest or Toggles.AutoBuy then
+        if Toggles.AutoBuy then
+            pcall(function()
+                local char = LocalPlayer.Character
+                local rootPart = char and char:FindFirstChild("HumanoidRootPart")
+                if not rootPart then return end
+
+                local MyTycoon = GetMyTycoon()
+                if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
+                    for _, purchaseItem in ipairs(MyTycoon.Purchases:GetChildren()) do
+                        local buttonsFolder = purchaseItem:FindFirstChild("Buttons")
+                        if buttonsFolder then
+                            for _, item in ipairs(buttonsFolder:GetDescendants()) do
+                                -- Rem darurat jika toggle dimatikan di tengah jalan
+                                if not Toggles.AutoBuy then break end 
+
+                                if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
+                                    local target = item.Parent
+                                    if target and target:IsA("BasePart") and target.CanTouch then
+                                        firetouchinterest(rootPart, target, 0)
+                                        firetouchinterest(rootPart, target, 1)
+                                        
+                                        -- Jeda 0.3 Detik: Mengikuti batas cooldown maksimal server game
+                                        task.wait(0.3) 
+                                    end
+                                elseif item:IsA("ProximityPrompt") and item.Enabled and item.Parent and item.Parent:IsA("BasePart") and item.Parent.Transparency < 0.8 then
+                                    fireproximityprompt(item)
+                                    
+                                    -- Jeda 0.3 Detik untuk ProximityPrompt
+                                    task.wait(0.3)
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- 🍓 [CORE 2] MESIN KHUSUS AUTO HARVEST (BUAH & TP BRUTAL)
+task.spawn(function()
+    while task.wait(0.1) do
+        if Toggles.AutoHarvest then
             pcall(function()
                 local char = LocalPlayer.Character
                 local rootPart = char and char:FindFirstChild("HumanoidRootPart")
                 local humanoid = char and char:FindFirstChild("Humanoid")
                 if not rootPart or not humanoid or humanoid.Health <= 0 then return end
 
-                -- =======================================
-                -- [TAHAP 1] KUMPULKAN DAFTAR TOMBOL (B)
-                -- =======================================
-                local btnTargets = {}
-                if Toggles.AutoBuy then
-                    local MyTycoon = GetMyTycoon()
-                    if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
-                        for _, purchaseItem in ipairs(MyTycoon.Purchases:GetChildren()) do
-                            local buttonsFolder = purchaseItem:FindFirstChild("Buttons")
-                            if buttonsFolder then
-                                for _, item in ipairs(buttonsFolder:GetDescendants()) do
-                                    if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
-                                        local target = item.Parent
-                                        if target and target:IsA("BasePart") and target.CanTouch then
-                                            table.insert(btnTargets, {Type = "Touch", Target = target})
-                                        end
-                                    elseif item:IsA("ProximityPrompt") and item.Enabled and item.Parent and item.Parent:IsA("BasePart") and item.Parent.Transparency < 0.8 then
-                                        table.insert(btnTargets, {Type = "Prompt", Target = item})
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
+                local currentTime = os.clock()
+                local originalCFrame = rootPart.CFrame
+                local hasTeleported = false
 
-                -- =======================================
-                -- [TAHAP 2] KUMPULKAN DAFTAR BUAH (A)
-                -- =======================================
-                local fruitTargets = {}
-                if Toggles.AutoHarvest then
-                    local currentTime = os.clock()
-                    for i = 1, 12 do
-                        local tycoon = Workspace:FindFirstChild("Tycoon" .. i)
-                        if tycoon then
-                            local trees = tycoon:FindFirstChild("Constant", true) and tycoon.Constant:FindFirstChild("Trees")
-                            if trees then
-                                for _, tree in pairs(trees:GetChildren()) do
-                                    if tree.Name == "LemonTree" then
-                                        for _, part in pairs(tree:GetChildren()) do
-                                            if part.Name == "Fruit" then
-                                                local cd = part:FindFirstChildWhichIsA("ClickDetector", true)
-                                                local lastHarvest = part:GetAttribute("WaktuAmbil") or 0
-                                                if cd and (currentTime - lastHarvest > 1.5) then
-                                                    table.insert(fruitTargets, {Part = part, CD = cd})
-                                                end
+                for i = 1, 12 do
+                    if not Toggles.AutoHarvest then break end -- Rem darurat
+                    local tycoon = Workspace:FindFirstChild("Tycoon" .. i)
+                    if tycoon then
+                        local trees = tycoon:FindFirstChild("Constant", true) and tycoon.Constant:FindFirstChild("Trees")
+                        if trees then
+                            for _, tree in pairs(trees:GetChildren()) do
+                                if tree.Name == "LemonTree" then
+                                    for _, part in pairs(tree:GetChildren()) do
+                                        if part.Name == "Fruit" then
+                                            local cd = part:FindFirstChildWhichIsA("ClickDetector", true)
+                                            local lastHarvest = part:GetAttribute("WaktuAmbil") or 0
+                                            
+                                            -- Cek buah yang sudah siap (cooldown 1.5 detik)
+                                            if cd and (currentTime - lastHarvest > 1.5) then
+                                                hasTeleported = true
+                                                humanoid.PlatformStand = true
+                                                rootPart.Velocity = Vector3.new(0, 0, 0)
+                                                
+                                                local tPos = part.Position
+                                                rootPart.CFrame = CFrame.new(tPos.X, tPos.Y - kedalaman, tPos.Z) * CFrame.Angles(math.rad(90), 0, 0)
+                                                
+                                                part:SetAttribute("WaktuAmbil", os.clock())
+                                                pcall(function() fireclickdetector(cd) end)
+                                                
+                                                -- Jeda tipis agar TP berjalan mulus tanpa tertahan
+                                                task.wait(0.05) 
                                             end
                                         end
                                     end
                                 end
                             end
                         end
-                    end
-                end
-
-                -- =======================================
-                -- [TAHAP 3] EKSEKUSI PARALEL (JALUR GANDA)
-                -- =======================================
-                local originalCFrame = rootPart.CFrame
-                local hasTeleported = false
-
-                -- 🛒 JALUR 1: SPAM TOMBOL (Di latar belakang, tanpa nunggu TP)
-                if Toggles.AutoBuy and #btnTargets > 0 then
-                    task.spawn(function()
-                        -- Spam seluruh tombol berulang kali secepat mungkin
-                        for _ = 1, 3 do 
-                            if not Toggles.AutoBuy then break end
-                            for _, btn in ipairs(btnTargets) do
-                                if btn.Type == "Touch" then
-                                    pcall(function()
-                                        firetouchinterest(rootPart, btn.Target, 0)
-                                        firetouchinterest(rootPart, btn.Target, 1)
-                                    end)
-                                elseif btn.Type == "Prompt" then
-                                    pcall(function() fireproximityprompt(btn.Target) end)
-                                end
-                            end
-                            task.wait() -- Nafas jaringan agar server tidak kaget
-                        end
-                    end)
-                end
-
-                -- 🍓 JALUR 2: PANEN BUAH & TELEPORT (Di antrean utama)
-                if Toggles.AutoHarvest and #fruitTargets > 0 then
-                    for i = 1, #fruitTargets do
-                        if not Toggles.AutoHarvest then break end
-                        
-                        hasTeleported = true
-                        humanoid.PlatformStand = true
-                        rootPart.Velocity = Vector3.new(0, 0, 0)
-                        
-                        -- Karakter TP ke buah
-                        local tPos = fruitTargets[i].Part.Position
-                        rootPart.CFrame = CFrame.new(tPos.X, tPos.Y - kedalaman, tPos.Z) * CFrame.Angles(math.rad(90), 0, 0)
-                        
-                        fruitTargets[i].Part:SetAttribute("WaktuAmbil", os.clock())
-                        pcall(function() fireclickdetector(fruitTargets[i].CD) end)
-                        
-                        task.wait() -- Jeda TP (tidak akan menahan jalur tombol lagi)
                     end
                 end
 
