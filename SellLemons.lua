@@ -873,13 +873,18 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 5: DYNAMIC SMART AUTO REBIRTH (AUTO-SHIFT GEAR)
+-- LOOP 5: DYNAMIC SMART AUTO REBIRTH (3-GEAR TRANSMISSION)
 -- =======================================================
 local wasAutoRebirthOn = false
 local visibleTimerRebirth = 0
 local isRebirthing = false 
 local cachedTargetCFrame = nil 
 local cachedTargetSize = nil 
+
+-- =======================================================
+-- [PENGATURAN TELEPORT] - Ganti di sini jika TP terlalu cepat!
+-- =======================================================
+local JEDA_TP_REBIRTH = 0.05 -- 0 = INSTANT. Ganti ke 0.05, 0.1, atau 0.5 jika server belum siap/karakter nyangkut.
 
 local function EnsureSafeZone(targetCFrame, targetSize)
     local safeZoneName = "BrutalSafeZone_Void"
@@ -947,18 +952,25 @@ task.spawn(function()
                             local shouldRebirth = false
 
                             -- ==================================================
-                            -- FITUR DOWNGRADE (AUTO-SHIFT KE 2X)
+                            -- TRANSMISI TURUN GIGI (DOWNGRADE JIKA NGEDEN > 30 DETIK)
                             -- ==================================================
-                            if RebirthMode == "Smart" and SmartMultiplier == 10 then
-                                if LastRebirthTime > 0 and (os.clock() - LastRebirthTime > 30) then
-                                    SmartMultiplier = 2 -- Ngeden kelamaan, balik ke 2x!
+                            if RebirthMode == "Smart" and LastRebirthTime > 0 then
+                                local timeElapsed = os.clock() - LastRebirthTime
+                                if timeElapsed > 30 then
+                                    if SmartMultiplier == 20 then
+                                        SmartMultiplier = 10
+                                        LastRebirthTime = os.clock() -- Reset timer untuk beri waktu ngejar 10x
+                                    elseif SmartMultiplier == 10 then
+                                        SmartMultiplier = 2
+                                        LastRebirthTime = os.clock() -- Reset timer untuk beri waktu ngejar 2x
+                                    end
                                 end
                             end
 
                             if RebirthMode == "Multiplier" then
                                 shouldRebirth = IsPotentialEnough(basePot, expPot, baseCur, expCur, tonumber(RebirthValue) or 2)
                             elseif RebirthMode == "Smart" then
-                                -- Gunakan SmartMultiplier yang dinamis (2 atau 10)
+                                -- Eksekusi dengan SmartMultiplier saat ini (2x, 10x, atau 20x)
                                 shouldRebirth = IsPotentialEnough(basePot, expPot, baseCur, expCur, SmartMultiplier)
                             elseif RebirthMode == "Target" then
                                 local rVal = tonumber(RebirthValue) or 0
@@ -978,13 +990,17 @@ task.spawn(function()
                                     isRebirthing = true
                                     
                                     -- ==================================================
-                                    -- FITUR UPGRADE (AUTO-SHIFT KE 10X)
+                                    -- TRANSMISI NAIK GIGI (UPGRADE JIKA KEBUT)
                                     -- ==================================================
                                     if RebirthMode == "Smart" then
                                         local currentTime = os.clock()
-                                        -- Jika waktu tembus < 3 detik saat di gigi 2x, persiapkan gigi 10x untuk putaran depan
-                                        if LastRebirthTime > 0 and (currentTime - LastRebirthTime <= 3) and SmartMultiplier == 2 then
-                                            SmartMultiplier = 10
+                                        if LastRebirthTime > 0 then
+                                            local speed = currentTime - LastRebirthTime
+                                            if SmartMultiplier == 2 and speed < 2 then
+                                                SmartMultiplier = 10 -- Gigi 1 ke Gigi 2
+                                            elseif SmartMultiplier == 10 and speed < 5 then
+                                                SmartMultiplier = 20 -- Gigi 2 ke Gigi 3
+                                            end
                                         end
                                         LastRebirthTime = currentTime -- Catat waktu eksekusi
                                     end
@@ -1010,7 +1026,8 @@ task.spawn(function()
                                                 local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
                                                 local root = char:WaitForChild("HumanoidRootPart", 10)
                                                 
-                                                task.wait(0.05) 
+                                                -- JEDA TP YANG BISA KAMU ATUR SENDIRI (Di variabel paling atas)
+                                                task.wait(JEDA_TP_REBIRTH) 
                                                 
                                                 if root and cachedTargetCFrame and cachedTargetSize then
                                                     EnsureSafeZone(cachedTargetCFrame, cachedTargetSize)
