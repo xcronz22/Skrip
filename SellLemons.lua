@@ -744,7 +744,7 @@ task.spawn(function()
                                     if target and target:IsA("BasePart") and target.CanTouch then
                                         firetouchinterest(rootPart, target, 0)
                                         firetouchinterest(rootPart, target, 1)
-                                        task.wait(0.5) 
+                                        task.wait(0.3) 
                                     end
                                 elseif item:IsA("ProximityPrompt") and item.Enabled and item.Parent and item.Parent:IsA("BasePart") and item.Parent.Transparency < 0.8 then
                                     fireproximityprompt(item)
