@@ -664,7 +664,7 @@ end)
 -- MESIN DUAL-CORE: PEKERJA TERPISAH (ANTI-MACET/ANTI-LIMIT)
 -- REVISI: Penyesuaian Jeda Server Tombol (0.3 Detik)
 -- =======================================================
-local kedalaman = 17 
+local kedalaman = 15
 
 -- 🛒 [CORE 1] MESIN KHUSUS AUTO BUY (TOMBOL)
 task.spawn(function()
@@ -748,7 +748,7 @@ task.spawn(function()
                                                 pcall(function() fireclickdetector(cd) end)
                                                 
                                                 -- Jeda tipis agar TP berjalan mulus tanpa tertahan
-                                                task.wait(3) 
+                                                task.wait(0.05) 
                                             end
                                         end
                                     end
