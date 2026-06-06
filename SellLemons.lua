@@ -599,9 +599,6 @@ end)
 
 ToggleObjects.AutoEvolve = Window:AddToggle("Auto Evolve", false, function(Value) Toggles.AutoEvolve = Value end)
 ToggleObjects.AutoAscend = Window:AddToggle("Auto Ascend", false, function(Value) Toggles.AutoAscend = Value end)
-ToggleObjects.RebirthTP = Window:AddToggle("TP After Rebirth", true, function(Value) Toggles.RebirthTP = Value end)
-ToggleObjects.AutoEvolve = Window:AddToggle("Auto Evolve", false, function(Value) Toggles.AutoEvolve = Value end)
-ToggleObjects.AutoAscend = Window:AddToggle("Auto Ascend", false, function(Value) Toggles.AutoAscend = Value end)
 
 -- REBIRTH INPUT
 RebirthInput = Window:AddInput("Target Rebirth", "Smart / 100 / 2x", function(Text)
