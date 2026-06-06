@@ -888,7 +888,7 @@ local cachedTargetSize = nil
 -- =======================================================
 -- [PENGATURAN TELEPORT] - Ganti di sini jika TP terlalu cepat!
 -- =======================================================
-local JEDA_TP_REBIRTH = 0.05 -- 0 = INSTANT. Ganti ke 0.05, 0.1, atau 0.5 jika server belum siap/karakter nyangkut.
+local JEDA_TP_REBIRTH = 0 -- 0 = INSTANT. Ganti ke 0.05, 0.1, atau 0.5 jika server belum siap/karakter nyangkut.
 
 local function EnsureSafeZone(targetCFrame, targetSize)
     local safeZoneName = "BrutalSafeZone_Void"
