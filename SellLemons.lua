@@ -546,8 +546,59 @@ ToggleObjects.AutoBuy = Window:AddToggle("Auto Buy Buttons", false, function(Val
     end
 end)
 
+-- =======================================================
+-- SISTEM CUSTOM TP & SAFEZONE DINAMIS
+-- =======================================================
+local CustomTPCFrame = nil
+local CustomTPSize = Vector3.new(10, 1, 10) -- Pijakan dibuat lebih luas (10x10)
+
+local function EnsureSafeZone(targetCFrame, targetSize)
+    local safeZoneName = "BrutalSafeZone_Custom"
+    local safeZone = workspace:FindFirstChild(safeZoneName)
+
+    if not safeZone then
+        safeZone = Instance.new("Part")
+        safeZone.Name = safeZoneName
+        safeZone.Size = Vector3.new(10, 1, 10) 
+        safeZone.Anchored = true
+        safeZone.CanCollide = true
+        safeZone.Transparency = 0.7
+        safeZone.BrickColor = BrickColor.new("Black") 
+        safeZone.Material = Enum.Material.Neon
+        safeZone.Parent = workspace
+    end
+    
+    local targetTopY = targetCFrame.Position.Y + (targetSize.Y / 2)
+    safeZone.CFrame = CFrame.new(targetCFrame.Position.X, targetTopY - 0.5, targetCFrame.Position.Z)
+end
+
 ToggleObjects.AutoUpgrade = Window:AddToggle("Auto Upgrade", false, function(Value) Toggles.AutoUpgrade = Value end)
 ToggleObjects.AutoRebirth = Window:AddToggle("Auto Rebirth", false, function(Value) Toggles.AutoRebirth = Value end)
+
+-- TOMBOL TP YANG SUDAH DI-MODIFIKASI
+ToggleObjects.RebirthTP = Window:AddToggle("TP After Rebirth", true, function(Value) 
+    Toggles.RebirthTP = Value 
+    if Value then
+        pcall(function()
+            local char = LocalPlayer.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            if root then
+                CustomTPCFrame = root.CFrame
+                EnsureSafeZone(CustomTPCFrame, CustomTPSize)
+                
+                -- Memunculkan notifikasi pop-up di layar saat posisi berhasil disimpan!
+                game:GetService("StarterGui"):SetCore("SendNotification", {
+                    Title = "📍 Posisi TP Disimpan!",
+                    Text = "SafeZone & TP mengikuti lokasi kamu berdiri saat ini.",
+                    Duration = 3
+                })
+            end
+        end)
+    end
+end)
+
+ToggleObjects.AutoEvolve = Window:AddToggle("Auto Evolve", false, function(Value) Toggles.AutoEvolve = Value end)
+ToggleObjects.AutoAscend = Window:AddToggle("Auto Ascend", false, function(Value) Toggles.AutoAscend = Value end)
 ToggleObjects.RebirthTP = Window:AddToggle("TP After Rebirth", true, function(Value) Toggles.RebirthTP = Value end)
 ToggleObjects.AutoEvolve = Window:AddToggle("Auto Evolve", false, function(Value) Toggles.AutoEvolve = Value end)
 ToggleObjects.AutoAscend = Window:AddToggle("Auto Ascend", false, function(Value) Toggles.AutoAscend = Value end)
@@ -877,38 +928,13 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 5: DYNAMIC SMART AUTO REBIRTH (3-GEAR TRANSMISSION)
+-- LOOP 5: DYNAMIC SMART AUTO REBIRTH (CUSTOM TP VERSION)
 -- =======================================================
 local wasAutoRebirthOn = false
 local visibleTimerRebirth = 0
 local isRebirthing = false 
-local cachedTargetCFrame = nil 
-local cachedTargetSize = nil 
 
--- =======================================================
--- [PENGATURAN TELEPORT] - Ganti di sini jika TP terlalu cepat!
--- =======================================================
-local JEDA_TP_REBIRTH = 0 -- 0 = INSTANT. Ganti ke 0.05, 0.1, atau 0.5 jika server belum siap/karakter nyangkut.
-
-local function EnsureSafeZone(targetCFrame, targetSize)
-    local safeZoneName = "BrutalSafeZone_Void"
-    local safeZone = workspace:FindFirstChild(safeZoneName)
-
-    if not safeZone then
-        safeZone = Instance.new("Part")
-        safeZone.Name = safeZoneName
-        safeZone.Size = Vector3.new(5, 1, 5) 
-        safeZone.Anchored = true
-        safeZone.CanCollide = true
-        safeZone.Transparency = 0.7
-        safeZone.BrickColor = BrickColor.new("Black") 
-        safeZone.Material = Enum.Material.Neon
-        safeZone.Parent = workspace
-    end
-    
-    local targetTopY = targetCFrame.Position.Y + (targetSize.Y / 2)
-    safeZone.CFrame = CFrame.new(targetCFrame.Position.X, targetTopY - 0.5, targetCFrame.Position.Z)
-end
+local JEDA_TP_REBIRTH = 0 -- 0 = INSTANT
 
 task.spawn(function()
     while true do
@@ -922,10 +948,7 @@ task.spawn(function()
                 local sidebarInvestors = sidebarContainer and sidebarContainer:FindFirstChild("Investors")
                 
                 if Toggles.AutoRebirth then
-                    -- RESET TIMER SAAT BARU DINYALAKAN (Mencegah instant downgrade)
-                    if not wasAutoRebirthOn then
-                        LastRebirthTime = os.clock() 
-                    end
+                    if not wasAutoRebirthOn then LastRebirthTime = os.clock() end
                     wasAutoRebirthOn = true
                     
                     if investorsMenu then
@@ -955,18 +978,15 @@ task.spawn(function()
                             local baseCur, expCur = CleanAndParse(amountObj.Text)
                             local shouldRebirth = false
 
-                            -- ==================================================
-                            -- TRANSMISI TURUN GIGI (DOWNGRADE JIKA NGEDEN > 30 DETIK)
-                            -- ==================================================
                             if RebirthMode == "Smart" and LastRebirthTime > 0 then
                                 local timeElapsed = os.clock() - LastRebirthTime
                                 if timeElapsed > 30 then
                                     if SmartMultiplier == 20 then
                                         SmartMultiplier = 10
-                                        LastRebirthTime = os.clock() -- Reset timer untuk beri waktu ngejar 10x
+                                        LastRebirthTime = os.clock() 
                                     elseif SmartMultiplier == 10 then
                                         SmartMultiplier = 2
-                                        LastRebirthTime = os.clock() -- Reset timer untuk beri waktu ngejar 2x
+                                        LastRebirthTime = os.clock() 
                                     end
                                 end
                             end
@@ -974,7 +994,6 @@ task.spawn(function()
                             if RebirthMode == "Multiplier" then
                                 shouldRebirth = IsPotentialEnough(basePot, expPot, baseCur, expCur, tonumber(RebirthValue) or 2)
                             elseif RebirthMode == "Smart" then
-                                -- Eksekusi dengan SmartMultiplier saat ini (2x, 10x, atau 20x)
                                 shouldRebirth = IsPotentialEnough(basePot, expPot, baseCur, expCur, SmartMultiplier)
                             elseif RebirthMode == "Target" then
                                 local rVal = tonumber(RebirthValue) or 0
@@ -993,50 +1012,38 @@ task.spawn(function()
                                 if rebirthRemote and rebirthRemote:IsA("RemoteFunction") then
                                     isRebirthing = true
                                     
-                                    -- ==================================================
-                                    -- TRANSMISI NAIK GIGI (UPGRADE JIKA KEBUT)
-                                    -- ==================================================
                                     if RebirthMode == "Smart" then
                                         local currentTime = os.clock()
                                         if LastRebirthTime > 0 then
                                             local speed = currentTime - LastRebirthTime
-                                            if SmartMultiplier == 2 and speed < 2 then
-                                                SmartMultiplier = 10 -- Gigi 1 ke Gigi 2
-                                            elseif SmartMultiplier == 10 and speed < 5 then
-                                                SmartMultiplier = 20 -- Gigi 2 ke Gigi 3
-                                            end
+                                            if SmartMultiplier == 2 and speed < 2 then SmartMultiplier = 10
+                                            elseif SmartMultiplier == 10 and speed < 5 then SmartMultiplier = 20 end
                                         end
-                                        LastRebirthTime = currentTime -- Catat waktu eksekusi
+                                        LastRebirthTime = currentTime 
                                     end
-
-                                    pcall(function()
-                                        local voidFolder = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Void")
-                                        if voidFolder then
-                                            local parts = voidFolder:GetChildren()
-                                            if parts[6] and parts[6]:IsA("BasePart") then
-                                                cachedTargetCFrame = parts[6].CFrame 
-                                                cachedTargetSize = parts[6].Size 
-                                            end
-                                        end
-                                    end)
 
                                     task.spawn(function()
                                         pcall(function() 
                                             rebirthRemote:InvokeServer()
                                             UpgradeRemotes = {} 
                                             
-                                            -- HANYA TELEPORT JIKA TOGGLE MENYALA
+                                            -- EKSEKUSI TELEPORT KE LOKASI CUSTOM
                                             if Toggles.RebirthTP then
                                                 local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
                                                 local root = char:WaitForChild("HumanoidRootPart", 10)
                                                 
-                                                -- JEDA TP YANG BISA KAMU ATUR SENDIRI (Di variabel paling atas)
                                                 task.wait(JEDA_TP_REBIRTH) 
                                                 
-                                                if root and cachedTargetCFrame and cachedTargetSize then
-                                                    EnsureSafeZone(cachedTargetCFrame, cachedTargetSize)
-                                                    local targetTopY = cachedTargetCFrame.Position.Y + (cachedTargetSize.Y / 2)
-                                                    root.CFrame = CFrame.new(cachedTargetCFrame.Position.X, targetTopY + 3, cachedTargetCFrame.Position.Z) 
+                                                if root then
+                                                    -- Fitur Keamanan: Jika kamu baru masuk game dan belum sempat mati/nyalakan toggle, otomatis simpan posisimu saat itu juga!
+                                                    if not CustomTPCFrame then
+                                                        CustomTPCFrame = root.CFrame
+                                                        EnsureSafeZone(CustomTPCFrame, CustomTPSize)
+                                                    end
+                                                    
+                                                    EnsureSafeZone(CustomTPCFrame, CustomTPSize)
+                                                    local targetTopY = CustomTPCFrame.Position.Y + (CustomTPSize.Y / 2)
+                                                    root.CFrame = CFrame.new(CustomTPCFrame.Position.X, targetTopY + 3, CustomTPCFrame.Position.Z) 
                                                     root.Anchored = false
                                                 end
                                             end
