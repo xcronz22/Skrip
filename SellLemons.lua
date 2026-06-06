@@ -982,8 +982,8 @@ task.spawn(function()
                                     -- ==================================================
                                     if RebirthMode == "Smart" then
                                         local currentTime = os.clock()
-                                        -- Jika waktu tembus < 5 detik saat di gigi 2x, persiapkan gigi 10x untuk putaran depan
-                                        if LastRebirthTime > 0 and (currentTime - LastRebirthTime <= 5) and SmartMultiplier == 2 then
+                                        -- Jika waktu tembus < 3 detik saat di gigi 2x, persiapkan gigi 10x untuk putaran depan
+                                        if LastRebirthTime > 0 and (currentTime - LastRebirthTime <= 3) and SmartMultiplier == 2 then
                                             SmartMultiplier = 10
                                         end
                                         LastRebirthTime = currentTime -- Catat waktu eksekusi
@@ -1010,7 +1010,7 @@ task.spawn(function()
                                                 local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
                                                 local root = char:WaitForChild("HumanoidRootPart", 10)
                                                 
-                                                task.wait(1.5) 
+                                                task.wait(0.05) 
                                                 
                                                 if root and cachedTargetCFrame and cachedTargetSize then
                                                     EnsureSafeZone(cachedTargetCFrame, cachedTargetSize)
