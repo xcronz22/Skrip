@@ -774,7 +774,7 @@ task.spawn(function()
 
                 -- KEMBALI KE POSISI ASAL JIKA TADI SEMPAT TP
                 if hasTeleported then
-                    task.wait(0.1)
+                    task.wait()
                     if LocalPlayer.Character == char and rootPart.Parent ~= nil and humanoid.Health > 0 then
                         humanoid.PlatformStand = false
                         rootPart.Velocity = Vector3.new(0, 0, 0)
