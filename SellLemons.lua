@@ -749,8 +749,8 @@ task.spawn(function()
                                             local cd = part:FindFirstChildWhichIsA("ClickDetector", true)
                                             local lastHarvest = part:GetAttribute("WaktuAmbil") or 0
                                             
-                                            -- Cek buah yang sudah siap (cooldown 1.5 detik)
-                                            if cd and (currentTime - lastHarvest > 0.1) then
+                                            -- Cek buah yang sudah siap
+                                            if cd and (currentTime - lastHarvest > 0.05) then
                                                 hasTeleported = true
                                                 humanoid.PlatformStand = true
                                                 rootPart.Velocity = Vector3.new(0, 0, 0)
@@ -762,7 +762,7 @@ task.spawn(function()
                                                 pcall(function() fireclickdetector(cd) end)
                                                 
                                                 -- Jeda tipis agar TP berjalan mulus tanpa tertahan
-                                                task.wait(0.1) 
+                                                task.wait(0.05) 
                                             end
                                         end
                                     end
