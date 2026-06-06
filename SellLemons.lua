@@ -744,14 +744,10 @@ task.spawn(function()
                                     if target and target:IsA("BasePart") and target.CanTouch then
                                         firetouchinterest(rootPart, target, 0)
                                         firetouchinterest(rootPart, target, 1)
-                                        
-                                        -- Jeda 0.3 Detik: Mengikuti batas cooldown maksimal server game
-                                        task.wait(0.3) 
+                                        task.wait(0.5) 
                                     end
                                 elseif item:IsA("ProximityPrompt") and item.Enabled and item.Parent and item.Parent:IsA("BasePart") and item.Parent.Transparency < 0.8 then
                                     fireproximityprompt(item)
-                                    
-                                    -- Jeda 0.3 Detik untuk ProximityPrompt
                                     task.wait()
                                 end
                             end
