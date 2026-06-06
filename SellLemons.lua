@@ -748,7 +748,7 @@ task.spawn(function()
                                                 pcall(function() fireclickdetector(cd) end)
                                                 
                                                 -- Jeda tipis agar TP berjalan mulus tanpa tertahan
-                                                task.wait(0.05) 
+                                                task.wait(3) 
                                             end
                                         end
                                     end
