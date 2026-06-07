@@ -679,13 +679,7 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- MESIN DUAL-CORE: PEKERJA TERPISAH (ANTI-MACET/ANTI-LIMIT)
--- REVISI: Penyesuaian Jeda Server Tombol (0.3 Detik)
--- =======================================================
-local kedalaman = 15
-
--- =======================================================
--- LOOP 1: [CORE 1] MESIN AUTO BUY (TOUCH & PROMPT - LIMIT 2)
+-- LOOP 1: [CORE 1] MESIN AUTO BUY (PARALLEL MULTI-TARGET)
 -- =======================================================
 task.spawn(function()
     while task.wait(0.2) do -- Jeda santai agar server tidak kick
@@ -699,7 +693,7 @@ task.spawn(function()
                 if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
                     
                     -- ==========================================
-                    -- TAHAP 1: KUMPULKAN TOMBOL INJAK & PROMPT
+                    -- TAHAP 1: KUMPULKAN SEMUA TOMBOL DI MAP
                     -- ==========================================
                     local targets = {}
                     for _, purchaseItem in ipairs(MyTycoon.Purchases:GetChildren()) do
@@ -715,11 +709,8 @@ task.spawn(function()
                                     end
                                     
                                 -- Tangkap ProximityPrompt (Tombol Tekan E)
-                                elseif item:IsA("ProximityPrompt") then
-                                    -- Pastikan prompt aktif dan tombolnya tidak disembunyikan (Transparency < 0.8)
-                                    if item.Enabled and item.Parent and item.Parent:IsA("BasePart") and item.Parent.Transparency < 0.8 then
-                                        table.insert(targets, {Type = "Prompt", Target = item})
-                                    end
+                                elseif item:IsA("ProximityPrompt") and item.Enabled and item.Parent and item.Parent:IsA("BasePart") and item.Parent.Transparency < 0.8 then
+                                    table.insert(targets, {Type = "Prompt", Target = item})
                                 end
                                 
                             end
@@ -727,25 +718,21 @@ task.spawn(function()
                     end
 
                     -- ==========================================
-                    -- TAHAP 2: EKSEKUSI MAKSIMAL 3 TOMBOL PER SIKLUS
+                    -- TAHAP 2: EKSEKUSI BERSAMAAN (1 PELURU/TOMBOL)
                     -- ==========================================
-                    local maxTombolPerTembakan = 3
-                    local jumlahTarget = #targets
-
-                    for i = 1, math.min(maxTombolPerTembakan, jumlahTarget) do
-                        local btn = targets[i]
-                        if btn then
-                            task.spawn(function() 
-                                pcall(function()
-                                    if btn.Type == "Touch" then
-                                        firetouchinterest(rootPart, btn.Target, 0)
-                                        firetouchinterest(rootPart, btn.Target, 1)
-                                    elseif btn.Type == "Prompt" then
-                                        fireproximityprompt(btn.Target)
-                                    end
-                                end)
+                    -- Kita pecah semua target ke dalam "Thread" (task.spawn) masing-masing
+                    -- Agar ditembakkan secara bersamaan di 0.000 detik yang sama!
+                    for _, btn in ipairs(targets) do
+                        task.spawn(function() 
+                            pcall(function()
+                                if btn.Type == "Touch" then
+                                    firetouchinterest(rootPart, btn.Target, 0)
+                                    firetouchinterest(rootPart, btn.Target, 1)
+                                elseif btn.Type == "Prompt" then
+                                    fireproximityprompt(btn.Target)
+                                end
                             end)
-                        end
+                        end)
                     end
 
                 end
@@ -753,6 +740,12 @@ task.spawn(function()
         end
     end
 end)
+
+-- =======================================================
+-- MESIN DUAL-CORE: PEKERJA TERPISAH (ANTI-MACET/ANTI-LIMIT)
+-- REVISI: Penyesuaian Jeda Server Tombol (0.3 Detik)
+-- =======================================================
+local kedalaman = 15
 
 -- LOOP 2: [CORE 2] MESIN KHUSUS AUTO HARVEST (BUAH & TP BRUTAL)
 task.spawn(function()
