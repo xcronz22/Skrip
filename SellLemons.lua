@@ -685,7 +685,12 @@ end)
 local kedalaman = 15
 
 -- =======================================================
--- LOOP 1: [CORE 1] MESIN AUTO BUY (PARALLEL MULTI-TARGET)
+-- [PENGATURAN LIMIT AUTO BUY] - Atur jumlah maksimal target di sini!
+-- =======================================================
+local BATAS_TOMBOL_PER_CYCLE = 2 -- Ganti ke 1, 2, 3, atau berapapun sesukamu.
+
+-- =======================================================
+-- LOOP 1: [CORE 1] MESIN AUTO BUY (TERKONTROL)
 -- =======================================================
 task.spawn(function()
     while task.wait(0.1) do -- Jeda santai agar server tidak kick
@@ -718,7 +723,7 @@ task.spawn(function()
                                 elseif item:IsA("ProximityPrompt") and item.Enabled and item.Parent and item.Parent:IsA("BasePart") and item.Parent.Transparency < 0.8 then
                                     table.insert(targets, {Type = "Prompt", Target = item})
                                     
-                                -- Tangkap Remote Purchase (Jika dev sembunyikan pembelian lewat remote)
+                                -- Tangkap Remote Purchase
                                 elseif (item:IsA("RemoteFunction") or item:IsA("RemoteEvent")) and string.find(string.lower(item.Name), "purchase") then
                                     table.insert(targets, {Type = "Remote", Target = item})
                                 end
@@ -728,11 +733,13 @@ task.spawn(function()
                     end
 
                     -- ==========================================
-                    -- TAHAP 2: EKSEKUSI BERSAMAAN (1 PELURU/TOMBOL)
+                    -- TAHAP 2: EKSEKUSI DENGAN PEMBATAS (LIMITER)
                     -- ==========================================
-                    -- Kita pecah semua target ke dalam "Thread" (task.spawn) masing-masing
-                    -- Agar ditembakkan secara bersamaan di 0.000 detik yang sama!
-                    for _, btn in ipairs(targets) do
+                    -- Skrip akan memilih jumlah terkecil antara batas buatanmu atau jumlah tombol yang ada
+                    local eksekusiBatas = math.min(#targets, BATAS_TOMBOL_PER_CYCLE)
+                    
+                    for i = 1, eksekusiBatas do
+                        local btn = targets[i]
                         task.spawn(function() 
                             pcall(function()
                                 if btn.Type == "Touch" then
@@ -849,11 +856,6 @@ task.spawn(function()
         end
     end)
 
-    -- =======================================================
-    -- [PENGATURAN PELURU UPGRADE] - Atur kecepatan Minigun di sini!
-    -- =======================================================
-    local JUMLAH_PELURU_UPGRADE = 3 -- Ganti ke 1 jika server muntah/disconnect. Naikkan jika server kuat!
-
     -- [BAGIAN B]: MACHINE GUN AUTO UPGRADE (+1 SUPER SPEED)
     while task.wait(1) do 
         if Toggles.AutoUpgrade then
@@ -877,9 +879,10 @@ task.spawn(function()
                                         pcall(function() if desc and desc.Parent then isValid = true end end)
                                         
                                         if isValid then
-                                            -- 🔫 TRIK MESIN PENGGILING (MINIGUN): 
-                                            -- Buka banyak thread secara BERSAMAAN tanpa antre! 
-                                            for i = 1, JUMLAH_PELURU_UPGRADE do
+                                            -- TRIK MESIN PENGGILING: 
+                                            -- Buka 3 thread secara BERSAMAAN tanpa antre! 
+                                            -- Ini menghasilkan ~60 pembelian per detik (Bypass lag server)
+                                            for i = 1, 3 do
                                                 task.spawn(function()
                                                     pcall(function() desc:InvokeServer(1) end)
                                                 end)
