@@ -682,7 +682,7 @@ end)
 -- LOOP 1: [CORE 1] MESIN AUTO BUY (BRUTAL PHYSICAL SPRAY)
 -- =======================================================
 task.spawn(function()
-    while task.wait(0.1) do -- Jeda sangat singkat untuk refresh daftar tombol
+    while task.wait(0.2) do -- Jeda sangat singkat untuk refresh daftar tombol
         if Toggles.AutoBuy then
             pcall(function()
                 local char = LocalPlayer.Character
