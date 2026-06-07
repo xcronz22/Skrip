@@ -687,7 +687,7 @@ local kedalaman = 15
 -- =======================================================
 -- [PENGATURAN LIMIT AUTO BUY] - Atur jumlah maksimal target di sini!
 -- =======================================================
-local BATAS_TOMBOL_PER_CYCLE = 2 -- Ganti ke 1, 2, 3, atau berapapun sesukamu.
+local BATAS_TOMBOL_PER_CYCLE = 10 -- Ganti ke 1, 2, 3, atau berapapun sesukamu.
 
 -- =======================================================
 -- LOOP 1: [CORE 1] MESIN AUTO BUY (TERKONTROL)
