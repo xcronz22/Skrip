@@ -679,10 +679,10 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 1: [CORE 1] MESIN AUTO BUY (PARALLEL MULTI-TARGET)
+-- LOOP 1: [CORE 1] MESIN AUTO BUY (BRUTAL PHYSICAL SPRAY)
 -- =======================================================
 task.spawn(function()
-    while task.wait(0.2) do -- Jeda santai agar server tidak kick
+    while task.wait(0.2) do -- Jeda sangat singkat untuk refresh daftar tombol
         if Toggles.AutoBuy then
             pcall(function()
                 local char = LocalPlayer.Character
@@ -693,7 +693,7 @@ task.spawn(function()
                 if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
                     
                     -- ==========================================
-                    -- TAHAP 1: KUMPULKAN SEMUA TOMBOL DI MAP
+                    -- TAHAP 1: SCAN SEMUA TOMBOL (TANPA FILTER)
                     -- ==========================================
                     local targets = {}
                     for _, purchaseItem in ipairs(MyTycoon.Purchases:GetChildren()) do
@@ -704,50 +704,43 @@ task.spawn(function()
                                 -- Tangkap TouchInterest (Tombol Injak)
                                 if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
                                     local target = item.Parent
-                                    if target and target:IsA("BasePart") and target.CanTouch then
+                                    if target and target:IsA("BasePart") then
                                         table.insert(targets, {Type = "Touch", Target = target})
                                     end
                                     
-                                -- Tangkap ProximityPrompt (Tombol Tekan E)
-                                elseif item:IsA("ProximityPrompt") and item.Enabled and item.Parent and item.Parent:IsA("BasePart") and item.Parent.Transparency < 0.8 then
+                                -- Tangkap ProximityPrompt (Tombol E)
+                                elseif item:IsA("ProximityPrompt") and item.Enabled then
                                     table.insert(targets, {Type = "Prompt", Target = item})
-                                    
-                                -- Tangkap Remote Purchase (HANYA RemoteFunction)
-                                elseif item:IsA("RemoteFunction") and string.find(string.lower(item.Name), "purchase") then
-                                    table.insert(targets, {Type = "Remote", Target = item})
                                 end
-                                
                             end
                         end
                     end
 
                     -- ==========================================
-                    -- TAHAP 2: EKSEKUSI BERSAMAAN (1 PELURU/TOMBOL)
+                    -- TAHAP 2: EKSEKUSI BRUTAL (MULTI-THREADED)
                     -- ==========================================
-                    -- Kita pecah semua target ke dalam "Thread" (task.spawn) masing-masing
-                    -- Agar ditembakkan secara bersamaan di 0.000 detik yang sama!
+                    -- Kita tidak menggunakan loop biasa, melainkan menembak 
+                    -- semua tombol dalam thread terpisah secara bersamaan (Parallel)
                     for _, btn in ipairs(targets) do
                         task.spawn(function() 
                             pcall(function()
+                                -- Spam fisik tanpa henti
                                 if btn.Type == "Touch" then
                                     firetouchinterest(rootPart, btn.Target, 0)
                                     firetouchinterest(rootPart, btn.Target, 1)
                                 elseif btn.Type == "Prompt" then
                                     fireproximityprompt(btn.Target)
-                                elseif btn.Type == "Remote" then
-                                    if btn.Target:IsA("RemoteFunction") then
-                                        btn.Target:InvokeServer()
-                                    end
                                 end
                             end)
                         end)
                     end
-
                 end
             end)
         end
     end
 end)
+
+-- LOOP 2: [CORE 2] MESIN KHUSUS AUTO HARVEST (BUAH & TP BRUTAL)
 
 -- =======================================================
 -- MESIN DUAL-CORE: PEKERJA TERPISAH (ANTI-MACET/ANTI-LIMIT)
@@ -755,7 +748,6 @@ end)
 -- =======================================================
 local kedalaman = 15
 
--- LOOP 2: [CORE 2] MESIN KHUSUS AUTO HARVEST (BUAH & TP BRUTAL)
 task.spawn(function()
     while task.wait(0.1) do
         if Toggles.AutoHarvest then
