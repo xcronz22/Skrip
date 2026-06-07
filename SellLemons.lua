@@ -685,7 +685,7 @@ end)
 local kedalaman = 15
 
 -- =======================================================
--- LOOP 1: [CORE 1] MESIN AUTO BUY (ANTI-LAG BATCH LIMIT 5)
+-- LOOP 1: [CORE 1] MESIN AUTO BUY (ULTRA SAFE BATCH LIMIT 2)
 -- =======================================================
 task.spawn(function()
     while task.wait(0.2) do -- Jeda santai agar server tidak kick
@@ -728,10 +728,9 @@ task.spawn(function()
                     end
 
                     -- ==========================================
-                    -- TAHAP 2: EKSEKUSI DI-BATASI (MAKSIMAL 2 TOMBOL)
+                    -- TAHAP 2: EKSEKUSI ULTRA AMAN (MAKSIMAL 2 TOMBOL)
                     -- ==========================================
-                    -- Menggunakan math.min agar jika tombol kurang dari 2 tidak terjadi error,
-                    -- dan jika lebih dari 2, yang ditembak HANYA 5 tombol teratas dulu.
+                    -- Limit sangat kecil agar CPU lega dan tidak bentrok dengan fitur lain
                     local maxTombolPerTembakan = 2
                     local jumlahTarget = #targets
 
