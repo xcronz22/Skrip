@@ -685,15 +685,10 @@ end)
 local kedalaman = 15
 
 -- =======================================================
--- [PENGATURAN LIMIT AUTO BUY] - Atur jumlah maksimal target di sini!
--- =======================================================
-local BATAS_TOMBOL_PER_CYCLE = 10 -- Ganti ke 1, 2, 3, atau berapapun sesukamu.
-
--- =======================================================
--- LOOP 1: [CORE 1] MESIN AUTO BUY (TERKONTROL)
+-- LOOP 1: [CORE 1] MESIN AUTO BUY (PARALLEL MULTI-TARGET)
 -- =======================================================
 task.spawn(function()
-    while task.wait(0.1) do -- Jeda santai agar server tidak kick
+    while task.wait(0.2) do -- Jeda santai agar server tidak kick
         if Toggles.AutoBuy then
             pcall(function()
                 local char = LocalPlayer.Character
@@ -723,7 +718,7 @@ task.spawn(function()
                                 elseif item:IsA("ProximityPrompt") and item.Enabled and item.Parent and item.Parent:IsA("BasePart") and item.Parent.Transparency < 0.8 then
                                     table.insert(targets, {Type = "Prompt", Target = item})
                                     
-                                -- Tangkap Remote Purchase
+                                -- Tangkap Remote Purchase (Jika dev sembunyikan pembelian lewat remote)
                                 elseif (item:IsA("RemoteFunction") or item:IsA("RemoteEvent")) and string.find(string.lower(item.Name), "purchase") then
                                     table.insert(targets, {Type = "Remote", Target = item})
                                 end
@@ -733,13 +728,11 @@ task.spawn(function()
                     end
 
                     -- ==========================================
-                    -- TAHAP 2: EKSEKUSI DENGAN PEMBATAS (LIMITER)
+                    -- TAHAP 2: EKSEKUSI BERSAMAAN (1 PELURU/TOMBOL)
                     -- ==========================================
-                    -- Skrip akan memilih jumlah terkecil antara batas buatanmu atau jumlah tombol yang ada
-                    local eksekusiBatas = math.min(#targets, BATAS_TOMBOL_PER_CYCLE)
-                    
-                    for i = 1, eksekusiBatas do
-                        local btn = targets[i]
+                    -- Kita pecah semua target ke dalam "Thread" (task.spawn) masing-masing
+                    -- Agar ditembakkan secara bersamaan di 0.000 detik yang sama!
+                    for _, btn in ipairs(targets) do
                         task.spawn(function() 
                             pcall(function()
                                 if btn.Type == "Touch" then
