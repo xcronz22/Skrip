@@ -636,6 +636,36 @@ LocalPlayer.Idled:Connect(function()
     pcall(function() VirtualUser:CaptureController() VirtualUser:ClickButton2(Vector2.new()) end)
 end)
 
+-- =======================================================
+-- HIGH-PRIORITY HUD PROTECTOR (INSTANT RESPONSE)
+-- =======================================================
+task.spawn(function()
+    -- Memastikan skrip berjalan di thread terpisah yang tidak terganggu oleh Farming Engine
+    task.priority = 1 -- Memberikan prioritas tinggi pada thread ini
+    
+    local playerGui = LocalPlayer:WaitForChild("PlayerGui", 10)
+    local cashLabel = playerGui and playerGui:FindFirstChild("HUD") 
+                      and playerGui.HUD:FindFirstChild("Balance") 
+                      and playerGui.HUD.Balance:FindFirstChild("Main") 
+                      and playerGui.HUD.Balance.Main:FindFirstChild("Cash")
+
+    if cashLabel then
+        local lastValid = cashLabel.Text
+        
+        -- Menggunakan event paling rendah (tanpa jeda, langsung eksekusi saat sinyal masuk)
+        cashLabel:GetPropertyChangedSignal("Text"):Connect(function()
+            local txt = cashLabel.Text
+            
+            -- Filter Glitch brutal
+            if txt == "$0.00" or txt == "0.00" or txt == "" then
+                cashLabel.Text = lastValid -- Respon instant
+            else
+                lastValid = txt -- Update memori secepat kilat
+            end
+        end)
+    end
+end)
+
 -- ==========================================
 -- 4. MULTI-THREAD FARMING ENGINE
 -- ==========================================
