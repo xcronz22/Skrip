@@ -685,7 +685,7 @@ end)
 local kedalaman = 15
 
 -- =======================================================
--- LOOP 1: [CORE 1] MESIN AUTO BUY (PARALLEL MULTI-TARGET)
+-- LOOP 1: [CORE 1] MESIN AUTO BUY (ANTI-LAG BATCH LIMIT 5)
 -- =======================================================
 task.spawn(function()
     while task.wait(0.2) do -- Jeda santai agar server tidak kick
@@ -728,27 +728,33 @@ task.spawn(function()
                     end
 
                     -- ==========================================
-                    -- TAHAP 2: EKSEKUSI BERSAMAAN (1 PELURU/TOMBOL)
+                    -- TAHAP 2: EKSEKUSI DI-BATASI (MAKSIMAL 5 TOMBOL)
                     -- ==========================================
-                    -- Kita pecah semua target ke dalam "Thread" (task.spawn) masing-masing
-                    -- Agar ditembakkan secara bersamaan di 0.000 detik yang sama!
-                    for _, btn in ipairs(targets) do
-                        task.spawn(function() 
-                            pcall(function()
-                                if btn.Type == "Touch" then
-                                    firetouchinterest(rootPart, btn.Target, 0)
-                                    firetouchinterest(rootPart, btn.Target, 1)
-                                elseif btn.Type == "Prompt" then
-                                    fireproximityprompt(btn.Target)
-                                elseif btn.Type == "Remote" then
-                                    if btn.Target:IsA("RemoteFunction") then
-                                        btn.Target:InvokeServer()
-                                    else
-                                        btn.Target:FireServer()
+                    -- Menggunakan math.min agar jika tombol kurang dari 5 tidak terjadi error,
+                    -- dan jika lebih dari 5, yang ditembak HANYA 5 tombol teratas dulu.
+                    local maxTombolPerTembakan = 5
+                    local jumlahTarget = #targets
+
+                    for i = 1, math.min(maxTombolPerTembakan, jumlahTarget) do
+                        local btn = targets[i]
+                        if btn then
+                            task.spawn(function() 
+                                pcall(function()
+                                    if btn.Type == "Touch" then
+                                        firetouchinterest(rootPart, btn.Target, 0)
+                                        firetouchinterest(rootPart, btn.Target, 1)
+                                    elseif btn.Type == "Prompt" then
+                                        fireproximityprompt(btn.Target)
+                                    elseif btn.Type == "Remote" then
+                                        if btn.Target:IsA("RemoteFunction") then
+                                            btn.Target:InvokeServer()
+                                        else
+                                            btn.Target:FireServer()
+                                        end
                                     end
-                                end
+                                end)
                             end)
-                        end)
+                        end
                     end
 
                 end
