@@ -728,11 +728,11 @@ task.spawn(function()
                     end
 
                     -- ==========================================
-                    -- TAHAP 2: EKSEKUSI DI-BATASI (MAKSIMAL 5 TOMBOL)
+                    -- TAHAP 2: EKSEKUSI DI-BATASI (MAKSIMAL 2 TOMBOL)
                     -- ==========================================
-                    -- Menggunakan math.min agar jika tombol kurang dari 5 tidak terjadi error,
-                    -- dan jika lebih dari 5, yang ditembak HANYA 5 tombol teratas dulu.
-                    local maxTombolPerTembakan = 5
+                    -- Menggunakan math.min agar jika tombol kurang dari 2 tidak terjadi error,
+                    -- dan jika lebih dari 2, yang ditembak HANYA 5 tombol teratas dulu.
+                    local maxTombolPerTembakan = 2
                     local jumlahTarget = #targets
 
                     for i = 1, math.min(maxTombolPerTembakan, jumlahTarget) do
