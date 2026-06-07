@@ -679,10 +679,10 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 1: [CORE 1] MESIN AUTO BUY (PARALLEL MULTI-TARGET)
+-- LOOP 1: [CORE 1] MESIN AUTO BUY (SMART HYBRID - INVOKE ONLY)
 -- =======================================================
 task.spawn(function()
-    while task.wait(0.2) do -- Jeda santai agar server tidak kick
+    while task.wait(0.2) do -- Jeda 0.2 detik agar sinkron dengan Auto Harvest
         if Toggles.AutoBuy then
             pcall(function()
                 local char = LocalPlayer.Character
@@ -692,44 +692,72 @@ task.spawn(function()
                 local MyTycoon = GetMyTycoon()
                 if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
                     
-                    -- ==========================================
-                    -- TAHAP 1: KUMPULKAN SEMUA TOMBOL DI MAP
-                    -- ==========================================
                     local targets = {}
+                    
+                    -- ==========================================
+                    -- TAHAP 1: SMART SCAN (Deteksi Tombol Aktif)
+                    -- ==========================================
                     for _, purchaseItem in ipairs(MyTycoon.Purchases:GetChildren()) do
                         local buttonsFolder = purchaseItem:FindFirstChild("Buttons")
                         if buttonsFolder then
+                            
+                            -- A. Cari RemoteFunction di dalam folder tombol ini
+                            local foundRemote = nil
                             for _, item in ipairs(buttonsFolder:GetDescendants()) do
-                                
-                                -- Tangkap TouchInterest (Tombol Injak)
-                                if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
-                                    local target = item.Parent
-                                    if target and target:IsA("BasePart") and target.CanTouch then
-                                        table.insert(targets, {Type = "Touch", Target = target})
-                                    end
-                                    
-                                -- Tangkap ProximityPrompt (Tombol Tekan E)
-                                elseif item:IsA("ProximityPrompt") and item.Enabled and item.Parent and item.Parent:IsA("BasePart") and item.Parent.Transparency < 0.8 then
-                                    table.insert(targets, {Type = "Prompt", Target = item})
+                                if item:IsA("RemoteFunction") and string.find(string.lower(item.Name), "purchase") then
+                                    foundRemote = item
+                                    break
                                 end
+                            end
+
+                            -- B. Pastikan tombol memang bisa dibeli (TouchInterest/Prompt masih ada)
+                            for _, item in ipairs(buttonsFolder:GetDescendants()) do
+                                local isAvailable = false
+                                local actionType = ""
+                                local targetPart = item.Parent
                                 
+                                -- Cek Tombol Injak
+                                if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
+                                    if targetPart and targetPart:IsA("BasePart") and targetPart.CanTouch then
+                                        isAvailable = true
+                                        actionType = "Touch"
+                                    end
+                                -- Cek Tombol Tekan E
+                                elseif item:IsA("ProximityPrompt") and item.Enabled and targetPart and targetPart:IsA("BasePart") and targetPart.Transparency < 0.8 then
+                                    isAvailable = true
+                                    actionType = "Prompt"
+                                end
+
+                                -- Jika tombol valid dan aktif, masukkan antrean eksekusi
+                                if isAvailable then
+                                    table.insert(targets, {
+                                        ActionType = actionType,
+                                        Target = targetPart,
+                                        PromptObj = (actionType == "Prompt" and item or nil),
+                                        Remote = foundRemote
+                                    })
+                                end
                             end
                         end
                     end
 
                     -- ==========================================
-                    -- TAHAP 2: EKSEKUSI BERSAMAAN (1 PELURU/TOMBOL)
+                    -- TAHAP 2: EKSEKUSI KILAT (Murni InvokeServer)
                     -- ==========================================
-                    -- Kita pecah semua target ke dalam "Thread" (task.spawn) masing-masing
-                    -- Agar ditembakkan secara bersamaan di 0.000 detik yang sama!
-                    for _, btn in ipairs(targets) do
+                    for _, data in ipairs(targets) do
                         task.spawn(function() 
                             pcall(function()
-                                if btn.Type == "Touch" then
-                                    firetouchinterest(rootPart, btn.Target, 0)
-                                    firetouchinterest(rootPart, btn.Target, 1)
-                                elseif btn.Type == "Prompt" then
-                                    fireproximityprompt(btn.Target)
+                                -- JALUR UTAMA: Tembak langsung lewat RemoteFunction
+                                if data.Remote then
+                                    data.Remote:InvokeServer()
+                                else
+                                    -- JALUR CADANGAN: Jika ada tombol rahasia yang gak punya RemoteFunction
+                                    if data.ActionType == "Touch" then
+                                        firetouchinterest(rootPart, data.Target, 0)
+                                        firetouchinterest(rootPart, data.Target, 1)
+                                    elseif data.ActionType == "Prompt" then
+                                        fireproximityprompt(data.PromptObj)
+                                    end
                                 end
                             end)
                         end)
