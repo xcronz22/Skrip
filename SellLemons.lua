@@ -911,13 +911,11 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 5: DYNAMIC SMART AUTO REBIRTH (CUSTOM TP VERSION)
+-- LOOP 5: DYNAMIC SMART AUTO REBIRTH (INSTANT GHOST TP - NO ANCHOR)
 -- =======================================================
 local wasAutoRebirthOn = false
 local visibleTimerRebirth = 0
 local isRebirthing = false 
-
-local JEDA_TP_REBIRTH = 0 -- 0 = INSTANT
 
 task.spawn(function()
     while true do
@@ -1007,27 +1005,34 @@ task.spawn(function()
 
                                     task.spawn(function()
                                         pcall(function() 
-                                            rebirthRemote:InvokeServer()
+                                            local char = LocalPlayer.Character
+                                            local root = char and char:FindFirstChild("HumanoidRootPart")
+
+                                            -- 1. SETUP TARGET LOKASI
+                                            local targetCFrame = nil
+                                            if root and (Toggles.RebirthTP or Toggles.AutoHarvest) then
+                                                if not CustomTPCFrame then
+                                                    CustomTPCFrame = root.CFrame
+                                                end
+                                                EnsureSafeZone(CustomTPCFrame, CustomTPSize)
+                                                local targetTopY = CustomTPCFrame.Position.Y + (CustomTPSize.Y / 2)
+                                                targetCFrame = CFrame.new(CustomTPCFrame.Position.X, targetTopY + 3, CustomTPCFrame.Position.Z)
+                                            end
+
+                                            -- 2. TEMBAK REMOTE
+                                            task.spawn(function()
+                                                pcall(function() rebirthRemote:InvokeServer() end)
+                                            end)
                                             UpgradeRemotes = {} 
-                                            
-                                            -- EKSEKUSI TELEPORT KE LOKASI CUSTOM
-                                            if Toggles.RebirthTP then
-                                                local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-                                                local root = char:WaitForChild("HumanoidRootPart", 10)
-                                                
-                                                task.wait(JEDA_TP_REBIRTH) 
-                                                
-                                                if root then
-                                                    -- Fitur Keamanan: Jika kamu baru masuk game dan belum sempat mati/nyalakan toggle, otomatis simpan posisimu saat itu juga!
-                                                    if not CustomTPCFrame then
-                                                        CustomTPCFrame = root.CFrame
-                                                        EnsureSafeZone(CustomTPCFrame, CustomTPSize)
+
+                                            -- 3. GHOST LOCK (MURNI CFRAME, TANPA ANCHOR)
+                                            if targetCFrame and root then
+                                                for i = 1, 20 do
+                                                    if root and root.Parent then
+                                                        root.Velocity = Vector3.new(0, 0, 0)
+                                                        root.CFrame = targetCFrame
                                                     end
-                                                    
-                                                    EnsureSafeZone(CustomTPCFrame, CustomTPSize)
-                                                    local targetTopY = CustomTPCFrame.Position.Y + (CustomTPSize.Y / 2)
-                                                    root.CFrame = CFrame.new(CustomTPCFrame.Position.X, targetTopY + 3, CustomTPCFrame.Position.Z) 
-                                                    root.Anchored = false
+                                                    task.wait()
                                                 end
                                             end
                                         end)
@@ -1047,12 +1052,6 @@ task.spawn(function()
                         end)
                     end
                     if sidebarInvestors then sidebarInvestors.Active = false end
-                    
-                    pcall(function()
-                        local char = LocalPlayer.Character
-                        local root = char and char:FindFirstChild("HumanoidRootPart")
-                        if root and root.Anchored then root.Anchored = false end
-                    end)
                     
                     wasAutoRebirthOn = false
                     visibleTimerRebirth = 0
