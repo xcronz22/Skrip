@@ -684,6 +684,11 @@ end)
 -- =======================================================
 local kedalaman = 15
 
+-- =======================================================
+-- [PENGATURAN PELURU BRUTAL] - Ubah angka di bawah ini!
+-- =======================================================
+local JUMLAH_PELURU = 3 -- Ganti ke 1 untuk normal, atau naikkan (misal: 5 atau 10) untuk spam brutal!
+
 -- LOOP 1: [CORE 1] MESIN KHUSUS AUTO BUY (TOMBOL)
 task.spawn(function()
     while task.wait(0.1) do
@@ -705,12 +710,22 @@ task.spawn(function()
                                 if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
                                     local target = item.Parent
                                     if target and target:IsA("BasePart") and target.CanTouch then
-                                        firetouchinterest(rootPart, target, 0)
-                                        firetouchinterest(rootPart, target, 1)
+                                        
+                                        -- 🔫 MESIN SHOTGUN (TEMBAKAN BERUNTUN)
+                                        for i = 1, JUMLAH_PELURU do
+                                            firetouchinterest(rootPart, target, 0)
+                                            firetouchinterest(rootPart, target, 1)
+                                        end
+                                        
                                         task.wait(0.1) 
                                     end
                                 elseif item:IsA("ProximityPrompt") and item.Enabled and item.Parent and item.Parent:IsA("BasePart") and item.Parent.Transparency < 0.8 then
-                                    fireproximityprompt(item)
+                                    
+                                    -- 🔫 MESIN SHOTGUN PROXIMITY (TEMBAKAN BERUNTUN)
+                                    for i = 1, JUMLAH_PELURU do
+                                        fireproximityprompt(item)
+                                    end
+                                    
                                     task.wait(0.1)
                                 end
                             end
