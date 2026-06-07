@@ -679,10 +679,10 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 1: [CORE 1] MESIN AUTO BUY (ONE-SHOT SPREAD)
+-- LOOP 1: [CORE 1] MESIN AUTO BUY (BRUTAL PHYSICAL SPRAY)
 -- =======================================================
 task.spawn(function()
-    while task.wait(0.1) do -- Putaran radar sangat cepat
+    while task.wait(0.1) do -- Jeda sangat singkat untuk refresh daftar tombol
         if Toggles.AutoBuy then
             pcall(function()
                 local char = LocalPlayer.Character
@@ -693,7 +693,7 @@ task.spawn(function()
                 if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
                     
                     -- ==========================================
-                    -- TAHAP 1: KUNCI SEMUA TARGET DI MAP
+                    -- TAHAP 1: SCAN SEMUA TOMBOL (TANPA FILTER)
                     -- ==========================================
                     local targets = {}
                     for _, purchaseItem in ipairs(MyTycoon.Purchases:GetChildren()) do
@@ -717,13 +717,14 @@ task.spawn(function()
                     end
 
                     -- ==========================================
-                    -- TAHAP 2: SHOTGUN BLAST (1 PELURU KE SEMUA TARGET)
+                    -- TAHAP 2: EKSEKUSI BRUTAL (MULTI-THREADED)
                     -- ==========================================
-                    -- Dieksekusi di dalam 1 thread tunggal agar bebas lag/stuttering, 
-                    -- tapi berjalan di kecepatan cahaya dalam 1 frame yang sama!
-                    task.spawn(function()
-                        for _, btn in ipairs(targets) do
+                    -- Kita tidak menggunakan loop biasa, melainkan menembak 
+                    -- semua tombol dalam thread terpisah secara bersamaan (Parallel)
+                    for _, btn in ipairs(targets) do
+                        task.spawn(function() 
                             pcall(function()
+                                -- Spam fisik tanpa henti
                                 if btn.Type == "Touch" then
                                     firetouchinterest(rootPart, btn.Target, 0)
                                     firetouchinterest(rootPart, btn.Target, 1)
@@ -731,9 +732,8 @@ task.spawn(function()
                                     fireproximityprompt(btn.Target)
                                 end
                             end)
-                        end
-                    end)
-
+                        end)
+                    end
                 end
             end)
         end
@@ -741,7 +741,6 @@ task.spawn(function()
 end)
 
 -- LOOP 2: [CORE 2] MESIN KHUSUS AUTO HARVEST (BUAH & TP BRUTAL)
-
 -- =======================================================
 -- MESIN DUAL-CORE: PEKERJA TERPISAH (ANTI-MACET/ANTI-LIMIT)
 -- REVISI: Penyesuaian Jeda Server Tombol (0.3 Detik)
