@@ -679,10 +679,10 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 1: [CORE 1] MESIN AUTO BUY (BRUTAL & ANTI-MISS)
+-- LOOP 1: [CORE 1] MESIN AUTO BUY (ONE-SHOT SPREAD)
 -- =======================================================
 task.spawn(function()
-    while task.wait(0.2) do -- Jeda sangat singkat untuk refresh daftar tombol
+    while task.wait(0.1) do -- Putaran radar sangat cepat
         if Toggles.AutoBuy then
             pcall(function()
                 local char = LocalPlayer.Character
@@ -693,7 +693,7 @@ task.spawn(function()
                 if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
                     
                     -- ==========================================
-                    -- TAHAP 1: SCAN SEMUA TOMBOL
+                    -- TAHAP 1: KUNCI SEMUA TARGET DI MAP
                     -- ==========================================
                     local targets = {}
                     for _, purchaseItem in ipairs(MyTycoon.Purchases:GetChildren()) do
@@ -704,8 +704,7 @@ task.spawn(function()
                                 -- Tangkap TouchInterest (Tombol Injak)
                                 if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
                                     local target = item.Parent
-                                    -- Tambahkan syarat CanTouch agar tidak menembak tombol mati
-                                    if target and target:IsA("BasePart") and target.CanTouch then
+                                    if target and target:IsA("BasePart") then
                                         table.insert(targets, {Type = "Touch", Target = target})
                                     end
                                     
@@ -718,25 +717,23 @@ task.spawn(function()
                     end
 
                     -- ==========================================
-                    -- TAHAP 2: EKSEKUSI PARALLEL BERSAMAAN
+                    -- TAHAP 2: SHOTGUN BLAST (1 PELURU KE SEMUA TARGET)
                     -- ==========================================
-                    for _, btn in ipairs(targets) do
-                        task.spawn(function() 
+                    -- Dieksekusi di dalam 1 thread tunggal agar bebas lag/stuttering, 
+                    -- tapi berjalan di kecepatan cahaya dalam 1 frame yang sama!
+                    task.spawn(function()
+                        for _, btn in ipairs(targets) do
                             pcall(function()
                                 if btn.Type == "Touch" then
-                                    -- 🛡️ TRIK MICRO-HOLD (ANTI-MISS)
-                                    firetouchinterest(rootPart, btn.Target, 0) -- Mulai Injak
-                                    
-                                    task.wait() -- Tahan injakan selama 1 frame agar server sadar
-                                    
-                                    firetouchinterest(rootPart, btn.Target, 1) -- Lepas Injakan
-                                    
+                                    firetouchinterest(rootPart, btn.Target, 0)
+                                    firetouchinterest(rootPart, btn.Target, 1)
                                 elseif btn.Type == "Prompt" then
                                     fireproximityprompt(btn.Target)
                                 end
                             end)
-                        end)
-                    end
+                        end
+                    end)
+
                 end
             end)
         end
