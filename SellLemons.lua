@@ -687,7 +687,7 @@ local kedalaman = 15
 -- =======================================================
 -- [PENGATURAN PELURU BRUTAL] - Ubah angka di bawah ini!
 -- =======================================================
-local JUMLAH_PELURU = 3 -- Ganti ke 1 untuk normal, atau naikkan (misal: 5 atau 10) untuk spam brutal!
+local JUMLAH_PELURU = 1 -- Ganti ke 1 untuk normal, atau naikkan (misal: 5 atau 10) untuk spam brutal!
 
 -- LOOP 1: [CORE 1] MESIN KHUSUS AUTO BUY (TOMBOL)
 task.spawn(function()
