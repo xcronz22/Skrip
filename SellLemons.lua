@@ -679,10 +679,10 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 1: [CORE 1] MESIN AUTO BUY (SMART HYBRID - INVOKE ONLY)
+-- LOOP 1: [CORE 1] MESIN AUTO BUY (BRUTE-FORCE 0.1s DELAY)
 -- =======================================================
 task.spawn(function()
-    while task.wait(0.2) do -- Jeda 0.2 detik agar sinkron dengan Auto Harvest
+    while task.wait(0.1) do -- Loop dasar
         if Toggles.AutoBuy then
             pcall(function()
                 local char = LocalPlayer.Character
@@ -692,77 +692,51 @@ task.spawn(function()
                 local MyTycoon = GetMyTycoon()
                 if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
                     
-                    local targets = {}
-                    
-                    -- ==========================================
-                    -- TAHAP 1: SMART SCAN (Deteksi Tombol Aktif)
-                    -- ==========================================
+                    -- SIKAT SEMUA TANPA CEK-CEK RUMIT
                     for _, purchaseItem in ipairs(MyTycoon.Purchases:GetChildren()) do
+                        if not Toggles.AutoBuy then break end -- Berhenti instan jika toggle dimatikan
+                        
                         local buttonsFolder = purchaseItem:FindFirstChild("Buttons")
                         if buttonsFolder then
-                            
-                            -- A. Cari RemoteFunction di dalam folder tombol ini
-                            local foundRemote = nil
                             for _, item in ipairs(buttonsFolder:GetDescendants()) do
-                                if item:IsA("RemoteFunction") and string.find(string.lower(item.Name), "purchase") then
-                                    foundRemote = item
-                                    break
-                                end
-                            end
-
-                            -- B. Pastikan tombol memang bisa dibeli (TouchInterest/Prompt masih ada)
-                            for _, item in ipairs(buttonsFolder:GetDescendants()) do
-                                local isAvailable = false
-                                local actionType = ""
-                                local targetPart = item.Parent
+                                if not Toggles.AutoBuy then break end
                                 
-                                -- Cek Tombol Injak
+                                local hasFired = false
+                                
+                                -- 1. Eksekusi Tombol Injak
                                 if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
-                                    if targetPart and targetPart:IsA("BasePart") and targetPart.CanTouch then
-                                        isAvailable = true
-                                        actionType = "Touch"
+                                    local target = item.Parent
+                                    if target and target:IsA("BasePart") then
+                                        pcall(function()
+                                            firetouchinterest(rootPart, target, 0)
+                                            firetouchinterest(rootPart, target, 1)
+                                        end)
+                                        hasFired = true
                                     end
-                                -- Cek Tombol Tekan E
-                                elseif item:IsA("ProximityPrompt") and item.Enabled and targetPart and targetPart:IsA("BasePart") and targetPart.Transparency < 0.8 then
-                                    isAvailable = true
-                                    actionType = "Prompt"
+                                    
+                                -- 2. Eksekusi Tombol Tekan E
+                                elseif item:IsA("ProximityPrompt") then
+                                    pcall(function() fireproximityprompt(item) end)
+                                    hasFired = true
+                                    
+                                -- 3. Eksekusi RemoteFunction (ANTI-STUCK)
+                                elseif item:IsA("RemoteFunction") and string.find(string.lower(item.Name), "purchase") then
+                                    -- Dibungkus task.spawn agar tidak nungguin server balas!
+                                    task.spawn(function()
+                                        pcall(function() item:InvokeServer() end)
+                                    end)
+                                    hasFired = true
                                 end
-
-                                -- Jika tombol valid dan aktif, masukkan antrean eksekusi
-                                if isAvailable then
-                                    table.insert(targets, {
-                                        ActionType = actionType,
-                                        Target = targetPart,
-                                        PromptObj = (actionType == "Prompt" and item or nil),
-                                        Remote = foundRemote
-                                    })
+                                
+                                -- PEMBATAS WAKTU: Cuma jalan kalau ada tombol yang dieksekusi
+                                if hasFired then
+                                    task.wait(0.1) -- Jeda mutlak 0.1 detik per tembakan!
                                 end
+                                
                             end
                         end
                     end
-
-                    -- ==========================================
-                    -- TAHAP 2: EKSEKUSI KILAT (Murni InvokeServer)
-                    -- ==========================================
-                    for _, data in ipairs(targets) do
-                        task.spawn(function() 
-                            pcall(function()
-                                -- JALUR UTAMA: Tembak langsung lewat RemoteFunction
-                                if data.Remote then
-                                    data.Remote:InvokeServer()
-                                else
-                                    -- JALUR CADANGAN: Jika ada tombol rahasia yang gak punya RemoteFunction
-                                    if data.ActionType == "Touch" then
-                                        firetouchinterest(rootPart, data.Target, 0)
-                                        firetouchinterest(rootPart, data.Target, 1)
-                                    elseif data.ActionType == "Prompt" then
-                                        fireproximityprompt(data.PromptObj)
-                                    end
-                                end
-                            end)
-                        end)
-                    end
-
+                    
                 end
             end)
         end
