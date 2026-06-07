@@ -679,10 +679,10 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 1: [CORE 1] MESIN AUTO BUY (BRUTE-FORCE 0.1s DELAY)
+-- LOOP 1: [CORE 1] MESIN AUTO BUY (PARALLEL MULTI-TARGET)
 -- =======================================================
 task.spawn(function()
-    while task.wait(0.1) do -- Loop dasar
+    while task.wait(0.2) do -- Jeda santai agar server tidak kick
         if Toggles.AutoBuy then
             pcall(function()
                 local char = LocalPlayer.Character
@@ -692,51 +692,57 @@ task.spawn(function()
                 local MyTycoon = GetMyTycoon()
                 if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
                     
-                    -- SIKAT SEMUA TANPA CEK-CEK RUMIT
+                    -- ==========================================
+                    -- TAHAP 1: KUMPULKAN SEMUA TOMBOL DI MAP
+                    -- ==========================================
+                    local targets = {}
                     for _, purchaseItem in ipairs(MyTycoon.Purchases:GetChildren()) do
-                        if not Toggles.AutoBuy then break end -- Berhenti instan jika toggle dimatikan
-                        
                         local buttonsFolder = purchaseItem:FindFirstChild("Buttons")
                         if buttonsFolder then
                             for _, item in ipairs(buttonsFolder:GetDescendants()) do
-                                if not Toggles.AutoBuy then break end
                                 
-                                local hasFired = false
-                                
-                                -- 1. Eksekusi Tombol Injak
+                                -- Tangkap TouchInterest (Tombol Injak)
                                 if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
                                     local target = item.Parent
-                                    if target and target:IsA("BasePart") then
-                                        pcall(function()
-                                            firetouchinterest(rootPart, target, 0)
-                                            firetouchinterest(rootPart, target, 1)
-                                        end)
-                                        hasFired = true
+                                    if target and target:IsA("BasePart") and target.CanTouch then
+                                        table.insert(targets, {Type = "Touch", Target = target})
                                     end
                                     
-                                -- 2. Eksekusi Tombol Tekan E
-                                elseif item:IsA("ProximityPrompt") then
-                                    pcall(function() fireproximityprompt(item) end)
-                                    hasFired = true
+                                -- Tangkap ProximityPrompt (Tombol Tekan E)
+                                elseif item:IsA("ProximityPrompt") and item.Enabled and item.Parent and item.Parent:IsA("BasePart") and item.Parent.Transparency < 0.8 then
+                                    table.insert(targets, {Type = "Prompt", Target = item})
                                     
-                                -- 3. Eksekusi RemoteFunction (ANTI-STUCK)
+                                -- Tangkap Remote Purchase (HANYA RemoteFunction)
                                 elseif item:IsA("RemoteFunction") and string.find(string.lower(item.Name), "purchase") then
-                                    -- Dibungkus task.spawn agar tidak nungguin server balas!
-                                    task.spawn(function()
-                                        pcall(function() item:InvokeServer() end)
-                                    end)
-                                    hasFired = true
-                                end
-                                
-                                -- PEMBATAS WAKTU: Cuma jalan kalau ada tombol yang dieksekusi
-                                if hasFired then
-                                    task.wait(0.1) -- Jeda mutlak 0.1 detik per tembakan!
+                                    table.insert(targets, {Type = "Remote", Target = item})
                                 end
                                 
                             end
                         end
                     end
-                    
+
+                    -- ==========================================
+                    -- TAHAP 2: EKSEKUSI BERSAMAAN (1 PELURU/TOMBOL)
+                    -- ==========================================
+                    -- Kita pecah semua target ke dalam "Thread" (task.spawn) masing-masing
+                    -- Agar ditembakkan secara bersamaan di 0.000 detik yang sama!
+                    for _, btn in ipairs(targets) do
+                        task.spawn(function() 
+                            pcall(function()
+                                if btn.Type == "Touch" then
+                                    firetouchinterest(rootPart, btn.Target, 0)
+                                    firetouchinterest(rootPart, btn.Target, 1)
+                                elseif btn.Type == "Prompt" then
+                                    fireproximityprompt(btn.Target)
+                                elseif btn.Type == "Remote" then
+                                    if btn.Target:IsA("RemoteFunction") then
+                                        btn.Target:InvokeServer()
+                                    end
+                                end
+                            end)
+                        end)
+                    end
+
                 end
             end)
         end
