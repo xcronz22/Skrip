@@ -728,10 +728,10 @@ task.spawn(function()
                     end
 
                     -- ==========================================
-                    -- TAHAP 2: EKSEKUSI ULTRA AMAN (MAKSIMAL 2 TOMBOL)
+                    -- TAHAP 2: EKSEKUSI ULTRA AMAN
                     -- ==========================================
                     -- Limit sangat kecil agar CPU lega dan tidak bentrok dengan fitur lain
-                    local maxTombolPerTembakan = 2
+                    local maxTombolPerTembakan = 5
                     local jumlahTarget = #targets
 
                     for i = 1, math.min(maxTombolPerTembakan, jumlahTarget) do
