@@ -685,13 +685,10 @@ end)
 local kedalaman = 15
 
 -- =======================================================
--- [PENGATURAN PELURU BRUTAL] - Ubah angka di bawah ini!
+-- LOOP 1: [CORE 1] MESIN AUTO BUY (PARALLEL MULTI-TARGET)
 -- =======================================================
-local JUMLAH_PELURU = 1 -- Ganti ke 1 untuk normal, atau naikkan (misal: 5 atau 10) untuk spam brutal!
-
--- LOOP 1: [CORE 1] MESIN KHUSUS AUTO BUY (TOMBOL)
 task.spawn(function()
-    while task.wait(0.1) do
+    while task.wait(0.1) do -- Jeda santai agar server tidak kick
         if Toggles.AutoBuy then
             pcall(function()
                 local char = LocalPlayer.Character
@@ -700,37 +697,60 @@ task.spawn(function()
 
                 local MyTycoon = GetMyTycoon()
                 if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
+                    
+                    -- ==========================================
+                    -- TAHAP 1: KUMPULKAN SEMUA TOMBOL DI MAP
+                    -- ==========================================
+                    local targets = {}
                     for _, purchaseItem in ipairs(MyTycoon.Purchases:GetChildren()) do
                         local buttonsFolder = purchaseItem:FindFirstChild("Buttons")
                         if buttonsFolder then
                             for _, item in ipairs(buttonsFolder:GetDescendants()) do
-                                -- Rem darurat jika toggle dimatikan di tengah jalan
-                                if not Toggles.AutoBuy then break end 
-
+                                
+                                -- Tangkap TouchInterest (Tombol Injak)
                                 if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
                                     local target = item.Parent
                                     if target and target:IsA("BasePart") and target.CanTouch then
-                                        
-                                        -- 🔫 MESIN SHOTGUN (TEMBAKAN BERUNTUN)
-                                        for i = 1, JUMLAH_PELURU do
-                                            firetouchinterest(rootPart, target, 0)
-                                            firetouchinterest(rootPart, target, 1)
-                                        end
-                                        
-                                        task.wait(0.1) 
+                                        table.insert(targets, {Type = "Touch", Target = target})
                                     end
+                                    
+                                -- Tangkap ProximityPrompt (Tombol Tekan E)
                                 elseif item:IsA("ProximityPrompt") and item.Enabled and item.Parent and item.Parent:IsA("BasePart") and item.Parent.Transparency < 0.8 then
+                                    table.insert(targets, {Type = "Prompt", Target = item})
                                     
-                                    -- 🔫 MESIN SHOTGUN PROXIMITY (TEMBAKAN BERUNTUN)
-                                    for i = 1, JUMLAH_PELURU do
-                                        fireproximityprompt(item)
-                                    end
-                                    
-                                    task.wait(0.1)
+                                -- Tangkap Remote Purchase (Jika dev sembunyikan pembelian lewat remote)
+                                elseif (item:IsA("RemoteFunction") or item:IsA("RemoteEvent")) and string.find(string.lower(item.Name), "purchase") then
+                                    table.insert(targets, {Type = "Remote", Target = item})
                                 end
+                                
                             end
                         end
                     end
+
+                    -- ==========================================
+                    -- TAHAP 2: EKSEKUSI BERSAMAAN (1 PELURU/TOMBOL)
+                    -- ==========================================
+                    -- Kita pecah semua target ke dalam "Thread" (task.spawn) masing-masing
+                    -- Agar ditembakkan secara bersamaan di 0.000 detik yang sama!
+                    for _, btn in ipairs(targets) do
+                        task.spawn(function() 
+                            pcall(function()
+                                if btn.Type == "Touch" then
+                                    firetouchinterest(rootPart, btn.Target, 0)
+                                    firetouchinterest(rootPart, btn.Target, 1)
+                                elseif btn.Type == "Prompt" then
+                                    fireproximityprompt(btn.Target)
+                                elseif btn.Type == "Remote" then
+                                    if btn.Target:IsA("RemoteFunction") then
+                                        btn.Target:InvokeServer()
+                                    else
+                                        btn.Target:FireServer()
+                                    end
+                                end
+                            end)
+                        end)
+                    end
+
                 end
             end)
         end
@@ -829,6 +849,11 @@ task.spawn(function()
         end
     end)
 
+    -- =======================================================
+    -- [PENGATURAN PELURU UPGRADE] - Atur kecepatan Minigun di sini!
+    -- =======================================================
+    local JUMLAH_PELURU_UPGRADE = 3 -- Ganti ke 1 jika server muntah/disconnect. Naikkan jika server kuat!
+
     -- [BAGIAN B]: MACHINE GUN AUTO UPGRADE (+1 SUPER SPEED)
     while task.wait(1) do 
         if Toggles.AutoUpgrade then
@@ -852,10 +877,9 @@ task.spawn(function()
                                         pcall(function() if desc and desc.Parent then isValid = true end end)
                                         
                                         if isValid then
-                                            -- TRIK MESIN PENGGILING: 
-                                            -- Buka 3 thread secara BERSAMAAN tanpa antre! 
-                                            -- Ini menghasilkan ~60 pembelian per detik (Bypass lag server)
-                                            for i = 1, 3 do
+                                            -- 🔫 TRIK MESIN PENGGILING (MINIGUN): 
+                                            -- Buka banyak thread secara BERSAMAAN tanpa antre! 
+                                            for i = 1, JUMLAH_PELURU_UPGRADE do
                                                 task.spawn(function()
                                                     pcall(function() desc:InvokeServer(1) end)
                                                 end)
