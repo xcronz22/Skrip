@@ -679,7 +679,7 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 1: [CORE 1] MESIN AUTO BUY (BRUTAL PHYSICAL SPRAY)
+-- LOOP 1: [CORE 1] MESIN AUTO BUY (BRUTAL & ANTI-MISS)
 -- =======================================================
 task.spawn(function()
     while task.wait(0.2) do -- Jeda sangat singkat untuk refresh daftar tombol
@@ -693,7 +693,7 @@ task.spawn(function()
                 if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
                     
                     -- ==========================================
-                    -- TAHAP 1: SCAN SEMUA TOMBOL (TANPA FILTER)
+                    -- TAHAP 1: SCAN SEMUA TOMBOL
                     -- ==========================================
                     local targets = {}
                     for _, purchaseItem in ipairs(MyTycoon.Purchases:GetChildren()) do
@@ -704,7 +704,8 @@ task.spawn(function()
                                 -- Tangkap TouchInterest (Tombol Injak)
                                 if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
                                     local target = item.Parent
-                                    if target and target:IsA("BasePart") then
+                                    -- Tambahkan syarat CanTouch agar tidak menembak tombol mati
+                                    if target and target:IsA("BasePart") and target.CanTouch then
                                         table.insert(targets, {Type = "Touch", Target = target})
                                     end
                                     
@@ -717,17 +718,19 @@ task.spawn(function()
                     end
 
                     -- ==========================================
-                    -- TAHAP 2: EKSEKUSI BRUTAL (MULTI-THREADED)
+                    -- TAHAP 2: EKSEKUSI PARALLEL BERSAMAAN
                     -- ==========================================
-                    -- Kita tidak menggunakan loop biasa, melainkan menembak 
-                    -- semua tombol dalam thread terpisah secara bersamaan (Parallel)
                     for _, btn in ipairs(targets) do
                         task.spawn(function() 
                             pcall(function()
-                                -- Spam fisik tanpa henti
                                 if btn.Type == "Touch" then
-                                    firetouchinterest(rootPart, btn.Target, 0)
-                                    firetouchinterest(rootPart, btn.Target, 1)
+                                    -- 🛡️ TRIK MICRO-HOLD (ANTI-MISS)
+                                    firetouchinterest(rootPart, btn.Target, 0) -- Mulai Injak
+                                    
+                                    task.wait() -- Tahan injakan selama 1 frame agar server sadar
+                                    
+                                    firetouchinterest(rootPart, btn.Target, 1) -- Lepas Injakan
+                                    
                                 elseif btn.Type == "Prompt" then
                                     fireproximityprompt(btn.Target)
                                 end
