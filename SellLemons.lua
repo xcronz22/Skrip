@@ -685,7 +685,7 @@ end)
 local kedalaman = 15
 
 -- =======================================================
--- LOOP 1: [CORE 1] MESIN AUTO BUY (ULTRA SAFE BATCH LIMIT 2)
+-- LOOP 1: [CORE 1] MESIN AUTO BUY (TOUCHINTEREST ONLY - LIMIT 2)
 -- =======================================================
 task.spawn(function()
     while task.wait(0.2) do -- Jeda santai agar server tidak kick
@@ -699,7 +699,7 @@ task.spawn(function()
                 if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
                     
                     -- ==========================================
-                    -- TAHAP 1: KUMPULKAN SEMUA TOMBOL DI MAP
+                    -- TAHAP 1: KUMPULKAN HANYA TOMBOL INJAK (TOUCH)
                     -- ==========================================
                     local targets = {}
                     for _, purchaseItem in ipairs(MyTycoon.Purchases:GetChildren()) do
@@ -707,20 +707,12 @@ task.spawn(function()
                         if buttonsFolder then
                             for _, item in ipairs(buttonsFolder:GetDescendants()) do
                                 
-                                -- Tangkap TouchInterest (Tombol Injak)
+                                -- HANYA Menangkap TouchInterest / TouchTransmitter
                                 if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
                                     local target = item.Parent
                                     if target and target:IsA("BasePart") and target.CanTouch then
-                                        table.insert(targets, {Type = "Touch", Target = target})
+                                        table.insert(targets, target)
                                     end
-                                    
-                                -- Tangkap ProximityPrompt (Tombol Tekan E)
-                                elseif item:IsA("ProximityPrompt") and item.Enabled and item.Parent and item.Parent:IsA("BasePart") and item.Parent.Transparency < 0.8 then
-                                    table.insert(targets, {Type = "Prompt", Target = item})
-                                    
-                                -- Tangkap Remote Purchase (Jika dev sembunyikan pembelian lewat remote)
-                                elseif (item:IsA("RemoteFunction") or item:IsA("RemoteEvent")) and string.find(string.lower(item.Name), "purchase") then
-                                    table.insert(targets, {Type = "Remote", Target = item})
                                 end
                                 
                             end
@@ -728,29 +720,18 @@ task.spawn(function()
                     end
 
                     -- ==========================================
-                    -- TAHAP 2: EKSEKUSI ULTRA AMAN
+                    -- TAHAP 2: EKSEKUSI MAKSIMAL 2 TOMBOL PER SIKLUS
                     -- ==========================================
-                    -- Limit sangat kecil agar CPU lega dan tidak bentrok dengan fitur lain
-                    local maxTombolPerTembakan = 5
+                    local maxTombolPerTembakan = 2
                     local jumlahTarget = #targets
 
                     for i = 1, math.min(maxTombolPerTembakan, jumlahTarget) do
-                        local btn = targets[i]
-                        if btn then
+                        local targetPart = targets[i]
+                        if targetPart then
                             task.spawn(function() 
                                 pcall(function()
-                                    if btn.Type == "Touch" then
-                                        firetouchinterest(rootPart, btn.Target, 0)
-                                        firetouchinterest(rootPart, btn.Target, 1)
-                                    elseif btn.Type == "Prompt" then
-                                        fireproximityprompt(btn.Target)
-                                    elseif btn.Type == "Remote" then
-                                        if btn.Target:IsA("RemoteFunction") then
-                                            btn.Target:InvokeServer()
-                                        else
-                                            btn.Target:FireServer()
-                                        end
-                                    end
+                                    firetouchinterest(rootPart, targetPart, 0)
+                                    firetouchinterest(rootPart, targetPart, 1)
                                 end)
                             end)
                         end
