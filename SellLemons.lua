@@ -713,17 +713,17 @@ end)
 -- =======================================================
 -- Kita definisikan urutan folder secara mutlak dari awal sampai akhir Tycoon
 local PurchaseOrder = {
-    "Minigames",
     "Hills",
     "Lemon Stand",
-    "Lemon Dash",
+    "LemonDash",
     "Lemon Depot",
     "Lemon Trading",
     "Lemon Labs",
     "Lemon Robotics",
     "Lemon Republic",
-    "LemonX Ground",
     "LemonX",
+    "LemonX Ground",
+    "Minigames",
     "Staircase"
 }
 
