@@ -918,9 +918,9 @@ task.spawn(function()
     }
     
     -- Amunisi bergantian (1, 5, 25)
-    local upgradeAmounts = {1} --5, --25}
+    local upgradeAmounts = {1, 5}
     
-    while task.wait() do -- Kecepatan bypass maksimal (~0.016 detik per putaran!)
+    while task.wait(0.1) do -- Kecepatan bypass maksimal (~0.016 detik per putaran!)
         if Toggles.AutoUpgrade then
             pcall(function()
                 local MyTycoon = GetMyTycoon()
