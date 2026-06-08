@@ -1404,7 +1404,7 @@ task.spawn(function()
                     -- ==========================================
                     -- TAHAP 3: AUTO CLICKER DI ABSOLUTE POSITION
                     -- ==========================================
-                    local labButton = buyNextUI:FindFirstChild("Button") and buyNextUI.Button:FindFirstChild("Lab")
+                    local labelButton = buyNextUI:FindFirstChild("Button") and buyNextUI.Button:FindFirstChild("Label")
                     
                     if labButton and labButton:IsA("GuiButton") then
                         -- Kalkulasi titik tengah tombol di layar
