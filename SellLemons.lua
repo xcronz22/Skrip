@@ -749,18 +749,28 @@ task.spawn(function()
                                 for _, item in ipairs(buttonsFolder:GetDescendants()) do
                                     local targetPart = item.Parent
                                     
-                                    -- PENEMUANMU: Cek apakah Part tombol atau Model tombol memiliki Attribute Shown = true
+                                    -- PENEMUANMU: Cek apakah Part tombol atau Model tombol memiliki Attribute Shown = true dan Enabled = true
                                     local isShown = false
+                                    local isEnabled = false
+                                    
                                     if targetPart then
+                                        -- Cek Shown
                                         if targetPart:GetAttribute("Shown") == true then
                                             isShown = true
                                         elseif targetPart.Parent and targetPart.Parent:GetAttribute("Shown") == true then
                                             isShown = true
                                         end
+                                        
+                                        -- Cek Enabled
+                                        if targetPart:GetAttribute("Enabled") == true then
+                                            isEnabled = true
+                                        elseif targetPart.Parent and targetPart.Parent:GetAttribute("Enabled") == true then
+                                            isEnabled = true
+                                        end
                                     end
                                     
-                                    -- JIKA TOMBOLNYA MEMANG SUDAH MUNCUL (SHOWN)
-                                    if isShown then
+                                    -- JIKA TOMBOLNYA MEMANG SUDAH MUNCUL (SHOWN) DAN BISA DITEKAN (ENABLED)
+                                    if isShown and isEnabled then
                                         -- Tangkap TouchInterest (Tombol Injak)
                                         if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
                                             if targetPart and targetPart:IsA("BasePart") then
@@ -777,7 +787,7 @@ task.spawn(function()
                         end
                     end
 
-                    -- EKSEKUSI HANYA PADA TOMBOL YANG 'SHOWN = TRUE'
+                    -- EKSEKUSI HANYA PADA TOMBOL YANG 'SHOWN = TRUE' DAN 'ENABLED = TRUE'
                     if #targets > 0 then
                         task.spawn(function()
                             for _, btn in ipairs(targets) do
