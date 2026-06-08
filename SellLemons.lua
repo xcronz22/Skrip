@@ -15,6 +15,7 @@ local Toggles = {
     AutoHarvest = false,
     AutoDrop = false,
     AutoBuy = false,
+    AutoBuyV2 = false,
     AutoUpgrade = false,
     AutoRebirth = false,
     RebirthTP = true,
@@ -510,6 +511,10 @@ ToggleObjects.AutoBuy = Window:AddToggle("Auto Buy Buttons", false, function(Val
             end)
         end)
     end
+end)
+
+ToggleObjects.AutoBuyV2 = Window:AddToggle("Auto Buy V2 (UI Clicker)", false, function(Value) 
+    Toggles.AutoBuyV2 = Value 
 end)
 
 -- =======================================================
@@ -1356,5 +1361,74 @@ task.spawn(function()
                 end
             end
         end)
+    end
+end)
+
+-- =======================================================
+-- LOOP 11: AUTO BUY V2 (SMART UI CLICKER)
+-- =======================================================
+task.spawn(function()
+    while task.wait(0.1) do -- Kecepatan klik 0.1 detik
+        if Toggles.AutoBuyV2 then
+            pcall(function()
+                
+                -- ==========================================
+                -- TAHAP 1: UNLOCK POWER 'BUYNEXT' (NILAI 1)
+                -- ==========================================
+                local MyTycoon = GetMyTycoon()
+                if MyTycoon then
+                    local permFolder = MyTycoon:FindFirstChild("Values") and MyTycoon.Values:FindFirstChild("Powers") and MyTycoon.Values.Powers:FindFirstChild("Permanent")
+                    if permFolder then
+                        permFolder:SetAttribute("BuyNext", 1)
+                    end
+                end
+
+                -- ==========================================
+                -- TAHAP 2: MODIFIKASI PROPERTIES UI
+                -- ==========================================
+                local playerGui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
+                local buyNextUI = playerGui and playerGui:FindFirstChild("HUD") 
+                                  and playerGui.HUD:FindFirstChild("Powers") 
+                                  and playerGui.HUD.Powers:FindFirstChild("BuyNext")
+                
+                if buyNextUI then
+                    -- Ubah Properties: Position & Size
+                    buyNextUI.Position = UDim2.new(1.69002998, 0, 0.0868578553, 0)
+                    buyNextUI.Size = UDim2.new(0.800000012, 0, 0.800000012, 0)
+                    
+                    -- Ubah Attributes: Visible = True
+                    if buyNextUI:GetAttribute("Visible") ~= true then
+                        buyNextUI:SetAttribute("Visible", true)
+                    end
+
+                    -- ==========================================
+                    -- TAHAP 3: AUTO CLICKER DI ABSOLUTE POSITION
+                    -- ==========================================
+                    local labButton = buyNextUI:FindFirstChild("Button") and buyNextUI.Button:FindFirstChild("Lab")
+                    
+                    if labButton and labButton:IsA("GuiButton") then
+                        -- Kalkulasi titik tengah tombol di layar
+                        local absPos = labButton.AbsolutePosition
+                        local absSize = labButton.AbsoluteSize
+                        local centerX = absPos.X + (absSize.X / 2)
+                        local centerY = absPos.Y + (absSize.Y / 2)
+
+                        -- Gunakan layanan VirtualUser untuk simulasi klik asli
+                        local VirtualUser = game:GetService("VirtualUser")
+                        VirtualUser:ClickButton1(Vector2.new(centerX, centerY))
+                        
+                        -- [Trik Tambahan]: Backup menggunakan firesignal jika executor kamu support, 
+                        -- ini membuat kliknya jauh lebih brutal dan tanpa perlu menggeser mouse!
+                        pcall(function()
+                            if firesignal then
+                                firesignal(labButton.MouseButton1Click)
+                                firesignal(labButton.MouseButton1Down)
+                            end
+                        end)
+                    end
+                end
+                
+            end)
+        end
     end
 end)
