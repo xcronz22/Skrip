@@ -714,20 +714,24 @@ end)
 local PurchaseOrder = {
     "Staircase",
     "Hills",
-    "LemonX",
-    "Lemon Republic",
-    "Lemon Robotics",
-    "Lemon Labs",
-    "Lemon Trading",
-    "Lemon Depot",
-    "LemonDash",
     "Lemon Stand",
     "Minigames",
-    "LemonX Ground"
+    "LemonDash",
+    "Lemon Depot",
+    "Hills",
+    "Lemon Trading",
+    "Minigames",
+    "Lemon Labs",
+    "Hills",
+    "Lemon Robotics",
+    "Hills",
+    "Lemon Republic",
+    "LemonX Ground",
+    "LemonX"
 }
 
 task.spawn(function()
-    while task.wait(0.05) do
+    while task.wait(0.04) do
         if Toggles.AutoBuy then
             pcall(function()
                 local char = LocalPlayer.Character
@@ -917,7 +921,7 @@ task.spawn(function()
         {"LemonX", "LemonX", "LemonX"}
     }
     
-    while task.wait(0.01) do -- Speed mesin penggiling yang aman
+    while task.wait(0.04) do -- Speed mesin penggiling yang aman
         if Toggles.AutoUpgrade then
             pcall(function()
                 local MyTycoon = GetMyTycoon()
