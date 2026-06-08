@@ -880,15 +880,14 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 3: AUTO UPGRADE & CLICK (MACHINE GUN ENGINE)
+-- LOOP 3: AUTO UPGRADE & CLICK (SMART MACHINE GUN ENGINE)
 -- =======================================================
 local clickTargets = {"LemonDepot", "LemonLabs", "LemonRepublic", "LemonRobotics", "LemonStand", "LemonTrading", "LemonDash", "LemonX"}
-local activeUpgradeThreads = {} 
 
 task.spawn(function()
-    -- [BAGIAN A]: AUTO CLICKER (Berjalan terpisah 100% agar tidak pernah nyangkut!)
+    -- [BAGIAN A]: AUTO CLICKER (Berjalan terpisah 100%)
     task.spawn(function()
-        while task.wait(0.1) do -- Kecepatan klik super ngebut
+        while task.wait(0.1) do
             if Toggles.AutoUpgrade then
                 pcall(function()
                     local MyTycoon = GetMyTycoon()
@@ -896,7 +895,6 @@ task.spawn(function()
                     
                     if wakeRemote and wakeRemote:IsA("RemoteFunction") then
                         for _, targetName in ipairs(clickTargets) do
-                            -- Tembak dan tinggalkan, jangan tunggu balasan server
                             task.spawn(function() 
                                 pcall(function() wakeRemote:InvokeServer(targetName) end) 
                             end)
@@ -907,87 +905,51 @@ task.spawn(function()
         end
     end)
 
-    -- [BAGIAN C]: MACHINE GUN PROXIMITY SPAMMER (BRUTAL MODE)
-    -- Ditaruh di sini agar berjalan paralel dan tidak terblokir oleh loop Bagian B
-    task.spawn(function()
-        local promptPaths = {
-            {"Lemon Stand", "Lemon Stand", "Lemon Stand"},
-            {"LemonDash", "LemonDash", "LemonDash"},
-            {"Lemon Depot", "Lemon Depot", "Lemon Depot"},
-            {"Lemon Trading", "Lemon Trading", "Lemon Trading"},
-            {"Lemon Labs", "Lemon Labs", "Lemon Labs"},
-            {"Lemon Robotics", "Lemon Robotics", "Lemon Robotics"},
-            {"Lemon Republic", "Lemon Republic", "Lemon Republic"},
-            {"LemonX", "LemonX", "LemonX"}
-        }
-        
-        while task.wait(0.01) do -- Tempo super brutal tanpa ampun (0.01 detik)
-            if Toggles.AutoUpgrade then
-                pcall(function()
-                    local MyTycoon = GetMyTycoon()
-                    if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
-                        for _, path in ipairs(promptPaths) do
-                            local current = MyTycoon.Purchases
-                            for _, folderName in ipairs(path) do
-                                current = current and current:FindFirstChild(folderName)
-                            end
-                            
-                            -- Jika folder tujuan ketemu, cek ProximityPrompt di dalamnya
-                            if current then
-                                local prompt = current:FindFirstChild("Prompt")
-                                if prompt and prompt:IsA("ProximityPrompt") and prompt.Enabled then
-                                    task.spawn(function()
-                                        fireproximityprompt(prompt)
-                                    end)
-                                end
-                            end
-                        end
-                    end
-                end)
-            end
-        end
-    end)
-
-    -- [BAGIAN B]: MACHINE GUN AUTO UPGRADE (+1 SUPER SPEED)
-    while task.wait(1) do 
+    -- [BAGIAN B & C GABUNGAN]: SMART AUTO UPGRADE 
+    local promptPaths = {
+        {"Lemon Stand", "Lemon Stand", "Lemon Stand"},
+        {"LemonDash", "LemonDash", "LemonDash"},
+        {"Lemon Depot", "Lemon Depot", "Lemon Depot"},
+        {"Lemon Trading", "Lemon Trading", "Lemon Trading"},
+        {"Lemon Labs", "Lemon Labs", "Lemon Labs"},
+        {"Lemon Robotics", "Lemon Robotics", "Lemon Robotics"},
+        {"Lemon Republic", "Lemon Republic", "Lemon Republic"},
+        {"LemonX", "LemonX", "LemonX"}
+    }
+    
+    while task.wait(0.05) do -- Speed mesin penggiling yang aman
         if Toggles.AutoUpgrade then
             pcall(function()
                 local MyTycoon = GetMyTycoon()
                 if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
-                    for _, desc in ipairs(MyTycoon.Purchases:GetDescendants()) do
-                        if desc:IsA("RemoteFunction") and desc.Name == "Upgrade" then
-                            
-                            if not activeUpgradeThreads[desc] then
-                                activeUpgradeThreads[desc] = true
-                                
-                                task.spawn(function()
-                                    while task.wait(0.05) do -- Jeda sangat tipis
-                                        if not Toggles.AutoUpgrade then 
-                                            task.wait(0.5) 
-                                            continue 
-                                        end
-                                        
-                                        local isValid = false
-                                        pcall(function() if desc and desc.Parent then isValid = true end end)
-                                        
-                                        if isValid then
-                                            -- TRIK MESIN PENGGILING: 
-                                            -- Buka 3 thread secara BERSAMAAN tanpa antre! 
-                                            -- Ini menghasilkan ~60 pembelian per detik (Bypass lag server)
-                                            for i = 1, 3 do
-                                                task.spawn(function()
-                                                    -- KOMENTAR MATI (Sesuai Request):
-                                                    -- pcall(function() desc:InvokeServer(1) end)
-                                                end)
-                                            end
-                                        else
-                                            activeUpgradeThreads[desc] = nil
-                                            break 
-                                        end
+                    for _, path in ipairs(promptPaths) do
+                        local current = MyTycoon.Purchases
+                        for _, folderName in ipairs(path) do
+                            current = current and current:FindFirstChild(folderName)
+                        end
+                        
+                        -- Jika lokasi folder ketemu
+                        if current then
+                            local prompt = current:FindFirstChild("Prompt")
+                            -- Mencari RemoteFunction "Upgrade" di dalam folder yang sama
+                            local upgradeRemote = current:FindFirstChild("Upgrade") or current:FindFirstChildWhichIsA("RemoteFunction")
+
+                            -- LOGIKA FILTER: Jika tombol promptnya BISA DITEKAN (Enabled = true)
+                            if prompt and prompt:IsA("ProximityPrompt") and prompt.Enabled then
+                                -- Pastikan remote-nya ada
+                                if upgradeRemote and upgradeRemote:IsA("RemoteFunction") then
+                                    
+                                    -- Eksekusi brutal 3 thread sekaligus (Membypass lag server)
+                                    for i = 1, 3 do
+                                        task.spawn(function()
+                                            pcall(function() 
+                                                upgradeRemote:InvokeServer(1) 
+                                            end)
+                                        end)
                                     end
-                                end)
+                                    
+                                end
                             end
-                            
                         end
                     end
                 end
