@@ -880,7 +880,7 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 3: AUTO UPGRADE & CLICK (ULTRA BRUTAL MACHINE GUN ENGINE)
+-- LOOP 3: AUTO UPGRADE & CLICK (SMART MACHINE GUN ENGINE)
 -- =======================================================
 local clickTargets = {"LemonDepot", "LemonLabs", "LemonRepublic", "LemonRobotics", "LemonStand", "LemonTrading", "LemonDash", "LemonX"}
 
@@ -905,7 +905,7 @@ task.spawn(function()
         end
     end)
 
-    -- [BAGIAN B & C GABUNGAN]: SMART & ULTRA BRUTAL AUTO UPGRADE 
+    -- [BAGIAN B & C GABUNGAN]: SMART AUTO UPGRADE 
     local promptPaths = {
         {"Lemon Stand", "Lemon Stand", "Lemon Stand"},
         {"LemonDash", "LemonDash", "LemonDash"},
@@ -917,7 +917,7 @@ task.spawn(function()
         {"LemonX", "LemonX", "LemonX"}
     }
     
-    while task.wait(0.05) do
+    while task.wait(0.05) do -- Speed mesin penggiling yang aman
         if Toggles.AutoUpgrade then
             pcall(function()
                 local MyTycoon = GetMyTycoon()
@@ -931,20 +931,21 @@ task.spawn(function()
                         -- Jika lokasi folder ketemu
                         if current then
                             local prompt = current:FindFirstChild("Prompt")
+                            -- Mencari RemoteFunction "Upgrade" di dalam folder yang sama
                             local upgradeRemote = current:FindFirstChild("Upgrade") or current:FindFirstChildWhichIsA("RemoteFunction")
 
-                            -- LOGIKA FILTER: Hanya eksekusi jika Prompt.Enabled = true
+                            -- LOGIKA FILTER: Jika tombol promptnya BISA DITEKAN (Enabled = true)
                             if prompt and prompt:IsA("ProximityPrompt") and prompt.Enabled then
+                                -- Pastikan remote-nya ada
                                 if upgradeRemote and upgradeRemote:IsA("RemoteFunction") then
                                     
-                                    for _, amount in ipairs(upgradeAmounts) do
-                                        for burst = 1, 3 do
-                                            task.spawn(function()
-                                                pcall(function() 
-                                                    upgradeRemote:InvokeServer(1) 
-                                                end)
+                                    -- Eksekusi brutal 3 thread sekaligus (Membypass lag server)
+                                    for i = 1, 3 do
+                                        task.spawn(function()
+                                            pcall(function() 
+                                                upgradeRemote:InvokeServer(1) 
                                             end)
-                                        end
+                                        end)
                                     end
                                     
                                 end
