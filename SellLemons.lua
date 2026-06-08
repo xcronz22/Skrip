@@ -709,21 +709,20 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 1: [CORE 1] MESIN AUTO BUY (ORDERED SHOTGUN SPREAD)
+-- LOOP 1: [CORE 1] MESIN AUTO BUY (SMART "SHOWN" FILTERED SPREAD)
 -- =======================================================
--- Kita definisikan urutan folder secara mutlak dari awal sampai akhir Tycoon
 local PurchaseOrder = {
-    "Hills",
     "Lemon Stand",
+    "Minigames",
+    "Hills",
     "LemonDash",
     "Lemon Depot",
     "Lemon Trading",
     "Lemon Labs",
     "Lemon Robotics",
     "Lemon Republic",
-    "LemonX",
     "LemonX Ground",
-    "Minigames",
+    "LemonX",
     "Staircase"
 }
 
@@ -738,42 +737,47 @@ task.spawn(function()
                 local MyTycoon = GetMyTycoon()
                 if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
                     
-                    -- ==========================================
-                    -- TAHAP 1: SCAN TERURUT BERDASARKAN HIERARKI
-                    -- ==========================================
                     local targets = {}
                     
-                    -- Skrip akan memaksa mencari folder sesuai urutan tabel PurchaseOrder
                     for _, folderName in ipairs(PurchaseOrder) do
                         local purchaseItem = MyTycoon.Purchases:FindFirstChild(folderName)
                         
-                        -- Jika foldernya ada di map, ambil semua tombolnya
                         if purchaseItem then
                             local buttonsFolder = purchaseItem:FindFirstChild("Buttons")
                             if buttonsFolder then
+                                -- Scan seluruh isi folder Buttons
                                 for _, item in ipairs(buttonsFolder:GetDescendants()) do
+                                    local targetPart = item.Parent
                                     
-                                    -- Tangkap TouchInterest (Tombol Injak)
-                                    if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
-                                        local target = item.Parent
-                                        if target and target:IsA("BasePart") then
-                                            table.insert(targets, {Type = "Touch", Target = target})
+                                    -- PENEMUANMU: Cek apakah Part tombol atau Model tombol memiliki Attribute Shown = true
+                                    local isShown = false
+                                    if targetPart then
+                                        if targetPart:GetAttribute("Shown") == true then
+                                            isShown = true
+                                        elseif targetPart.Parent and targetPart.Parent:GetAttribute("Shown") == true then
+                                            isShown = true
                                         end
-                                        
-                                    -- Tangkap ProximityPrompt (Tombol E)
-                                    elseif item:IsA("ProximityPrompt") and item.Enabled then
-                                        table.insert(targets, {Type = "Prompt", Target = item})
+                                    end
+                                    
+                                    -- JIKA TOMBOLNYA MEMANG SUDAH MUNCUL (SHOWN)
+                                    if isShown then
+                                        -- Tangkap TouchInterest (Tombol Injak)
+                                        if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
+                                            if targetPart and targetPart:IsA("BasePart") then
+                                                table.insert(targets, {Type = "Touch", Target = targetPart})
+                                            end
+                                            
+                                        -- Tangkap ProximityPrompt (Tombol E)
+                                        elseif item:IsA("ProximityPrompt") and item.Enabled then
+                                            table.insert(targets, {Type = "Prompt", Target = item})
+                                        end
                                     end
                                 end
                             end
                         end
                     end
 
-                    -- ==========================================
-                    -- TAHAP 2: EKSEKUSI SHOTGUN DALAM 1 FRAME
-                    -- ==========================================
-                    -- Mengeksekusi array 'targets' yang kini sudah tersusun rapi dari 
-                    -- Lemon Stand sampai Staircase tanpa membuat mesin ngelag.
+                    -- EKSEKUSI HANYA PADA TOMBOL YANG 'SHOWN = TRUE'
                     if #targets > 0 then
                         task.spawn(function()
                             for _, btn in ipairs(targets) do
