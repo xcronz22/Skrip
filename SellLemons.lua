@@ -943,7 +943,7 @@ task.spawn(function()
                                     -- BERONDONGAN BRUTAL: Tembak angka 1, 5, 25 bergantian dalam satu kedipan mata!
                                     for _, amount in ipairs(upgradeAmounts) do
                                         -- Gandakan thread (Double Burst) agar server dipaksa memproses lebih cepat
-                                        for burst = 1, 2 do
+                                        for burst = 1, 5 do
                                             task.spawn(function()
                                                 pcall(function() 
                                                     upgradeRemote:InvokeServer(amount) 
