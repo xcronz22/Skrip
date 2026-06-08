@@ -907,6 +907,47 @@ task.spawn(function()
         end
     end)
 
+    -- [BAGIAN C]: MACHINE GUN PROXIMITY SPAMMER (BRUTAL MODE)
+    -- Ditaruh di sini agar berjalan paralel dan tidak terblokir oleh loop Bagian B
+    task.spawn(function()
+        local promptPaths = {
+            {"Lemon Stand", "Lemon Stand", "Lemon Stand"},
+            {"LemonDash", "LemonDash", "LemonDash"},
+            {"Lemon Depot", "Lemon Depot", "Lemon Depot"},
+            {"Lemon Trading", "Lemon Trading", "Lemon Trading"},
+            {"Lemon Labs", "Lemon Labs", "Lemon Labs"},
+            {"Lemon Robotics", "Lemon Robotics", "Lemon Robotics"},
+            {"Lemon Republic", "Lemon Republic", "Lemon Republic"},
+            {"LemonX", "LemonX", "LemonX"}
+        }
+        
+        while task.wait(0.01) do -- Tempo super brutal tanpa ampun (0.01 detik)
+            if Toggles.AutoUpgrade then
+                pcall(function()
+                    local MyTycoon = GetMyTycoon()
+                    if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
+                        for _, path in ipairs(promptPaths) do
+                            local current = MyTycoon.Purchases
+                            for _, folderName in ipairs(path) do
+                                current = current and current:FindFirstChild(folderName)
+                            end
+                            
+                            -- Jika folder tujuan ketemu, cek ProximityPrompt di dalamnya
+                            if current then
+                                local prompt = current:FindFirstChild("Prompt")
+                                if prompt and prompt:IsA("ProximityPrompt") and prompt.Enabled then
+                                    task.spawn(function()
+                                        fireproximityprompt(prompt)
+                                    end)
+                                end
+                            end
+                        end
+                    end
+                end)
+            end
+        end
+    end)
+
     -- [BAGIAN B]: MACHINE GUN AUTO UPGRADE (+1 SUPER SPEED)
     while task.wait(1) do 
         if Toggles.AutoUpgrade then
@@ -935,7 +976,8 @@ task.spawn(function()
                                             -- Ini menghasilkan ~60 pembelian per detik (Bypass lag server)
                                             for i = 1, 3 do
                                                 task.spawn(function()
-                                                    pcall(function() desc:InvokeServer(1) end)
+                                                    -- KOMENTAR MATI (Sesuai Request):
+                                                    -- pcall(function() desc:InvokeServer(1) end)
                                                 end)
                                             end
                                         else
