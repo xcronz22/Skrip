@@ -943,7 +943,7 @@ task.spawn(function()
                                     for i = 1, 3 do
                                         task.spawn(function()
                                             pcall(function() 
-                                                upgradeRemote:InvokeServer(1) 
+                                                upgradeRemote:InvokeServer("max") 
                                             end)
                                         end)
                                     end
