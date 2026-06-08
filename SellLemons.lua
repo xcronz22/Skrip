@@ -712,22 +712,22 @@ end)
 -- LOOP 1: [CORE 1] MESIN AUTO BUY (SMART "SHOWN" FILTERED SPREAD)
 -- =======================================================
 local PurchaseOrder = {
-    "Lemon Stand",
+    "Staircase",
     "Minigames",
     "Hills",
-    "LemonDash",
-    "Lemon Depot",
-    "Lemon Trading",
-    "Lemon Labs",
-    "Lemon Robotics",
-    "Lemon Republic",
-    "LemonX Ground",
     "LemonX",
-    "Staircase"
+    "LemonX Ground",
+    "Lemon Republic",
+    "Lemon Robotics",
+    "Lemon Labs",
+    "Lemon Trading",
+    "Lemon Depot",
+    "LemonDash",
+    "Lemon Stand"
 }
 
 task.spawn(function()
-    while task.wait(0.1) do -- Radar super cepat
+    while task.wait(0.2) do
         if Toggles.AutoBuy then
             pcall(function()
                 local char = LocalPlayer.Character
