@@ -709,10 +709,26 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 1: [CORE 1] MESIN AUTO BUY (BRUTAL PHYSICAL SPRAY)
+-- LOOP 1: [CORE 1] MESIN AUTO BUY (ORDERED SHOTGUN SPREAD)
 -- =======================================================
+-- Kita definisikan urutan folder secara mutlak dari awal sampai akhir Tycoon
+local PurchaseOrder = {
+    "Minigames",
+    "Hills",
+    "Lemon Stand",
+    "Lemon Dash",
+    "Lemon Depot",
+    "Lemon Trading",
+    "Lemon Labs",
+    "Lemon Robotics",
+    "Lemon Republic",
+    "LemonX Ground",
+    "LemonX",
+    "Staircase"
+}
+
 task.spawn(function()
-    while task.wait(0.2) do -- Jeda sangat singkat untuk refresh daftar tombol
+    while task.wait(0.1) do -- Radar super cepat
         if Toggles.AutoBuy then
             pcall(function()
                 local char = LocalPlayer.Character
@@ -723,47 +739,56 @@ task.spawn(function()
                 if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
                     
                     -- ==========================================
-                    -- TAHAP 1: SCAN SEMUA TOMBOL (TANPA FILTER)
+                    -- TAHAP 1: SCAN TERURUT BERDASARKAN HIERARKI
                     -- ==========================================
                     local targets = {}
-                    for _, purchaseItem in ipairs(MyTycoon.Purchases:GetChildren()) do
-                        local buttonsFolder = purchaseItem:FindFirstChild("Buttons")
-                        if buttonsFolder then
-                            for _, item in ipairs(buttonsFolder:GetDescendants()) do
-                                
-                                -- Tangkap TouchInterest (Tombol Injak)
-                                if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
-                                    local target = item.Parent
-                                    if target and target:IsA("BasePart") then
-                                        table.insert(targets, {Type = "Touch", Target = target})
-                                    end
+                    
+                    -- Skrip akan memaksa mencari folder sesuai urutan tabel PurchaseOrder
+                    for _, folderName in ipairs(PurchaseOrder) do
+                        local purchaseItem = MyTycoon.Purchases:FindFirstChild(folderName)
+                        
+                        -- Jika foldernya ada di map, ambil semua tombolnya
+                        if purchaseItem then
+                            local buttonsFolder = purchaseItem:FindFirstChild("Buttons")
+                            if buttonsFolder then
+                                for _, item in ipairs(buttonsFolder:GetDescendants()) do
                                     
-                                -- Tangkap ProximityPrompt (Tombol E)
-                                elseif item:IsA("ProximityPrompt") and item.Enabled then
-                                    table.insert(targets, {Type = "Prompt", Target = item})
+                                    -- Tangkap TouchInterest (Tombol Injak)
+                                    if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
+                                        local target = item.Parent
+                                        if target and target:IsA("BasePart") then
+                                            table.insert(targets, {Type = "Touch", Target = target})
+                                        end
+                                        
+                                    -- Tangkap ProximityPrompt (Tombol E)
+                                    elseif item:IsA("ProximityPrompt") and item.Enabled then
+                                        table.insert(targets, {Type = "Prompt", Target = item})
+                                    end
                                 end
                             end
                         end
                     end
 
                     -- ==========================================
-                    -- TAHAP 2: EKSEKUSI BRUTAL (MULTI-THREADED)
+                    -- TAHAP 2: EKSEKUSI SHOTGUN DALAM 1 FRAME
                     -- ==========================================
-                    -- Kita tidak menggunakan loop biasa, melainkan menembak 
-                    -- semua tombol dalam thread terpisah secara bersamaan (Parallel)
-                    for _, btn in ipairs(targets) do
-                        task.spawn(function() 
-                            pcall(function()
-                                -- Spam fisik tanpa henti
-                                if btn.Type == "Touch" then
-                                    firetouchinterest(rootPart, btn.Target, 0)
-                                    firetouchinterest(rootPart, btn.Target, 1)
-                                elseif btn.Type == "Prompt" then
-                                    fireproximityprompt(btn.Target)
-                                end
-                            end)
+                    -- Mengeksekusi array 'targets' yang kini sudah tersusun rapi dari 
+                    -- Lemon Stand sampai Staircase tanpa membuat mesin ngelag.
+                    if #targets > 0 then
+                        task.spawn(function()
+                            for _, btn in ipairs(targets) do
+                                pcall(function()
+                                    if btn.Type == "Touch" then
+                                        firetouchinterest(rootPart, btn.Target, 0)
+                                        firetouchinterest(rootPart, btn.Target, 1)
+                                    elseif btn.Type == "Prompt" then
+                                        fireproximityprompt(btn.Target)
+                                    end
+                                end)
+                            end
                         end)
                     end
+
                 end
             end)
         end
