@@ -712,6 +712,7 @@ end)
 -- LOOP 1: [CORE 1] MESIN AUTO BUY (SMART "SHOWN" FILTERED SPREAD)
 -- =======================================================
 local PurchaseOrder = {
+    "Staircase",
     "Hills",
     "LemonX",
     "Lemon Republic",
@@ -722,8 +723,7 @@ local PurchaseOrder = {
     "LemonDash",
     "Lemon Stand",
     "Minigames",
-    "LemonX Ground",
-    "Staircase"
+    "LemonX Ground"
 }
 
 task.spawn(function()
