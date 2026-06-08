@@ -15,7 +15,6 @@ local Toggles = {
     AutoHarvest = false,
     AutoDrop = false,
     AutoBuy = false,
-    AutoBuyV2 = false,
     AutoUpgrade = false,
     AutoRebirth = false,
     RebirthTP = true,
@@ -511,10 +510,6 @@ ToggleObjects.AutoBuy = Window:AddToggle("Auto Buy Buttons", false, function(Val
             end)
         end)
     end
-end)
-
-ToggleObjects.AutoBuyV2 = Window:AddToggle("Auto Buy V2 (UI Clicker)", false, function(Value) 
-    Toggles.AutoBuyV2 = Value 
 end)
 
 -- =======================================================
@@ -1250,7 +1245,7 @@ end)
 
 -- LOOP 8: AUTO BUY POWER (RUNS IN BACKGROUND)
 task.spawn(function()
-    local powerNames = {"Manage", "BuyNext", "ClickFruitValue", "UpgradeStack", "WalkSpeed"}
+    local powerNames = {"Manage", "ClickFruitValue", "UpgradeStack", "WalkSpeed"}
     while task.wait(5) do
         pcall(function()
             local MyTycoon = GetMyTycoon()
@@ -1365,10 +1360,10 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 11: AUTO BUY V2 (SMART UI CLICKER)
+-- LOOP 11: AUTO BUY V2 (BACKGROUND UI & POWER MODIFIER)
 -- =======================================================
 task.spawn(function()
-    while task.wait(0.1) do -- Kecepatan klik 0.1 detik
+    while task.wait(0.1) do
         if Toggles.AutoBuyV2 then
             pcall(function()
                 
@@ -1399,32 +1394,6 @@ task.spawn(function()
                     -- Ubah Attributes: Visible = True
                     if buyNextUI:GetAttribute("Visible") ~= true then
                         buyNextUI:SetAttribute("Visible", true)
-                    end
-
-                    -- ==========================================
-                    -- TAHAP 3: AUTO CLICKER DI ABSOLUTE POSITION
-                    -- ==========================================
-                    local labelButton = buyNextUI:FindFirstChild("Button") and buyNextUI.Button:FindFirstChild("Label")
-                    
-                    if labButton and labButton:IsA("GuiButton") then
-                        -- Kalkulasi titik tengah tombol di layar
-                        local absPos = labButton.AbsolutePosition
-                        local absSize = labButton.AbsoluteSize
-                        local centerX = absPos.X + (absSize.X / 2)
-                        local centerY = absPos.Y + (absSize.Y / 2)
-
-                        -- Gunakan layanan VirtualUser untuk simulasi klik asli
-                        local VirtualUser = game:GetService("VirtualUser")
-                        VirtualUser:ClickButton1(Vector2.new(centerX, centerY))
-                        
-                        -- [Trik Tambahan]: Backup menggunakan firesignal jika executor kamu support, 
-                        -- ini membuat kliknya jauh lebih brutal dan tanpa perlu menggeser mouse!
-                        pcall(function()
-                            if firesignal then
-                                firesignal(labButton.MouseButton1Click)
-                                firesignal(labButton.MouseButton1Down)
-                            end
-                        end)
                     end
                 end
                 
