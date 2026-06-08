@@ -1360,44 +1360,42 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 11: AUTO BUY V2 (BACKGROUND UI & POWER MODIFIER)
+-- LOOP 11: AUTO BUY V2 (ALWAYS ACTIVE BACKGROUND PROCESS)
 -- =======================================================
 task.spawn(function()
-    while task.wait(0.1) do
-        if Toggles.AutoBuyV2 then
-            pcall(function()
-                
-                -- ==========================================
-                -- TAHAP 1: UNLOCK POWER 'BUYNEXT' (NILAI 1)
-                -- ==========================================
-                local MyTycoon = GetMyTycoon()
-                if MyTycoon then
-                    local permFolder = MyTycoon:FindFirstChild("Values") and MyTycoon.Values:FindFirstChild("Powers") and MyTycoon.Values.Powers:FindFirstChild("Permanent")
-                    if permFolder then
-                        permFolder:SetAttribute("BuyNext", 1)
-                    end
+    while task.wait(0.1) do -- Terus berjalan di latar belakang setiap 0.1 detik
+        pcall(function()
+            
+            -- ==========================================
+            -- TAHAP 1: UNLOCK POWER 'BUYNEXT' (NILAI 1)
+            -- ==========================================
+            local MyTycoon = GetMyTycoon()
+            if MyTycoon then
+                local permFolder = MyTycoon:FindFirstChild("Values") and MyTycoon.Values:FindFirstChild("Powers") and MyTycoon.Values.Powers:FindFirstChild("Permanent")
+                if permFolder then
+                    permFolder:SetAttribute("BuyNext", 1)
                 end
+            end
 
-                -- ==========================================
-                -- TAHAP 2: MODIFIKASI PROPERTIES UI
-                -- ==========================================
-                local playerGui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
-                local buyNextUI = playerGui and playerGui:FindFirstChild("HUD") 
-                                  and playerGui.HUD:FindFirstChild("Powers") 
-                                  and playerGui.HUD.Powers:FindFirstChild("BuyNext")
+            -- ==========================================
+            -- TAHAP 2: MODIFIKASI PROPERTIES UI
+            -- ==========================================
+            local playerGui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
+            local buyNextUI = playerGui and playerGui:FindFirstChild("HUD") 
+                              and playerGui.HUD:FindFirstChild("Powers") 
+                              and playerGui.HUD.Powers:FindFirstChild("BuyNext")
+            
+            if buyNextUI then
+                -- Ubah Properties: Position & Size secara permanen
+                buyNextUI.Position = UDim2.new(1.69002998, 0, 0.0868578553, 0)
+                buyNextUI.Size = UDim2.new(0.800000012, 0, 0.800000012, 0)
                 
-                if buyNextUI then
-                    -- Ubah Properties: Position & Size
-                    buyNextUI.Position = UDim2.new(1.69002998, 0, 0.0868578553, 0)
-                    buyNextUI.Size = UDim2.new(0.800000012, 0, 0.800000012, 0)
-                    
-                    -- Ubah Attributes: Visible = True
-                    if buyNextUI:GetAttribute("Visible") ~= true then
-                        buyNextUI:SetAttribute("Visible", true)
-                    end
+                -- Kunci Attributes: Visible = True secara permanen
+                if buyNextUI:GetAttribute("Visible") ~= true then
+                    buyNextUI:SetAttribute("Visible", true)
                 end
-                
-            end)
-        end
+            end
+            
+        end)
     end
 end)
