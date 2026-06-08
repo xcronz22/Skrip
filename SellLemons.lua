@@ -918,7 +918,7 @@ task.spawn(function()
     }
     
     -- Amunisi bergantian (1, 5, 25)
-    local upgradeAmounts = {1, 5, 25}
+    local upgradeAmounts = {1} --5, --25}
     
     while task.wait() do -- Kecepatan bypass maksimal (~0.016 detik per putaran!)
         if Toggles.AutoUpgrade then
