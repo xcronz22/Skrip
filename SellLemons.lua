@@ -713,17 +713,17 @@ end)
 -- =======================================================
 local PurchaseOrder = {
     "Staircase",
-    "Minigames",
     "Hills",
     "LemonX",
-    "LemonX Ground",
     "Lemon Republic",
     "Lemon Robotics",
     "Lemon Labs",
     "Lemon Trading",
     "Lemon Depot",
     "LemonDash",
-    "Lemon Stand"
+    "Lemon Stand",
+    "Minigames",
+    "LemonX Ground"
 }
 
 task.spawn(function()
