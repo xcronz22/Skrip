@@ -727,7 +727,7 @@ local PurchaseOrder = {
 }
 
 task.spawn(function()
-    while task.wait(0.2) do
+    while task.wait(0.05) do
         if Toggles.AutoBuy then
             pcall(function()
                 local char = LocalPlayer.Character
@@ -917,7 +917,7 @@ task.spawn(function()
         {"LemonX", "LemonX", "LemonX"}
     }
     
-    while task.wait(0.05) do -- Speed mesin penggiling yang aman
+    while task.wait(0.01) do -- Speed mesin penggiling yang aman
         if Toggles.AutoUpgrade then
             pcall(function()
                 local MyTycoon = GetMyTycoon()
