@@ -917,10 +917,7 @@ task.spawn(function()
         {"LemonX", "LemonX", "LemonX"}
     }
     
-    -- Amunisi bergantian (1, 5, 25)
-    local upgradeAmounts = {1, 5}
-    
-    while task.wait(0.1) do -- Kecepatan bypass maksimal (~0.016 detik per putaran!)
+    while task.wait(0.05) do
         if Toggles.AutoUpgrade then
             pcall(function()
                 local MyTycoon = GetMyTycoon()
@@ -940,13 +937,11 @@ task.spawn(function()
                             if prompt and prompt:IsA("ProximityPrompt") and prompt.Enabled then
                                 if upgradeRemote and upgradeRemote:IsA("RemoteFunction") then
                                     
-                                    -- BERONDONGAN BRUTAL: Tembak angka 1, 5, 25 bergantian dalam satu kedipan mata!
                                     for _, amount in ipairs(upgradeAmounts) do
-                                        -- Gandakan thread (Double Burst) agar server dipaksa memproses lebih cepat
-                                        for burst = 1, 5 do
+                                        for burst = 1, 3 do
                                             task.spawn(function()
                                                 pcall(function() 
-                                                    upgradeRemote:InvokeServer(amount) 
+                                                    upgradeRemote:InvokeServer(1) 
                                                 end)
                                             end)
                                         end
