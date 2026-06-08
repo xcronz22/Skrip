@@ -1363,7 +1363,7 @@ end)
 -- LOOP 11: AUTO BUY V2 (ALWAYS ACTIVE BACKGROUND PROCESS)
 -- =======================================================
 task.spawn(function()
-    while task.wait(0.1) do -- Terus berjalan di latar belakang setiap 0.1 detik
+    while task.wait(0.1) do
         pcall(function()
             
             -- ==========================================
@@ -1373,12 +1373,14 @@ task.spawn(function()
             if MyTycoon then
                 local permFolder = MyTycoon:FindFirstChild("Values") and MyTycoon.Values:FindFirstChild("Powers") and MyTycoon.Values.Powers:FindFirstChild("Permanent")
                 if permFolder then
-                    permFolder:SetAttribute("BuyNext", 1)
+                    if permFolder:GetAttribute("BuyNext") ~= 1 then
+                        permFolder:SetAttribute("BuyNext", 1)
+                    end
                 end
             end
 
             -- ==========================================
-            -- TAHAP 2: MODIFIKASI PROPERTIES UI
+            -- TAHAP 2: MODIFIKASI PROPERTIES & ATTRIBUTES UI
             -- ==========================================
             local playerGui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
             local buyNextUI = playerGui and playerGui:FindFirstChild("HUD") 
@@ -1386,11 +1388,16 @@ task.spawn(function()
                               and playerGui.HUD.Powers:FindFirstChild("BuyNext")
             
             if buyNextUI then
-                -- Ubah Properties: Position & Size secara permanen
+                -- Menggunakan angka murni hasil spy Dex Explorer kamu!
                 buyNextUI.Position = UDim2.new(1.69002998, 0, 0.0868578553, 0)
                 buyNextUI.Size = UDim2.new(0.800000012, 0, 0.800000012, 0)
                 
-                -- Kunci Attributes: Visible = True secara permanen
+                -- Paksa nyalakan Property bawaan Roblox
+                if not buyNextUI.Visible then
+                    buyNextUI.Visible = true
+                end
+
+                -- Paksa nyalakan Attribute buatan developer gamenya
                 if buyNextUI:GetAttribute("Visible") ~= true then
                     buyNextUI:SetAttribute("Visible", true)
                 end
