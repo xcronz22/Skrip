@@ -22,6 +22,7 @@ local Toggles = {
     AutoAscend = false
 }
 
+local TargetBuyMode = "V1"
 local RebirthMode = "Multiplier" 
 local RebirthValue = 2
 local SmartMultiplier = 2 -- FITUR BARU: Gigi otomatis untuk Smart Mode (2x atau 10x)
@@ -512,6 +513,10 @@ ToggleObjects.AutoBuy = Window:AddToggle("Auto Buy Buttons", false, function(Val
     end
 end)
 
+Window:AddDropdown("Auto Buy Mode", {"V1", "V2"}, function(SelectedMode)
+    TargetBuyMode = SelectedMode
+end)
+
 -- =======================================================
 -- SISTEM CUSTOM TP & SAFEZONE DINAMIS
 -- =======================================================
@@ -709,25 +714,22 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 1: [CORE 1] MESIN AUTO BUY (SMART "SHOWN" FILTERED SPREAD)
+-- LOOP 1: [CORE 1] MESIN AUTO BUY (SMART FILTER + ANTI-SKIP)
 -- =======================================================
-local PurchaseOrder = {
-    "Staircase",
-    "Hills",
-    "LemonX",
-    "Lemon Republic",
-    "Lemon Robotics",
-    "Lemon Labs",
-    "Lemon Trading",
-    "Lemon Depot",
-    "LemonDash",
-    "Lemon Stand",
-    "Minigames",
-    "LemonX Ground"
+local PurchaseV1 = {
+    "Staircase", "Hills", "Minigames", "Lemon Stand", "LemonDash",
+    "Lemon Depot", "Lemon Trading", "Lemon Labs", "Lemon Robotics",
+    "Lemon Republic", "LemonX Ground", "LemonX"
+}
+
+local PurchaseV2 = {
+    "Staircase", "Hills", "LemonX", "Lemon Republic", "Lemon Robotics",
+    "Lemon Labs", "Lemon Trading", "Lemon Depot", "LemonDash",
+    "Lemon Stand", "Minigames", "LemonX Ground"
 }
 
 task.spawn(function()
-    while task.wait(0.1) do
+    while task.wait(0.1) do -- Radar kecepatan aman
         if Toggles.AutoBuy then
             pcall(function()
                 local char = LocalPlayer.Character
@@ -739,17 +741,18 @@ task.spawn(function()
                     
                     local targets = {}
                     
-                    for _, folderName in ipairs(PurchaseOrder) do
+                    -- LOGIKA PINTAR: Pilih tabel berdasarkan opsi Dropdown UI
+                    local activeOrder = (TargetBuyMode == "V1") and PurchaseV1 or PurchaseV2
+                    
+                    for _, folderName in ipairs(activeOrder) do
                         local purchaseItem = MyTycoon.Purchases:FindFirstChild(folderName)
                         
                         if purchaseItem then
                             local buttonsFolder = purchaseItem:FindFirstChild("Buttons")
                             if buttonsFolder then
-                                -- Scan seluruh isi folder Buttons
                                 for _, item in ipairs(buttonsFolder:GetDescendants()) do
                                     local targetPart = item.Parent
                                     
-                                    -- PENEMUANMU: Cek apakah Part tombol atau Model tombol memiliki Attribute Shown = true dan Enabled = true
                                     local isShown = false
                                     local isEnabled = false
                                     
@@ -769,15 +772,11 @@ task.spawn(function()
                                         end
                                     end
                                     
-                                    -- JIKA TOMBOLNYA MEMANG SUDAH MUNCUL (SHOWN) DAN BISA DITEKAN (ENABLED)
                                     if isShown and isEnabled then
-                                        -- Tangkap TouchInterest (Tombol Injak)
                                         if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
                                             if targetPart and targetPart:IsA("BasePart") then
                                                 table.insert(targets, {Type = "Touch", Target = targetPart})
                                             end
-                                            
-                                        -- Tangkap ProximityPrompt (Tombol E)
                                         elseif item:IsA("ProximityPrompt") and item.Enabled then
                                             table.insert(targets, {Type = "Prompt", Target = item})
                                         end
@@ -787,7 +786,7 @@ task.spawn(function()
                         end
                     end
 
-                    -- EKSEKUSI HANYA PADA TOMBOL YANG 'SHOWN = TRUE' DAN 'ENABLED = TRUE'
+                    -- EKSEKUSI DENGAN SISTEM ANTREAN (ANTI-SKIP)
                     if #targets > 0 then
                         task.spawn(function()
                             for _, btn in ipairs(targets) do
@@ -799,6 +798,9 @@ task.spawn(function()
                                         fireproximityprompt(btn.Target)
                                     end
                                 end)
+                                
+                                -- FIX: Jeda 0.05 detik memastikan server memproses tombol secara berurutan sesuai list!
+                                task.wait(0.05) 
                             end
                         end)
                     end
