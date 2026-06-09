@@ -1,3 +1,12 @@
+-- =======================================================
+-- GEMBOK ANTI-TUMPUK (MENCEGAH LAG KARENA DOUBLE EXECUTE)
+-- =======================================================
+if getgenv().LemonScriptSudahJalan then
+    warn("Skrip Sell Lemons sudah aktif! Eksekusi dibatalkan agar tidak ngelag.")
+    return -- Mematikan proses execute yang baru
+end
+getgenv().LemonScriptSudahJalan = true
+
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local Workspace = game:GetService("Workspace")
