@@ -927,7 +927,7 @@ task.spawn(function()
         {"LemonX", "LemonX", "LemonX"}
     }
     
-    while task.wait(0.1) do -- Speed mesin penggiling yang aman
+    while task.wait(0.05) do -- Speed mesin penggiling yang aman
         if Toggles.AutoUpgrade then
             pcall(function()
                 local MyTycoon = GetMyTycoon()
