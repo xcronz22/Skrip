@@ -950,7 +950,7 @@ task.spawn(function()
                                 if upgradeRemote and upgradeRemote:IsA("RemoteFunction") then
                                     
                                     -- Eksekusi brutal 3 thread sekaligus (Membypass lag server)
-                                    for i = 1, 1 do
+                                    for i = 1, 3 do
                                         task.spawn(function()
                                             pcall(function() 
                                                 upgradeRemote:InvokeServer(1) 
