@@ -890,7 +890,7 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 3: AUTO UPGRADE & CLICK (STRICT FILTER & SEQUENTIAL)
+-- LOOP 3: AUTO UPGRADE & CLICK (BAIT & MAX BUY)
 -- =======================================================
 local clickTargets = {"LemonDepot", "LemonLabs", "LemonRepublic", "LemonRobotics", "LemonStand", "LemonTrading", "LemonDash", "LemonX"}
 local visibleTimerManage = 0
@@ -918,7 +918,7 @@ task.spawn(function()
         end
     end)
 
-    -- [BAGIAN B & C]: SMART AUTO UPGRADE DENGAN FILTER KETAT
+    -- [BAGIAN B & C]: SMART AUTO UPGRADE (BAIT & VERIFY LOGIC)
     local promptPaths = {
         {"LemonX", "LemonX", "LemonX"},
         {"Lemon Republic", "Lemon Republic", "Lemon Republic"},
@@ -985,7 +985,6 @@ task.spawn(function()
                                 local folderUI = manageFrame:FindFirstChild(uiName)
                                 
                                 local canUpgrade = true 
-                                local burstAmmo = 1 
                                 
                                 if folderUI then
                                     if not folderUI.Visible then folderUI.Visible = true end
@@ -993,7 +992,7 @@ task.spawn(function()
 
                                     local upgBtn = folderUI:FindFirstChild("Upgrade")
                                     if upgBtn then
-                                        -- [FILTER 1] ANTI-SPAM CEK WARNA ABU-ABU
+                                        -- [FILTER 1] Cek Warna (Apakah uang cukup/tersedia?)
                                         local bgColor = upgBtn.BackgroundColor3
                                         local r = math.floor((bgColor.R * 255) + 0.5)
                                         local g = math.floor((bgColor.G * 255) + 0.5)
@@ -1002,45 +1001,72 @@ task.spawn(function()
                                         if upgBtn.Active == false or (r == 125 and g == 125 and b == 125) then
                                             canUpgrade = false
                                         end
-                                        
-                                        -- [FILTER 2] CEK EKSISTENSI TEKS 'COUNT' (ANTI UANG MINUS)
-                                        local countObj = upgBtn:FindFirstChild("Count")
-                                        -- Jika objek tidak ada, atau teksnya kosong (""), langsung batalkan!
-                                        if not countObj or countObj.Text == nil or countObj.Text == "" or string.match(countObj.Text, "^%s*$") then
-                                            canUpgrade = false
-                                        end
 
-                                        -- [EKSTRAKSI] AMBIL JUMLAH DARI 'STACK'
-                                        local stackObj = upgBtn:FindFirstChild("Stack")
-                                        if stackObj and stackObj.Text then
-                                            local cleanText = string.gsub(stackObj.Text, "[+%,%s]", "")
-                                            local extractedNum = tonumber(cleanText)
-                                            if extractedNum and extractedNum > 0 then
-                                                burstAmmo = extractedNum
+                                        -- Jika tombol hijau, jalankan misi "Bait & Max"
+                                        if canUpgrade then
+                                            local current = MyTycoon.Purchases
+                                            for _, folderName in ipairs(path) do
+                                                current = current and current:FindFirstChild(folderName)
                                             end
-                                        end
-                                    end
-                                end
+                                            
+                                            if current then
+                                                local upgradeRemote = current:FindFirstChild("Upgrade") or current:FindFirstChildWhichIsA("RemoteFunction")
+                                                
+                                                if upgradeRemote and upgradeRemote:IsA("RemoteFunction") then
+                                                    
+                                                    -- Fungsi kecil untuk membaca Count saat ini
+                                                    local function getCurrentCount()
+                                                        local cObj = upgBtn:FindFirstChild("Count")
+                                                        if cObj and cObj.Text and cObj.Text ~= "" then
+                                                            local ext = tonumber(string.match(cObj.Text, "%d+"))
+                                                            return ext or 0
+                                                        end
+                                                        return 0 -- Jika kosong/belum dibeli, anggap 0
+                                                    end
 
-                                -- 3. EKSEKUSI REMOTE (AMAN)
-                                if canUpgrade then
-                                    local current = MyTycoon.Purchases
-                                    for _, folderName in ipairs(path) do
-                                        current = current and current:FindFirstChild(folderName)
-                                    end
-                                    
-                                    if current then
-                                        local upgradeRemote = current:FindFirstChild("Upgrade") or current:FindFirstChildWhichIsA("RemoteFunction")
-                                        if upgradeRemote and upgradeRemote:IsA("RemoteFunction") then
-                                            pcall(function() 
-                                                upgradeRemote:InvokeServer(burstAmmo) 
-                                            end)
+                                                    local countSebelum = getCurrentCount()
+
+                                                    -- TAHAP 1: Pancing beli 1 biji dulu
+                                                    pcall(function() 
+                                                        upgradeRemote:InvokeServer(1) 
+                                                    end)
+
+                                                    -- Tunggu sebentar agar server memproses dan UI game merespons
+                                                    task.wait(0.1)
+
+                                                    -- TAHAP 2: Verifikasi & Gas Max
+                                                    local countSesudah = getCurrentCount()
+                                                    
+                                                    -- Jika Count bertambah, berarti pembelian valid dan bukan bug
+                                                    if countSesudah > countSebelum then
+                                                        local burstAmmo = 1
+                                                        local stackObj = upgBtn:FindFirstChild("Stack")
+                                                        
+                                                        if stackObj and stackObj.Text then
+                                                            local cleanText = string.gsub(stackObj.Text, "[+%,%s]", "")
+                                                            local extractedNum = tonumber(cleanText)
+                                                            if extractedNum and extractedNum > 0 then
+                                                                burstAmmo = extractedNum
+                                                            end
+                                                        end
+                                                        
+                                                        -- Hajar sisa MAX-nya!
+                                                        if burstAmmo > 0 then
+                                                            pcall(function() 
+                                                                upgradeRemote:InvokeServer(burstAmmo) 
+                                                            end)
+                                                        end
+                                                    end
+                                                    
+                                                end
+                                            end
                                         end
                                     end
                                 end
                             end
                         end)
                         
+                        -- Buka gembok setelah antrean 8 bangunan selesai
                         isUpgradingSequence = false
                     end)
                 end
