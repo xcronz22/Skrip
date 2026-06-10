@@ -738,7 +738,7 @@ local PurchaseV2 = {
 }
 
 task.spawn(function()
-    while task.wait(0.05) do -- Radar kecepatan aman
+    while task.wait(0.1) do -- Radar kecepatan aman
         if Toggles.AutoBuy then
             pcall(function()
                 local char = LocalPlayer.Character
