@@ -544,7 +544,7 @@ local function EnsureSafeZone(targetCFrame, targetSize)
     if not safeZone then
         safeZone = Instance.new("Part")
         safeZone.Name = safeZoneName
-        safeZone.Size = Vector3.new(10, 1, 10) 
+        safeZone.Size = Vector3.new(10, 0, 10) 
         safeZone.Anchored = true
         safeZone.CanCollide = true
         safeZone.Transparency = 0.7
