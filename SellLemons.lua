@@ -723,25 +723,20 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 1: [CORE 1] MESIN AUTO BUY (LIGHTNING BATCH SWEEP)
+-- MASTER LOCK (GEMBOK SINKRONISASI LOOP 1 & LOOP 3)
 -- =======================================================
-local PurchaseV1 = {
-    "Staircase", "Hills", "Minigames", "Lemon Stand", "LemonDash",
-    "Lemon Depot", "Lemon Trading", "Lemon Labs", "Lemon Robotics",
-    "Lemon Republic", "LemonX Ground", "LemonX"
-}
+local MasterTycoonBusy = false 
 
-local PurchaseV2 = {
-    "Staircase", "Hills", "LemonX", "Lemon Republic", "Lemon Robotics",
-    "Lemon Labs", "Lemon Trading", "Lemon Depot", "LemonDash",
-    "Lemon Stand", "Minigames", "LemonX Ground"
-}
-
-local isBuyingSequence = false 
+-- =======================================================
+-- LOOP 1: AUTO BUY (DIRECT GAS - TANPA KERANJANG)
+-- =======================================================
+local PurchaseV1 = {"Staircase", "Hills", "Minigames", "Lemon Stand", "LemonDash", "Lemon Depot", "Lemon Trading", "Lemon Labs", "Lemon Robotics", "Lemon Republic", "LemonX Ground", "LemonX"}
+local PurchaseV2 = {"Staircase", "Hills", "LemonX", "Lemon Republic", "Lemon Robotics", "Lemon Labs", "Lemon Trading", "Lemon Depot", "LemonDash", "Lemon Stand", "Minigames", "LemonX Ground"}
 
 task.spawn(function()
-    while task.wait(0.05) do -- Radar super cepat
-        if Toggles.AutoBuy and not isBuyingSequence then
+    while task.wait(0.1) do
+        -- Hanya jalan jika AutoBuy aktif DAN Loop 3 sedang tidak transaksi
+        if Toggles.AutoBuy and not MasterTycoonBusy then
             pcall(function()
                 local char = LocalPlayer.Character
                 local rootPart = char and char:FindFirstChild("HumanoidRootPart")
@@ -750,105 +745,119 @@ task.spawn(function()
                 local MyTycoon = GetMyTycoon()
                 if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
                     
-                    isBuyingSequence = true 
+                    MasterTycoonBusy = true -- Kunci uangnya!
                     
-                    task.spawn(function()
-                        pcall(function()
-                            local activeOrder = (TargetBuyMode == "V1") and PurchaseV1 or PurchaseV2
-                            
-                            for _, folderName in ipairs(activeOrder) do
-                                if not Toggles.AutoBuy then break end
+                    local activeOrder = (TargetBuyMode == "V1") and PurchaseV1 or PurchaseV2
+                    
+                    -- Gas sapu bersih dari awal sampai akhir urutan dalam hitungan milidetik
+                    for _, folderName in ipairs(activeOrder) do
+                        local purchaseFolder = MyTycoon.Purchases:FindFirstChild(folderName)
+                        if purchaseFolder and purchaseFolder:FindFirstChild("Buttons") then
+                            for _, item in ipairs(purchaseFolder.Buttons:GetDescendants()) do
+                                local targetPart = item.Parent
+                                local isShown, isEnabled = false, false
                                 
-                                local purchaseFolder = MyTycoon.Purchases:FindFirstChild(folderName)
+                                if targetPart then
+                                    if targetPart:GetAttribute("Shown") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Shown") == true) then isShown = true end
+                                    if targetPart:GetAttribute("Enabled") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Enabled") == true) then isEnabled = true end
+                                end
                                 
-                                if purchaseFolder then
-                                    local keepClearingFolder = true
-                                    local previousTargets = {} -- Menyimpan daftar tombol dari scan sebelumnya
-                                    
-                                    while keepClearingFolder and Toggles.AutoBuy do
-                                        local buttonsFolder = purchaseFolder:FindFirstChild("Buttons")
-                                        if not buttonsFolder then break end
-                                        
-                                        local targets = {}
-                                        local currentTargets = {} -- Daftar tombol saat ini
-                                        
-                                        -- 1. SCAN SEMUA TOMBOL
-                                        for _, item in ipairs(buttonsFolder:GetDescendants()) do
-                                            local targetPart = item.Parent
-                                            local isShown, isEnabled = false, false
-                                            
-                                            if targetPart then
-                                                if targetPart:GetAttribute("Shown") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Shown") == true) then
-                                                    isShown = true
-                                                end
-                                                if targetPart:GetAttribute("Enabled") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Enabled") == true) then
-                                                    isEnabled = true
-                                                end
-                                            end
-                                            
-                                            if isShown and isEnabled then
-                                                if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
-                                                    if targetPart and targetPart:IsA("BasePart") then
-                                                        table.insert(targets, {Type = "Touch", Target = targetPart})
-                                                        table.insert(currentTargets, item)
-                                                    end
-                                                elseif item:IsA("ProximityPrompt") and item.Enabled then
-                                                    table.insert(targets, {Type = "Prompt", Target = item})
-                                                    table.insert(currentTargets, item)
-                                                end
-                                            end
-                                        end
-                                        
-                                        -- 2. LOGIKA SKIP KILAT (ANTI-LAMBAT)
-                                        -- Jika tidak ada tombol sama sekali, pindah folder!
-                                        if #currentTargets == 0 then
-                                            break
-                                        end
-                                        
-                                        -- Cek apakah daftar tombol sama persis dengan scan sebelumnya
-                                        local isDifferent = false
-                                        if #currentTargets ~= #previousTargets then
-                                            isDifferent = true
-                                        else
-                                            for i, item in ipairs(currentTargets) do
-                                                if item ~= previousTargets[i] then
-                                                    isDifferent = true
-                                                    break
-                                                end
-                                            end
-                                        end
-                                        
-                                        -- Jika tidak ada yang berubah, berarti semua tombol terkunci atau uang kurang!
-                                        -- Langsung SKIP ke folder berikutnya tanpa ampun!
-                                        if not isDifferent and #previousTargets > 0 then
-                                            break
-                                        end
-                                        
-                                        previousTargets = currentTargets
-                                        
-                                        -- 3. TEMBAK MASSAL (BRUTAL)
-                                        for _, btn in ipairs(targets) do
-                                            pcall(function()
-                                                if btn.Type == "Touch" then
-                                                    firetouchinterest(rootPart, btn.Target, 0)
-                                                    firetouchinterest(rootPart, btn.Target, 1)
-                                                elseif btn.Type == "Prompt" then
-                                                    fireproximityprompt(btn.Target)
-                                                end
-                                            end)
-                                        end
-                                        
-                                        -- Cuma tunggu 0.1 detik untuk memberi nafas ke server, lalu loop ulang!
-                                        task.wait(0.1)
+                                -- GAS LANGSUNG TANPA KERANJANG
+                                if isShown and isEnabled then
+                                    if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
+                                        firetouchinterest(rootPart, targetPart, 0)
+                                        firetouchinterest(rootPart, targetPart, 1)
+                                    elseif item:IsA("ProximityPrompt") and item.Enabled then
+                                        fireproximityprompt(item)
                                     end
                                 end
                             end
-                        end)
-                        
-                        isBuyingSequence = false
-                    end)
+                        end
+                    end
+                    
+                    MasterTycoonBusy = false -- Buka kembali kuncinya!
                 end
             end)
+        end
+    end
+end)
+
+
+-- =======================================================
+-- LOOP 3: AUTO UPGRADE (BAIT & MAX)
+-- =======================================================
+-- (Bagian klik AutoClicker biarkan tetap jalan asinkronus seperti biasa)
+-- ...
+
+local promptPaths = {
+    {"LemonX", "LemonX", "LemonX"},
+    {"Lemon Republic", "Lemon Republic", "Lemon Republic"},
+    -- ... (Sisa list bangunanmu)
+}
+
+task.spawn(function()
+    while true do 
+        local dt = task.wait(0.05)
+        
+        -- (Logika Trigger ManageMenu taruh di sini seperti biasa)
+        -- ...
+
+        -- Hanya jalan jika AutoUpgrade aktif DAN Loop 1 sedang tidak belanja fisik
+        if Toggles.AutoUpgrade and not MasterTycoonBusy then
+            local MyTycoon = GetMyTycoon()
+            local manageFrame = -- ... (path UI Manage-mu)
+
+            if MyTycoon and MyTycoon:FindFirstChild("Purchases") and manageFrame then
+                
+                MasterTycoonBusy = true -- Kunci uangnya untuk ritual Bait & Max!
+                
+                pcall(function()
+                    for _, path in ipairs(promptPaths) do
+                        if not Toggles.AutoUpgrade then break end
+                        
+                        local uiName = string.gsub(path[1], " ", "")
+                        local folderUI = manageFrame:FindFirstChild(uiName)
+                        local canUpgrade = true 
+                        
+                        if folderUI then
+                            local upgBtn = folderUI:FindFirstChild("Upgrade")
+                            if upgBtn then
+                                -- Filter UI Warna Abu-abu
+                                local bgColor = upgBtn.BackgroundColor3
+                                local r, g, b = math.floor((bgColor.R*255)+0.5), math.floor((bgColor.G*255)+0.5), math.floor((bgColor.B*255)+0.5)
+
+                                if upgBtn.Active == false or (r == 125 and g == 125 and b == 125) then
+                                    canUpgrade = false
+                                end
+
+                                if canUpgrade then
+                                    local upgradeRemote = -- ... (path remote)
+                                    if upgradeRemote then
+                                        
+                                        local countSebelum = -- ... (fungsi getCurrentCount-mu)
+
+                                        -- Tembak Bait (1)
+                                        pcall(function() upgradeRemote:InvokeServer(1) end)
+                                        task.wait(0.1)
+                                        
+                                        -- Cek Diff & Gas Max
+                                        local countSesudah = -- ...
+                                        if countSesudah > countSebelum then
+                                            local burstAmmo = -- ... (ekstrak Stack-mu)
+                                            if burstAmmo > 0 then
+                                                pcall(function() upgradeRemote:InvokeServer(burstAmmo) end)
+                                            end
+                                        end
+                                        
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end)
+                
+                MasterTycoonBusy = false -- Buka kembali kuncinya!
+            end
         end
     end
 end)
@@ -920,192 +929,6 @@ task.spawn(function()
                 end
             end)
         end
-    end
-end)
-
--- =======================================================
--- LOOP 3: AUTO UPGRADE & CLICK (BAIT & MAX BUY)
--- =======================================================
-local clickTargets = {"LemonDepot", "LemonLabs", "LemonRepublic", "LemonRobotics", "LemonStand", "LemonTrading", "LemonDash", "LemonX"}
-local visibleTimerManage = 0
-local wasManageOn = false
-local isUpgradingSequence = false -- Kunci Mencegah Tabrakan Server
-
-task.spawn(function()
-    -- [BAGIAN A]: AUTO CLICKER
-    task.spawn(function()
-        while task.wait(0.1) do
-            if Toggles.AutoUpgrade then
-                pcall(function()
-                    local MyTycoon = GetMyTycoon()
-                    local wakeRemote = MyTycoon and MyTycoon:FindFirstChild("Remotes") and MyTycoon.Remotes:FindFirstChild("WakeIncomeStream")
-                    
-                    if wakeRemote and wakeRemote:IsA("RemoteFunction") then
-                        for _, targetName in ipairs(clickTargets) do
-                            task.spawn(function() 
-                                pcall(function() wakeRemote:InvokeServer(targetName) end) 
-                            end)
-                        end
-                    end
-                end)
-            end
-        end
-    end)
-
-    -- [BAGIAN B & C]: SMART AUTO UPGRADE (BAIT & VERIFY LOGIC)
-    local promptPaths = {
-        {"LemonX", "LemonX", "LemonX"},
-        {"Lemon Republic", "Lemon Republic", "Lemon Republic"},
-        {"Lemon Robotics", "Lemon Robotics", "Lemon Robotics"},
-        {"Lemon Labs", "Lemon Labs", "Lemon Labs"},
-        {"Lemon Trading", "Lemon Trading", "Lemon Trading"},
-        {"Lemon Depot", "Lemon Depot", "Lemon Depot"},
-        {"LemonDash", "LemonDash", "LemonDash"},
-        {"Lemon Stand", "Lemon Stand", "Lemon Stand"}
-    }
-    
-    while true do 
-        local dt = task.wait(0.05)
-        
-        pcall(function()
-            local playerGui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
-            local manageMenu = playerGui and playerGui:FindFirstChild("Manage") and playerGui.Manage:FindFirstChild("ManageMenu")
-            
-            -- 1. TRIGGER & TIMER MANAGE MENU
-            if Toggles.AutoUpgrade then
-                wasManageOn = true
-                if manageMenu then
-                    if manageMenu:GetAttribute("Exclusive") ~= false then manageMenu:SetAttribute("Exclusive", false) end
-                    if manageMenu:GetAttribute("Visible") ~= true then manageMenu:SetAttribute("Visible", true) end
-                    
-                    if manageMenu.Visible == true then
-                        visibleTimerManage = visibleTimerManage + dt
-                        if visibleTimerManage >= 5 then
-                            manageMenu.Visible = false
-                            visibleTimerManage = 0
-                        end
-                    else
-                        visibleTimerManage = 0
-                    end
-                end
-            elseif wasManageOn then
-                if manageMenu then
-                    pcall(function()
-                        manageMenu:SetAttribute("Exclusive", true)
-                        manageMenu:SetAttribute("Visible", false)
-                    end)
-                end
-                wasManageOn = false
-                visibleTimerManage = 0
-            end
-
-            -- 2. SMART FILTER & SEQUENTIAL UPGRADE
-            if Toggles.AutoUpgrade and not isUpgradingSequence then
-                local MyTycoon = GetMyTycoon()
-                local manageFrame = manageMenu and manageMenu:FindFirstChild("Body")
-                                  and manageMenu.Body:FindFirstChild("Frame")
-                                  and manageMenu.Body.Frame:FindFirstChild("Manage")
-
-                if MyTycoon and MyTycoon:FindFirstChild("Purchases") and manageFrame then
-                    
-                    isUpgradingSequence = true 
-                    
-                    task.spawn(function()
-                        pcall(function()
-                            for _, path in ipairs(promptPaths) do
-                                if not Toggles.AutoUpgrade then break end
-                                
-                                local uiName = string.gsub(path[1], " ", "")
-                                local folderUI = manageFrame:FindFirstChild(uiName)
-                                
-                                local canUpgrade = true 
-                                
-                                if folderUI then
-                                    if not folderUI.Visible then folderUI.Visible = true end
-                                    if folderUI:GetAttribute("Visible") ~= true then folderUI:SetAttribute("Visible", true) end
-
-                                    local upgBtn = folderUI:FindFirstChild("Upgrade")
-                                    if upgBtn then
-                                        -- [FILTER 1] Cek Warna (Apakah uang cukup/tersedia?)
-                                        local bgColor = upgBtn.BackgroundColor3
-                                        local r = math.floor((bgColor.R * 255) + 0.5)
-                                        local g = math.floor((bgColor.G * 255) + 0.5)
-                                        local b = math.floor((bgColor.B * 255) + 0.5)
-
-                                        if upgBtn.Active == false or (r == 125 and g == 125 and b == 125) then
-                                            canUpgrade = false
-                                        end
-
-                                        -- Jika tombol hijau, jalankan misi "Bait & Max"
-                                        if canUpgrade then
-                                            local current = MyTycoon.Purchases
-                                            for _, folderName in ipairs(path) do
-                                                current = current and current:FindFirstChild(folderName)
-                                            end
-                                            
-                                            if current then
-                                                local upgradeRemote = current:FindFirstChild("Upgrade") or current:FindFirstChildWhichIsA("RemoteFunction")
-                                                
-                                                if upgradeRemote and upgradeRemote:IsA("RemoteFunction") then
-                                                    
-                                                    -- Fungsi kecil untuk membaca Count saat ini
-                                                    local function getCurrentCount()
-                                                        local cObj = upgBtn:FindFirstChild("Count")
-                                                        if cObj and cObj.Text and cObj.Text ~= "" then
-                                                            local ext = tonumber(string.match(cObj.Text, "%d+"))
-                                                            return ext or 0
-                                                        end
-                                                        return 0 -- Jika kosong/belum dibeli, anggap 0
-                                                    end
-
-                                                    local countSebelum = getCurrentCount()
-
-                                                    -- TAHAP 1: Pancing beli 1 biji dulu
-                                                    pcall(function() 
-                                                        upgradeRemote:InvokeServer(1) 
-                                                    end)
-
-                                                    -- Tunggu sebentar agar server memproses dan UI game merespons
-                                                    task.wait(0.1)
-
-                                                    -- TAHAP 2: Verifikasi & Gas Max
-                                                    local countSesudah = getCurrentCount()
-                                                    
-                                                    -- Jika Count bertambah, berarti pembelian valid dan bukan bug
-                                                    if countSesudah > countSebelum then
-                                                        local burstAmmo = 1
-                                                        local stackObj = upgBtn:FindFirstChild("Stack")
-                                                        
-                                                        if stackObj and stackObj.Text then
-                                                            local cleanText = string.gsub(stackObj.Text, "[+%,%s]", "")
-                                                            local extractedNum = tonumber(cleanText)
-                                                            if extractedNum and extractedNum > 0 then
-                                                                burstAmmo = extractedNum
-                                                            end
-                                                        end
-                                                        
-                                                        -- Hajar sisa MAX-nya!
-                                                        if burstAmmo > 0 then
-                                                            pcall(function() 
-                                                                upgradeRemote:InvokeServer(burstAmmo) 
-                                                            end)
-                                                        end
-                                                    end
-                                                    
-                                                end
-                                            end
-                                        end
-                                    end
-                                end
-                            end
-                        end)
-                        
-                        -- Buka gembok setelah antrean 8 bangunan selesai
-                        isUpgradingSequence = false
-                    end)
-                end
-            end
-        end)
     end
 end)
 
