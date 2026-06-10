@@ -927,7 +927,7 @@ task.spawn(function()
         {"LemonX", "LemonX", "LemonX"}
     }
     
-    while task.wait(0.05) do -- Speed mesin penggiling yang aman
+    while task.wait(0.04) do -- Speed mesin penggiling yang aman
         if Toggles.AutoUpgrade then
             pcall(function()
                 local MyTycoon = GetMyTycoon()
@@ -950,7 +950,7 @@ task.spawn(function()
                                 if upgradeRemote and upgradeRemote:IsA("RemoteFunction") then
                                     
                                     -- Eksekusi brutal 3 thread sekaligus (Membypass lag server)
-                                    for i = 1, 3 do
+                                    for i = 1, 5 do
                                         task.spawn(function()
                                             pcall(function() 
                                                 upgradeRemote:InvokeServer(1) 
