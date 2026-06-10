@@ -890,7 +890,7 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 3: AUTO UPGRADE & CLICK (SMART MACHINE GUN ENGINE)
+-- LOOP 3: AUTO UPGRADE & CLICK (SMART UI FILTER ENGINE)
 -- =======================================================
 local clickTargets = {"LemonDepot", "LemonLabs", "LemonRepublic", "LemonRobotics", "LemonStand", "LemonTrading", "LemonDash", "LemonX"}
 
@@ -915,7 +915,7 @@ task.spawn(function()
         end
     end)
 
-    -- [BAGIAN B & C GABUNGAN]: SMART AUTO UPGRADE 
+    -- [BAGIAN B & C GABUNGAN]: SMART AUTO UPGRADE + UI MANAGE FILTER
     local promptPaths = {
         {"Lemon Stand", "Lemon Stand", "Lemon Stand"},
         {"LemonDash", "LemonDash", "LemonDash"},
@@ -927,40 +927,78 @@ task.spawn(function()
         {"LemonX", "LemonX", "LemonX"}
     }
     
-    while task.wait(0.05) do -- Speed mesin penggiling yang aman
+    while task.wait() do -- Speed mesin penggiling yang aman
         if Toggles.AutoUpgrade then
             pcall(function()
                 local MyTycoon = GetMyTycoon()
+                local playerGui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
+                
+                -- Deteksi UI Manage sesuai Path rahasia yang kamu temukan
+                local manageFrame = playerGui and playerGui:FindFirstChild("Manage")
+                                  and playerGui.Manage:FindFirstChild("ManageMenu")
+                                  and playerGui.Manage.ManageMenu:FindFirstChild("Body")
+                                  and playerGui.Manage.ManageMenu.Body:FindFirstChild("Frame")
+                                  and playerGui.Manage.ManageMenu.Body.Frame:FindFirstChild("Manage")
+
                 if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
                     for _, path in ipairs(promptPaths) do
-                        local current = MyTycoon.Purchases
-                        for _, folderName in ipairs(path) do
-                            current = current and current:FindFirstChild(folderName)
-                        end
                         
-                        -- Jika lokasi folder ketemu
-                        if current then
-                            local prompt = current:FindFirstChild("Prompt")
-                            -- Mencari RemoteFunction "Upgrade" di dalam folder yang sama
-                            local upgradeRemote = current:FindFirstChild("Upgrade") or current:FindFirstChildWhichIsA("RemoteFunction")
+                        -- 1. KONVERSI NAMA: Mengubah "Lemon Stand" jadi "LemonStand" agar cocok dengan UI
+                        local uiName = string.gsub(path[1], " ", "")
+                        
+                        -- 2. CEK FILTER UI MANAGE (ANTI SPAM KOSONG / STUCK)
+                        local canUpgrade = true -- Secara default diizinkan tembak
+                        
+                        if manageFrame then
+                            local folderUI = manageFrame:FindFirstChild(uiName)
+                            if folderUI then
+                                -- Jadikan UI Visible = true dan Attribute Visible = true (Sesuai Permintaan)
+                                if not folderUI.Visible then folderUI.Visible = true end
+                                if folderUI:GetAttribute("Visible") ~= true then folderUI:SetAttribute("Visible", true) end
 
-                            -- LOGIKA FILTER: Jika tombol promptnya BISA DITEKAN (Enabled = true)
-                            if prompt and prompt:IsA("ProximityPrompt") and prompt.Enabled then
-                                -- Pastikan remote-nya ada
-                                if upgradeRemote and upgradeRemote:IsA("RemoteFunction") then
-                                    
-                                    -- Eksekusi brutal 3 thread sekaligus (Membypass lag server)
-                                    for i = 1, 3 do
-                                        task.spawn(function()
-                                            pcall(function() 
-                                                upgradeRemote:InvokeServer(1) 
-                                            end)
-                                        end)
+                                -- Cari Tombol Upgrade
+                                local upgBtn = folderUI:FindFirstChild("Upgrade")
+                                if upgBtn then
+                                    -- Konversi warna RGB ke angka murni 0-255 agar bisa dideteksi
+                                    local bgColor = upgBtn.BackgroundColor3
+                                    local r = math.floor((bgColor.R * 255) + 0.5)
+                                    local g = math.floor((bgColor.G * 255) + 0.5)
+                                    local b = math.floor((bgColor.B * 255) + 0.5)
+
+                                    -- JIKA Active = false ATAU warna abu-abu (125,125,125), BLOKIR TEMBAKAN!
+                                    if upgBtn.Active == false or (r == 125 and g == 125 and b == 125) then
+                                        canUpgrade = false
                                     end
-                                    
                                 end
                             end
                         end
+
+                        -- 3. EKSEKUSI REMOTE: Hanya tembak jika LOLOS filter UI (Uang cukup & Terbuka)
+                        if canUpgrade then
+                            local current = MyTycoon.Purchases
+                            for _, folderName in ipairs(path) do
+                                current = current and current:FindFirstChild(folderName)
+                            end
+                            
+                            -- Jika lokasi folder ketemu
+                            if current then
+                                local prompt = current:FindFirstChild("Prompt")
+                                local upgradeRemote = current:FindFirstChild("Upgrade") or current:FindFirstChildWhichIsA("RemoteFunction")
+
+                                if prompt and prompt:IsA("ProximityPrompt") and prompt.Enabled then
+                                    if upgradeRemote and upgradeRemote:IsA("RemoteFunction") then
+                                        for i = 1, 3 do
+                                            task.spawn(function()
+                                                pcall(function() 
+                                                    upgradeRemote:InvokeServer(1) 
+                                                end)
+                                            end)
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                        
                     end
                 end
             end)
