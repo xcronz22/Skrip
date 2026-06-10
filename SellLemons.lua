@@ -890,14 +890,15 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 3: AUTO UPGRADE & CLICK (SUPER SMART UI FILTER + DYNAMIC AMMO)
+-- LOOP 3: AUTO UPGRADE & CLICK (SEQUENTIAL MAX BUY)
 -- =======================================================
 local clickTargets = {"LemonDepot", "LemonLabs", "LemonRepublic", "LemonRobotics", "LemonStand", "LemonTrading", "LemonDash", "LemonX"}
 local visibleTimerManage = 0
 local wasManageOn = false
+local isUpgradingSequence = false -- KUNCI UTAMA: Mencegah tabrakan server
 
 task.spawn(function()
-    -- [BAGIAN A]: AUTO CLICKER (Berjalan terpisah 100%)
+    -- [BAGIAN A]: AUTO CLICKER
     task.spawn(function()
         while task.wait(0.1) do
             if Toggles.AutoUpgrade then
@@ -917,33 +918,30 @@ task.spawn(function()
         end
     end)
 
-    -- [BAGIAN B & C GABUNGAN]: SMART AUTO UPGRADE + MANAGE TRIGGER
+    -- [BAGIAN B & C]: SMART AUTO UPGRADE (BERURUTAN DARI TERMAHAL)
+    -- Diurutkan dari LemonX ke bawah agar yang mahal dibeli duluan!
     local promptPaths = {
-        {"Lemon Stand", "Lemon Stand", "Lemon Stand"},
-        {"LemonDash", "LemonDash", "LemonDash"},
-        {"Lemon Depot", "Lemon Depot", "Lemon Depot"},
-        {"Lemon Trading", "Lemon Trading", "Lemon Trading"},
-        {"Lemon Labs", "Lemon Labs", "Lemon Labs"},
-        {"Lemon Robotics", "Lemon Robotics", "Lemon Robotics"},
+        {"LemonX", "LemonX", "LemonX"},
         {"Lemon Republic", "Lemon Republic", "Lemon Republic"},
-        {"LemonX", "LemonX", "LemonX"}
+        {"Lemon Robotics", "Lemon Robotics", "Lemon Robotics"},
+        {"Lemon Labs", "Lemon Labs", "Lemon Labs"},
+        {"Lemon Trading", "Lemon Trading", "Lemon Trading"},
+        {"Lemon Depot", "Lemon Depot", "Lemon Depot"},
+        {"LemonDash", "LemonDash", "LemonDash"},
+        {"Lemon Stand", "Lemon Stand", "Lemon Stand"}
     }
     
     while true do 
-        local dt = task.wait(0.1) -- Speed mesin penggiling
+        local dt = task.wait(0.05)
         
         pcall(function()
             local playerGui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
             local manageMenu = playerGui and playerGui:FindFirstChild("Manage") and playerGui.Manage:FindFirstChild("ManageMenu")
             
-            -- ==========================================
-            -- 1. TRIGGER & TIMER MANAGE MENU (Paling Pertama)
-            -- ==========================================
+            -- 1. TRIGGER & TIMER MANAGE MENU
             if Toggles.AutoUpgrade then
                 wasManageOn = true
-                
                 if manageMenu then
-                    -- Buka gerbang data utama
                     if manageMenu:GetAttribute("Exclusive") ~= false then manageMenu:SetAttribute("Exclusive", false) end
                     if manageMenu:GetAttribute("Visible") ~= true then manageMenu:SetAttribute("Visible", true) end
                     
@@ -962,87 +960,91 @@ task.spawn(function()
                     pcall(function()
                         manageMenu:SetAttribute("Exclusive", true)
                         manageMenu:SetAttribute("Visible", false)
-                        if manageMenu.Visible == true then manageMenu.Visible = false end
                     end)
                 end
                 wasManageOn = false
                 visibleTimerManage = 0
             end
 
-            -- ==========================================
-            -- 2. SMART FILTER & DYNAMIC AMMO READING
-            -- ==========================================
-            if Toggles.AutoUpgrade then
+            -- 2. SMART FILTER & SEQUENTIAL UPGRADE
+            -- Hanya jalan jika tidak ada antrean pembelian yang sedang berlangsung
+            if Toggles.AutoUpgrade and not isUpgradingSequence then
                 local MyTycoon = GetMyTycoon()
                 local manageFrame = manageMenu and manageMenu:FindFirstChild("Body")
                                   and manageMenu.Body:FindFirstChild("Frame")
                                   and manageMenu.Body.Frame:FindFirstChild("Manage")
 
                 if MyTycoon and MyTycoon:FindFirstChild("Purchases") and manageFrame then
-                    for _, path in ipairs(promptPaths) do
-                        
-                        local uiName = string.gsub(path[1], " ", "")
-                        local folderUI = manageFrame:FindFirstChild(uiName)
-                        
-                        if folderUI then
-                            
-                            -- ==========================================
-                            -- FIX TERBARU: KEMBALIKAN PAKSAAN VISIBLE DI SINI
-                            -- (Agar tulisan Stack dipaksa update oleh game)
-                            -- ==========================================
-                            if not folderUI.Visible then folderUI.Visible = true end
-                            if folderUI:GetAttribute("Visible") ~= true then folderUI:SetAttribute("Visible", true) end
+                    
+                    -- Kunci sequence agar loop 0.05 detik tidak membuat spam
+                    isUpgradingSequence = true 
+                    
+                    task.spawn(function()
+                        pcall(function()
+                            -- Mengeksekusi satu per satu dari atas ke bawah (LemonX -> LemonStand)
+                            for _, path in ipairs(promptPaths) do
+                                if not Toggles.AutoUpgrade then break end
+                                
+                                local uiName = string.gsub(path[1], " ", "")
+                                local folderUI = manageFrame:FindFirstChild(uiName)
+                                
+                                local canUpgrade = true 
+                                local burstAmmo = 1 
+                                
+                                if folderUI then
+                                    if not folderUI.Visible then folderUI.Visible = true end
+                                    if folderUI:GetAttribute("Visible") ~= true then folderUI:SetAttribute("Visible", true) end
 
-                            local upgBtn = folderUI:FindFirstChild("Upgrade")
-                            if upgBtn then
-                                local bgColor = upgBtn.BackgroundColor3
-                                local r = math.floor((bgColor.R * 255) + 0.5)
-                                local g = math.floor((bgColor.G * 255) + 0.5)
-                                local b = math.floor((bgColor.B * 255) + 0.5)
+                                    local upgBtn = folderUI:FindFirstChild("Upgrade")
+                                    if upgBtn then
+                                        -- ANTI-SPAM CEK WARNA
+                                        local bgColor = upgBtn.BackgroundColor3
+                                        local r = math.floor((bgColor.R * 255) + 0.5)
+                                        local g = math.floor((bgColor.G * 255) + 0.5)
+                                        local b = math.floor((bgColor.B * 255) + 0.5)
 
-                                -- FILTER: Cek Active dan blokir jika warna abu-abu
-                                if upgBtn.Active ~= false and not (r == 125 and g == 125 and b == 125) then
-                                    
-                                    -- MATA ELANG: MEMBACA TEKS STACK 
-                                    local burstAmmo = 1 
-                                    local stackObj = upgBtn:FindFirstChild("Stack")
-                                    
-                                    if stackObj and stackObj.Text then
-                                        -- Sedot sisa angka (contoh: "+3245" -> 3245)
-                                        local extractedNum = string.match(stackObj.Text, "%d+")
-                                        if extractedNum then
-                                            burstAmmo = tonumber(extractedNum)
+                                        if upgBtn.Active == false or (r == 125 and g == 125 and b == 125) then
+                                            canUpgrade = false
+                                        end
+                                        
+                                        -- EKSTRAK STACK (Sesuai Permintaanmu!)
+                                        local stackObj = upgBtn:FindFirstChild("Stack")
+                                        if stackObj and stackObj.Text then
+                                            local cleanText = string.gsub(stackObj.Text, "[+%,%s]", "")
+                                            local extractedNum = tonumber(cleanText)
+                                            if extractedNum and extractedNum > 0 then
+                                                burstAmmo = extractedNum
+                                            end
                                         end
                                     end
+                                end
 
-                                    -- EKSEKUSI REMOTE: Tembak 1 kali dengan peluru raksasa
+                                -- 3. EKSEKUSI REMOTE (TUNGGU SERVER BALAS)
+                                if canUpgrade then
                                     local current = MyTycoon.Purchases
                                     for _, folderName in ipairs(path) do
                                         current = current and current:FindFirstChild(folderName)
                                     end
                                     
                                     if current then
-                                        local prompt = current:FindFirstChild("Prompt")
                                         local upgradeRemote = current:FindFirstChild("Upgrade") or current:FindFirstChildWhichIsA("RemoteFunction")
-
-                                        if prompt and prompt:IsA("ProximityPrompt") and prompt.Enabled then
-                                            if upgradeRemote and upgradeRemote:IsA("RemoteFunction") then
-                                                task.spawn(function()
-                                                    pcall(function() 
-                                                        upgradeRemote:InvokeServer(burstAmmo) 
-                                                    end)
-                                                end)
-                                            end
+                                        if upgradeRemote and upgradeRemote:IsA("RemoteFunction") then
+                                            -- Tidak dibungkus task.spawn() di sini, 
+                                            -- agar skrip diam menunggu LemonX dibeli, baru lanjut ke LemonRepublic!
+                                            pcall(function() 
+                                                upgradeRemote:InvokeServer(burstAmmo) 
+                                            end)
                                         end
                                     end
-
                                 end
                             end
-                        end
-                    end
+                        end)
+                        
+                        -- Buka kunci setelah semua 8 pabrik selesai dicek/dibeli
+                        isUpgradingSequence = false
+                    end)
                 end
             end
-            
         end)
     end
 end)
