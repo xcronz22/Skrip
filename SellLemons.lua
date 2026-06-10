@@ -890,12 +890,12 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 3: AUTO UPGRADE & CLICK (SEQUENTIAL MAX BUY)
+-- LOOP 3: AUTO UPGRADE & CLICK (STRICT FILTER & SEQUENTIAL)
 -- =======================================================
 local clickTargets = {"LemonDepot", "LemonLabs", "LemonRepublic", "LemonRobotics", "LemonStand", "LemonTrading", "LemonDash", "LemonX"}
 local visibleTimerManage = 0
 local wasManageOn = false
-local isUpgradingSequence = false -- KUNCI UTAMA: Mencegah tabrakan server
+local isUpgradingSequence = false -- Kunci Mencegah Tabrakan Server
 
 task.spawn(function()
     -- [BAGIAN A]: AUTO CLICKER
@@ -918,8 +918,7 @@ task.spawn(function()
         end
     end)
 
-    -- [BAGIAN B & C]: SMART AUTO UPGRADE (BERURUTAN DARI TERMAHAL)
-    -- Diurutkan dari LemonX ke bawah agar yang mahal dibeli duluan!
+    -- [BAGIAN B & C]: SMART AUTO UPGRADE DENGAN FILTER KETAT
     local promptPaths = {
         {"LemonX", "LemonX", "LemonX"},
         {"Lemon Republic", "Lemon Republic", "Lemon Republic"},
@@ -967,7 +966,6 @@ task.spawn(function()
             end
 
             -- 2. SMART FILTER & SEQUENTIAL UPGRADE
-            -- Hanya jalan jika tidak ada antrean pembelian yang sedang berlangsung
             if Toggles.AutoUpgrade and not isUpgradingSequence then
                 local MyTycoon = GetMyTycoon()
                 local manageFrame = manageMenu and manageMenu:FindFirstChild("Body")
@@ -976,12 +974,10 @@ task.spawn(function()
 
                 if MyTycoon and MyTycoon:FindFirstChild("Purchases") and manageFrame then
                     
-                    -- Kunci sequence agar loop 0.05 detik tidak membuat spam
                     isUpgradingSequence = true 
                     
                     task.spawn(function()
                         pcall(function()
-                            -- Mengeksekusi satu per satu dari atas ke bawah (LemonX -> LemonStand)
                             for _, path in ipairs(promptPaths) do
                                 if not Toggles.AutoUpgrade then break end
                                 
@@ -997,7 +993,7 @@ task.spawn(function()
 
                                     local upgBtn = folderUI:FindFirstChild("Upgrade")
                                     if upgBtn then
-                                        -- ANTI-SPAM CEK WARNA
+                                        -- [FILTER 1] ANTI-SPAM CEK WARNA ABU-ABU
                                         local bgColor = upgBtn.BackgroundColor3
                                         local r = math.floor((bgColor.R * 255) + 0.5)
                                         local g = math.floor((bgColor.G * 255) + 0.5)
@@ -1007,7 +1003,14 @@ task.spawn(function()
                                             canUpgrade = false
                                         end
                                         
-                                        -- EKSTRAK STACK (Sesuai Permintaanmu!)
+                                        -- [FILTER 2] CEK EKSISTENSI TEKS 'COUNT' (ANTI UANG MINUS)
+                                        local countObj = upgBtn:FindFirstChild("Count")
+                                        -- Jika objek tidak ada, atau teksnya kosong (""), langsung batalkan!
+                                        if not countObj or countObj.Text == nil or countObj.Text == "" or string.match(countObj.Text, "^%s*$") then
+                                            canUpgrade = false
+                                        end
+
+                                        -- [EKSTRAKSI] AMBIL JUMLAH DARI 'STACK'
                                         local stackObj = upgBtn:FindFirstChild("Stack")
                                         if stackObj and stackObj.Text then
                                             local cleanText = string.gsub(stackObj.Text, "[+%,%s]", "")
@@ -1019,7 +1022,7 @@ task.spawn(function()
                                     end
                                 end
 
-                                -- 3. EKSEKUSI REMOTE (TUNGGU SERVER BALAS)
+                                -- 3. EKSEKUSI REMOTE (AMAN)
                                 if canUpgrade then
                                     local current = MyTycoon.Purchases
                                     for _, folderName in ipairs(path) do
@@ -1029,8 +1032,6 @@ task.spawn(function()
                                     if current then
                                         local upgradeRemote = current:FindFirstChild("Upgrade") or current:FindFirstChildWhichIsA("RemoteFunction")
                                         if upgradeRemote and upgradeRemote:IsA("RemoteFunction") then
-                                            -- Tidak dibungkus task.spawn() di sini, 
-                                            -- agar skrip diam menunggu LemonX dibeli, baru lanjut ke LemonRepublic!
                                             pcall(function() 
                                                 upgradeRemote:InvokeServer(burstAmmo) 
                                             end)
@@ -1040,7 +1041,6 @@ task.spawn(function()
                             end
                         end)
                         
-                        -- Buka kunci setelah semua 8 pabrik selesai dicek/dibeli
                         isUpgradingSequence = false
                     end)
                 end
