@@ -7,6 +7,11 @@ if getgenv().LemonScriptSudahJalan then
 end
 getgenv().LemonScriptSudahJalan = true
 
+-- Pastikan variabel global ini ada di paling atas skrip (agar Loop 1 dan 3 bisa saling baca)
+if getgenv().MasterTycoonBusy == nil then
+    getgenv().MasterTycoonBusy = false
+end
+
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local Workspace = game:GetService("Workspace")
@@ -782,83 +787,181 @@ task.spawn(function()
     end
 end)
 
-
 -- =======================================================
--- LOOP 3: AUTO UPGRADE (BAIT & MAX)
+-- LOOP 3: AUTO UPGRADE & CLICK (BAIT & MAX + MASTER LOCK)
 -- =======================================================
--- (Bagian klik AutoClicker biarkan tetap jalan asinkronus seperti biasa)
--- ...
-
-local promptPaths = {
-    {"LemonX", "LemonX", "LemonX"},
-    {"Lemon Republic", "Lemon Republic", "Lemon Republic"},
-    -- ... (Sisa list bangunanmu)
-}
+local clickTargets = {"LemonDepot", "LemonLabs", "LemonRepublic", "LemonRobotics", "LemonStand", "LemonTrading", "LemonDash", "LemonX"}
+local visibleTimerManage = 0
+local wasManageOn = false
 
 task.spawn(function()
-    while true do 
-        local dt = task.wait(0.05)
-        
-        -- (Logika Trigger ManageMenu taruh di sini seperti biasa)
-        -- ...
-
-        -- Hanya jalan jika AutoUpgrade aktif DAN Loop 1 sedang tidak belanja fisik
-        if Toggles.AutoUpgrade and not MasterTycoonBusy then
-            local MyTycoon = GetMyTycoon()
-            local manageFrame = -- ... (path UI Manage-mu)
-
-            if MyTycoon and MyTycoon:FindFirstChild("Purchases") and manageFrame then
-                
-                MasterTycoonBusy = true -- Kunci uangnya untuk ritual Bait & Max!
-                
+    -- [BAGIAN A]: AUTO CLICKER
+    task.spawn(function()
+        while task.wait(0.1) do
+            if Toggles.AutoUpgrade then
                 pcall(function()
-                    for _, path in ipairs(promptPaths) do
-                        if not Toggles.AutoUpgrade then break end
-                        
-                        local uiName = string.gsub(path[1], " ", "")
-                        local folderUI = manageFrame:FindFirstChild(uiName)
-                        local canUpgrade = true 
-                        
-                        if folderUI then
-                            local upgBtn = folderUI:FindFirstChild("Upgrade")
-                            if upgBtn then
-                                -- Filter UI Warna Abu-abu
-                                local bgColor = upgBtn.BackgroundColor3
-                                local r, g, b = math.floor((bgColor.R*255)+0.5), math.floor((bgColor.G*255)+0.5), math.floor((bgColor.B*255)+0.5)
-
-                                if upgBtn.Active == false or (r == 125 and g == 125 and b == 125) then
-                                    canUpgrade = false
-                                end
-
-                                if canUpgrade then
-                                    local upgradeRemote = -- ... (path remote)
-                                    if upgradeRemote then
-                                        
-                                        local countSebelum = -- ... (fungsi getCurrentCount-mu)
-
-                                        -- Tembak Bait (1)
-                                        pcall(function() upgradeRemote:InvokeServer(1) end)
-                                        task.wait(0.1)
-                                        
-                                        -- Cek Diff & Gas Max
-                                        local countSesudah = -- ...
-                                        if countSesudah > countSebelum then
-                                            local burstAmmo = -- ... (ekstrak Stack-mu)
-                                            if burstAmmo > 0 then
-                                                pcall(function() upgradeRemote:InvokeServer(burstAmmo) end)
-                                            end
-                                        end
-                                        
-                                    end
-                                end
-                            end
+                    local MyTycoon = GetMyTycoon()
+                    local wakeRemote = MyTycoon and MyTycoon:FindFirstChild("Remotes") and MyTycoon.Remotes:FindFirstChild("WakeIncomeStream")
+                    
+                    if wakeRemote and wakeRemote:IsA("RemoteFunction") then
+                        for _, targetName in ipairs(clickTargets) do
+                            task.spawn(function() 
+                                pcall(function() wakeRemote:InvokeServer(targetName) end) 
+                            end)
                         end
                     end
                 end)
-                
-                MasterTycoonBusy = false -- Buka kembali kuncinya!
             end
         end
+    end)
+
+    -- [BAGIAN B & C]: SMART AUTO UPGRADE (BAIT & VERIFY LOGIC)
+    local promptPaths = {
+        {"LemonX", "LemonX", "LemonX"},
+        {"Lemon Republic", "Lemon Republic", "Lemon Republic"},
+        {"Lemon Robotics", "Lemon Robotics", "Lemon Robotics"},
+        {"Lemon Labs", "Lemon Labs", "Lemon Labs"},
+        {"Lemon Trading", "Lemon Trading", "Lemon Trading"},
+        {"Lemon Depot", "Lemon Depot", "Lemon Depot"},
+        {"LemonDash", "LemonDash", "LemonDash"},
+        {"Lemon Stand", "Lemon Stand", "Lemon Stand"}
+    }
+    
+    while true do 
+        local dt = task.wait(0.05)
+        
+        pcall(function()
+            local playerGui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
+            local manageMenu = playerGui and playerGui:FindFirstChild("Manage") and playerGui.Manage:FindFirstChild("ManageMenu")
+            
+            -- 1. TRIGGER & TIMER MANAGE MENU
+            if Toggles.AutoUpgrade then
+                wasManageOn = true
+                if manageMenu then
+                    if manageMenu:GetAttribute("Exclusive") ~= false then manageMenu:SetAttribute("Exclusive", false) end
+                    if manageMenu:GetAttribute("Visible") ~= true then manageMenu:SetAttribute("Visible", true) end
+                    
+                    if manageMenu.Visible == true then
+                        visibleTimerManage = visibleTimerManage + dt
+                        if visibleTimerManage >= 5 then
+                            manageMenu.Visible = false
+                            visibleTimerManage = 0
+                        end
+                    else
+                        visibleTimerManage = 0
+                    end
+                end
+            elseif wasManageOn then
+                if manageMenu then
+                    pcall(function()
+                        manageMenu:SetAttribute("Exclusive", true)
+                        manageMenu:SetAttribute("Visible", false)
+                    end)
+                end
+                wasManageOn = false
+                visibleTimerManage = 0
+            end
+
+            -- 2. SMART FILTER DENGAN MASTER LOCK
+            -- Cek apakah Loop 1 sedang tidak berbelanja
+            if Toggles.AutoUpgrade and not getgenv().MasterTycoonBusy then
+                local MyTycoon = GetMyTycoon()
+                local manageFrame = manageMenu and manageMenu:FindFirstChild("Body")
+                                  and manageMenu.Body:FindFirstChild("Frame")
+                                  and manageMenu.Body.Frame:FindFirstChild("Manage")
+
+                if MyTycoon and MyTycoon:FindFirstChild("Purchases") and manageFrame then
+                    
+                    getgenv().MasterTycoonBusy = true -- Kunci Dompet! Loop 1 dilarang jalan.
+                    
+                    task.spawn(function()
+                        pcall(function()
+                            for _, path in ipairs(promptPaths) do
+                                if not Toggles.AutoUpgrade then break end
+                                
+                                local uiName = string.gsub(path[1], " ", "")
+                                local folderUI = manageFrame:FindFirstChild(uiName)
+                                
+                                local canUpgrade = true 
+                                
+                                if folderUI then
+                                    if not folderUI.Visible then folderUI.Visible = true end
+                                    if folderUI:GetAttribute("Visible") ~= true then folderUI:SetAttribute("Visible", true) end
+
+                                    local upgBtn = folderUI:FindFirstChild("Upgrade")
+                                    if upgBtn then
+                                        -- [FILTER 1] Cek Warna (Apakah uang cukup/tersedia?)
+                                        local bgColor = upgBtn.BackgroundColor3
+                                        local r = math.floor((bgColor.R * 255) + 0.5)
+                                        local g = math.floor((bgColor.G * 255) + 0.5)
+                                        local b = math.floor((bgColor.B * 255) + 0.5)
+
+                                        if upgBtn.Active == false or (r == 125 and g == 125 and b == 125) then
+                                            canUpgrade = false
+                                        end
+
+                                        -- [EKSEKUSI] Jika tombol hijau, jalankan misi "Bait & Max"
+                                        if canUpgrade then
+                                            local current = MyTycoon.Purchases
+                                            for _, folderName in ipairs(path) do
+                                                current = current and current:FindFirstChild(folderName)
+                                            end
+                                            
+                                            if current then
+                                                local upgradeRemote = current:FindFirstChild("Upgrade") or current:FindFirstChildWhichIsA("RemoteFunction")
+                                                
+                                                if upgradeRemote and upgradeRemote:IsA("RemoteFunction") then
+                                                    
+                                                    -- Fungsi untuk membaca Count
+                                                    local function getCurrentCount()
+                                                        local cObj = upgBtn:FindFirstChild("Count")
+                                                        if cObj and cObj.Text and cObj.Text ~= "" then
+                                                            local ext = tonumber(string.match(cObj.Text, "%d+"))
+                                                            return ext or 0
+                                                        end
+                                                        return 0
+                                                    end
+
+                                                    local countSebelum = getCurrentCount()
+
+                                                    -- TAHAP 1: Pancing beli 1 biji
+                                                    pcall(function() upgradeRemote:InvokeServer(1) end)
+                                                    task.wait(0.1)
+
+                                                    -- TAHAP 2: Verifikasi & Gas Max
+                                                    local countSesudah = getCurrentCount()
+                                                    
+                                                    if countSesudah > countSebelum then
+                                                        local burstAmmo = 1
+                                                        local stackObj = upgBtn:FindFirstChild("Stack")
+                                                        
+                                                        if stackObj and stackObj.Text then
+                                                            local cleanText = string.gsub(stackObj.Text, "[+%,%s]", "")
+                                                            local extractedNum = tonumber(cleanText)
+                                                            if extractedNum and extractedNum > 0 then
+                                                                burstAmmo = extractedNum
+                                                            end
+                                                        end
+                                                        
+                                                        -- Hajar sisa MAX-nya!
+                                                        if burstAmmo > 0 then
+                                                            pcall(function() upgradeRemote:InvokeServer(burstAmmo) end)
+                                                        end
+                                                    end
+                                                    
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end)
+                        
+                        getgenv().MasterTycoonBusy = false -- Buka Kunci Dompet! Loop 1 boleh jalan lagi.
+                    end)
+                end
+            end
+        end)
     end
 end)
 
