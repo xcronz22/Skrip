@@ -723,7 +723,7 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 1: [CORE 1] MESIN AUTO BUY (SMART FILTER + ANTI-SKIP)
+-- LOOP 1: [CORE 1] MESIN AUTO BUY (LIGHTNING BATCH SWEEP)
 -- =======================================================
 local PurchaseV1 = {
     "Staircase", "Hills", "Minigames", "Lemon Stand", "LemonDash",
@@ -737,9 +737,11 @@ local PurchaseV2 = {
     "Lemon Stand", "Minigames", "LemonX Ground"
 }
 
+local isBuyingSequence = false 
+
 task.spawn(function()
-    while task.wait(0.1) do -- Radar kecepatan aman
-        if Toggles.AutoBuy then
+    while task.wait(0.05) do -- Radar super cepat
+        if Toggles.AutoBuy and not isBuyingSequence then
             pcall(function()
                 local char = LocalPlayer.Character
                 local rootPart = char and char:FindFirstChild("HumanoidRootPart")
@@ -748,71 +750,103 @@ task.spawn(function()
                 local MyTycoon = GetMyTycoon()
                 if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
                     
-                    local targets = {}
+                    isBuyingSequence = true 
                     
-                    -- LOGIKA PINTAR: Pilih tabel berdasarkan opsi Dropdown UI
-                    local activeOrder = (TargetBuyMode == "V1") and PurchaseV1 or PurchaseV2
-                    
-                    for _, folderName in ipairs(activeOrder) do
-                        local purchaseItem = MyTycoon.Purchases:FindFirstChild(folderName)
-                        
-                        if purchaseItem then
-                            local buttonsFolder = purchaseItem:FindFirstChild("Buttons")
-                            if buttonsFolder then
-                                for _, item in ipairs(buttonsFolder:GetDescendants()) do
-                                    local targetPart = item.Parent
+                    task.spawn(function()
+                        pcall(function()
+                            local activeOrder = (TargetBuyMode == "V1") and PurchaseV1 or PurchaseV2
+                            
+                            for _, folderName in ipairs(activeOrder) do
+                                if not Toggles.AutoBuy then break end
+                                
+                                local purchaseFolder = MyTycoon.Purchases:FindFirstChild(folderName)
+                                
+                                if purchaseFolder then
+                                    local keepClearingFolder = true
+                                    local previousTargets = {} -- Menyimpan daftar tombol dari scan sebelumnya
                                     
-                                    local isShown = false
-                                    local isEnabled = false
-                                    
-                                    if targetPart then
-                                        -- Cek Shown
-                                        if targetPart:GetAttribute("Shown") == true then
-                                            isShown = true
-                                        elseif targetPart.Parent and targetPart.Parent:GetAttribute("Shown") == true then
-                                            isShown = true
+                                    while keepClearingFolder and Toggles.AutoBuy do
+                                        local buttonsFolder = purchaseFolder:FindFirstChild("Buttons")
+                                        if not buttonsFolder then break end
+                                        
+                                        local targets = {}
+                                        local currentTargets = {} -- Daftar tombol saat ini
+                                        
+                                        -- 1. SCAN SEMUA TOMBOL
+                                        for _, item in ipairs(buttonsFolder:GetDescendants()) do
+                                            local targetPart = item.Parent
+                                            local isShown, isEnabled = false, false
+                                            
+                                            if targetPart then
+                                                if targetPart:GetAttribute("Shown") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Shown") == true) then
+                                                    isShown = true
+                                                end
+                                                if targetPart:GetAttribute("Enabled") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Enabled") == true) then
+                                                    isEnabled = true
+                                                end
+                                            end
+                                            
+                                            if isShown and isEnabled then
+                                                if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
+                                                    if targetPart and targetPart:IsA("BasePart") then
+                                                        table.insert(targets, {Type = "Touch", Target = targetPart})
+                                                        table.insert(currentTargets, item)
+                                                    end
+                                                elseif item:IsA("ProximityPrompt") and item.Enabled then
+                                                    table.insert(targets, {Type = "Prompt", Target = item})
+                                                    table.insert(currentTargets, item)
+                                                end
+                                            end
                                         end
                                         
-                                        -- Cek Enabled
-                                        if targetPart:GetAttribute("Enabled") == true then
-                                            isEnabled = true
-                                        elseif targetPart.Parent and targetPart.Parent:GetAttribute("Enabled") == true then
-                                            isEnabled = true
+                                        -- 2. LOGIKA SKIP KILAT (ANTI-LAMBAT)
+                                        -- Jika tidak ada tombol sama sekali, pindah folder!
+                                        if #currentTargets == 0 then
+                                            break
                                         end
-                                    end
-                                    
-                                    if isShown and isEnabled then
-                                        if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
-                                            if targetPart and targetPart:IsA("BasePart") then
-                                                table.insert(targets, {Type = "Touch", Target = targetPart})
+                                        
+                                        -- Cek apakah daftar tombol sama persis dengan scan sebelumnya
+                                        local isDifferent = false
+                                        if #currentTargets ~= #previousTargets then
+                                            isDifferent = true
+                                        else
+                                            for i, item in ipairs(currentTargets) do
+                                                if item ~= previousTargets[i] then
+                                                    isDifferent = true
+                                                    break
+                                                end
                                             end
-                                        elseif item:IsA("ProximityPrompt") and item.Enabled then
-                                            table.insert(targets, {Type = "Prompt", Target = item})
                                         end
+                                        
+                                        -- Jika tidak ada yang berubah, berarti semua tombol terkunci atau uang kurang!
+                                        -- Langsung SKIP ke folder berikutnya tanpa ampun!
+                                        if not isDifferent and #previousTargets > 0 then
+                                            break
+                                        end
+                                        
+                                        previousTargets = currentTargets
+                                        
+                                        -- 3. TEMBAK MASSAL (BRUTAL)
+                                        for _, btn in ipairs(targets) do
+                                            pcall(function()
+                                                if btn.Type == "Touch" then
+                                                    firetouchinterest(rootPart, btn.Target, 0)
+                                                    firetouchinterest(rootPart, btn.Target, 1)
+                                                elseif btn.Type == "Prompt" then
+                                                    fireproximityprompt(btn.Target)
+                                                end
+                                            end)
+                                        end
+                                        
+                                        -- Cuma tunggu 0.1 detik untuk memberi nafas ke server, lalu loop ulang!
+                                        task.wait(0.1)
                                     end
                                 end
                             end
-                        end
-                    end
-
-                    -- EKSEKUSI DENGAN SISTEM ANTREAN (ANTI-SKIP)
-                    if #targets > 0 then
-                        task.spawn(function()
-                            for _, btn in ipairs(targets) do
-                                pcall(function()
-                                    if btn.Type == "Touch" then
-                                        firetouchinterest(rootPart, btn.Target, 0)
-                                        firetouchinterest(rootPart, btn.Target, 1)
-                                    elseif btn.Type == "Prompt" then
-                                        fireproximityprompt(btn.Target)
-                                    end
-                                end)
-                                
-                                task.wait(0.04) 
-                            end
                         end)
-                    end
-
+                        
+                        isBuyingSequence = false
+                    end)
                 end
             end)
         end
