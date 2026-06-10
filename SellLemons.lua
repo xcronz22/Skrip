@@ -890,9 +890,11 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 3: AUTO UPGRADE & CLICK (SMART UI FILTER ENGINE)
+-- LOOP 3: AUTO UPGRADE & CLICK (SUPER SMART UI FILTER + DYNAMIC AMMO)
 -- =======================================================
 local clickTargets = {"LemonDepot", "LemonLabs", "LemonRepublic", "LemonRobotics", "LemonStand", "LemonTrading", "LemonDash", "LemonX"}
+local visibleTimerManage = 0
+local wasManageOn = false
 
 task.spawn(function()
     -- [BAGIAN A]: AUTO CLICKER (Berjalan terpisah 100%)
@@ -915,7 +917,7 @@ task.spawn(function()
         end
     end)
 
-    -- [BAGIAN B & C GABUNGAN]: SMART AUTO UPGRADE + UI MANAGE FILTER
+    -- [BAGIAN B & C GABUNGAN]: SMART AUTO UPGRADE + MANAGE TRIGGER
     local promptPaths = {
         {"Lemon Stand", "Lemon Stand", "Lemon Stand"},
         {"LemonDash", "LemonDash", "LemonDash"},
@@ -927,82 +929,123 @@ task.spawn(function()
         {"LemonX", "LemonX", "LemonX"}
     }
     
-    while task.wait() do -- Speed mesin penggiling yang aman
-        if Toggles.AutoUpgrade then
-            pcall(function()
-                local MyTycoon = GetMyTycoon()
-                local playerGui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
+    while true do 
+        local dt = task.wait(0.05) -- Speed mesin penggiling
+        
+        pcall(function()
+            local playerGui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
+            local manageMenu = playerGui and playerGui:FindFirstChild("Manage") and playerGui.Manage:FindFirstChild("ManageMenu")
+            
+            -- ==========================================
+            -- 1. TRIGGER & TIMER MANAGE MENU (Paling Pertama)
+            -- ==========================================
+            if Toggles.AutoUpgrade then
+                wasManageOn = true
                 
-                -- Deteksi UI Manage sesuai Path rahasia yang kamu temukan
-                local manageFrame = playerGui and playerGui:FindFirstChild("Manage")
-                                  and playerGui.Manage:FindFirstChild("ManageMenu")
-                                  and playerGui.Manage.ManageMenu:FindFirstChild("Body")
-                                  and playerGui.Manage.ManageMenu.Body:FindFirstChild("Frame")
-                                  and playerGui.Manage.ManageMenu.Body.Frame:FindFirstChild("Manage")
-
-                if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
-                    for _, path in ipairs(promptPaths) do
-                        
-                        -- 1. KONVERSI NAMA: Mengubah "Lemon Stand" jadi "LemonStand" agar cocok dengan UI
-                        local uiName = string.gsub(path[1], " ", "")
-                        
-                        -- 2. CEK FILTER UI MANAGE (ANTI SPAM KOSONG / STUCK)
-                        local canUpgrade = true -- Secara default diizinkan tembak
-                        
-                        if manageFrame then
-                            local folderUI = manageFrame:FindFirstChild(uiName)
-                            if folderUI then
-                                -- Jadikan UI Visible = true dan Attribute Visible = true (Sesuai Permintaan)
-                                if not folderUI.Visible then folderUI.Visible = true end
-                                if folderUI:GetAttribute("Visible") ~= true then folderUI:SetAttribute("Visible", true) end
-
-                                -- Cari Tombol Upgrade
-                                local upgBtn = folderUI:FindFirstChild("Upgrade")
-                                if upgBtn then
-                                    -- Konversi warna RGB ke angka murni 0-255 agar bisa dideteksi
-                                    local bgColor = upgBtn.BackgroundColor3
-                                    local r = math.floor((bgColor.R * 255) + 0.5)
-                                    local g = math.floor((bgColor.G * 255) + 0.5)
-                                    local b = math.floor((bgColor.B * 255) + 0.5)
-
-                                    -- JIKA Active = false ATAU warna abu-abu (125,125,125), BLOKIR TEMBAKAN!
-                                    if upgBtn.Active == false or (r == 125 and g == 125 and b == 125) then
-                                        canUpgrade = false
-                                    end
-                                end
-                            end
+                if manageMenu then
+                    -- Buka gerbang data (Paksa server memuat folder ke dalam UI)
+                    if manageMenu:GetAttribute("Exclusive") ~= false then manageMenu:SetAttribute("Exclusive", false) end
+                    if manageMenu:GetAttribute("Visible") ~= true then manageMenu:SetAttribute("Visible", true) end
+                    
+                    -- Timer 5 detik auto-close untuk property Visible
+                    if manageMenu.Visible == true then
+                        visibleTimerManage = visibleTimerManage + dt
+                        if visibleTimerManage >= 5 then
+                            manageMenu.Visible = false
+                            visibleTimerManage = 0
                         end
-
-                        -- 3. EKSEKUSI REMOTE: Hanya tembak jika LOLOS filter UI (Uang cukup & Terbuka)
-                        if canUpgrade then
-                            local current = MyTycoon.Purchases
-                            for _, folderName in ipairs(path) do
-                                current = current and current:FindFirstChild(folderName)
-                            end
-                            
-                            -- Jika lokasi folder ketemu
-                            if current then
-                                local prompt = current:FindFirstChild("Prompt")
-                                local upgradeRemote = current:FindFirstChild("Upgrade") or current:FindFirstChildWhichIsA("RemoteFunction")
-
-                                if prompt and prompt:IsA("ProximityPrompt") and prompt.Enabled then
-                                    if upgradeRemote and upgradeRemote:IsA("RemoteFunction") then
-                                        for i = 1, 3 do
-                                            task.spawn(function()
-                                                pcall(function() 
-                                                    upgradeRemote:InvokeServer(1) 
-                                                end)
-                                            end)
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                        
+                    else
+                        visibleTimerManage = 0
                     end
                 end
-            end)
-        end
+            elseif wasManageOn then
+                -- Reset dan matikan secara rapi jika toggle di-off-kan
+                if manageMenu then
+                    pcall(function()
+                        manageMenu:SetAttribute("Exclusive", true)
+                        manageMenu:SetAttribute("Visible", false)
+                        if manageMenu.Visible == true then manageMenu.Visible = false end
+                    end)
+                end
+                wasManageOn = false
+                visibleTimerManage = 0
+            end
+
+            -- ==========================================
+            -- 2. SMART FILTER & DYNAMIC AMMO READING
+            -- ==========================================
+            if Toggles.AutoUpgrade then
+                local MyTycoon = GetMyTycoon()
+                local manageFrame = manageMenu and manageMenu:FindFirstChild("Body")
+                                  and manageMenu.Body:FindFirstChild("Frame")
+                                  and manageMenu.Body.Frame:FindFirstChild("Manage")
+
+                if MyTycoon and MyTycoon:FindFirstChild("Purchases") and manageFrame then
+                    for _, path in ipairs(promptPaths) do
+                        
+                        local uiName = string.gsub(path[1], " ", "")
+                        
+                        -- FILTER 1: Pastikan folder muncul secara alami di dalam Manage
+                        local folderUI = manageFrame:FindFirstChild(uiName)
+                        if folderUI then
+                            
+                            local upgBtn = folderUI:FindFirstChild("Upgrade")
+                            if upgBtn then
+                                local bgColor = upgBtn.BackgroundColor3
+                                local r = math.floor((bgColor.R * 255) + 0.5)
+                                local g = math.floor((bgColor.G * 255) + 0.5)
+                                local b = math.floor((bgColor.B * 255) + 0.5)
+
+                                -- FILTER 2: Cek Active dan blokir jika warna abu-abu
+                                if upgBtn.Active ~= false and not (r == 125 and g == 125 and b == 125) then
+                                    
+                                    -- ==========================================
+                                    -- MATA ELANG: MEMBACA TEKS STACK (Dynamic Ammo)
+                                    -- ==========================================
+                                    local burstAmmo = 1 -- Peluru standar jika tidak ada angka
+                                    local stackObj = upgBtn:FindFirstChild("Stack")
+                                    
+                                    if stackObj and stackObj.Text then
+                                        -- Menyedot semua angka tanpa batas (contoh: "+3245" -> 3245)
+                                        local extractedNum = string.match(stackObj.Text, "%d+")
+                                        
+                                        if extractedNum then
+                                            burstAmmo = tonumber(extractedNum)
+                                        end
+                                    end
+
+                                    -- ==========================================
+                                    -- EKSEKUSI REMOTE: Tembak 1 kali dengan peluru cerdas
+                                    -- ==========================================
+                                    local current = MyTycoon.Purchases
+                                    for _, folderName in ipairs(path) do
+                                        current = current and current:FindFirstChild(folderName)
+                                    end
+                                    
+                                    if current then
+                                        local prompt = current:FindFirstChild("Prompt")
+                                        local upgradeRemote = current:FindFirstChild("Upgrade") or current:FindFirstChildWhichIsA("RemoteFunction")
+
+                                        if prompt and prompt:IsA("ProximityPrompt") and prompt.Enabled then
+                                            if upgradeRemote and upgradeRemote:IsA("RemoteFunction") then
+                                                -- Tembak peluru utuh (misal: 3245) dalam 1 tarikan pelatuk
+                                                task.spawn(function()
+                                                    pcall(function() 
+                                                        upgradeRemote:InvokeServer(burstAmmo) 
+                                                    end)
+                                                end)
+                                            end
+                                        end
+                                    end
+
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            
+        end)
     end
 end)
 
