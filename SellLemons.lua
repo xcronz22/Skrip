@@ -527,10 +527,10 @@ Window:AddDropdown("Auto Buy Mode", {"V1", "V2"}, function(SelectedMode)
 end)
 
 -- =======================================================
--- SISTEM CUSTOM TP & SAFEZONE DINAMIS
+-- SISTEM CUSTOM TP & SAFEZONE DINAMIS (ANTI-MELAYANG)
 -- =======================================================
 local CustomTPCFrame = nil
-local CustomTPSize = Vector3.new(10, 0, 10) -- Pijakan dibuat lebih luas (10x10)
+local CustomTPSize = Vector3.new(10, 1, 10) -- Ketebalan (Y) diubah jadi 1 agar fisiknya stabil, tidak tembus pandang di engine Roblox
 
 local function EnsureSafeZone(targetCFrame, targetSize)
     local safeZoneName = "BrutalSafeZone_Custom"
@@ -539,7 +539,7 @@ local function EnsureSafeZone(targetCFrame, targetSize)
     if not safeZone then
         safeZone = Instance.new("Part")
         safeZone.Name = safeZoneName
-        safeZone.Size = Vector3.new(10, 0, 10) 
+        safeZone.Size = targetSize
         safeZone.Anchored = true
         safeZone.CanCollide = true
         safeZone.Transparency = 0.7
@@ -548,8 +548,15 @@ local function EnsureSafeZone(targetCFrame, targetSize)
         safeZone.Parent = workspace
     end
     
-    local targetTopY = targetCFrame.Position.Y + (targetSize.Y / 2)
-    safeZone.CFrame = CFrame.new(targetCFrame.Position.X, targetTopY - 0.5, targetCFrame.Position.Z)
+    -- KALKULASI ANTI-MELAYANG:
+    -- HumanoidRootPart ada di tengah badan. Kaki ada ~3.1 stud di bawahnya.
+    local footLevelY = targetCFrame.Position.Y - 3.1 
+    
+    -- Karena ukuran Y part adalah 1, titik tengah part harus diturunkan setengah dari ketebalannya
+    local safeZoneCenterY = footLevelY - (targetSize.Y / 2)
+    
+    -- Eksekusi posisi yang sudah presisi
+    safeZone.CFrame = CFrame.new(targetCFrame.Position.X, safeZoneCenterY, targetCFrame.Position.Z)
 end
 
 ToggleObjects.AutoUpgrade = Window:AddToggle("Auto Upgrade", false, function(Value) Toggles.AutoUpgrade = Value end)
@@ -569,7 +576,7 @@ ToggleObjects.RebirthTP = Window:AddToggle("TP After Rebirth", true, function(Va
                 -- Memunculkan notifikasi pop-up di layar saat posisi berhasil disimpan!
                 game:GetService("StarterGui"):SetCore("SendNotification", {
                     Title = "📍 Posisi TP Disimpan!",
-                    Text = "SafeZone & TP mengikuti lokasi kamu berdiri saat ini.",
+                    Text = "SafeZone & TP mengikuti lokasi kaki kamu berpijak saat ini.",
                     Duration = 3
                 })
             end
