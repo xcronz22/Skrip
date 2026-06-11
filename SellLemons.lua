@@ -767,12 +767,12 @@ task.spawn(function()
                                                 local currentTargets = {}
                                                 for _, item in ipairs(buttonsFolder:GetDescendants()) do
                                                     local targetPart = item.Parent
-                                                    local isShown, isEnabled = false, false
+                                                    local isEnabled, isPurchased = false, true
                                                     if targetPart then
-                                                        if targetPart:GetAttribute("Shown") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Shown") == true) then isShown = true end
                                                         if targetPart:GetAttribute("Enabled") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Enabled") == true) then isEnabled = true end
+                                                        if targetPart:GetAttribute("Purchased") == false or (targetPart.Parent and targetPart.Parent:GetAttribute("Purchased") == false) then isPurchased = false end
                                                     end
-                                                    if isShown and isEnabled then
+                                                    if isEnabled and isPurchased == false then
                                                         if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
                                                             if targetPart and targetPart:IsA("BasePart") then
                                                                 table.insert(targets, {Type = "Touch", Target = targetPart})
@@ -833,14 +833,14 @@ task.spawn(function()
                             if purchaseFolder and purchaseFolder:FindFirstChild("Buttons") then
                                 for _, item in ipairs(purchaseFolder.Buttons:GetDescendants()) do
                                     local targetPart = item.Parent
-                                    local isShown, isEnabled = false, false
+                                    local isEnabled, isPurchased = false, true
                                     
                                     if targetPart then
-                                        if targetPart:GetAttribute("Shown") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Shown") == true) then isShown = true end
                                         if targetPart:GetAttribute("Enabled") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Enabled") == true) then isEnabled = true end
+                                        if targetPart:GetAttribute("Purchased") == false or (targetPart.Parent and targetPart.Parent:GetAttribute("Purchased") == false) then isPurchased = false end
                                     end
                                     
-                                    if isShown and isEnabled then
+                                    if isEnabled and isPurchased == false then
                                         if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
                                             firetouchinterest(rootPart, targetPart, 0)
                                             firetouchinterest(rootPart, targetPart, 1)
@@ -878,16 +878,16 @@ task.spawn(function()
                                         end
                                         
                                         local targetPart = item.Parent -- Mendapatkan model barang utama
-                                        local isShown, isEnabled = false, false
+                                        local isEnabled, isPurchased = false, true
                                         
                                         if targetPart then
-                                            -- Validasi Atribut dari engine game untuk keamanan Anti-Cheat Filter
-                                            if targetPart:GetAttribute("Shown") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Shown") == true) then isShown = true end
+                                            -- Validasi Atribut dari engine game (Shown dihapus karena bug game)
                                             if targetPart:GetAttribute("Enabled") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Enabled") == true) then isEnabled = true end
+                                            if targetPart:GetAttribute("Purchased") == false or (targetPart.Parent and targetPart.Parent:GetAttribute("Purchased") == false) then isPurchased = false end
                                         end
                                         
-                                        -- Hanya eksekusi jika tombol VALID & SIAP dibeli (Uang cukup & Terbuka)
-                                        if isShown and isEnabled then
+                                        -- Hanya eksekusi jika tombol VALID & BELUM DIBELI
+                                        if isEnabled and isPurchased == false then
                                             -- Kunci tombol ini saat ini juga agar tidak ditembak berulang-ulang oleh putaran radar berikutnya
                                             remoteCooldowns[item] = currentTime
                                             
