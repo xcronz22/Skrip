@@ -7,11 +7,6 @@ if getgenv().LemonScriptSudahJalan then
 end
 getgenv().LemonScriptSudahJalan = true
 
--- Pastikan variabel global ini ada di paling atas skrip (agar Loop 1 dan 3 bisa saling baca)
-if getgenv().MasterTycoonBusy == nil then
-    getgenv().MasterTycoonBusy = false
-end
-
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local Workspace = game:GetService("Workspace")
@@ -535,7 +530,7 @@ end)
 -- SISTEM CUSTOM TP & SAFEZONE DINAMIS
 -- =======================================================
 local CustomTPCFrame = nil
-local CustomTPSize = Vector3.new(10, 1, 10) -- Pijakan dibuat lebih luas (10x10)
+local CustomTPSize = Vector3.new(10, 0, 10) -- Pijakan dibuat lebih luas (10x10)
 
 local function EnsureSafeZone(targetCFrame, targetSize)
     local safeZoneName = "BrutalSafeZone_Custom"
@@ -728,20 +723,14 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- MASTER LOCK (GEMBOK SINKRONISASI LOOP 1 & LOOP 3)
--- =======================================================
-local MasterTycoonBusy = false 
-
--- =======================================================
--- LOOP 1: AUTO BUY (DIRECT GAS - TANPA KERANJANG)
+-- LOOP 1: AUTO BUY (DIRECT GAS - TANPA ANTRE & TANPA KERANJANG)
 -- =======================================================
 local PurchaseV1 = {"Staircase", "Hills", "Minigames", "Lemon Stand", "LemonDash", "Lemon Depot", "Lemon Trading", "Lemon Labs", "Lemon Robotics", "Lemon Republic", "LemonX Ground", "LemonX"}
 local PurchaseV2 = {"Staircase", "Hills", "LemonX", "Lemon Republic", "Lemon Robotics", "Lemon Labs", "Lemon Trading", "Lemon Depot", "LemonDash", "Lemon Stand", "Minigames", "LemonX Ground"}
 
 task.spawn(function()
-    while task.wait(0.1) do
-        -- Hanya jalan jika AutoBuy aktif DAN Loop 3 sedang tidak transaksi
-        if Toggles.AutoBuy and not MasterTycoonBusy then
+    while task.wait(0.05) do -- Radar super kilat
+        if Toggles.AutoBuy then
             pcall(function()
                 local char = LocalPlayer.Character
                 local rootPart = char and char:FindFirstChild("HumanoidRootPart")
@@ -750,11 +739,9 @@ task.spawn(function()
                 local MyTycoon = GetMyTycoon()
                 if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
                     
-                    MasterTycoonBusy = true -- Kunci uangnya!
-                    
                     local activeOrder = (TargetBuyMode == "V1") and PurchaseV1 or PurchaseV2
                     
-                    -- Gas sapu bersih dari awal sampai akhir urutan dalam hitungan milidetik
+                    -- Gas sapu bersih semua folder seketika!
                     for _, folderName in ipairs(activeOrder) do
                         local purchaseFolder = MyTycoon.Purchases:FindFirstChild(folderName)
                         if purchaseFolder and purchaseFolder:FindFirstChild("Buttons") then
@@ -767,7 +754,7 @@ task.spawn(function()
                                     if targetPart:GetAttribute("Enabled") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Enabled") == true) then isEnabled = true end
                                 end
                                 
-                                -- GAS LANGSUNG TANPA KERANJANG
+                                -- TEMBAK LANGSUNG DI TEMPAT (Tanpa masuk 'targets' table)
                                 if isShown and isEnabled then
                                     if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
                                         firetouchinterest(rootPart, targetPart, 0)
@@ -780,7 +767,6 @@ task.spawn(function()
                         end
                     end
                     
-                    MasterTycoonBusy = false -- Buka kembali kuncinya!
                 end
             end)
         end
@@ -788,7 +774,7 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 3: AUTO UPGRADE & CLICK (BAIT & MAX + MASTER LOCK)
+-- LOOP 3: AUTO UPGRADE & CLICK (BAIT & MAX - FULL PARALEL)
 -- =======================================================
 local clickTargets = {"LemonDepot", "LemonLabs", "LemonRepublic", "LemonRobotics", "LemonStand", "LemonTrading", "LemonDash", "LemonX"}
 local visibleTimerManage = 0
@@ -862,17 +848,14 @@ task.spawn(function()
                 visibleTimerManage = 0
             end
 
-            -- 2. SMART FILTER DENGAN MASTER LOCK
-            -- Cek apakah Loop 1 sedang tidak berbelanja
-            if Toggles.AutoUpgrade and not getgenv().MasterTycoonBusy then
+            -- 2. SMART FILTER BAIT & MAX
+            if Toggles.AutoUpgrade then
                 local MyTycoon = GetMyTycoon()
                 local manageFrame = manageMenu and manageMenu:FindFirstChild("Body")
                                   and manageMenu.Body:FindFirstChild("Frame")
                                   and manageMenu.Body.Frame:FindFirstChild("Manage")
 
                 if MyTycoon and MyTycoon:FindFirstChild("Purchases") and manageFrame then
-                    
-                    getgenv().MasterTycoonBusy = true -- Kunci Dompet! Loop 1 dilarang jalan.
                     
                     task.spawn(function()
                         pcall(function()
@@ -881,7 +864,6 @@ task.spawn(function()
                                 
                                 local uiName = string.gsub(path[1], " ", "")
                                 local folderUI = manageFrame:FindFirstChild(uiName)
-                                
                                 local canUpgrade = true 
                                 
                                 if folderUI then
@@ -890,7 +872,7 @@ task.spawn(function()
 
                                     local upgBtn = folderUI:FindFirstChild("Upgrade")
                                     if upgBtn then
-                                        -- [FILTER 1] Cek Warna (Apakah uang cukup/tersedia?)
+                                        -- Cek Warna Tombol (Apakah uang cukup?)
                                         local bgColor = upgBtn.BackgroundColor3
                                         local r = math.floor((bgColor.R * 255) + 0.5)
                                         local g = math.floor((bgColor.G * 255) + 0.5)
@@ -900,7 +882,7 @@ task.spawn(function()
                                             canUpgrade = false
                                         end
 
-                                        -- [EKSEKUSI] Jika tombol hijau, jalankan misi "Bait & Max"
+                                        -- Jika tombol hijau, gas!
                                         if canUpgrade then
                                             local current = MyTycoon.Purchases
                                             for _, folderName in ipairs(path) do
@@ -912,7 +894,6 @@ task.spawn(function()
                                                 
                                                 if upgradeRemote and upgradeRemote:IsA("RemoteFunction") then
                                                     
-                                                    -- Fungsi untuk membaca Count
                                                     local function getCurrentCount()
                                                         local cObj = upgBtn:FindFirstChild("Count")
                                                         if cObj and cObj.Text and cObj.Text ~= "" then
@@ -924,13 +905,12 @@ task.spawn(function()
 
                                                     local countSebelum = getCurrentCount()
 
-                                                    -- TAHAP 1: Pancing beli 1 biji
+                                                    -- Pancing beli 1
                                                     pcall(function() upgradeRemote:InvokeServer(1) end)
                                                     task.wait(0.1)
 
-                                                    -- TAHAP 2: Verifikasi & Gas Max
+                                                    -- Verifikasi & Max
                                                     local countSesudah = getCurrentCount()
-                                                    
                                                     if countSesudah > countSebelum then
                                                         local burstAmmo = 1
                                                         local stackObj = upgBtn:FindFirstChild("Stack")
@@ -943,12 +923,10 @@ task.spawn(function()
                                                             end
                                                         end
                                                         
-                                                        -- Hajar sisa MAX-nya!
                                                         if burstAmmo > 0 then
                                                             pcall(function() upgradeRemote:InvokeServer(burstAmmo) end)
                                                         end
                                                     end
-                                                    
                                                 end
                                             end
                                         end
@@ -956,8 +934,6 @@ task.spawn(function()
                                 end
                             end
                         end)
-                        
-                        getgenv().MasterTycoonBusy = false -- Buka Kunci Dompet! Loop 1 boleh jalan lagi.
                     end)
                 end
             end
