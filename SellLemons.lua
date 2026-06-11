@@ -527,10 +527,10 @@ Window:AddDropdown("Auto Buy Mode", {"V1", "V2"}, function(SelectedMode)
 end)
 
 -- =======================================================
--- SISTEM CUSTOM TP & SAFEZONE DINAMIS (ANTI-MELAYANG)
+-- SISTEM CUSTOM TP & SAFEZONE DINAMIS
 -- =======================================================
 local CustomTPCFrame = nil
-local CustomTPSize = Vector3.new(10, 1, 10) -- Ketebalan (Y) diubah jadi 1 agar fisiknya stabil, tidak tembus pandang di engine Roblox
+local CustomTPSize = Vector3.new(10, 1, 10) -- Pijakan dibuat lebih luas (10x10)
 
 local function EnsureSafeZone(targetCFrame, targetSize)
     local safeZoneName = "BrutalSafeZone_Custom"
@@ -539,7 +539,7 @@ local function EnsureSafeZone(targetCFrame, targetSize)
     if not safeZone then
         safeZone = Instance.new("Part")
         safeZone.Name = safeZoneName
-        safeZone.Size = targetSize
+        safeZone.Size = Vector3.new(10, 1, 10) 
         safeZone.Anchored = true
         safeZone.CanCollide = true
         safeZone.Transparency = 0.7
@@ -548,15 +548,8 @@ local function EnsureSafeZone(targetCFrame, targetSize)
         safeZone.Parent = workspace
     end
     
-    -- KALKULASI ANTI-MELAYANG:
-    -- HumanoidRootPart ada di tengah badan. Kaki ada ~3.1 stud di bawahnya.
-    local footLevelY = targetCFrame.Position.Y - 3.1 
-    
-    -- Karena ukuran Y part adalah 1, titik tengah part harus diturunkan setengah dari ketebalannya
-    local safeZoneCenterY = footLevelY - (targetSize.Y / 2)
-    
-    -- Eksekusi posisi yang sudah presisi
-    safeZone.CFrame = CFrame.new(targetCFrame.Position.X, safeZoneCenterY, targetCFrame.Position.Z)
+    local targetTopY = targetCFrame.Position.Y + (targetSize.Y / 2)
+    safeZone.CFrame = CFrame.new(targetCFrame.Position.X, targetTopY - 0.5, targetCFrame.Position.Z)
 end
 
 ToggleObjects.AutoUpgrade = Window:AddToggle("Auto Upgrade", false, function(Value) Toggles.AutoUpgrade = Value end)
@@ -576,7 +569,7 @@ ToggleObjects.RebirthTP = Window:AddToggle("TP After Rebirth", true, function(Va
                 -- Memunculkan notifikasi pop-up di layar saat posisi berhasil disimpan!
                 game:GetService("StarterGui"):SetCore("SendNotification", {
                     Title = "📍 Posisi TP Disimpan!",
-                    Text = "SafeZone & TP mengikuti lokasi kaki kamu berpijak saat ini.",
+                    Text = "SafeZone & TP mengikuti lokasi kamu berdiri saat ini.",
                     Duration = 3
                 })
             end
@@ -1221,53 +1214,60 @@ task.spawn(function()
                                 if expPot > targetExp or (expPot == targetExp and basePot >= targetBase) then shouldRebirth = true end
                             end
 
-if shouldRebirth and not isRebirthing then
-    local MyTycoon = GetMyTycoon()
-    local rebirthRemote = MyTycoon and MyTycoon:FindFirstChild("Remotes") and MyTycoon.Remotes:FindFirstChild("Rebirth")
-    
-    if rebirthRemote and rebirthRemote:IsA("RemoteFunction") then
-        isRebirthing = true
-        
-        -- Reset Timer Smart
-        if RebirthMode == "Smart" then LastRebirthTime = os.clock() end
+                            if shouldRebirth and not isRebirthing then
+                                local MyTycoon = GetMyTycoon()
+                                local rebirthRemote = MyTycoon and MyTycoon:FindFirstChild("Remotes") and MyTycoon.Remotes:FindFirstChild("Rebirth")
+                                
+                                if rebirthRemote and rebirthRemote:IsA("RemoteFunction") then
+                                    isRebirthing = true
+                                    
+                                    if RebirthMode == "Smart" then
+                                        local currentTime = os.clock()
+                                        if LastRebirthTime > 0 then
+                                            local speed = currentTime - LastRebirthTime
+                                            if SmartMultiplier == 2 and speed < 2 then SmartMultiplier = 10
+                                            elseif SmartMultiplier == 10 and speed < 5 then SmartMultiplier = 20 end
+                                        end
+                                        LastRebirthTime = currentTime 
+                                    end
 
-        task.spawn(function()
-            pcall(function() 
-                local char = LocalPlayer.Character
-                local root = char and char:FindFirstChild("HumanoidRootPart")
+                                    task.spawn(function()
+                                        pcall(function() 
+                                            local char = LocalPlayer.Character
+                                            local root = char and char:FindFirstChild("HumanoidRootPart")
 
-                -- 1. PRE-CHECK TARGET
-                if (Toggles.RebirthTP or Toggles.AutoHarvest) then
-                    if not CustomTPCFrame then CustomTPCFrame = root.CFrame end
-                    EnsureSafeZone(CustomTPCFrame, CustomTPSize)
-                end
+                                            -- 1. SETUP TARGET LOKASI
+                                            local targetCFrame = nil
+                                            if root and (Toggles.RebirthTP or Toggles.AutoHarvest) then
+                                                if not CustomTPCFrame then
+                                                    CustomTPCFrame = root.CFrame
+                                                end
+                                                EnsureSafeZone(CustomTPCFrame, CustomTPSize)
+                                                local targetTopY = CustomTPCFrame.Position.Y + (CustomTPSize.Y / 2)
+                                                targetCFrame = CFrame.new(CustomTPCFrame.Position.X, targetTopY + 3, CustomTPCFrame.Position.Z)
+                                            end
 
-                -- 2. TEMBAK REMOTE
-                pcall(function() rebirthRemote:InvokeServer() end)
-                UpgradeRemotes = {} 
+                                            -- 2. TEMBAK REMOTE
+                                            task.spawn(function()
+                                                pcall(function() rebirthRemote:InvokeServer() end)
+                                            end)
+                                            UpgradeRemotes = {} 
 
-                -- 3. GHOST LOCK AGGRESSIVE (TANPA ANCHOR)
-                -- Kita gunakan loop yang lebih rapat dan memaksa posisi 
-                -- selama 1 detik penuh untuk melawan efek "fall" dari spawn point
-                if CustomTPCFrame and root then
-                    local startTime = tick()
-                    while tick() - startTime < 1.0 do -- Paksa selama 1 detik setelah Rebirth
-                        if root and root.Parent then
-                            -- Reset Velocity agar tidak mental/jatuh
-                            root.Velocity = Vector3.new(0, 0, 0)
-                            root.RotVelocity = Vector3.new(0, 0, 0)
-                            
-                            -- Pindahkan ke posisi safezone (agak ke atas sedikit agar tidak nyangkut)
-                            root.CFrame = CustomTPCFrame + Vector3.new(0, 3, 0)
-                        end
-                        task.wait(0.03) -- Sangat cepat
-                    end
-                end
-            end)
-            isRebirthing = false 
-        end)
-    end
-end
+                                            -- 3. GHOST LOCK (MURNI CFRAME, TANPA ANCHOR)
+                                            if targetCFrame and root then
+                                                for i = 1, 20 do
+                                                    if root and root.Parent then
+                                                        root.Velocity = Vector3.new(0, 0, 0)
+                                                        root.CFrame = targetCFrame
+                                                    end
+                                                    task.wait()
+                                                end
+                                            end
+                                        end)
+                                        isRebirthing = false 
+                                    end)
+                                end
+                            end
                         end
                     end
                     
