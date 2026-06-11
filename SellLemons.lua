@@ -1336,7 +1336,13 @@ task.spawn(function()
                             if RebirthMode == "Smart" and LastRebirthTime > 0 then
                                 local timeElapsed = os.clock() - LastRebirthTime
                                 if timeElapsed > 30 then
-                                    if SmartMultiplier == 20 then
+                                    if SmartMultiplier == 50 then
+                                        SmartMultiplier = 30
+                                        LastRebirthTime = os.clock()
+                                    elseif SmartMultiplier == 30 then
+                                        SmartMultiplier = 20
+                                        LastRebirthTime = os.clock()
+                                    elseif SmartMultiplier == 20 then
                                         SmartMultiplier = 10
                                         LastRebirthTime = os.clock() 
                                     elseif SmartMultiplier == 10 then
@@ -1372,7 +1378,10 @@ task.spawn(function()
                                         if LastRebirthTime > 0 then
                                             local speed = currentTime - LastRebirthTime
                                             if SmartMultiplier == 2 and speed < 2 then SmartMultiplier = 10
-                                            elseif SmartMultiplier == 10 and speed < 5 then SmartMultiplier = 20 end
+                                            elseif SmartMultiplier == 10 and speed < 5 then SmartMultiplier = 20
+                                            elseif SmartMultiplier == 20 and speed < 8 then SmartMultiplier = 30
+                                            elseif SmartMultiplier == 30 and speed < 12 then SmartMultiplier = 50
+                                            end
                                         end
                                         LastRebirthTime = currentTime 
                                     end
