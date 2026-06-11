@@ -527,7 +527,7 @@ Window:AddDropdown("Auto Buy Mode", {"V1", "V2"}, function(SelectedMode)
     TargetBuyMode = SelectedMode
 end)
 
-Window:AddDropdown("Auto Buy Method", {"Sequential", "Direct Gas"}, function(SelectedMethod)
+Window:AddDropdown("Auto Buy Method", {"Sequential", "Direct Gas", "Remote Invoke"}, function(SelectedMethod)
     BuyMethod = SelectedMethod
 end)
 
@@ -728,18 +728,19 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 1: AUTO BUY MULTI-VERSION (SEQUENTIAL vs DIRECT GAS)
+-- LOOP 1: AUTO BUY MULTI-VERSION (3 ENGINES SYSTEM + ANTI-SPAM)
 -- =======================================================
 local PurchaseV1 = { "Staircase", "Hills", "Minigames", "Lemon Stand", "LemonDash", "Lemon Depot", "Lemon Trading", "Lemon Labs", "Lemon Robotics", "Lemon Republic", "LemonX Ground", "LemonX" }
 local PurchaseV2 = { "Staircase", "Hills", "LemonX", "Lemon Republic", "Lemon Robotics", "Lemon Labs", "Lemon Trading", "Lemon Depot", "LemonDash", "Lemon Stand", "Minigames", "LemonX Ground" }
 local isBuyingSequence = false
+local remoteCooldowns = {} -- FITUR PENGAMAN: Memori pintar pencatat remote yang sudah ditembak (Anti-Spam/Anti-DC)
 
 task.spawn(function()
-    while task.wait(0.05) do -- Radar deteksi kilat
+    while task.wait(0.05) do -- Radar deteksi kilat (0.05 detik)
         if Toggles.AutoBuy then
             
             -- ==========================================
-            -- VERSI 1: ENGINES SEQUENTIAL (BAWAAN ASLI SKRIP)
+            -- VERSI 1: ENGINES SEQUENTIAL (BAWAAN ASLI)
             -- ==========================================
             if BuyMethod == "Sequential" then
                 if not isBuyingSequence then
@@ -814,7 +815,7 @@ task.spawn(function()
                 end
 
             -- ==========================================
-            -- VERSI 2: ENGINES DIRECT GAS (SKRIP BARU TANPA ANTRE)
+            -- VERSI 2: ENGINES DIRECT GAS (TOUCH / PROMPTS INTERACTION)
             -- ==========================================
             elseif BuyMethod == "Direct Gas" then
                 pcall(function()
@@ -845,6 +846,61 @@ task.spawn(function()
                                             firetouchinterest(rootPart, targetPart, 1)
                                         elseif item:IsA("ProximityPrompt") and item.Enabled then
                                             fireproximityprompt(item)
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end)
+
+            -- ==========================================
+            -- VERSI 3: ENGINES REMOTE INVOKE (SUPER GHOST BUYER) - SAFE ANTI-SPAM!
+            -- ==========================================
+            elseif BuyMethod == "Remote Invoke" then
+                pcall(function()
+                    local MyTycoon = GetMyTycoon()
+                    if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
+                        local activeOrder = (TargetBuyMode == "V1") and PurchaseV1 or PurchaseV2
+                        local currentTime = os.clock()
+                        
+                        for _, folderName in ipairs(activeOrder) do
+                            if not Toggles.AutoBuy or BuyMethod ~= "Remote Invoke" then break end
+                            local purchaseFolder = MyTycoon.Purchases:FindFirstChild(folderName)
+                            if purchaseFolder and purchaseFolder:FindFirstChild("Buttons") then
+                                -- Membongkar secara mendalam folder Buttons melewati Structure, Decor, dll.
+                                for _, item in ipairs(purchaseFolder.Buttons:GetDescendants()) do
+                                    if item:IsA("RemoteFunction") and item.Name == "Purchase" then
+                                        
+                                        -- PROTEKSI DATA: Jika tombol ini baru saja ditembak kurang dari 0.8 detik lalu, lewati!
+                                        if remoteCooldowns[item] and (currentTime - remoteCooldowns[item] < 0.8) then
+                                            continue
+                                        end
+                                        
+                                        local targetPart = item.Parent -- Mendapatkan model barang utama
+                                        local isShown, isEnabled = false, false
+                                        
+                                        if targetPart then
+                                            -- Validasi Atribut dari engine game untuk keamanan Anti-Cheat Filter
+                                            if targetPart:GetAttribute("Shown") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Shown") == true) then isShown = true end
+                                            if targetPart:GetAttribute("Enabled") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Enabled") == true) then isEnabled = true end
+                                        end
+                                        
+                                        -- Hanya eksekusi jika tombol VALID & SIAP dibeli (Uang cukup & Terbuka)
+                                        if isShown and isEnabled then
+                                            -- Kunci tombol ini saat ini juga agar tidak ditembak berulang-ulang oleh putaran radar berikutnya
+                                            remoteCooldowns[item] = currentTime
+                                            
+                                            -- Menggunakan task.spawn agar InvokeServer berjalan async (Anti-Lag, Anti-Stuck, Anti-DC)
+                                            task.spawn(function()
+                                                local success = pcall(function()
+                                                    item:InvokeServer(false) -- Eksekusi argumen 'false' hasil rspy
+                                                end)
+                                                -- Jika penembakan gagal/error, hapus kuncian agar bisa dicoba lagi nanti
+                                                if not success then
+                                                    remoteCooldowns[item] = nil
+                                                end
+                                            end)
                                         end
                                     end
                                 end
