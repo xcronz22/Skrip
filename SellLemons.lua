@@ -924,7 +924,7 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 3: AUTO UPGRADE & CLICK (FIX BUG KOMA RIBUAN)
+-- LOOP 3: AUTO UPGRADE & CLICK (FIX BUG KOMA RIBUAN + ANTI POPUP)
 -- =======================================================
 local clickTargets = {"LemonDepot", "LemonLabs", "LemonRepublic", "LemonRobotics", "LemonStand", "LemonTrading", "LemonDash", "LemonX"}
 local visibleTimerManage = 0
@@ -969,6 +969,17 @@ task.spawn(function()
         
         pcall(function()
             local playerGui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
+            
+            -- ==========================================
+            -- PENGHANCUR POPUP ARROW HINT YANG MENGGANGGU
+            -- ==========================================
+            local popupGui = playerGui and playerGui:FindFirstChild("Popup")
+            local arrowHint = popupGui and popupGui:FindFirstChild("GuiArrowHint")
+            if arrowHint and arrowHint.Visible == true then
+                arrowHint.Visible = false
+            end
+            -- ==========================================
+
             local manageMenu = playerGui and playerGui:FindFirstChild("Manage") and playerGui.Manage:FindFirstChild("ManageMenu")
             
             -- 1. TRIGGER & TIMER MANAGE MENU
