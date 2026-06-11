@@ -931,12 +931,12 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 3: AUTO UPGRADE & CLICK (BAIT & MAX BUY)
+-- LOOP 3: AUTO UPGRADE & CLICK (BAIT & MAX BUY - SMART WAIT FIX)
 -- =======================================================
 local clickTargets = {"LemonDepot", "LemonLabs", "LemonRepublic", "LemonRobotics", "LemonStand", "LemonTrading", "LemonDash", "LemonX"}
 local visibleTimerManage = 0
 local wasManageOn = false
-local isUpgradingSequence = false -- Kunci Mencegah Tabrakan Server
+local isUpgradingSequence = false 
 
 task.spawn(function()
     -- [BAGIAN A]: AUTO CLICKER
@@ -1033,7 +1033,6 @@ task.spawn(function()
 
                                     local upgBtn = folderUI:FindFirstChild("Upgrade")
                                     if upgBtn then
-                                        -- [FILTER 1] Cek Warna (Apakah uang cukup/tersedia?)
                                         local bgColor = upgBtn.BackgroundColor3
                                         local r = math.floor((bgColor.R * 255) + 0.5)
                                         local g = math.floor((bgColor.G * 255) + 0.5)
@@ -1043,7 +1042,6 @@ task.spawn(function()
                                             canUpgrade = false
                                         end
 
-                                        -- Jika tombol hijau, jalankan misi "Bait & Max"
                                         if canUpgrade then
                                             local current = MyTycoon.Purchases
                                             for _, folderName in ipairs(path) do
@@ -1055,14 +1053,13 @@ task.spawn(function()
                                                 
                                                 if upgradeRemote and upgradeRemote:IsA("RemoteFunction") then
                                                     
-                                                    -- Fungsi kecil untuk membaca Count saat ini
                                                     local function getCurrentCount()
                                                         local cObj = upgBtn:FindFirstChild("Count")
                                                         if cObj and cObj.Text and cObj.Text ~= "" then
                                                             local ext = tonumber(string.match(cObj.Text, "%d+"))
                                                             return ext or 0
                                                         end
-                                                        return 0 -- Jika kosong/belum dibeli, anggap 0
+                                                        return 0 
                                                     end
 
                                                     local countSebelum = getCurrentCount()
@@ -1072,15 +1069,19 @@ task.spawn(function()
                                                         upgradeRemote:InvokeServer(1) 
                                                     end)
 
-                                                    -- Tunggu sebentar agar server memproses dan UI game merespons
-                                                    task.wait(0.1)
+                                                    -- ==========================================
+                                                    -- TAHAP 2: SMART WAIT (Tunggu UI Merespons Max 0.6 Detik)
+                                                    -- ==========================================
+                                                    local waitTime = 0
+                                                    while getCurrentCount() <= countSebelum and waitTime < 0.6 do
+                                                        waitTime = waitTime + task.wait(0.05)
+                                                    end
 
-                                                    -- TAHAP 2: Verifikasi & Gas Max
+                                                    -- TAHAP 3: Verifikasi & Gas Max
                                                     local countSesudah = getCurrentCount()
                                                     
-                                                    -- Jika Count bertambah, berarti pembelian valid dan bukan bug
                                                     if countSesudah > countSebelum then
-                                                        local burstAmmo = 1
+                                                        local burstAmmo = 0
                                                         local stackObj = upgBtn:FindFirstChild("Stack")
                                                         
                                                         if stackObj and stackObj.Text then
@@ -1096,6 +1097,8 @@ task.spawn(function()
                                                             pcall(function() 
                                                                 upgradeRemote:InvokeServer(burstAmmo) 
                                                             end)
+                                                            -- Beri nafas server sebentar setelah eksekusi ribuan level
+                                                            task.wait(0.1) 
                                                         end
                                                     end
                                                     
