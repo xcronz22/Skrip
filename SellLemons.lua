@@ -646,9 +646,8 @@ Window:AddButton("Load Configuration", function() LoadConfig() end)
 
 -- PROTEKSI UTAMA: Menggunakan pcall agar skrip tidak mati total jika library tidak mendukung AddLabel
 local labelSuccess = pcall(function()
-    Window:AddLabel("Background Features Active: Auto Buy Power & Auto Answer Phone.")
-    Window:AddLabel("Silent Harvest: Approach fruit-bearing trees to collect the results.")
-    Window:AddLabel("For UI Rebirth Evolve Ascension will close after certain time")
+    Window:AddLabel("Background Features Active: Auto Buy Power, Auto Answer Phone, Unlock Remote Buy.")
+    Window:AddLabel("For UI Rebirth Evolve Ascension Manage Power will close Automatically after 5s")
 end)
 
 -- FALLBACK: Jika AddLabel error (tidak ada di library), otomatis buat catatan berbentuk Button pasif
