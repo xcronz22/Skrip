@@ -1119,60 +1119,53 @@ task.spawn(function()
                                 if expPot > targetExp or (expPot == targetExp and basePot >= targetBase) then shouldRebirth = true end
                             end
 
-                            if shouldRebirth and not isRebirthing then
-                                local MyTycoon = GetMyTycoon()
-                                local rebirthRemote = MyTycoon and MyTycoon:FindFirstChild("Remotes") and MyTycoon.Remotes:FindFirstChild("Rebirth")
-                                
-                                if rebirthRemote and rebirthRemote:IsA("RemoteFunction") then
-                                    isRebirthing = true
-                                    
-                                    if RebirthMode == "Smart" then
-                                        local currentTime = os.clock()
-                                        if LastRebirthTime > 0 then
-                                            local speed = currentTime - LastRebirthTime
-                                            if SmartMultiplier == 2 and speed < 2 then SmartMultiplier = 10
-                                            elseif SmartMultiplier == 10 and speed < 5 then SmartMultiplier = 20 end
-                                        end
-                                        LastRebirthTime = currentTime 
-                                    end
+if shouldRebirth and not isRebirthing then
+    local MyTycoon = GetMyTycoon()
+    local rebirthRemote = MyTycoon and MyTycoon:FindFirstChild("Remotes") and MyTycoon.Remotes:FindFirstChild("Rebirth")
+    
+    if rebirthRemote and rebirthRemote:IsA("RemoteFunction") then
+        isRebirthing = true
+        
+        -- Reset Timer Smart
+        if RebirthMode == "Smart" then LastRebirthTime = os.clock() end
 
-                                    task.spawn(function()
-                                        pcall(function() 
-                                            local char = LocalPlayer.Character
-                                            local root = char and char:FindFirstChild("HumanoidRootPart")
+        task.spawn(function()
+            pcall(function() 
+                local char = LocalPlayer.Character
+                local root = char and char:FindFirstChild("HumanoidRootPart")
 
-                                            -- 1. SETUP TARGET LOKASI
-                                            local targetCFrame = nil
-                                            if root and (Toggles.RebirthTP or Toggles.AutoHarvest) then
-                                                if not CustomTPCFrame then
-                                                    CustomTPCFrame = root.CFrame
-                                                end
-                                                EnsureSafeZone(CustomTPCFrame, CustomTPSize)
-                                                local targetTopY = CustomTPCFrame.Position.Y + (CustomTPSize.Y / 2)
-                                                targetCFrame = CFrame.new(CustomTPCFrame.Position.X, targetTopY + 3, CustomTPCFrame.Position.Z)
-                                            end
+                -- 1. PRE-CHECK TARGET
+                if (Toggles.RebirthTP or Toggles.AutoHarvest) then
+                    if not CustomTPCFrame then CustomTPCFrame = root.CFrame end
+                    EnsureSafeZone(CustomTPCFrame, CustomTPSize)
+                end
 
-                                            -- 2. TEMBAK REMOTE
-                                            task.spawn(function()
-                                                pcall(function() rebirthRemote:InvokeServer() end)
-                                            end)
-                                            UpgradeRemotes = {} 
+                -- 2. TEMBAK REMOTE
+                pcall(function() rebirthRemote:InvokeServer() end)
+                UpgradeRemotes = {} 
 
-                                            -- 3. GHOST LOCK (MURNI CFRAME, TANPA ANCHOR)
-                                            if targetCFrame and root then
-                                                for i = 1, 20 do
-                                                    if root and root.Parent then
-                                                        root.Velocity = Vector3.new(0, 0, 0)
-                                                        root.CFrame = targetCFrame
-                                                    end
-                                                    task.wait()
-                                                end
-                                            end
-                                        end)
-                                        isRebirthing = false 
-                                    end)
-                                end
-                            end
+                -- 3. GHOST LOCK AGGRESSIVE (TANPA ANCHOR)
+                -- Kita gunakan loop yang lebih rapat dan memaksa posisi 
+                -- selama 1 detik penuh untuk melawan efek "fall" dari spawn point
+                if CustomTPCFrame and root then
+                    local startTime = tick()
+                    while tick() - startTime < 1.0 do -- Paksa selama 1 detik setelah Rebirth
+                        if root and root.Parent then
+                            -- Reset Velocity agar tidak mental/jatuh
+                            root.Velocity = Vector3.new(0, 0, 0)
+                            root.RotVelocity = Vector3.new(0, 0, 0)
+                            
+                            -- Pindahkan ke posisi safezone (agak ke atas sedikit agar tidak nyangkut)
+                            root.CFrame = CustomTPCFrame + Vector3.new(0, 3, 0)
+                        end
+                        task.wait(0.03) -- Sangat cepat
+                    end
+                end
+            end)
+            isRebirthing = false 
+        end)
+    end
+end
                         end
                     end
                     
