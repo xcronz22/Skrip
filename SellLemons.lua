@@ -931,7 +931,7 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 3: AUTO UPGRADE & CLICK (BAIT & MAX BUY - SMART WAIT FIX)
+-- LOOP 3: AUTO UPGRADE & CLICK (FIX BUG KOMA RIBUAN)
 -- =======================================================
 local clickTargets = {"LemonDepot", "LemonLabs", "LemonRepublic", "LemonRobotics", "LemonStand", "LemonTrading", "LemonDash", "LemonX"}
 local visibleTimerManage = 0
@@ -1053,10 +1053,15 @@ task.spawn(function()
                                                 
                                                 if upgradeRemote and upgradeRemote:IsA("RemoteFunction") then
                                                     
+                                                    -- ==========================================
+                                                    -- FIX: FUNGSI PEMBERSIH KOMA DI ANGKA RIBUAN
+                                                    -- ==========================================
                                                     local function getCurrentCount()
                                                         local cObj = upgBtn:FindFirstChild("Count")
                                                         if cObj and cObj.Text and cObj.Text ~= "" then
-                                                            local ext = tonumber(string.match(cObj.Text, "%d+"))
+                                                            -- Bersihkan teks dari koma dan spasi sebelum dibaca angkanya
+                                                            local cleanStr = string.gsub(cObj.Text, "[,%s]", "")
+                                                            local ext = tonumber(string.match(cleanStr, "%d+"))
                                                             return ext or 0
                                                         end
                                                         return 0 
@@ -1064,14 +1069,12 @@ task.spawn(function()
 
                                                     local countSebelum = getCurrentCount()
 
-                                                    -- TAHAP 1: Pancing beli 1 biji dulu
+                                                    -- TAHAP 1: Pancing beli 1
                                                     pcall(function() 
                                                         upgradeRemote:InvokeServer(1) 
                                                     end)
 
-                                                    -- ==========================================
-                                                    -- TAHAP 2: SMART WAIT (Tunggu UI Merespons Max 0.6 Detik)
-                                                    -- ==========================================
+                                                    -- TAHAP 2: SMART WAIT 
                                                     local waitTime = 0
                                                     while getCurrentCount() <= countSebelum and waitTime < 0.6 do
                                                         waitTime = waitTime + task.wait(0.05)
@@ -1092,12 +1095,10 @@ task.spawn(function()
                                                             end
                                                         end
                                                         
-                                                        -- Hajar sisa MAX-nya!
                                                         if burstAmmo > 0 then
                                                             pcall(function() 
                                                                 upgradeRemote:InvokeServer(burstAmmo) 
                                                             end)
-                                                            -- Beri nafas server sebentar setelah eksekusi ribuan level
                                                             task.wait(0.1) 
                                                         end
                                                     end
@@ -1110,7 +1111,7 @@ task.spawn(function()
                             end
                         end)
                         
-                        -- Buka gembok setelah antrean 8 bangunan selesai
+                        -- Buka gembok antrean
                         isUpgradingSequence = false
                     end)
                 end
