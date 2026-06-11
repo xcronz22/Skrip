@@ -32,6 +32,7 @@ local Toggles = {
 }
 
 local TargetBuyMode = "V1"
+local BuyMethod = "Sequential"
 local RebirthMode = "Multiplier" 
 local RebirthValue = 2
 local SmartMultiplier = 2 -- FITUR BARU: Gigi otomatis untuk Smart Mode (2x atau 10x)
@@ -526,6 +527,10 @@ Window:AddDropdown("Auto Buy Mode", {"V1", "V2"}, function(SelectedMode)
     TargetBuyMode = SelectedMode
 end)
 
+Window:AddDropdown("Auto Buy Method", {"Sequential", "Direct Gas"}, function(SelectedMethod)
+    BuyMethod = SelectedMethod
+end)
+
 -- =======================================================
 -- SISTEM CUSTOM TP & SAFEZONE DINAMIS
 -- =======================================================
@@ -723,132 +728,132 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 1: [CORE 1] MESIN AUTO BUY (LIGHTNING BATCH SWEEP)
+-- LOOP 1: AUTO BUY MULTI-VERSION (SEQUENTIAL vs DIRECT GAS)
 -- =======================================================
-local PurchaseV1 = {
-    "Staircase", "Hills", "Minigames", "Lemon Stand", "LemonDash",
-    "Lemon Depot", "Lemon Trading", "Lemon Labs", "Lemon Robotics",
-    "Lemon Republic", "LemonX Ground", "LemonX"
-}
-
-local PurchaseV2 = {
-    "Staircase", "Hills", "LemonX", "Lemon Republic", "Lemon Robotics",
-    "Lemon Labs", "Lemon Trading", "Lemon Depot", "LemonDash",
-    "Lemon Stand", "Minigames", "LemonX Ground"
-}
-
-local isBuyingSequence = false 
+local PurchaseV1 = { "Staircase", "Hills", "Minigames", "Lemon Stand", "LemonDash", "Lemon Depot", "Lemon Trading", "Lemon Labs", "Lemon Robotics", "Lemon Republic", "LemonX Ground", "LemonX" }
+local PurchaseV2 = { "Staircase", "Hills", "LemonX", "Lemon Republic", "Lemon Robotics", "Lemon Labs", "Lemon Trading", "Lemon Depot", "LemonDash", "Lemon Stand", "Minigames", "LemonX Ground" }
+local isBuyingSequence = false
 
 task.spawn(function()
-    while task.wait(0.05) do -- Radar super cepat
-        if Toggles.AutoBuy and not isBuyingSequence then
-            pcall(function()
-                local char = LocalPlayer.Character
-                local rootPart = char and char:FindFirstChild("HumanoidRootPart")
-                if not rootPart then return end
-
-                local MyTycoon = GetMyTycoon()
-                if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
-                    
-                    isBuyingSequence = true 
-                    
-                    task.spawn(function()
-                        pcall(function()
-                            local activeOrder = (TargetBuyMode == "V1") and PurchaseV1 or PurchaseV2
-                            
-                            for _, folderName in ipairs(activeOrder) do
-                                if not Toggles.AutoBuy then break end
-                                
-                                local purchaseFolder = MyTycoon.Purchases:FindFirstChild(folderName)
-                                
-                                if purchaseFolder then
-                                    local keepClearingFolder = true
-                                    local previousTargets = {} -- Menyimpan daftar tombol dari scan sebelumnya
-                                    
-                                    while keepClearingFolder and Toggles.AutoBuy do
-                                        local buttonsFolder = purchaseFolder:FindFirstChild("Buttons")
-                                        if not buttonsFolder then break end
-                                        
-                                        local targets = {}
-                                        local currentTargets = {} -- Daftar tombol saat ini
-                                        
-                                        -- 1. SCAN SEMUA TOMBOL
-                                        for _, item in ipairs(buttonsFolder:GetDescendants()) do
-                                            local targetPart = item.Parent
-                                            local isShown, isEnabled = false, false
-                                            
-                                            if targetPart then
-                                                if targetPart:GetAttribute("Shown") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Shown") == true) then
-                                                    isShown = true
-                                                end
-                                                if targetPart:GetAttribute("Enabled") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Enabled") == true) then
-                                                    isEnabled = true
-                                                end
-                                            end
-                                            
-                                            if isShown and isEnabled then
-                                                if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
-                                                    if targetPart and targetPart:IsA("BasePart") then
-                                                        table.insert(targets, {Type = "Touch", Target = targetPart})
-                                                        table.insert(currentTargets, item)
+    while task.wait(0.05) do -- Radar deteksi kilat
+        if Toggles.AutoBuy then
+            
+            -- ==========================================
+            -- VERSI 1: ENGINES SEQUENTIAL (BAWAAN ASLI SKRIP)
+            -- ==========================================
+            if BuyMethod == "Sequential" then
+                if not isBuyingSequence then
+                    pcall(function()
+                        local char = LocalPlayer.Character
+                        local rootPart = char and char:FindFirstChild("HumanoidRootPart")
+                        if not rootPart then return end
+                        local MyTycoon = GetMyTycoon()
+                        if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
+                            isBuyingSequence = true
+                            task.spawn(function()
+                                pcall(function()
+                                    local activeOrder = (TargetBuyMode == "V1") and PurchaseV1 or PurchaseV2
+                                    for _, folderName in ipairs(activeOrder) do
+                                        if not Toggles.AutoBuy or BuyMethod ~= "Sequential" then break end
+                                        local purchaseFolder = MyTycoon.Purchases:FindFirstChild(folderName)
+                                        if purchaseFolder then
+                                            local keepClearingFolder = true
+                                            local previousTargets = {}
+                                            while keepClearingFolder and Toggles.AutoBuy and BuyMethod == "Sequential" do
+                                                local buttonsFolder = purchaseFolder:FindFirstChild("Buttons")
+                                                if not buttonsFolder then break end
+                                                local targets = {}
+                                                local currentTargets = {}
+                                                for _, item in ipairs(buttonsFolder:GetDescendants()) do
+                                                    local targetPart = item.Parent
+                                                    local isShown, isEnabled = false, false
+                                                    if targetPart then
+                                                        if targetPart:GetAttribute("Shown") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Shown") == true) then isShown = true end
+                                                        if targetPart:GetAttribute("Enabled") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Enabled") == true) then isEnabled = true end
                                                     end
-                                                elseif item:IsA("ProximityPrompt") and item.Enabled then
-                                                    table.insert(targets, {Type = "Prompt", Target = item})
-                                                    table.insert(currentTargets, item)
+                                                    if isShown and isEnabled then
+                                                        if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
+                                                            if targetPart and targetPart:IsA("BasePart") then
+                                                                table.insert(targets, {Type = "Touch", Target = targetPart})
+                                                                table.insert(currentTargets, item)
+                                                            end
+                                                        elseif item:IsA("ProximityPrompt") and item.Enabled then
+                                                            table.insert(targets, {Type = "Prompt", Target = item})
+                                                            table.insert(currentTargets, item)
+                                                        end
+                                                    end
                                                 end
+                                                if #currentTargets == 0 then break end
+                                                local isDifferent = false
+                                                if #currentTargets ~= #previousTargets then isDifferent = true else
+                                                    for i, item in ipairs(currentTargets) do
+                                                        if item ~= previousTargets[i] then isDifferent = true break end
+                                                    end
+                                                end
+                                                if not isDifferent and #previousTargets > 0 then break end
+                                                previousTargets = currentTargets
+                                                for _, btn in ipairs(targets) do
+                                                    pcall(function()
+                                                        if btn.Type == "Touch" then
+                                                            firetouchinterest(rootPart, btn.Target, 0)
+                                                            firetouchinterest(rootPart, btn.Target, 1)
+                                                        elseif btn.Type == "Prompt" then
+                                                            fireproximityprompt(btn.Target)
+                                                        end
+                                                    end)
+                                                end
+                                                task.wait(0.1)
                                             end
                                         end
-                                        
-                                        -- 2. LOGIKA SKIP KILAT (ANTI-LAMBAT)
-                                        -- Jika tidak ada tombol sama sekali, pindah folder!
-                                        if #currentTargets == 0 then
-                                            break
+                                    end
+                                end)
+                                isBuyingSequence = false
+                            end)
+                        end
+                    end)
+                end
+
+            -- ==========================================
+            -- VERSI 2: ENGINES DIRECT GAS (SKRIP BARU TANPA ANTRE)
+            -- ==========================================
+            elseif BuyMethod == "Direct Gas" then
+                pcall(function()
+                    local char = LocalPlayer.Character
+                    local rootPart = char and char:FindFirstChild("HumanoidRootPart")
+                    if not rootPart then return end
+
+                    local MyTycoon = GetMyTycoon()
+                    if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
+                        local activeOrder = (TargetBuyMode == "V1") and PurchaseV1 or PurchaseV2
+                        
+                        for _, folderName in ipairs(activeOrder) do
+                            if not Toggles.AutoBuy or BuyMethod ~= "Direct Gas" then break end
+                            local purchaseFolder = MyTycoon.Purchases:FindFirstChild(folderName)
+                            if purchaseFolder and purchaseFolder:FindFirstChild("Buttons") then
+                                for _, item in ipairs(purchaseFolder.Buttons:GetDescendants()) do
+                                    local targetPart = item.Parent
+                                    local isShown, isEnabled = false, false
+                                    
+                                    if targetPart then
+                                        if targetPart:GetAttribute("Shown") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Shown") == true) then isShown = true end
+                                        if targetPart:GetAttribute("Enabled") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Enabled") == true) then isEnabled = true end
+                                    end
+                                    
+                                    if isShown and isEnabled then
+                                        if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
+                                            firetouchinterest(rootPart, targetPart, 0)
+                                            firetouchinterest(rootPart, targetPart, 1)
+                                        elseif item:IsA("ProximityPrompt") and item.Enabled then
+                                            fireproximityprompt(item)
                                         end
-                                        
-                                        -- Cek apakah daftar tombol sama persis dengan scan sebelumnya
-                                        local isDifferent = false
-                                        if #currentTargets ~= #previousTargets then
-                                            isDifferent = true
-                                        else
-                                            for i, item in ipairs(currentTargets) do
-                                                if item ~= previousTargets[i] then
-                                                    isDifferent = true
-                                                    break
-                                                end
-                                            end
-                                        end
-                                        
-                                        -- Jika tidak ada yang berubah, berarti semua tombol terkunci atau uang kurang!
-                                        -- Langsung SKIP ke folder berikutnya tanpa ampun!
-                                        if not isDifferent and #previousTargets > 0 then
-                                            break
-                                        end
-                                        
-                                        previousTargets = currentTargets
-                                        
-                                        -- 3. TEMBAK MASSAL (BRUTAL)
-                                        for _, btn in ipairs(targets) do
-                                            pcall(function()
-                                                if btn.Type == "Touch" then
-                                                    firetouchinterest(rootPart, btn.Target, 0)
-                                                    firetouchinterest(rootPart, btn.Target, 1)
-                                                elseif btn.Type == "Prompt" then
-                                                    fireproximityprompt(btn.Target)
-                                                end
-                                            end)
-                                        end
-                                        
-                                        -- Cuma tunggu 0.1 detik untuk memberi nafas ke server, lalu loop ulang!
-                                        task.wait(0.1)
                                     end
                                 end
                             end
-                        end)
-                        
-                        isBuyingSequence = false
-                    end)
-                end
-            end)
+                        end
+                    end
+                end)
+            end
+
         end
     end
 end)
