@@ -767,12 +767,34 @@ task.spawn(function()
                                                 local currentTargets = {}
                                                 for _, item in ipairs(buttonsFolder:GetDescendants()) do
                                                     local targetPart = item.Parent
-                                                    local isEnabled, isPurchased = false, true
+                                                    
+                                                    -- SMART FILTER LOGIC (Mengatasi Bug Shown & Atribut Tidak Konsisten)
+                                                    local isEnabled, isShown = false, false
+                                                    local isPurchased = true
+                                                    local hasPurchasedAttr = false
+                                                    
                                                     if targetPart then
                                                         if targetPart:GetAttribute("Enabled") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Enabled") == true) then isEnabled = true end
-                                                        if targetPart:GetAttribute("Purchased") == false or (targetPart.Parent and targetPart.Parent:GetAttribute("Purchased") == false) then isPurchased = false end
+                                                        if targetPart:GetAttribute("Shown") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Shown") == true) then isShown = true end
+                                                        
+                                                        local pAttr = targetPart:GetAttribute("Purchased")
+                                                        if pAttr == nil and targetPart.Parent then pAttr = targetPart.Parent:GetAttribute("Purchased") end
+                                                        if pAttr ~= nil then
+                                                            hasPurchasedAttr = true
+                                                            isPurchased = pAttr
+                                                        end
                                                     end
-                                                    if isEnabled and isPurchased == false then
+                                                    
+                                                    local isValidToBuy = false
+                                                    if isEnabled then
+                                                        if isShown then
+                                                            isValidToBuy = true -- Lolos jalur normal (Shown = true)
+                                                        elseif hasPurchasedAttr and isPurchased == false then
+                                                            isValidToBuy = true -- Lolos jalur bug (Shown false, tapi Purchased false)
+                                                        end
+                                                    end
+                                                    
+                                                    if isValidToBuy then
                                                         if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
                                                             if targetPart and targetPart:IsA("BasePart") then
                                                                 table.insert(targets, {Type = "Touch", Target = targetPart})
@@ -833,14 +855,34 @@ task.spawn(function()
                             if purchaseFolder and purchaseFolder:FindFirstChild("Buttons") then
                                 for _, item in ipairs(purchaseFolder.Buttons:GetDescendants()) do
                                     local targetPart = item.Parent
-                                    local isEnabled, isPurchased = false, true
+                                    
+                                    -- SMART FILTER LOGIC
+                                    local isEnabled, isShown = false, false
+                                    local isPurchased = true
+                                    local hasPurchasedAttr = false
                                     
                                     if targetPart then
                                         if targetPart:GetAttribute("Enabled") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Enabled") == true) then isEnabled = true end
-                                        if targetPart:GetAttribute("Purchased") == false or (targetPart.Parent and targetPart.Parent:GetAttribute("Purchased") == false) then isPurchased = false end
+                                        if targetPart:GetAttribute("Shown") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Shown") == true) then isShown = true end
+                                        
+                                        local pAttr = targetPart:GetAttribute("Purchased")
+                                        if pAttr == nil and targetPart.Parent then pAttr = targetPart.Parent:GetAttribute("Purchased") end
+                                        if pAttr ~= nil then
+                                                            hasPurchasedAttr = true
+                                                            isPurchased = pAttr
+                                                        end
                                     end
                                     
-                                    if isEnabled and isPurchased == false then
+                                    local isValidToBuy = false
+                                    if isEnabled then
+                                        if isShown then
+                                            isValidToBuy = true
+                                        elseif hasPurchasedAttr and isPurchased == false then
+                                            isValidToBuy = true
+                                        end
+                                    end
+                                    
+                                    if isValidToBuy then
                                         if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
                                             firetouchinterest(rootPart, targetPart, 0)
                                             firetouchinterest(rootPart, targetPart, 1)
@@ -878,16 +920,34 @@ task.spawn(function()
                                         end
                                         
                                         local targetPart = item.Parent -- Mendapatkan model barang utama
-                                        local isEnabled, isPurchased = false, true
+                                        
+                                        -- SMART FILTER LOGIC
+                                        local isEnabled, isShown = false, false
+                                        local isPurchased = true
+                                        local hasPurchasedAttr = false
                                         
                                         if targetPart then
-                                            -- Validasi Atribut dari engine game (Shown dihapus karena bug game)
                                             if targetPart:GetAttribute("Enabled") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Enabled") == true) then isEnabled = true end
-                                            if targetPart:GetAttribute("Purchased") == false or (targetPart.Parent and targetPart.Parent:GetAttribute("Purchased") == false) then isPurchased = false end
+                                            if targetPart:GetAttribute("Shown") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Shown") == true) then isShown = true end
+                                            
+                                            local pAttr = targetPart:GetAttribute("Purchased")
+                                            if pAttr == nil and targetPart.Parent then pAttr = targetPart.Parent:GetAttribute("Purchased") end
+                                            if pAttr ~= nil then
+                                                            hasPurchasedAttr = true
+                                                            isPurchased = pAttr
+                                                        end
                                         end
                                         
-                                        -- Hanya eksekusi jika tombol VALID & BELUM DIBELI
-                                        if isEnabled and isPurchased == false then
+                                        local isValidToBuy = false
+                                        if isEnabled then
+                                            if isShown then
+                                                isValidToBuy = true
+                                            elseif hasPurchasedAttr and isPurchased == false then
+                                                isValidToBuy = true
+                                            end
+                                        end
+                                        
+                                        if isValidToBuy then
                                             -- Kunci tombol ini saat ini juga agar tidak ditembak berulang-ulang oleh putaran radar berikutnya
                                             remoteCooldowns[item] = currentTime
                                             
