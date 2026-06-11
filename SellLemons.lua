@@ -33,10 +33,11 @@ local Toggles = {
 
 local TargetBuyMode = "V1"
 local BuyMethod = "Sequential"
-local RebirthMode = "Multiplier" 
+local RebirthMode = "Multiplier"
+local RemoteInvokeDelay = 0.5
 local RebirthValue = 2
-local SmartMultiplier = 2 -- FITUR BARU: Gigi otomatis untuk Smart Mode (2x atau 10x)
-local LastRebirthTime = 0 -- FITUR BARU: Stopwatch pintar penghitung jeda
+local SmartMultiplier = 2
+local LastRebirthTime = 0
 local UpgradeRemotes = {}
 local ToggleObjects = {}
 
@@ -531,6 +532,14 @@ Window:AddDropdown("Auto Buy Method", {"Sequential", "Direct Gas", "Remote Invok
     BuyMethod = SelectedMethod
 end)
 
+Window:AddInput("Invoke Delay", "0.5", function(Text)
+    local num = tonumber(Text)
+    -- Memastikan yang dimasukkan adalah angka dan bukan 0
+    if num and num > 0 then
+        RemoteInvokeDelay = num
+    end
+end)
+
 -- =======================================================
 -- SISTEM CUSTOM TP & SAFEZONE DINAMIS
 -- =======================================================
@@ -734,7 +743,7 @@ local PurchaseV1 = { "Staircase", "Hills", "Minigames", "Lemon Stand", "LemonDas
 local PurchaseV2 = { "Staircase", "Hills", "LemonX", "Lemon Republic", "Lemon Robotics", "Lemon Labs", "Lemon Trading", "Lemon Depot", "LemonDash", "Lemon Stand", "Minigames", "LemonX Ground" }
 local isBuyingSequence = false
 local remoteCooldowns = {} -- FITUR PENGAMAN: Memori pintar pencatat remote yang sudah ditembak (Anti-Spam/Anti-DC)
-local lastRemoteInvokeTime = 0 -- Timer khusus untuk menahan Versi 3 di 0.2 detik
+local lastRemoteInvokeTime = 0 -- FIX: Ditambahkan kembali agar penahan waktu tidak error
 
 task.spawn(function()
     while task.wait(0.05) do -- Radar deteksi kilat (0.05 detik)
@@ -902,7 +911,8 @@ task.spawn(function()
             -- ==========================================
             elseif BuyMethod == "Remote Invoke" then
                 local tickNow = os.clock()
-                if tickNow - lastRemoteInvokeTime >= 0.2 then
+                -- MENGGUNAKAN VARIABEL MANUAL DARI UI: RemoteInvokeDelay
+                if tickNow - lastRemoteInvokeTime >= RemoteInvokeDelay then
                     lastRemoteInvokeTime = tickNow
                     pcall(function()
                         local MyTycoon = GetMyTycoon()
