@@ -734,6 +734,7 @@ local PurchaseV1 = { "Staircase", "Hills", "Minigames", "Lemon Stand", "LemonDas
 local PurchaseV2 = { "Staircase", "Hills", "LemonX", "Lemon Republic", "Lemon Robotics", "Lemon Labs", "Lemon Trading", "Lemon Depot", "LemonDash", "Lemon Stand", "Minigames", "LemonX Ground" }
 local isBuyingSequence = false
 local remoteCooldowns = {} -- FITUR PENGAMAN: Memori pintar pencatat remote yang sudah ditembak (Anti-Spam/Anti-DC)
+local lastRemoteInvokeTime = 0 -- Timer khusus untuk menahan Versi 3 di 0.2 detik
 
 task.spawn(function()
     while task.wait(0.05) do -- Radar deteksi kilat (0.05 detik)
@@ -900,74 +901,78 @@ task.spawn(function()
             -- VERSI 3: ENGINES REMOTE INVOKE (SUPER GHOST BUYER) - SAFE ANTI-SPAM!
             -- ==========================================
             elseif BuyMethod == "Remote Invoke" then
-                pcall(function()
-                    local MyTycoon = GetMyTycoon()
-                    if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
-                        local activeOrder = (TargetBuyMode == "V1") and PurchaseV1 or PurchaseV2
-                        local currentTime = os.clock()
-                        
-                        for _, folderName in ipairs(activeOrder) do
-                            if not Toggles.AutoBuy or BuyMethod ~= "Remote Invoke" then break end
-                            local purchaseFolder = MyTycoon.Purchases:FindFirstChild(folderName)
-                            if purchaseFolder and purchaseFolder:FindFirstChild("Buttons") then
-                                -- Membongkar secara mendalam folder Buttons melewati Structure, Decor, dll.
-                                for _, item in ipairs(purchaseFolder.Buttons:GetDescendants()) do
-                                    if item:IsA("RemoteFunction") and item.Name == "Purchase" then
-                                        
-                                        -- PROTEKSI DATA: Jika tombol ini baru saja ditembak kurang dari 0.8 detik lalu, lewati!
-                                        if remoteCooldowns[item] and (currentTime - remoteCooldowns[item] < 0.8) then
-                                            continue
-                                        end
-                                        
-                                        local targetPart = item.Parent -- Mendapatkan model barang utama
-                                        
-                                        -- SMART FILTER LOGIC
-                                        local isEnabled, isShown = false, false
-                                        local isPurchased = true
-                                        local hasPurchasedAttr = false
-                                        
-                                        if targetPart then
-                                            if targetPart:GetAttribute("Enabled") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Enabled") == true) then isEnabled = true end
-                                            if targetPart:GetAttribute("Shown") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Shown") == true) then isShown = true end
+                local tickNow = os.clock()
+                if tickNow - lastRemoteInvokeTime >= 0.2 then
+                    lastRemoteInvokeTime = tickNow
+                    pcall(function()
+                        local MyTycoon = GetMyTycoon()
+                        if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
+                            local activeOrder = (TargetBuyMode == "V1") and PurchaseV1 or PurchaseV2
+                            local currentTime = os.clock()
+                            
+                            for _, folderName in ipairs(activeOrder) do
+                                if not Toggles.AutoBuy or BuyMethod ~= "Remote Invoke" then break end
+                                local purchaseFolder = MyTycoon.Purchases:FindFirstChild(folderName)
+                                if purchaseFolder and purchaseFolder:FindFirstChild("Buttons") then
+                                    -- Membongkar secara mendalam folder Buttons melewati Structure, Decor, dll.
+                                    for _, item in ipairs(purchaseFolder.Buttons:GetDescendants()) do
+                                        if item:IsA("RemoteFunction") and item.Name == "Purchase" then
                                             
-                                            local pAttr = targetPart:GetAttribute("Purchased")
-                                            if pAttr == nil and targetPart.Parent then pAttr = targetPart.Parent:GetAttribute("Purchased") end
-                                            if pAttr ~= nil then
-                                                            hasPurchasedAttr = true
-                                                            isPurchased = pAttr
-                                                        end
-                                        end
-                                        
-                                        local isValidToBuy = false
-                                        if isEnabled then
-                                            if isShown then
-                                                isValidToBuy = true
-                                            elseif hasPurchasedAttr and isPurchased == false then
-                                                isValidToBuy = true
+                                            -- PROTEKSI DATA: Jika tombol ini baru saja ditembak kurang dari 0.8 detik lalu, lewati!
+                                            if remoteCooldowns[item] and (currentTime - remoteCooldowns[item] < 0.8) then
+                                                continue
                                             end
-                                        end
-                                        
-                                        if isValidToBuy then
-                                            -- Kunci tombol ini saat ini juga agar tidak ditembak berulang-ulang oleh putaran radar berikutnya
-                                            remoteCooldowns[item] = currentTime
                                             
-                                            -- Menggunakan task.spawn agar InvokeServer berjalan async (Anti-Lag, Anti-Stuck, Anti-DC)
-                                            task.spawn(function()
-                                                local success = pcall(function()
-                                                    item:InvokeServer(false) -- Eksekusi argumen 'false' hasil rspy
-                                                end)
-                                                -- Jika penembakan gagal/error, hapus kuncian agar bisa dicoba lagi nanti
-                                                if not success then
-                                                    remoteCooldowns[item] = nil
+                                            local targetPart = item.Parent -- Mendapatkan model barang utama
+                                            
+                                            -- SMART FILTER LOGIC
+                                            local isEnabled, isShown = false, false
+                                            local isPurchased = true
+                                            local hasPurchasedAttr = false
+                                            
+                                            if targetPart then
+                                                if targetPart:GetAttribute("Enabled") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Enabled") == true) then isEnabled = true end
+                                                if targetPart:GetAttribute("Shown") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Shown") == true) then isShown = true end
+                                                
+                                                local pAttr = targetPart:GetAttribute("Purchased")
+                                                if pAttr == nil and targetPart.Parent then pAttr = targetPart.Parent:GetAttribute("Purchased") end
+                                                if pAttr ~= nil then
+                                                                hasPurchasedAttr = true
+                                                                isPurchased = pAttr
+                                                            end
+                                            end
+                                            
+                                            local isValidToBuy = false
+                                            if isEnabled then
+                                                if isShown then
+                                                    isValidToBuy = true
+                                                elseif hasPurchasedAttr and isPurchased == false then
+                                                    isValidToBuy = true
                                                 end
-                                            end)
+                                            end
+                                            
+                                            if isValidToBuy then
+                                                -- Kunci tombol ini saat ini juga agar tidak ditembak berulang-ulang oleh putaran radar berikutnya
+                                                remoteCooldowns[item] = currentTime
+                                                
+                                                -- Menggunakan task.spawn agar InvokeServer berjalan async (Anti-Lag, Anti-Stuck, Anti-DC)
+                                                task.spawn(function()
+                                                    local success = pcall(function()
+                                                        item:InvokeServer(false) -- Eksekusi argumen 'false' hasil rspy
+                                                    end)
+                                                    -- Jika penembakan gagal/error, hapus kuncian agar bisa dicoba lagi nanti
+                                                    if not success then
+                                                        remoteCooldowns[item] = nil
+                                                    end
+                                                end)
+                                            end
                                         end
                                     end
                                 end
                             end
                         end
-                    end
-                end)
+                    end)
+                end
             end
 
         end
