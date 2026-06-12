@@ -1774,39 +1774,41 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 12: AUTO CLICK UI "NICE!" BUTTON (DELTA MOBILE FIX)
+-- LOOP 12: VIRTUAL AUTO-CLICKER FOR "NICE!" BUTTON (DELTA FIXED)
 -- =======================================================
 task.spawn(function()
-    while task.wait(5) do
+    local VirtualUser = game:GetService("VirtualUser")
+    local GuiService = game:GetService("GuiService")
+    
+    while task.wait(0.3) do -- Jeda deteksi (bisa disesuaikan, 0.3 detik sekali)
         pcall(function()
             local playerGui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
             local important = playerGui and playerGui:FindFirstChild("Important")
             local alert = important and important:FindFirstChild("Alert")
             local main = alert and alert:FindFirstChild("Main")
             
-            -- Taktik Baru: Cek apakah Frame "Main"-nya yang muncul (Visible = true)
+            -- Pastikan bingkai UI "Main" dalam keadaan aktif/muncul di layar
             if main and main.Visible then
                 local buttons = main:FindFirstChild("Buttons")
-                -- Langsung bidik objek bernama "Template" sesuai penemuanmu
                 local templateBtn = buttons and buttons:FindFirstChild("Template")
                 
-                if templateBtn and (templateBtn:IsA("TextButton") or templateBtn:IsA("ImageButton")) then
+                if templateBtn then
+                    -- 1. Hitung titik tengah koordinat tombol pada layar HP
+                    local btnPos = templateBtn.AbsolutePosition
+                    local btnSize = templateBtn.AbsoluteSize
+                    local centerX = btnPos.X + (btnSize.X / 2)
+                    local centerY = btnPos.Y + (btnSize.Y / 2)
                     
-                    -- Eksekusi khusus yang dioptimalkan untuk Delta Mobile
-                    if firesignal then
-                        -- Tembak Activated duluan (Sinyal paling responsif untuk UI HP)
-                        firesignal(templateBtn.Activated)
-                        firesignal(templateBtn.MouseButton1Click)
-                    else
-                        -- Taktik Cadangan (Fallback)
-                        local connections = getconnections and (getconnections(templateBtn.Activated) or getconnections(templateBtn.MouseButton1Click))
-                        if connections then
-                            for _, connection in ipairs(connections) do
-                                connection:Fire()
-                            end
-                        end
-                    end
+                    -- 2. Ambil data jarak offset topbar HP (koreksi layar poni/notch)
+                    local inset = GuiService:GetGuiInset()
                     
+                    -- 3. EKSEKUSI TAPS FISIK VIRTUAL (Meniru Auto Clicker Eksternal)
+                    VirtualUser:CaptureController()
+                    
+                    -- Taktik Cadangan Ganda: Menembak koordinat dengan & tanpa offset 
+                    -- agar 100% kena sasaran tidak peduli settingan ScreenGui-nya
+                    VirtualUser:ClickButton1(Vector2.new(centerX, centerY))
+                    VirtualUser:ClickButton1(Vector2.new(centerX + inset.X, centerY + inset.Y))
                 end
             end
         end)
