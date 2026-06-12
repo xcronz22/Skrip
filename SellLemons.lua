@@ -1774,52 +1774,39 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 12: AUTO CLICK UI "NICE!" BUTTON (BACKGROUND SERVICE)
+-- LOOP 12: AUTO CLICK UI "NICE!" BUTTON (DELTA MOBILE FIX)
 -- =======================================================
 task.spawn(function()
     while task.wait(5) do
         pcall(function()
             local playerGui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
-            -- Mengunci langsung struktur folder utama dari Dex Spy milikmu
-            local alertButtons = playerGui 
-                                 and playerGui:FindFirstChild("Important") 
-                                 and playerGui.Important:FindFirstChild("Alert") 
-                                 and playerGui.Important.Alert:FindFirstChild("Main") 
-                                 and playerGui.Important.Alert.Main:FindFirstChild("Buttons")
+            local important = playerGui and playerGui:FindFirstChild("Important")
+            local alert = important and important:FindFirstChild("Alert")
+            local main = alert and alert:FindFirstChild("Main")
             
-            if alertButtons then
-                -- Melakukan scan otomatis terhadap semua tombol di dalam folder Buttons
-                for _, child in ipairs(alertButtons:GetChildren()) do
-                    if child:IsA("TextButton") or child:IsA("ImageButton") then
-                        
-                        -- Cek nama objek atau teks tombol (Ubah ke huruf kecil semua agar anti-salah)
-                        local targetName = string.lower(child.Name)
-                        local targetText = child:IsA("TextButton") and string.lower(child.Text) or ""
-                        
-                        -- Jika nama ATAU teks tombol mengandung kata "nice"
-                        if string.find(targetName, "nice") or string.find(targetText, "nice") then
-                            
-                            -- Validasi Kehadiran: Tombol hanya ditekan jika sedang aktif tampil di layar
-                            if child.Visible and child.AbsoluteSize.X > 0 and child.AbsoluteSize.Y > 0 then
-                                
-                                -- Taktik Utama: firesignal (Metode injeksi sinyal klik Roblox)
-                                if firesignal then
-                                    firesignal(child.MouseButton1Click)
-                                    firesignal(child.Activated)
-                                else
-                                    -- Taktik Cadangan: Menguras getconnections jika executor memiliki limitasi fungsi
-                                    local connections = getconnections and getconnections(child.MouseButton1Click)
-                                    if connections then
-                                        for _, connection in ipairs(connections) do
-                                            connection:Fire()
-                                        end
-                                    end
-                                end
-                                
+            -- Taktik Baru: Cek apakah Frame "Main"-nya yang muncul (Visible = true)
+            if main and main.Visible then
+                local buttons = main:FindFirstChild("Buttons")
+                -- Langsung bidik objek bernama "Template" sesuai penemuanmu
+                local templateBtn = buttons and buttons:FindFirstChild("Template")
+                
+                if templateBtn and (templateBtn:IsA("TextButton") or templateBtn:IsA("ImageButton")) then
+                    
+                    -- Eksekusi khusus yang dioptimalkan untuk Delta Mobile
+                    if firesignal then
+                        -- Tembak Activated duluan (Sinyal paling responsif untuk UI HP)
+                        firesignal(templateBtn.Activated)
+                        firesignal(templateBtn.MouseButton1Click)
+                    else
+                        -- Taktik Cadangan (Fallback)
+                        local connections = getconnections and (getconnections(templateBtn.Activated) or getconnections(templateBtn.MouseButton1Click))
+                        if connections then
+                            for _, connection in ipairs(connections) do
+                                connection:Fire()
                             end
                         end
-                        
                     end
+                    
                 end
             end
         end)
