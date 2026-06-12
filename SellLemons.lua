@@ -638,7 +638,7 @@ Window:AddButton("Load Configuration", function() LoadConfig() end)
 -- PROTEKSI UTAMA: Menggunakan pcall agar skrip tidak mati total jika library tidak mendukung AddLabel
 local labelSuccess = pcall(function()
     Window:AddLabel("Background Features Active: Auto Buy Power, Auto Answer Phone, Unlock Remote Buy.")
-    Window:AddLabel("For UI Rebirth Evolve Ascension Manage Power will close Automatically after 5s.")
+    Window:AddLabel("For UI Rebirth Evolve Ascension ManagePower Alert will close Automatically after 5s.")
     Window:AddLabel("Warning: Auto Permanent Buy inside Direct Gas Feature.")
 end)
 
@@ -1878,6 +1878,48 @@ task.spawn(function()
                 end
             end
             
+        end)
+    end
+end)
+
+-- =======================================================
+-- LOOP 12: AUTO HIDE ALERT ATTRIBUTE (BACKGROUND DAEMON - DT VERSION)
+-- =======================================================
+local alertVisibleTimer = 0 -- Variabel stopwatch kita
+
+task.spawn(function()
+    while true do
+        local dt = task.wait(3) -- Maks 5 detik jangan lebih dari dt
+        
+        pcall(function()
+            local player = game:GetService("Players").LocalPlayer
+            local playerGui = player and player:FindFirstChild("PlayerGui")
+            
+            if playerGui then
+                local important = playerGui:FindFirstChild("Important")
+                local alert = important and important:FindFirstChild("Alert")
+                
+                -- Pastikan objek 'Alert' ditemukan sesuai path barumu
+                if alert then
+                    
+                    -- Mengecek ATTRIBUTE "Visible" buatan developer game
+                    if alert:GetAttribute("Visible") == true then
+                        -- Tambahkan waktu ke stopwatch
+                        alertVisibleTimer = alertVisibleTimer + dt
+                        
+                        -- Jika stopwatch sudah mencapai 5 detik
+                        if alertVisibleTimer >= 5 then
+                            -- Matikan paksa melalui Attribute
+                            alert:SetAttribute("Visible", false) 
+                            alertVisibleTimer = 0 -- Reset stopwatch
+                        end
+                    else
+                        -- Kalau attribute Visible berubah jadi false sebelum 5 detik (misal terklik), reset stopwatch!
+                        alertVisibleTimer = 0
+                    end
+                    
+                end
+            end
         end)
     end
 end)
