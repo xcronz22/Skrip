@@ -1405,7 +1405,7 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 5: DYNAMIC SMART AUTO REBIRTH (INSTANT GHOST TP - NO ANCHOR)
+-- LOOP 5: DYNAMIC SMART AUTO REBIRTH (FREE ROAM ANTI-TELEPORT)
 -- =======================================================
 local wasAutoRebirthOn = false
 local visibleTimerRebirth = 0
@@ -1453,16 +1453,12 @@ task.spawn(function()
                             local baseCur, expCur = CleanAndParse(amountObj.Text)
                             local shouldRebirth = false
 
-                            -- ==========================================
-                            -- LOGIKA TURUN GIGI (DOWNSHIFT) SUPER AGRESIF
-                            -- ==========================================
+                            -- LOGIKA TURUN GIGI (DOWNSHIFT)
                             if RebirthMode == "Smart" and LastRebirthTime > 0 then
                                 local timeElapsed = os.clock() - LastRebirthTime
-                                
-                                -- Toleransi turun gigi dipercepat agar tidak kelamaan menunggu!
                                 if SmartMultiplier == 50 and timeElapsed > 15 then
                                     SmartMultiplier = 30
-                                    LastRebirthTime = os.clock() -- Reset timer agar gigi 30x punya waktu penuh
+                                    LastRebirthTime = os.clock() 
                                 elseif SmartMultiplier == 30 and timeElapsed > 20 then
                                     SmartMultiplier = 20
                                     LastRebirthTime = os.clock()
@@ -1496,15 +1492,11 @@ task.spawn(function()
                                 if rebirthRemote and rebirthRemote:IsA("RemoteFunction") then
                                     isRebirthing = true
                                     
-                                    -- ==========================================
-                                    -- LOGIKA NAIK GIGI (UPSHIFT) YANG LEBIH CERDAS
-                                    -- ==========================================
+                                    -- LOGIKA NAIK GIGI (UPSHIFT)
                                     if RebirthMode == "Smart" then
                                         local currentTime = os.clock()
                                         if LastRebirthTime > 0 then
                                             local speed = currentTime - LastRebirthTime
-                                            
-                                            -- Syarat naik gigi disesuaikan dengan beban multipliernya
                                             if SmartMultiplier == 2 and speed < 3 then 
                                                 SmartMultiplier = 10
                                             elseif SmartMultiplier == 10 and speed < 6 then 
@@ -1519,38 +1511,31 @@ task.spawn(function()
                                     end
 
                                     task.spawn(function()
-                                        pcall(function() 
-                                            local char = LocalPlayer.Character
-                                            local root = char and char:FindFirstChild("HumanoidRootPart")
+                                        local char = LocalPlayer.Character
+                                        local root = char and char:FindFirstChild("HumanoidRootPart")
+                                        
+                                        -- REKAM POSISI BEBAS SAAT INI JUGA
+                                        local holdCFrame = root and root.CFrame
 
-                                            -- 1. SETUP TARGET LOKASI
-                                            local targetCFrame = nil
-                                            if root and (Toggles.RebirthTP or Toggles.AutoHarvest) then
-                                                if not CustomTPCFrame then
-                                                    CustomTPCFrame = root.CFrame
-                                                end
-                                                EnsureSafeZone(CustomTPCFrame, CustomTPSize)
-                                                local targetTopY = CustomTPCFrame.Position.Y + (CustomTPSize.Y / 2)
-                                                targetCFrame = CFrame.new(CustomTPCFrame.Position.X, targetTopY + 3, CustomTPCFrame.Position.Z)
-                                            end
-
-                                            -- 2. TEMBAK REMOTE
-                                            task.spawn(function()
-                                                pcall(function() rebirthRemote:InvokeServer() end)
-                                            end)
-                                            UpgradeRemotes = {} 
-
-                                            -- 3. GHOST LOCK (MURNI CFRAME, TANPA ANCHOR)
-                                            if targetCFrame and root then
-                                                for i = 1, 20 do
-                                                    if root and root.Parent then
-                                                        root.Velocity = Vector3.new(0, 0, 0)
-                                                        root.CFrame = targetCFrame
-                                                    end
-                                                    task.wait()
-                                                end
-                                            end
+                                        -- TEMBAK REMOTE
+                                        task.spawn(function()
+                                            pcall(function() rebirthRemote:InvokeServer() end)
                                         end)
+                                        UpgradeRemotes = {} 
+
+                                        -- GHOST HOLD: Tahan posisi selama 1.5 detik penuh dari tarikan server
+                                        if holdCFrame then
+                                            local t = tick()
+                                            while tick() - t < 1.5 do
+                                                local c = LocalPlayer.Character
+                                                local r = c and c:FindFirstChild("HumanoidRootPart")
+                                                if r then
+                                                    r.Velocity = Vector3.new(0, 0, 0)
+                                                    r.CFrame = holdCFrame
+                                                end
+                                                task.wait() -- Rapat per-frame
+                                            end
+                                        end
                                         isRebirthing = false 
                                     end)
                                 end
@@ -1576,14 +1561,16 @@ task.spawn(function()
     end
 end)
 
--- LOOP 6: SMART AUTO EVOLVE
+-- =======================================================
+-- LOOP 6: SMART AUTO EVOLVE (FREE ROAM ANTI-TELEPORT)
+-- =======================================================
 local wasAutoEvolveOn = false
 local visibleTimerEvolve = 0
-local isEvolving = false -- Debounce
+local isEvolving = false 
 
 task.spawn(function()
     while true do
-        local dt = task.wait(0.1) -- dt tangkap durasi nyata
+        local dt = task.wait(0.1) 
         pcall(function() 
             local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
             if playerGui then
@@ -1597,7 +1584,6 @@ task.spawn(function()
                     wasAutoEvolveOn = true
                     
                     if evolutionMenu then
-                        -- TIMER 5 DETIK BERBASIS DELTA TIME
                         if evolutionMenu.Visible == true then
                             visibleTimerEvolve = visibleTimerEvolve + dt
                             if visibleTimerEvolve >= 5 then
@@ -1627,11 +1613,34 @@ task.spawn(function()
                                 if evolveRemote and evolveRemote:IsA("RemoteFunction") then
                                     isEvolving = true
                                     task.spawn(function()
-                                        pcall(function() 
-                                            evolveRemote:InvokeServer() 
-                                            UpgradeRemotes = {} 
+                                        local char = LocalPlayer.Character
+                                        local root = char and char:FindFirstChild("HumanoidRootPart")
+                                        
+                                        -- REKAM POSISI BEBAS
+                                        local holdCFrame = root and root.CFrame
+                                    
+                                        task.spawn(function()
+                                            pcall(function() 
+                                                evolveRemote:InvokeServer() 
+                                                UpgradeRemotes = {} 
+                                            end)
                                         end)
-                                        task.wait(2) -- Delay cooldown aman di dalam thread terpisah, loop utama tidak terganggu
+                                        
+                                        -- GHOST HOLD
+                                        if holdCFrame then
+                                            local t = tick()
+                                            while tick() - t < 1.5 do
+                                                local c = LocalPlayer.Character
+                                                local r = c and c:FindFirstChild("HumanoidRootPart")
+                                                if r then
+                                                    r.Velocity = Vector3.new(0, 0, 0)
+                                                    r.CFrame = holdCFrame
+                                                end
+                                                task.wait()
+                                            end
+                                        end
+                                        
+                                        task.wait(0.5) -- Sisa waktu aman
                                         isEvolving = false
                                     end)
                                 end
@@ -1704,14 +1713,16 @@ task.spawn(function()
     end
 end)
 
--- LOOP 9: SMART AUTO ASCEND
+-- =======================================================
+-- LOOP 9: SMART AUTO ASCEND (FREE ROAM ANTI-TELEPORT)
+-- =======================================================
 local wasAutoAscendOn = false
 local visibleTimerAscend = 0
-local isAscending = false -- Debounce
+local isAscending = false 
 
 task.spawn(function()
     while true do
-        local dt = task.wait(0.5) -- dt tangkap durasi nyata
+        local dt = task.wait(0.5) 
         pcall(function()
             local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
             if playerGui then
@@ -1725,7 +1736,6 @@ task.spawn(function()
                     wasAutoAscendOn = true
                     
                     if ascensionMenu then
-                        -- TIMER 5 DETIK BERBASIS DELTA TIME (FIXED!)
                         if ascensionMenu.Visible == true then
                             visibleTimerAscend = visibleTimerAscend + dt
                             if visibleTimerAscend >= 5 then
@@ -1755,11 +1765,34 @@ task.spawn(function()
                                 if ascendRemote and ascendRemote:IsA("RemoteFunction") then
                                     isAscending = true
                                     task.spawn(function()
-                                        pcall(function() 
-                                            ascendRemote:InvokeServer() 
-                                            UpgradeRemotes = {} 
+                                        local char = LocalPlayer.Character
+                                        local root = char and char:FindFirstChild("HumanoidRootPart")
+                                        
+                                        -- REKAM POSISI BEBAS
+                                        local holdCFrame = root and root.CFrame
+                                    
+                                        task.spawn(function()
+                                            pcall(function() 
+                                                ascendRemote:InvokeServer() 
+                                                UpgradeRemotes = {} 
+                                            end)
                                         end)
-                                        task.wait(3) -- Pindah ke dalam thread terpisah! Timer UI sekarang berjalan lancar jaya!
+                                        
+                                        -- GHOST HOLD
+                                        if holdCFrame then
+                                            local t = tick()
+                                            while tick() - t < 1.5 do
+                                                local c = LocalPlayer.Character
+                                                local r = c and c:FindFirstChild("HumanoidRootPart")
+                                                if r then
+                                                    r.Velocity = Vector3.new(0, 0, 0)
+                                                    r.CFrame = holdCFrame
+                                                end
+                                                task.wait()
+                                            end
+                                        end
+                                        
+                                        task.wait(1.5) 
                                         isAscending = false
                                     end)
                                 end
