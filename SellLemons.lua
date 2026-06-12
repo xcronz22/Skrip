@@ -744,10 +744,26 @@ local isBuyingSequence = false
 local remoteCooldowns = {} -- FITUR PENGAMAN: Memori pintar pencatat remote yang sudah ditembak (Anti-Spam/Anti-DC)
 local lastRemoteInvokeTime = 0 -- FIX: Ditambahkan kembali agar penahan waktu tidak error
 
+-- VARIABEL PENGUNCI DAN SINKRONISASI INSTAN (HYPER-SPEED COMPATIBLE)
+local currentSeqIndex = 1
+local lastTrackedTycoon = nil
+local lastTrackedMode = nil
+
 task.spawn(function()
     while task.wait(0.05) do -- Radar deteksi kilat (0.05 detik)
         if Toggles.AutoBuy then
             
+            local MyTycoon = GetMyTycoon()
+            
+            -- PUSAT REM DARURAT MILIDETIK: Jika Tycoon berganti (Rebirth) atau Mode V1/V2 Berubah, Paksa Detik Itu Juga Reset Ke Awal!
+            if MyTycoon ~= lastTrackedTycoon or TargetBuyMode ~= lastTrackedMode then
+                lastTrackedTycoon = MyTycoon
+                lastTrackedMode = TargetBuyMode
+                currentSeqIndex = 1 -- Kembalikan paksa ke "Staircase" instan tanpa nunggu loop selesai
+                remoteCooldowns = {} -- Bersihkan sisa cooldown babak sebelumnya agar gas pol langsung aman
+                isBuyingSequence = false
+            end
+
             -- ==========================================
             -- VERSI 1: ENGINES SEQUENTIAL (BAWAAN ASLI)
             -- ==========================================
@@ -757,74 +773,79 @@ task.spawn(function()
                         local char = LocalPlayer.Character
                         local rootPart = char and char:FindFirstChild("HumanoidRootPart")
                         if not rootPart then return end
-                        local MyTycoon = GetMyTycoon()
+                        
                         if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
                             isBuyingSequence = true
                             task.spawn(function()
                                 pcall(function()
                                     local activeOrder = (TargetBuyMode == "V1") and PurchaseV1 or PurchaseV2
-                                    for _, folderName in ipairs(activeOrder) do
-                                        if not Toggles.AutoBuy or BuyMethod ~= "Sequential" then break end
-                                        local purchaseFolder = MyTycoon.Purchases:FindFirstChild(folderName)
-                                        if purchaseFolder then
-                                            local keepClearingFolder = true
-                                            local previousTargets = {}
-                                            while keepClearingFolder and Toggles.AutoBuy and BuyMethod == "Sequential" do
-                                                local buttonsFolder = purchaseFolder:FindFirstChild("Buttons")
-                                                if not buttonsFolder then break end
-                                                local targets = {}
-                                                local currentTargets = {}
-                                                for _, item in ipairs(buttonsFolder:GetDescendants()) do
-                                                    local targetPart = item.Parent
+                                    
+                                    -- PELINDUNG UTAMA (ANTI-STUCK): Jika indeks overflow akibat overlap thread, paksa balik ke 1!
+                                    if currentSeqIndex == nil or currentSeqIndex > #activeOrder or currentSeqIndex < 1 then 
+                                        currentSeqIndex = 1 
+                                    end
+                                    
+                                    local folderName = activeOrder[currentSeqIndex]
+                                    local purchaseFolder = MyTycoon.Purchases:FindFirstChild(folderName)
+                                    
+                                    if purchaseFolder then
+                                        local buttonsFolder = purchaseFolder:FindFirstChild("Buttons")
+                                        if buttonsFolder then
+                                            local targets = {}
+                                            local currentTargets = {}
+                                            
+                                            for _, item in ipairs(buttonsFolder:GetDescendants()) do
+                                                -- Deteksi interupsi darurat di tengah jalan
+                                                if MyTycoon ~= lastTrackedTycoon or TargetBuyMode ~= lastTrackedMode or not Toggles.AutoBuy or BuyMethod ~= "Sequential" then break end
+                                                
+                                                local targetPart = item.Parent
+                                                
+                                                -- SMART FILTER LOGIC (Mengatasi Bug Shown & Atribut Tidak Konsisten)
+                                                local isEnabled, isShown = false, false
+                                                local isPurchased = true
+                                                local hasPurchasedAttr = false
+                                                
+                                                if targetPart then
+                                                    if targetPart:GetAttribute("Enabled") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Enabled") == true) then isEnabled = true end
+                                                    if targetPart:GetAttribute("Shown") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Shown") == true) then isShown = true end
                                                     
-                                                    -- SMART FILTER LOGIC (Mengatasi Bug Shown & Atribut Tidak Konsisten)
-                                                    local isEnabled, isShown = false, false
-                                                    local isPurchased = true
-                                                    local hasPurchasedAttr = false
-                                                    
-                                                    if targetPart then
-                                                        if targetPart:GetAttribute("Enabled") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Enabled") == true) then isEnabled = true end
-                                                        if targetPart:GetAttribute("Shown") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Shown") == true) then isShown = true end
-                                                        
-                                                        local pAttr = targetPart:GetAttribute("Purchased")
-                                                        if pAttr == nil and targetPart.Parent then pAttr = targetPart.Parent:GetAttribute("Purchased") end
-                                                        if pAttr ~= nil then
-                                                            hasPurchasedAttr = true
-                                                            isPurchased = pAttr
-                                                        end
+                                                    local pAttr = targetPart:GetAttribute("Purchased")
+                                                    if pAttr == nil and targetPart.Parent then pAttr = targetPart.Parent:GetAttribute("Purchased") end
+                                                    if pAttr ~= nil then
+                                                        hasPurchasedAttr = true
+                                                        isPurchased = pAttr
                                                     end
-                                                    
-                                                    local isValidToBuy = false
-                                                    if isEnabled then
-                                                        if isShown then
-                                                            isValidToBuy = true -- Lolos jalur normal (Shown = true)
-                                                        elseif hasPurchasedAttr and isPurchased == false then
-                                                            isValidToBuy = true -- Lolos jalur bug (Shown false, tapi Purchased false)
-                                                        end
+                                                end
+                                                
+                                                local isValidToBuy = false
+                                                if isEnabled then
+                                                    if isShown then
+                                                        isValidToBuy = true -- Lolos jalur normal (Shown = true)
+                                                    elseif hasPurchasedAttr and isPurchased == false then
+                                                        isValidToBuy = true -- Lolos jalur bug (Shown false, tapi Purchased false)
                                                     end
-                                                    
-                                                    if isValidToBuy then
-                                                        if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
-                                                            if targetPart and targetPart:IsA("BasePart") then
-                                                                table.insert(targets, {Type = "Touch", Target = targetPart})
-                                                                table.insert(currentTargets, item)
-                                                            end
-                                                        elseif item:IsA("ProximityPrompt") and item.Enabled then
-                                                            table.insert(targets, {Type = "Prompt", Target = item})
+                                                end
+                                                
+                                                if isValidToBuy then
+                                                    if item:IsA("TouchTransmitter") or item.Name == "TouchInterest" then
+                                                        if targetPart and targetPart:IsA("BasePart") then
+                                                            table.insert(targets, {Type = "Touch", Target = targetPart})
                                                             table.insert(currentTargets, item)
                                                         end
+                                                    elseif item:IsA("ProximityPrompt") and item.Enabled then
+                                                        table.insert(targets, {Type = "Prompt", Target = item})
+                                                        table.insert(currentTargets, item)
                                                     end
                                                 end
-                                                if #currentTargets == 0 then break end
-                                                local isDifferent = false
-                                                if #currentTargets ~= #previousTargets then isDifferent = true else
-                                                    for i, item in ipairs(currentTargets) do
-                                                        if item ~= previousTargets[i] then isDifferent = true break end
-                                                    end
-                                                end
-                                                if not isDifferent and #previousTargets > 0 then break end
-                                                previousTargets = currentTargets
+                                            end
+                                            
+                                            -- Jika folder item ini sudah bersih/habis dibeli, lanjut ke indeks folder berikutnya di putaran depan
+                                            if #currentTargets == 0 then
+                                                currentSeqIndex = currentSeqIndex + 1
+                                            else
+                                                -- Eksekusi Pembelian
                                                 for _, btn in ipairs(targets) do
+                                                    if MyTycoon ~= lastTrackedTycoon or TargetBuyMode ~= lastTrackedMode or not Toggles.AutoBuy or BuyMethod ~= "Sequential" then break end
                                                     pcall(function()
                                                         if btn.Type == "Touch" then
                                                             firetouchinterest(rootPart, btn.Target, 0)
@@ -834,11 +855,15 @@ task.spawn(function()
                                                         end
                                                     end)
                                                 end
-                                                task.wait(0.1)
                                             end
+                                        else
+                                            currentSeqIndex = currentSeqIndex + 1
                                         end
+                                    else
+                                        currentSeqIndex = currentSeqIndex + 1
                                     end
                                 end)
+                                task.wait(0.01) -- Jeda penyeimbang super kilat demi kestabilan thread
                                 isBuyingSequence = false
                             end)
                         end
@@ -854,12 +879,11 @@ task.spawn(function()
                     local rootPart = char and char:FindFirstChild("HumanoidRootPart")
                     if not rootPart then return end
 
-                    local MyTycoon = GetMyTycoon()
                     if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
                         local activeOrder = (TargetBuyMode == "V1") and PurchaseV1 or PurchaseV2
                         
                         for _, folderName in ipairs(activeOrder) do
-                            if not Toggles.AutoBuy or BuyMethod ~= "Direct Gas" then break end
+                            if MyTycoon ~= lastTrackedTycoon or TargetBuyMode ~= lastTrackedMode or not Toggles.AutoBuy or BuyMethod ~= "Direct Gas" then break end
                             local purchaseFolder = MyTycoon.Purchases:FindFirstChild(folderName)
                             if purchaseFolder and purchaseFolder:FindFirstChild("Buttons") then
                                 for _, item in ipairs(purchaseFolder.Buttons:GetDescendants()) do
@@ -914,13 +938,12 @@ task.spawn(function()
                 if tickNow - lastRemoteInvokeTime >= RemoteInvokeDelay then
                     lastRemoteInvokeTime = tickNow
                     pcall(function()
-                        local MyTycoon = GetMyTycoon()
                         if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
                             local activeOrder = (TargetBuyMode == "V1") and PurchaseV1 or PurchaseV2
                             local currentTime = os.clock()
                             
                             for _, folderName in ipairs(activeOrder) do
-                                if not Toggles.AutoBuy or BuyMethod ~= "Remote Invoke" then break end
+                                if MyTycoon ~= lastTrackedTycoon or TargetBuyMode ~= lastTrackedMode or not Toggles.AutoBuy or BuyMethod ~= "Remote Invoke" then break end
                                 local purchaseFolder = MyTycoon.Purchases:FindFirstChild(folderName)
                                 if purchaseFolder and purchaseFolder:FindFirstChild("Buttons") then
                                     -- Membongkar secara mendalam folder Buttons melewati Structure, Decor, dll.
