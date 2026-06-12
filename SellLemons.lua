@@ -1411,9 +1411,14 @@ task.spawn(function()
                     wasAutoRebirthOn = true
                     
                     if investorsMenu then
-                        if investorsMenu.Visible == true then
-                            visibleTimerRebirth = visibleTimerRebirth + dt
-                            if visibleTimerRebirth >= 5 then
+                        -- =======================================================
+                        -- LOGIKA TIMER ANTI-BENTROK (MEMBACA ATRIBUT TANPA MERESET PAKSA)
+                        -- =======================================================
+                        if investorsMenu:GetAttribute("Visible") == true then
+                            if visibleTimerRebirth == 0 then
+                                visibleTimerRebirth = os.clock()
+                            elseif os.clock() - visibleTimerRebirth >= 5 then
+                                investorsMenu:SetAttribute("Visible", false)
                                 investorsMenu.Visible = false
                                 visibleTimerRebirth = 0
                             end
