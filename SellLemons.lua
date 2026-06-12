@@ -1333,22 +1333,25 @@ task.spawn(function()
                             local baseCur, expCur = CleanAndParse(amountObj.Text)
                             local shouldRebirth = false
 
+                            -- ==========================================
+                            -- LOGIKA TURUN GIGI (DOWNSHIFT) SUPER AGRESIF
+                            -- ==========================================
                             if RebirthMode == "Smart" and LastRebirthTime > 0 then
                                 local timeElapsed = os.clock() - LastRebirthTime
-                                if timeElapsed > 30 then
-                                    if SmartMultiplier == 50 then
-                                        SmartMultiplier = 30
-                                        LastRebirthTime = os.clock()
-                                    elseif SmartMultiplier == 30 then
-                                        SmartMultiplier = 20
-                                        LastRebirthTime = os.clock()
-                                    elseif SmartMultiplier == 20 then
-                                        SmartMultiplier = 10
-                                        LastRebirthTime = os.clock() 
-                                    elseif SmartMultiplier == 10 then
-                                        SmartMultiplier = 2
-                                        LastRebirthTime = os.clock() 
-                                    end
+                                
+                                -- Toleransi turun gigi dipercepat agar tidak kelamaan menunggu!
+                                if SmartMultiplier == 50 and timeElapsed > 15 then
+                                    SmartMultiplier = 30
+                                    LastRebirthTime = os.clock() -- Reset timer agar gigi 30x punya waktu penuh
+                                elseif SmartMultiplier == 30 and timeElapsed > 20 then
+                                    SmartMultiplier = 20
+                                    LastRebirthTime = os.clock()
+                                elseif SmartMultiplier == 20 and timeElapsed > 25 then
+                                    SmartMultiplier = 10
+                                    LastRebirthTime = os.clock() 
+                                elseif SmartMultiplier == 10 and timeElapsed > 30 then
+                                    SmartMultiplier = 2
+                                    LastRebirthTime = os.clock() 
                                 end
                             end
 
@@ -1373,14 +1376,23 @@ task.spawn(function()
                                 if rebirthRemote and rebirthRemote:IsA("RemoteFunction") then
                                     isRebirthing = true
                                     
+                                    -- ==========================================
+                                    -- LOGIKA NAIK GIGI (UPSHIFT) YANG LEBIH CERDAS
+                                    -- ==========================================
                                     if RebirthMode == "Smart" then
                                         local currentTime = os.clock()
                                         if LastRebirthTime > 0 then
                                             local speed = currentTime - LastRebirthTime
-                                            if SmartMultiplier == 2 and speed < 2 then SmartMultiplier = 10
-                                            elseif SmartMultiplier == 10 and speed < 5 then SmartMultiplier = 20
-                                            elseif SmartMultiplier == 20 and speed < 8 then SmartMultiplier = 30
-                                            elseif SmartMultiplier == 30 and speed < 12 then SmartMultiplier = 50
+                                            
+                                            -- Syarat naik gigi disesuaikan dengan beban multipliernya
+                                            if SmartMultiplier == 2 and speed < 3 then 
+                                                SmartMultiplier = 10
+                                            elseif SmartMultiplier == 10 and speed < 6 then 
+                                                SmartMultiplier = 20
+                                            elseif SmartMultiplier == 20 and speed < 10 then 
+                                                SmartMultiplier = 30
+                                            elseif SmartMultiplier == 30 and speed < 15 then 
+                                                SmartMultiplier = 50
                                             end
                                         end
                                         LastRebirthTime = currentTime 
