@@ -1777,7 +1777,7 @@ end)
 -- LOOP 12: AUTO CLICK UI "NICE!" BUTTON (BACKGROUND SERVICE)
 -- =======================================================
 task.spawn(function()
-    while task.wait(0.2) do -- Deteksi kilat di background (5 kali dalam 1 detik)
+    while task.wait(5) do
         pcall(function()
             local playerGui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
             -- Mengunci langsung struktur folder utama dari Dex Spy milikmu
