@@ -1781,3 +1781,46 @@ task.spawn(function()
         end)
     end
 end)
+
+-- =======================================================
+-- LOOP 12: AUTO CLICK UI "OK" BUTTON (BACKGROUND SERVICE)
+-- =======================================================
+task.spawn(function()
+    while task.wait(5) do
+        pcall(function()
+            local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+            -- Mengunci langsung struktur folder utama dari Dex Spy milikmu
+            local alertButtons = playerGui 
+                                 and playerGui:FindFirstChild("Important") 
+                                 and playerGui.Important:FindFirstChild("Alert") 
+                                 and playerGui.Important.Alert:FindFirstChild("Main") 
+                                 and playerGui.Important.Alert.Main:FindFirstChild("Buttons")
+            
+            if alertButtons then
+                -- Menembak tombol bernama "Ok" di dalam folder Buttons
+                local okButton = alertButtons:FindFirstChild("Ok")
+                if okButton and (okButton:IsA("TextButton") or okButton:IsA("ImageButton")) then
+                    
+                    -- Validasi Kehadiran: Tombol hanya ditekan jika sedang aktif tampil di layar HP/PC kamu
+                    if okButton.Visible and okButton.AbsoluteSize.X > 0 and okButton.AbsoluteSize.Y > 0 then
+                        
+                        -- Taktik Utama: firesignal (Metode injeksi sinyal klik Roblox)
+                        if firesignal then
+                            firesignal(okButton.MouseButton1Click)
+                            firesignal(okButton.Activated)
+                        else
+                            -- Taktik Cadangan: Menguras getconnections jika executor memiliki limitasi fungsi
+                            local connections = getconnections and getconnections(okButton.MouseButton1Click)
+                            if connections then
+                                for _, connection in ipairs(connections) do
+                                    connection:Fire()
+                                end
+                            end
+                        end
+                        
+                    end
+                end
+            end
+        end)
+    end
+end)
