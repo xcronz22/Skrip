@@ -547,8 +547,14 @@ ToggleObjects.AutoBuy = Window:AddToggle("Auto Buy Buttons", false, function(Val
     end
 end)
 
-Window:AddDropdown("Auto Buy Mode", {"V1", "V2"}, function(SelectedMode)
-    TargetBuyMode = SelectedMode
+Window:AddDropdown("Auto Buy Mode", {"V1", "V2", "Staircase & Hills Only"}, function(SelectedMode)
+    if SelectedMode == "V1" then
+        TargetBuyMode = "V1"
+    elseif SelectedMode == "V2" then
+        TargetBuyMode = "V2"
+    elseif SelectedMode == "Staircase & Hills Only" then
+        TargetBuyMode = "V3" -- Dioper ke skrip sebagai V3!
+    end
 end)
 
 Window:AddDropdown("Auto Buy Method", {"Sequential", "Direct Gas", "Remote Invoke"}, function(SelectedMethod)
@@ -764,6 +770,7 @@ end)
 -- =======================================================
 local PurchaseV1 = { "Staircase", "Hills", "Minigames", "Lemon Stand", "LemonDash", "Lemon Depot", "Lemon Trading", "Lemon Labs", "Lemon Robotics", "Lemon Republic", "LemonX Ground", "LemonX" }
 local PurchaseV2 = { "Staircase", "Hills", "LemonX", "Lemon Republic", "Lemon Robotics", "Lemon Labs", "Lemon Trading", "Lemon Depot", "LemonDash", "Lemon Stand", "Minigames", "LemonX Ground" }
+local PurchaseV3 = { "Staircase", "Hills" }
 local isBuyingSequence = false
 local remoteCooldowns = {} -- FITUR PENGAMAN: Memori pintar pencatat remote yang sudah ditembak (Anti-Spam/Anti-DC)
 local lastRemoteInvokeTime = 0 -- FIX: Ditambahkan kembali agar penahan waktu tidak error
@@ -802,8 +809,8 @@ task.spawn(function()
                             isBuyingSequence = true
                             task.spawn(function()
                                 pcall(function()
-                                    local activeOrder = (TargetBuyMode == "V1") and PurchaseV1 or PurchaseV2
-                                    
+                                    local activeOrder = (TargetBuyMode == "V1") and PurchaseV1 or (TargetBuyMode == "V2") and PurchaseV2 or PurchaseV3
+
                                     -- PELINDUNG UTAMA (ANTI-STUCK): Jika indeks overflow akibat overlap thread, paksa balik ke 1!
                                     if currentSeqIndex == nil or currentSeqIndex > #activeOrder or currentSeqIndex < 1 then 
                                         currentSeqIndex = 1 
@@ -952,8 +959,8 @@ task.spawn(function()
                     -- =======================================
 
                     if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
-                        local activeOrder = (TargetBuyMode == "V1") and PurchaseV1 or PurchaseV2
-                        
+                        local activeOrder = (TargetBuyMode == "V1") and PurchaseV1 or (TargetBuyMode == "V2") and PurchaseV2 or PurchaseV3
+
                         for _, folderName in ipairs(activeOrder) do
                             if MyTycoon ~= lastTrackedTycoon or TargetBuyMode ~= lastTrackedMode or not Toggles.AutoBuy or BuyMethod ~= "Direct Gas" then break end
                             local purchaseFolder = MyTycoon.Purchases:FindFirstChild(folderName)
@@ -1055,7 +1062,7 @@ task.spawn(function()
                     lastRemoteInvokeTime = tickNow
                     pcall(function()
                         if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
-                            local activeOrder = (TargetBuyMode == "V1") and PurchaseV1 or PurchaseV2
+                            local activeOrder = (TargetBuyMode == "V1") and PurchaseV1 or (TargetBuyMode == "V2") and PurchaseV2 or PurchaseV3
                             local currentTime = os.clock()
                             
                             for _, folderName in ipairs(activeOrder) do
