@@ -1774,41 +1774,65 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 12: VIRTUAL AUTO-CLICKER FOR "NICE!" BUTTON (DELTA FIXED)
+-- LOOP 12: HYBRID AUTO-CLICKER FOR "NICE!" BUTTON (ANTI-MELESET)
 -- =======================================================
 task.spawn(function()
     local VirtualUser = game:GetService("VirtualUser")
     local GuiService = game:GetService("GuiService")
     
-    while task.wait(0.3) do -- Jeda deteksi (bisa disesuaikan, 0.3 detik sekali)
+    while task.wait(3) do
         pcall(function()
             local playerGui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
             local important = playerGui and playerGui:FindFirstChild("Important")
             local alert = important and important:FindFirstChild("Alert")
             local main = alert and alert:FindFirstChild("Main")
             
-            -- Pastikan bingkai UI "Main" dalam keadaan aktif/muncul di layar
+            -- Deteksi apakah frame utama sedang aktif di layar
             if main and main.Visible then
                 local buttons = main:FindFirstChild("Buttons")
                 local templateBtn = buttons and buttons:FindFirstChild("Template")
                 
-                if templateBtn then
-                    -- 1. Hitung titik tengah koordinat tombol pada layar HP
+                if templateBtn and (templateBtn:IsA("TextButton") or templateBtn:IsA("ImageButton")) then
+                    
+                    -- =======================================================
+                    -- STRATEGI 1: BRUTE-FORCE ALL CLICK EVENTS (ANTI-LIMITASI DELTA)
+                    -- =======================================================
+                    -- Memaksa eksekusi seluruh event klik bawaan Roblox agar sistem game merespons
+                    local clickEvents = {"MouseButton1Click", "MouseButton1Down", "MouseButton1Up", "Activated"}
+                    for _, eventName in ipairs(clickEvents) do
+                        -- Injeksi via firesignal
+                        if firesignal then
+                            pcall(function() firesignal(templateBtn[eventName]) end)
+                        end
+                        -- Injeksi via getconnections (Cadangan jika firesignal di Delta bug)
+                        if getconnections then
+                            pcall(function()
+                                for _, connection in ipairs(getconnections(templateBtn[eventName])) do
+                                    connection:Fire()
+                                end
+                            end)
+                        end
+                    end
+                    
+                    -- =======================================================
+                    -- STRATEGI 2: MULTI-COORDINATE MATRIX CLICK (ANTI-MELESET)
+                    -- =======================================================
+                    -- Menghitung area fisik tombol untuk menghindari salah klik akibat resolusi HP
                     local btnPos = templateBtn.AbsolutePosition
                     local btnSize = templateBtn.AbsoluteSize
-                    local centerX = btnPos.X + (btnSize.X / 2)
-                    local centerY = btnPos.Y + (btnSize.Y / 2)
-                    
-                    -- 2. Ambil data jarak offset topbar HP (koreksi layar poni/notch)
                     local inset = GuiService:GetGuiInset()
                     
-                    -- 3. EKSEKUSI TAPS FISIK VIRTUAL (Meniru Auto Clicker Eksternal)
+                    -- Titik tengah murni tombol
+                    local cx = btnPos.X + (btnSize.X / 2)
+                    local cy = btnPos.Y + (btnSize.Y / 2)
+                    
                     VirtualUser:CaptureController()
                     
-                    -- Taktik Cadangan Ganda: Menembak koordinat dengan & tanpa offset 
-                    -- agar 100% kena sasaran tidak peduli settingan ScreenGui-nya
-                    VirtualUser:ClickButton1(Vector2.new(centerX, centerY))
-                    VirtualUser:ClickButton1(Vector2.new(centerX + inset.X, centerY + inset.Y))
+                    -- Tembak 3 titik koordinat berbeda secara instan agar tidak ada meleset lagi:
+                    VirtualUser:ClickButton1(Vector2.new(cx, cy))                    -- 1. Titik tengah murni
+                    VirtualUser:ClickButton1(Vector2.new(cx + inset.X, cy + inset.Y)) -- 2. Koreksi Offset Layar Penuh
+                    VirtualUser:ClickButton1(Vector2.new(cx, cy + inset.Y))           -- 3. Koreksi Jarak Batas Topbar HP
+                    
                 end
             end
         end)
