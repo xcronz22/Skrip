@@ -824,29 +824,55 @@ task.spawn(function()
                                                 
                                                 local targetPart = item.Parent
                                                 
-                                                -- SMART FILTER LOGIC (Mengatasi Bug Shown & Atribut Tidak Konsisten)
-                                                local isEnabled, isShown = false, false
+                                                -- SMART FILTER LOGIC (V3 - Mengatasi Bug Atribut Gaib & EnabledOnLoad)
+                                                local isEnabled = false
+                                                local isShown = false
+                                                local hasShownAttr = false
                                                 local isPurchased = true
                                                 local hasPurchasedAttr = false
+                                                local isEnabledOnLoad = true
+                                                local hasEnabledOnLoadAttr = false
                                                 
                                                 if targetPart then
+                                                    -- Cek Enabled
                                                     if targetPart:GetAttribute("Enabled") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Enabled") == true) then isEnabled = true end
-                                                    if targetPart:GetAttribute("Shown") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Shown") == true) then isShown = true end
                                                     
+                                                    -- Cek Shown
+                                                    local sAttr = targetPart:GetAttribute("Shown")
+                                                    if sAttr == nil and targetPart.Parent then sAttr = targetPart.Parent:GetAttribute("Shown") end
+                                                    if sAttr ~= nil then
+                                                        hasShownAttr = true
+                                                        isShown = sAttr
+                                                    end
+                                                    
+                                                    -- Cek Purchased
                                                     local pAttr = targetPart:GetAttribute("Purchased")
                                                     if pAttr == nil and targetPart.Parent then pAttr = targetPart.Parent:GetAttribute("Purchased") end
                                                     if pAttr ~= nil then
                                                         hasPurchasedAttr = true
                                                         isPurchased = pAttr
                                                     end
+
+                                                    -- Cek EnabledOnLoad
+                                                    local eolAttr = targetPart:GetAttribute("EnabledOnLoad")
+                                                    if eolAttr == nil and targetPart.Parent then eolAttr = targetPart.Parent:GetAttribute("EnabledOnLoad") end
+                                                    if eolAttr ~= nil then
+                                                        hasEnabledOnLoadAttr = true
+                                                        isEnabledOnLoad = eolAttr
+                                                    end
                                                 end
                                                 
                                                 local isValidToBuy = false
                                                 if isEnabled then
-                                                    if isShown then
-                                                        isValidToBuy = true -- Lolos jalur normal (Shown = true)
+                                                    if hasShownAttr and isShown == true then
+                                                        isValidToBuy = true -- Lolos jalur 1: Normal (Shown = true)
                                                     elseif hasPurchasedAttr and isPurchased == false then
-                                                        isValidToBuy = true -- Lolos jalur bug (Shown false, tapi Purchased false)
+                                                        isValidToBuy = true -- Lolos jalur 2: Bug Shown (Purchased = false)
+                                                    elseif not hasShownAttr and not hasPurchasedAttr then
+                                                        -- Lolos jalur 3: Bug Atribut Gaib (Murni pakai EnabledOnLoad = false)
+                                                        if hasEnabledOnLoadAttr and isEnabledOnLoad == false then
+                                                            isValidToBuy = true
+                                                        end
                                                     end
                                                 end
                                                 
@@ -935,39 +961,58 @@ task.spawn(function()
                                 for _, item in ipairs(purchaseFolder.Buttons:GetDescendants()) do
                                     local targetPart = item.Parent
                                     
-                                    -- SMART FILTER LOGIC
-                                    local isEnabled, isShown = false, false
+                                    -- SMART FILTER LOGIC (V3)
+                                    local isEnabled = false
+                                    local isShown = false
+                                    local hasShownAttr = false
                                     local isPurchased = true
                                     local hasPurchasedAttr = false
-                                    local enabledOnLoad = nil -- TAMPUNGAN BARU: Untuk cek attribute penangkal stuck
+                                    local isEnabledOnLoad = true
+                                    local hasEnabledOnLoadAttr = false
                                     
                                     if targetPart then
+                                        -- Cek Enabled
                                         if targetPart:GetAttribute("Enabled") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Enabled") == true) then isEnabled = true end
-                                        if targetPart:GetAttribute("Shown") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Shown") == true) then isShown = true end
                                         
-                                        -- Cek attribute EnabledOnLoad (solusi dari screenshot)
-                                        local eol = targetPart:GetAttribute("EnabledOnLoad")
-                                        if eol == nil and targetPart.Parent then eol = targetPart.Parent:GetAttribute("EnabledOnLoad") end
-                                        enabledOnLoad = eol
+                                        -- Cek Shown
+                                        local sAttr = targetPart:GetAttribute("Shown")
+                                        if sAttr == nil and targetPart.Parent then sAttr = targetPart.Parent:GetAttribute("Shown") end
+                                        if sAttr ~= nil then
+                                            hasShownAttr = true
+                                            isShown = sAttr
+                                        end
                                         
+                                        -- Cek Purchased
                                         local pAttr = targetPart:GetAttribute("Purchased")
                                         if pAttr == nil and targetPart.Parent then pAttr = targetPart.Parent:GetAttribute("Purchased") end
                                         if pAttr ~= nil then
-                                                            hasPurchasedAttr = true
-                                                            isPurchased = pAttr
-                                                        end
+                                            hasPurchasedAttr = true
+                                            isPurchased = pAttr
+                                        end
+
+                                        -- Cek EnabledOnLoad
+                                        local eolAttr = targetPart:GetAttribute("EnabledOnLoad")
+                                        if eolAttr == nil and targetPart.Parent then eolAttr = targetPart.Parent:GetAttribute("EnabledOnLoad") end
+                                        if eolAttr ~= nil then
+                                            hasEnabledOnLoadAttr = true
+                                            isEnabledOnLoad = eolAttr
+                                        end
                                     end
                                     
                                     local isValidToBuy = false
                                     if isEnabled then
-                                        if isShown then
-                                            isValidToBuy = true
+                                        if hasShownAttr and isShown == true then
+                                            isValidToBuy = true 
                                         elseif hasPurchasedAttr and isPurchased == false then
-                                            isValidToBuy = true
+                                            isValidToBuy = true 
+                                        elseif not hasShownAttr and not hasPurchasedAttr then
+                                            if hasEnabledOnLoadAttr and isEnabledOnLoad == false then
+                                                isValidToBuy = true
+                                            end
                                         end
                                         
-                                        -- PINTU MASUK KHUSUS: Paksa Validasi Lolos jika kasusnya adalah item stuck!
-                                        if enabledOnLoad == false then
+                                        -- AKOMODASI KASUS KHUSUS STUCK: Jika terdeteksi EnabledOnLoad = false, pastikan selalu lolos validasi beli!
+                                        if hasEnabledOnLoadAttr and isEnabledOnLoad == false then
                                             isValidToBuy = true
                                         end
                                     end
@@ -979,21 +1024,19 @@ task.spawn(function()
                                         elseif item:IsA("ProximityPrompt") and item.Enabled then
                                             fireproximityprompt(item)
                                         elseif item:IsA("RemoteFunction") and item.Name == "Purchase" then
-                                            
-                                            -- 1. FITUR PERMABUY (Eksekusi True)
+                                            -- FITUR PERMABUY: Eksekusi True hanya jalan jika validasi UI lolos!
                                             if canPermaBuy then
                                                 task.spawn(function()
                                                     pcall(function() item:InvokeServer(true) end)
                                                 end)
                                             end
                                             
-                                            -- 2. FITUR ANTI-STUCK KHUSUS (Eksekusi False) - Hanya jalan saat masalah atribut ini muncul!
-                                            if isEnabled == true and enabledOnLoad == false then
+                                            -- BYPASS ANTI-STUCK EXCLUSIVE: Tembak argumen 'false' hanya jika tombol dalam status stuck!
+                                            if isEnabled == true and hasEnabledOnLoadAttr and isEnabledOnLoad == false then
                                                 task.spawn(function()
                                                     pcall(function() item:InvokeServer(false) end)
                                                 end)
                                             end
-                                            
                                         end
                                     end
                                 end
@@ -1023,36 +1066,61 @@ task.spawn(function()
                                     for _, item in ipairs(purchaseFolder.Buttons:GetDescendants()) do
                                         if item:IsA("RemoteFunction") and item.Name == "Purchase" then
                                             
-                                            -- PROTEKSI DATA: Jika tombol ini baru saja ditembak kurang dari 0.8 detik lalu, lewati!
+                                            -- PROTECTION DATA: Jika tombol ini baru saja ditembak kurang dari 0.8 detik lalu, lewati!
                                             if remoteCooldowns[item] and (currentTime - remoteCooldowns[item] < 0.8) then
                                                 continue
                                             end
                                             
                                             local targetPart = item.Parent -- Mendapatkan model barang utama
                                             
-                                            -- SMART FILTER LOGIC
-                                            local isEnabled, isShown = false, false
+                                            -- SMART FILTER LOGIC (V3)
+                                            local isEnabled = false
+                                            local isShown = false
+                                            local hasShownAttr = false
                                             local isPurchased = true
                                             local hasPurchasedAttr = false
+                                            local isEnabledOnLoad = true
+                                            local hasEnabledOnLoadAttr = false
                                             
                                             if targetPart then
+                                                -- Cek Enabled
                                                 if targetPart:GetAttribute("Enabled") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Enabled") == true) then isEnabled = true end
-                                                if targetPart:GetAttribute("Shown") == true or (targetPart.Parent and targetPart.Parent:GetAttribute("Shown") == true) then isShown = true end
                                                 
+                                                -- Cek Shown
+                                                local sAttr = targetPart:GetAttribute("Shown")
+                                                if sAttr == nil and targetPart.Parent then sAttr = targetPart.Parent:GetAttribute("Shown") end
+                                                if sAttr ~= nil then
+                                                    hasShownAttr = true
+                                                    isShown = sAttr
+                                                end
+                                                
+                                                -- Cek Purchased
                                                 local pAttr = targetPart:GetAttribute("Purchased")
                                                 if pAttr == nil and targetPart.Parent then pAttr = targetPart.Parent:GetAttribute("Purchased") end
                                                 if pAttr ~= nil then
-                                                                hasPurchasedAttr = true
-                                                                isPurchased = pAttr
-                                                            end
+                                                    hasPurchasedAttr = true
+                                                    isPurchased = pAttr
+                                                end
+
+                                                -- Cek EnabledOnLoad
+                                                local eolAttr = targetPart:GetAttribute("EnabledOnLoad")
+                                                if eolAttr == nil and targetPart.Parent then eolAttr = targetPart.Parent:GetAttribute("EnabledOnLoad") end
+                                                if eolAttr ~= nil then
+                                                    hasEnabledOnLoadAttr = true
+                                                    isEnabledOnLoad = eolAttr
+                                                end
                                             end
                                             
                                             local isValidToBuy = false
                                             if isEnabled then
-                                                if isShown then
-                                                    isValidToBuy = true
+                                                if hasShownAttr and isShown == true then
+                                                    isValidToBuy = true 
                                                 elseif hasPurchasedAttr and isPurchased == false then
-                                                    isValidToBuy = true
+                                                    isValidToBuy = true 
+                                                elseif not hasShownAttr and not hasPurchasedAttr then
+                                                    if hasEnabledOnLoadAttr and isEnabledOnLoad == false then
+                                                        isValidToBuy = true
+                                                    end
                                                 end
                                             end
                                             
