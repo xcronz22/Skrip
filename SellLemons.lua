@@ -1951,7 +1951,7 @@ local alertVisibleTimer = 0 -- Variabel stopwatch kita
 
 task.spawn(function()
     while true do
-        local dt = task.wait(3) -- Maks 5 detik jangan lebih dari dt
+        local dt = task.wait(2.5) -- Maks 5 detik jangan lebih dari dt
         
         pcall(function()
             local player = game:GetService("Players").LocalPlayer
