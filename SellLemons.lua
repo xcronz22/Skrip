@@ -647,7 +647,8 @@ Window:AddButton("Load Configuration", function() LoadConfig() end)
 -- PROTEKSI UTAMA: Menggunakan pcall agar skrip tidak mati total jika library tidak mendukung AddLabel
 local labelSuccess = pcall(function()
     Window:AddLabel("Background Features Active: Auto Buy Power, Auto Answer Phone, Unlock Remote Buy.")
-    Window:AddLabel("For UI Rebirth Evolve Ascension Manage Power will close Automatically after 5s")
+    Window:AddLabel("For UI Rebirth Evolve Ascension Manage Power will close Automatically after 5s.")
+    Window:AddLabel("Warning: Auto Permanent Buy inside Direct Gas Feature.")
 end)
 
 -- FALLBACK: Jika AddLabel error (tidak ada di library), otomatis buat catatan berbentuk Button pasif
@@ -879,6 +880,28 @@ task.spawn(function()
                     local rootPart = char and char:FindFirstChild("HumanoidRootPart")
                     if not rootPart then return end
 
+                    -- =======================================
+                    -- DETEKSI PERMABUY (UI CHECK KHUSUS)
+                    -- =======================================
+                    local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+                    local permaBuyBtn = playerGui and playerGui:FindFirstChild("HUD") 
+                        and playerGui.HUD:FindFirstChild("Balance") 
+                        and playerGui.HUD.Balance:FindFirstChild("PermaBuyButton")
+                    
+                    local canPermaBuy = false
+                    if permaBuyBtn and permaBuyBtn.Visible == true then
+                        local countLabel = permaBuyBtn:FindFirstChild("Count")
+                        if countLabel then
+                            local textStr = countLabel.Text
+                            -- Membersihkan huruf 'x', koma, titik, dan spasi agar sisa angkanya saja
+                            local cleanedStr = string.gsub(textStr, "[x%,%.%s]", "")
+                            if cleanedStr ~= "" and tonumber(cleanedStr) ~= nil then
+                                canPermaBuy = true
+                            end
+                        end
+                    end
+                    -- =======================================
+
                     if MyTycoon and MyTycoon:FindFirstChild("Purchases") then
                         local activeOrder = (TargetBuyMode == "V1") and PurchaseV1 or PurchaseV2
                         
@@ -921,6 +944,13 @@ task.spawn(function()
                                             firetouchinterest(rootPart, targetPart, 1)
                                         elseif item:IsA("ProximityPrompt") and item.Enabled then
                                             fireproximityprompt(item)
+                                        elseif item:IsA("RemoteFunction") and item.Name == "Purchase" then
+                                            -- FITUR PERMABUY: Eksekusi True hanya jalan jika validasi UI lolos!
+                                            if canPermaBuy then
+                                                task.spawn(function()
+                                                    pcall(function() item:InvokeServer(true) end)
+                                                end)
+                                            end
                                         end
                                     end
                                 end
