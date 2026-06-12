@@ -29,6 +29,7 @@ local RemoteInvokeDelay = 0.5
 local RebirthValue = 2
 local SmartMultiplier = 2
 local LastRebirthTime = 0
+local isRebirthing = false
 local UpgradeRemotes = {}
 local ToggleObjects = {}
 
@@ -124,6 +125,37 @@ local function parseStringToNumber(textStr)
     end
     
     return tonumber(clean) or 0
+end
+
+local function CleanAndParse(textStr)
+    if not textStr or textStr == "" then return 0, 0 end
+    
+    local clean = string.lower(textStr):gsub("[+,%$%s]", "") 
+    
+    -- JALUR FORMAT "e" (Scientific Notation, cth: 3.51e222)
+    if string.find(clean, "e") then
+        local parts = string.split(clean, "e")
+        return tonumber(parts[1]) or 0, tonumber(parts[2]) or 0
+    end
+    
+    -- JALUR KAMUS HURUF (Cth: centillion, tnog, qtnog)
+    local num, suffix = string.match(clean, "([%d%.]+)(%a+)")
+    if num and suffix and Multipliers[suffix] then
+        local rawNumber = tonumber(num) * Multipliers[suffix]
+        if rawNumber > 0 then
+            local exp = math.floor(math.log10(rawNumber))
+            return rawNumber / (10^exp), exp
+        end
+    end
+    
+    -- JALUR ANGKA BIASA
+    local normalNum = tonumber(clean) or 0
+    if normalNum > 0 then
+        local exp = math.floor(math.log10(normalNum))
+        return normalNum / (10^exp), exp
+    end
+    
+    return 0, 0
 end
 
 -- SAVE CONFIG
@@ -590,8 +622,8 @@ RebirthInput = Window:AddInput("Target Rebirth", "Smart / 100 / 2x", function(Te
     local input = string.lower(Text)
     if input == "smart" then
         RebirthMode = "Smart"
-        SmartMultiplier = 2        -- Reset ke gigi 1
-        LastRebirthTime = os.clock() -- Reset timer
+        -- LastRebirthTime tetap dibiarkan untuk tracker aman jika dibutuhkan fitur lain
+        LastRebirthTime = os.clock() 
     elseif string.match(input, "^[%d%.]+x$") then
         local mult = tonumber(string.match(input, "[%d%.]+"))
         if mult then
@@ -1355,10 +1387,18 @@ local wasAutoRebirthOn = false
 local visibleTimerRebirth = 0
 local isRebirthing = false 
 
+-- VARIABEL INTERNAL UNTUK KALKULASI PINTAR (PELACAK PERTUMBUHAN ASYNC)
+local lastPotentialLog = 0
+local lastVelocityCheckTime = os.clock()
+local currentVelocity = 0
+
 task.spawn(function()
     while true do
         local dt = task.wait(0.05) 
         pcall(function()
+            -- CEK PENGAMAN: Jika sedang proses eksekusi Rebirth, lewati (jangan baca angka UI yang belum reset)
+            if isRebirthing then return end
+
             local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
             if playerGui then
                 local rebirthGui = playerGui:FindFirstChild("Rebirth")
@@ -1397,28 +1437,38 @@ task.spawn(function()
                             local baseCur, expCur = CleanAndParse(amountObj.Text)
                             local shouldRebirth = false
 
-                            -- LOGIKA TURUN GIGI (DOWNSHIFT)
-                            if RebirthMode == "Smart" and LastRebirthTime > 0 then
-                                local timeElapsed = os.clock() - LastRebirthTime
-                                if SmartMultiplier == 50 and timeElapsed > 15 then
-                                    SmartMultiplier = 30
-                                    LastRebirthTime = os.clock() 
-                                elseif SmartMultiplier == 30 and timeElapsed > 20 then
-                                    SmartMultiplier = 20
-                                    LastRebirthTime = os.clock()
-                                elseif SmartMultiplier == 20 and timeElapsed > 25 then
-                                    SmartMultiplier = 10
-                                    LastRebirthTime = os.clock() 
-                                elseif SmartMultiplier == 10 and timeElapsed > 30 then
-                                    SmartMultiplier = 2
-                                    LastRebirthTime = os.clock() 
+                            -- =======================================================
+                            -- KALKULASI LOG SCALE & REAL-TIME GROWTH VELOCITY (SMART MODE)
+                            -- =======================================================
+                            local currentLog = expCur + math.log10(math.max(baseCur, 1))
+                            local potentialLog = expPot + math.log10(math.max(basePot, 1))
+                            local currentGainedMultiplier = 10^(potentialLog - currentLog)
+
+                            -- Hitung seberapa cepat investor bertambah per detik (Velocity)
+                            local now = os.clock()
+                            local timePassed = now - lastVelocityCheckTime
+                            if timePassed >= 0.4 then
+                                if lastPotentialLog > 0 then
+                                    currentVelocity = (potentialLog - lastPotentialLog) / timePassed
+                                else
+                                    currentVelocity = 0
                                 end
+                                lastPotentialLog = potentialLog
+                                lastVelocityCheckTime = now
                             end
+                            -- =======================================================
 
                             if RebirthMode == "Multiplier" then
                                 shouldRebirth = IsPotentialEnough(basePot, expPot, baseCur, expCur, tonumber(RebirthValue) or 2)
                             elseif RebirthMode == "Smart" then
-                                shouldRebirth = IsPotentialEnough(basePot, expPot, baseCur, expCur, SmartMultiplier)
+                                -- JALUR CERDAS: Rebirth dieksekusi hanya saat kelipatan minimal menguntungkan (>= 2x lipat)
+                                -- DAN ketika pertumbuhan mulai melambat/stagnan (Velocity drop di bawah batas efisiensi),
+                                -- ATAU jika multiplier sudah terlampau raksasa (>= 50x) untuk mencegah nunggu terlalu lama.
+                                if currentGainedMultiplier >= 2 then
+                                    if (lastPotentialLog > 0 and currentVelocity < 0.01) or currentGainedMultiplier >= 50 then
+                                        shouldRebirth = true
+                                    end
+                                end
                             elseif RebirthMode == "Target" then
                                 local rVal = tonumber(RebirthValue) or 0
                                 local targetBase, targetExp = 0, 0
@@ -1436,22 +1486,9 @@ task.spawn(function()
                                 if rebirthRemote and rebirthRemote:IsA("RemoteFunction") then
                                     isRebirthing = true
                                     
-                                    -- LOGIKA NAIK GIGI (UPSHIFT)
+                                    -- Reset tracker pertumbuhan agar kalkulasi bersih kembali di babak berikutnya
                                     if RebirthMode == "Smart" then
-                                        local currentTime = os.clock()
-                                        if LastRebirthTime > 0 then
-                                            local speed = currentTime - LastRebirthTime
-                                            if SmartMultiplier == 2 and speed < 3 then 
-                                                SmartMultiplier = 10
-                                            elseif SmartMultiplier == 10 and speed < 6 then 
-                                                SmartMultiplier = 20
-                                            elseif SmartMultiplier == 20 and speed < 10 then 
-                                                SmartMultiplier = 30
-                                            elseif SmartMultiplier == 30 and speed < 15 then 
-                                                SmartMultiplier = 50
-                                            end
-                                        end
-                                        LastRebirthTime = currentTime 
+                                        lastPotentialLog = 0
                                     end
 
                                     task.spawn(function()
@@ -1499,6 +1536,7 @@ task.spawn(function()
                     
                     wasAutoRebirthOn = false
                     visibleTimerRebirth = 0
+                    lastPotentialLog = 0 -- Bersihkan memori kalkulasi saat dimatikan
                 end
             end
         end)
