@@ -1,12 +1,3 @@
--- =======================================================
--- GEMBOK ANTI-TUMPUK (MENCEGAH LAG KARENA DOUBLE EXECUTE)
--- =======================================================
-if getgenv().LemonScriptSudahJalan then
-    warn("Skrip Sell Lemons sudah aktif! Eksekusi dibatalkan agar tidak ngelag.")
-    return -- Mematikan proses execute yang baru
-end
-getgenv().LemonScriptSudahJalan = true
-
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local Workspace = game:GetService("Workspace")
@@ -1783,12 +1774,12 @@ task.spawn(function()
 end)
 
 -- =======================================================
--- LOOP 12: AUTO CLICK UI "OK" BUTTON (BACKGROUND SERVICE)
+-- LOOP 12: AUTO CLICK UI "NICE!" BUTTON (BACKGROUND SERVICE)
 -- =======================================================
 task.spawn(function()
-    while task.wait(5) do
+    while task.wait(0.2) do -- Deteksi kilat di background (5 kali dalam 1 detik)
         pcall(function()
-            local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+            local playerGui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
             -- Mengunci langsung struktur folder utama dari Dex Spy milikmu
             local alertButtons = playerGui 
                                  and playerGui:FindFirstChild("Important") 
@@ -1797,24 +1788,34 @@ task.spawn(function()
                                  and playerGui.Important.Alert.Main:FindFirstChild("Buttons")
             
             if alertButtons then
-                -- Menembak tombol bernama "Ok" di dalam folder Buttons
-                local okButton = alertButtons:FindFirstChild("Ok")
-                if okButton and (okButton:IsA("TextButton") or okButton:IsA("ImageButton")) then
-                    
-                    -- Validasi Kehadiran: Tombol hanya ditekan jika sedang aktif tampil di layar HP/PC kamu
-                    if okButton.Visible and okButton.AbsoluteSize.X > 0 and okButton.AbsoluteSize.Y > 0 then
+                -- Melakukan scan otomatis terhadap semua tombol di dalam folder Buttons
+                for _, child in ipairs(alertButtons:GetChildren()) do
+                    if child:IsA("TextButton") or child:IsA("ImageButton") then
                         
-                        -- Taktik Utama: firesignal (Metode injeksi sinyal klik Roblox)
-                        if firesignal then
-                            firesignal(okButton.MouseButton1Click)
-                            firesignal(okButton.Activated)
-                        else
-                            -- Taktik Cadangan: Menguras getconnections jika executor memiliki limitasi fungsi
-                            local connections = getconnections and getconnections(okButton.MouseButton1Click)
-                            if connections then
-                                for _, connection in ipairs(connections) do
-                                    connection:Fire()
+                        -- Cek nama objek atau teks tombol (Ubah ke huruf kecil semua agar anti-salah)
+                        local targetName = string.lower(child.Name)
+                        local targetText = child:IsA("TextButton") and string.lower(child.Text) or ""
+                        
+                        -- Jika nama ATAU teks tombol mengandung kata "nice"
+                        if string.find(targetName, "nice") or string.find(targetText, "nice") then
+                            
+                            -- Validasi Kehadiran: Tombol hanya ditekan jika sedang aktif tampil di layar
+                            if child.Visible and child.AbsoluteSize.X > 0 and child.AbsoluteSize.Y > 0 then
+                                
+                                -- Taktik Utama: firesignal (Metode injeksi sinyal klik Roblox)
+                                if firesignal then
+                                    firesignal(child.MouseButton1Click)
+                                    firesignal(child.Activated)
+                                else
+                                    -- Taktik Cadangan: Menguras getconnections jika executor memiliki limitasi fungsi
+                                    local connections = getconnections and getconnections(child.MouseButton1Click)
+                                    if connections then
+                                        for _, connection in ipairs(connections) do
+                                            connection:Fire()
+                                        end
+                                    end
                                 end
+                                
                             end
                         end
                         
