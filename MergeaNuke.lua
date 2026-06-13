@@ -1,7 +1,7 @@
 -- Memuat Library RZY
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
 
--- Membuat Window/Panel UI menggunakan fungsi asli dari library kamu (MakeWindow)
+-- Membuat Window/Panel UI menggunakan fungsi asli dari library
 local Window = Library:MakeWindow("Merge a Nuke! Hub")
 
 -- Services & Variables
@@ -18,17 +18,12 @@ _G.AutoLockBase = false
 _G.AutoRebirth = false
 
 -- ==========================================
--- FUNGSI PENCARI BASE (Akurat & Multi-Deteksi)
+-- FUNGSI PENCARI BASE
 -- ==========================================
 local function GetMyBase()
     local basesFolder = workspace:FindFirstChild("Bases")
     if basesFolder then
-        -- Cara 1: Cek atribut OwnerUserId di Base atau di dalam Nukes (Sesuai Screenshot)
         for _, base in pairs(basesFolder:GetChildren()) do
-            if base:GetAttribute("OwnerUserId") == LocalPlayer.UserId then
-                return base
-            end
-            
             local nukesFolder = base:FindFirstChild("Nukes")
             if nukesFolder then
                 for _, nuke in pairs(nukesFolder:GetChildren()) do
@@ -39,7 +34,12 @@ local function GetMyBase()
             end
         end
 
-        -- Cara 2: Jika cara di atas gagal, deteksi via teks papan nama Floor (rzkym22)
+        for _, base in pairs(basesFolder:GetChildren()) do
+            if base:GetAttribute("OwnerUserId") == LocalPlayer.UserId then
+                return base
+            end
+        end
+
         for _, base in pairs(basesFolder:GetChildren()) do
             local success, match = pcall(function()
                 return base.Floor.BillboardGui.TextLabel.Text == "rzkym22" or string.find(base.Floor.BillboardGui.TextLabel.Text, LocalPlayer.Name)
@@ -53,13 +53,16 @@ local function GetMyBase()
 end
 
 -- ==========================================
--- AUTO MERGE LOGIC (Berjalan di background)
+-- AUTO MERGE LOGIC (Sistem TP, Ambil, Gabung, Drop, Balik)
 -- ==========================================
 task.spawn(function()
     while task.wait(0.5) do
         if _G.AutoMerge then
             local myBase = GetMyBase()
-            if myBase and myBase:FindFirstChild("Nukes") then
+            local character = LocalPlayer.Character
+            local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+
+            if myBase and myBase:FindFirstChild("Nukes") and rootPart then
                 local nukes = myBase.Nukes:GetChildren()
                 local tierGroups = {}
 
@@ -74,13 +77,43 @@ task.spawn(function()
                     end
                 end
 
-                -- Jika ada 2 atau lebih Nuke di Tier yang sama, tembakkan Remote Merge
+                -- Eksekusi urutan untuk nuke dengan tier yang sama
                 for tier, nukeList in pairs(tierGroups) do
                     if #nukeList >= 2 then
-                        pcall(function()
-                            NukeRemotes.MergeRequest:FireServer(nukeList[1])
-                        end)
-                        task.wait(0.1) -- Jeda ringan anti-lag
+                        local nuke1 = nukeList[1]
+                        local nuke2 = nukeList[2]
+
+                        if nuke1 and nuke2 and nuke1.Parent and nuke2.Parent then
+                            -- 1. Simpan posisi aslimu sekarang
+                            local originalCFrame = rootPart.CFrame
+
+                            -- 2. Teleport ke Nuke ke-1 dan Ambil (PickUp)
+                            pcall(function()
+                                rootPart.CFrame = nuke1.CFrame
+                                task.wait(0.15) -- Jeda agar server mendaftarkan posisimu
+                                NukeRemotes.PickUp:FireServer(nuke1)
+                            end)
+                            
+                            task.wait(0.1)
+
+                            -- 3. Teleport ke Nuke ke-2, Gabung (Merge), dan Jatuhkan (Drop)
+                            pcall(function()
+                                rootPart.CFrame = nuke2.CFrame
+                                task.wait(0.15)
+                                NukeRemotes.MergeRequest:FireServer(nuke2)
+                                NukeRemotes.Drop:FireServer(nuke2.CFrame)
+                            end)
+
+                            task.wait(0.1)
+
+                            -- 4. Kembalikan karakter ke posisi semula
+                            pcall(function()
+                                rootPart.CFrame = originalCFrame
+                            end)
+
+                            -- Jeda tambahan agar proses satu per satu tidak bertabrakan
+                            task.wait(0.5) 
+                        end
                     end
                 end
             end
@@ -89,7 +122,7 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- AUTO UPGRADE & REBIRTH LOGIC
+-- AUTO UPGRADE, LOCK BASE, & REBIRTH LOGIC
 -- ==========================================
 task.spawn(function()
     while task.wait(1) do
@@ -105,17 +138,16 @@ task.spawn(function()
                 NukeRemotes.PurchaseUpgrade:FireServer("SPAWN TIER")
             end)
         end
+        
+        -- AUTO LOCK BASE
         if _G.AutoLockBase then
             pcall(function() 
-                NukeRemotes.PurchaseUpgrade:FireServer("LOCK")
-                NukeRemotes.PurchaseUpgrade:FireServer("BASE")
-                NukeRemotes.PurchaseUpgrade:FireServer("LOCK BASE")
+                NukeRemotes.RequestLockBase:FireServer()
             end)
         end
 
         -- REBIRTH
         if _G.AutoRebirth then
-            -- Mencoba brute force beberapa kemungkinan remote rebirth game ini
             pcall(function() NukeRemotes.Rebirth:FireServer() end)
             pcall(function() NukeRemotes.RebirthRequest:FireServer() end)
             pcall(function() NukeRemotes.RequestRebirth:FireServer() end)
@@ -125,10 +157,8 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- MENU / UI TOGGLES (Sesuai Format AddToggle Library Kamu)
+-- MENU / UI TOGGLES
 -- ==========================================
--- Parameter: AddToggle("Nama Teks", StatusDefaultAwal, FungsiCallback)
-
 Window:AddToggle("Auto Merge Nukes", false, function(state)
     _G.AutoMerge = state
 end)
