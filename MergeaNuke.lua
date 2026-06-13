@@ -12,8 +12,7 @@ local NukeRemotes = ReplicatedStorage:WaitForChild("NukeRemotes")
 
 -- Global Toggles
 _G.AutoMerge = false
-_G.AutoMaxSpawn = false
-_G.AutoSpawnTier = false
+_G.AutoUpgrade = false
 _G.AutoLockBase = false
 _G.AutoRebirth = false
 
@@ -90,7 +89,7 @@ task.spawn(function()
                             -- 2. Teleport ke Nuke ke-1 dan Ambil (PickUp)
                             pcall(function()
                                 rootPart.CFrame = nuke1.CFrame
-                                task.wait(0.15) -- Jeda agar server mendaftarkan posisimu
+                                task.wait(0.15) 
                                 NukeRemotes.PickUp:FireServer(nuke1)
                             end)
                             
@@ -126,27 +125,29 @@ end)
 -- ==========================================
 task.spawn(function()
     while task.wait(1) do
-        -- UPGRADES
-        if _G.AutoMaxSpawn then
+        -- AUTO UPGRADE (Satu tombol untuk beli Max Spawn, Spawn Tier, & Upgrade Lock Base)
+        if _G.AutoUpgrade then
+            -- Beli Max Spawn
             pcall(function() NukeRemotes.PurchaseUpgrade:FireServer("MAX") end)
             pcall(function() NukeRemotes.PurchaseUpgrade:FireServer("MAX SPAWN") end)
-        end
-        if _G.AutoSpawnTier then
-            pcall(function() 
-                NukeRemotes.PurchaseUpgrade:FireServer("TIER")
-                NukeRemotes.PurchaseUpgrade:FireServer("SPAWN")
-                NukeRemotes.PurchaseUpgrade:FireServer("SPAWN TIER")
-            end)
+            -- Beli Spawn Tier
+            pcall(function() NukeRemotes.PurchaseUpgrade:FireServer("TIER") end)
+            pcall(function() NukeRemotes.PurchaseUpgrade:FireServer("SPAWN") end)
+            pcall(function() NukeRemotes.PurchaseUpgrade:FireServer("SPAWN TIER") end)
+            -- Beli Upgrade Lock Base
+            pcall(function() NukeRemotes.PurchaseUpgrade:FireServer("LOCK") end)
+            pcall(function() NukeRemotes.PurchaseUpgrade:FireServer("BASE") end)
+            pcall(function() NukeRemotes.PurchaseUpgrade:FireServer("LOCK BASE") end)
         end
         
-        -- AUTO LOCK BASE
+        -- AUTO LOCK BASE (Mengamankan base terus-menerus)
         if _G.AutoLockBase then
             pcall(function() 
                 NukeRemotes.RequestLockBase:FireServer()
             end)
         end
 
-        -- REBIRTH
+        -- AUTO REBIRTH
         if _G.AutoRebirth then
             pcall(function() NukeRemotes.Rebirth:FireServer() end)
             pcall(function() NukeRemotes.RebirthRequest:FireServer() end)
@@ -163,18 +164,14 @@ Window:AddToggle("Auto Merge Nukes", false, function(state)
     _G.AutoMerge = state
 end)
 
-Window:AddToggle("Auto Rebirth", false, function(state)
-    _G.AutoRebirth = state
-end)
-
-Window:AddToggle("Auto Max Spawn", false, function(state)
-    _G.AutoMaxSpawn = state
-end)
-
-Window:AddToggle("Auto Spawn Tier", false, function(state)
-    _G.AutoSpawnTier = state
+Window:AddToggle("Auto Upgrade (All)", false, function(state)
+    _G.AutoUpgrade = state
 end)
 
 Window:AddToggle("Auto Lock Base", false, function(state)
     _G.AutoLockBase = state
+end)
+
+Window:AddToggle("Auto Rebirth", false, function(state)
+    _G.AutoRebirth = state
 end)
