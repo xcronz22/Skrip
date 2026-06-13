@@ -100,36 +100,35 @@ task.spawn(function()
 
         -- REBIRTH
         if _G.AutoRebirth then
-            -- Mencoba beberapa nama remote rebirth yang umum digunakan di game ini
+            -- Mencoba beberapa nama remote rebirth brute force
             pcall(function() NukeRemotes.Rebirth:FireServer() end)
             pcall(function() NukeRemotes.RebirthRequest:FireServer() end)
             pcall(function() NukeRemotes.RequestRebirth:FireServer() end)
-            -- Mencoba jika fitur rebirth dimasukkan ke dalam sistem PurchaseUpgrade
             pcall(function() NukeRemotes.PurchaseUpgrade:FireServer("REBIRTH") end)
         end
     end
 end)
 
 -- ==========================================
--- MENU / UI TOGGLES
+-- MENU / UI TOGGLES (Sudah diganti ke AddToggle)
 -- ==========================================
 
-MainTab:CreateToggle("Auto Merge Nukes", function(state)
+MainTab:AddToggle("Auto Merge Nukes", function(state)
     _G.AutoMerge = state
 end)
 
-MainTab:CreateToggle("Auto Rebirth", function(state)
+MainTab:AddToggle("Auto Rebirth", function(state)
     _G.AutoRebirth = state
 end)
 
-UpgradeTab:CreateToggle("Auto Max Spawn", function(state)
+UpgradeTab:AddToggle("Auto Max Spawn", function(state)
     _G.AutoMaxSpawn = state
 end)
 
-UpgradeTab:CreateToggle("Auto Spawn Tier", function(state)
+UpgradeTab:AddToggle("Auto Spawn Tier", function(state)
     _G.AutoSpawnTier = state
 end)
 
-UpgradeTab:CreateToggle("Auto Lock Base", function(state)
+UpgradeTab:AddToggle("Auto Lock Base", function(state)
     _G.AutoLockBase = state
 end)
