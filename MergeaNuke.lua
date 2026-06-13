@@ -129,15 +129,10 @@ task.spawn(function()
         if _G.AutoUpgrade then
             -- Beli Max Spawn
             pcall(function() NukeRemotes.PurchaseUpgrade:FireServer("MAX") end)
-            pcall(function() NukeRemotes.PurchaseUpgrade:FireServer("MAX SPAWN") end)
             -- Beli Spawn Tier
             pcall(function() NukeRemotes.PurchaseUpgrade:FireServer("TIER") end)
-            pcall(function() NukeRemotes.PurchaseUpgrade:FireServer("SPAWN") end)
-            pcall(function() NukeRemotes.PurchaseUpgrade:FireServer("SPAWN TIER") end)
-            -- Beli Upgrade Lock Base
-            pcall(function() NukeRemotes.PurchaseUpgrade:FireServer("LOCK") end)
-            pcall(function() NukeRemotes.PurchaseUpgrade:FireServer("BASE") end)
-            pcall(function() NukeRemotes.PurchaseUpgrade:FireServer("LOCK BASE") end)
+            -- Beli Upgrade Lock Base (Diperbarui dengan string yang akurat)
+            pcall(function() NukeRemotes.PurchaseUpgrade:FireServer("LOCKBASE") end)
         end
         
         -- AUTO LOCK BASE (Mengamankan base terus-menerus)
@@ -164,7 +159,7 @@ Window:AddToggle("Auto Merge Nukes", false, function(state)
     _G.AutoMerge = state
 end)
 
-Window:AddToggle("Auto Upgrade (All)", false, function(state)
+Window:AddToggle("Auto Upgrade", false, function(state)
     _G.AutoUpgrade = state
 end)
 
