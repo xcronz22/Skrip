@@ -1,12 +1,8 @@
 -- Memuat Library RZY
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
 
--- Membuat Window/Panel UI
-local Window = Library:CreateWindow("Merge a Nuke! Hub")
-
--- Membuat Tab Main & Upgrades
-local MainTab = Window:CreateTab("Main Farm")
-local UpgradeTab = Window:CreateTab("Upgrades")
+-- Membuat Window/Panel UI menggunakan fungsi asli dari library kamu (MakeWindow)
+local Window = Library:MakeWindow("Merge a Nuke! Hub")
 
 -- Services & Variables
 local Players = game:GetService("Players")
@@ -22,14 +18,33 @@ _G.AutoLockBase = false
 _G.AutoRebirth = false
 
 -- ==========================================
--- FUNGSI PENCARI BASE
+-- FUNGSI PENCARI BASE (Akurat & Multi-Deteksi)
 -- ==========================================
 local function GetMyBase()
     local basesFolder = workspace:FindFirstChild("Bases")
     if basesFolder then
+        -- Cara 1: Cek atribut OwnerUserId di Base atau di dalam Nukes (Sesuai Screenshot)
         for _, base in pairs(basesFolder:GetChildren()) do
-            -- Otomatis mencocokkan OwnerUserId Base dengan UserId milikmu
             if base:GetAttribute("OwnerUserId") == LocalPlayer.UserId then
+                return base
+            end
+            
+            local nukesFolder = base:FindFirstChild("Nukes")
+            if nukesFolder then
+                for _, nuke in pairs(nukesFolder:GetChildren()) do
+                    if nuke:GetAttribute("OwnerUserId") == LocalPlayer.UserId then
+                        return base
+                    end
+                end
+            end
+        end
+
+        -- Cara 2: Jika cara di atas gagal, deteksi via teks papan nama Floor (rzkym22)
+        for _, base in pairs(basesFolder:GetChildren()) do
+            local success, match = pcall(function()
+                return base.Floor.BillboardGui.TextLabel.Text == "rzkym22" or string.find(base.Floor.BillboardGui.TextLabel.Text, LocalPlayer.Name)
+            end)
+            if success and match then
                 return base
             end
         end
@@ -48,7 +63,7 @@ task.spawn(function()
                 local nukes = myBase.Nukes:GetChildren()
                 local tierGroups = {}
 
-                -- Kelompokkan Nuke berdasarkan "Tier"
+                -- Kelompokkan Nuke berdasarkan nilai "Tier"
                 for _, nuke in pairs(nukes) do
                     local tier = nuke:GetAttribute("Tier")
                     if tier then
@@ -100,7 +115,7 @@ task.spawn(function()
 
         -- REBIRTH
         if _G.AutoRebirth then
-            -- Mencoba beberapa nama remote rebirth brute force
+            -- Mencoba brute force beberapa kemungkinan remote rebirth game ini
             pcall(function() NukeRemotes.Rebirth:FireServer() end)
             pcall(function() NukeRemotes.RebirthRequest:FireServer() end)
             pcall(function() NukeRemotes.RequestRebirth:FireServer() end)
@@ -110,25 +125,26 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- MENU / UI TOGGLES (Sudah diganti ke AddToggle)
+-- MENU / UI TOGGLES (Sesuai Format AddToggle Library Kamu)
 -- ==========================================
+-- Parameter: AddToggle("Nama Teks", StatusDefaultAwal, FungsiCallback)
 
-MainTab:AddToggle("Auto Merge Nukes", function(state)
+Window:AddToggle("Auto Merge Nukes", false, function(state)
     _G.AutoMerge = state
 end)
 
-MainTab:AddToggle("Auto Rebirth", function(state)
+Window:AddToggle("Auto Rebirth", false, function(state)
     _G.AutoRebirth = state
 end)
 
-UpgradeTab:AddToggle("Auto Max Spawn", function(state)
+Window:AddToggle("Auto Max Spawn", false, function(state)
     _G.AutoMaxSpawn = state
 end)
 
-UpgradeTab:AddToggle("Auto Spawn Tier", function(state)
+Window:AddToggle("Auto Spawn Tier", false, function(state)
     _G.AutoSpawnTier = state
 end)
 
-UpgradeTab:AddToggle("Auto Lock Base", function(state)
+Window:AddToggle("Auto Lock Base", false, function(state)
     _G.AutoLockBase = state
 end)
