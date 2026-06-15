@@ -54,7 +54,7 @@ end
 
 -- [[ 4. TOGGLES ]] --
 
--- [1] Auto Click, Pressure, & Quark (Hardcoded Absolute Path)
+-- [1] Auto Click Brutal (Click + Pressure + Quark)
 local autoClick = false
 Window:AddToggle("Auto Click Brutal", false, function(state)
     autoClick = state
@@ -62,11 +62,29 @@ Window:AddToggle("Auto Click Brutal", false, function(state)
         task.spawn(function()
             while autoClick do
                 pcall(function() 
-                    Remotes.IncreasePressure:FireServer()
-                    Remotes.RollParticle:FireServer("Quark")
-                    Remotes.IncreaseSpeedBoost:FireServer(Vector2.new(math.random(800, 1000), math.random(-50, 50)))
+                    local clickRemote = GetRemote("IncreaseSpeedBoost")
+                    local pressureRemote = GetRemote("IncreasePressure")
+                    local quarkRemote = GetRemote("RollParticle") -- Remote untuk Quark
+                    
+                    -- Klik
+                    if clickRemote then 
+                        clickRemote:FireServer(Vector2.new(math.random(100, 800), math.random(100, 600))) 
+                    end
+                    
+                    -- Pressure
+                    if pressureRemote then 
+                        pressureRemote:FireServer() 
+                    end
+                    
+                    -- Quark
+                    if quarkRemote then 
+                        quarkRemote:FireServer("Quark") 
+                    end
                 end)
-                task.wait(0.05)
+                
+                -- Jika game terasa lag atau remote tidak merespon, 
+                -- ganti task.wait() menjadi task.wait(0.05) agar tidak kena limit server
+                task.wait() 
             end
         end)
     end
