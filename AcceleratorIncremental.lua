@@ -76,40 +76,44 @@ end
 
 -- [[ 3. TOGGLES & FEATURES ]] --
 
--- [1] Auto Click Brutal
-local autoClick = false
+-- [1] Auto Click Brutal + Pressure + Quark (Digabung 1 Tombol dengan Optimasi)
+local autoClickAll = false
 Window:AddToggle("Auto Click Brutal", false, function(state)
-    autoClick = state
+    autoClickAll = state
     if state then
         task.spawn(function()
-            while autoClick do
+            while autoClickAll do
                 pcall(function() 
-                    local clickRemote = GetRemote("IncreaseSpeedBoost")
+                    -- 1. Ambil semua remote event
                     local pressureRemote = GetRemote("IncreasePressure")
-                    
-                    if clickRemote then clickRemote:FireServer(Vector2.new(math.random(100, 800), math.random(100, 600))) end
-                    if pressureRemote then pressureRemote:FireServer() end
-                end)
-                task.wait()
-            end
-        end)
-    end
-end)
-
--- Toggle Baru Khusus Quark (Terpisah agar klik utama tidak lag)
-local autoQuark = false
-Window:AddToggle("Auto Roll Quark", false, function(state)
-    autoQuark = state
-    if state then
-        task.spawn(function()
-            while autoQuark do
-                pcall(function()
                     local rollRemote = GetRemote("RollParticle")
+                    local clickRemote = GetRemote("IncreaseSpeedBoost")
+                    
+                    -- 2. Eksekusi Pressure
+                    if pressureRemote then 
+                        pressureRemote:FireServer() 
+                    end
+                    
+                    -- Jeda mikro agar remote tidak bertabrakan
+                    task.wait(0.01) 
+                    
+                    -- 3. Eksekusi Roll Particle Quark
                     if rollRemote then 
                         rollRemote:FireServer("Quark") 
                     end
+                    
+                    task.wait(0.01)
+                    
+                    -- 4. Eksekusi Speed Boost Klik (Koordinat dibuat agak acak agar tidak dicurigai server)
+                    if clickRemote then 
+                        local randomX = math.random(800, 1000)
+                        local randomY = math.random(-50, 50)
+                        clickRemote:FireServer(Vector2.new(randomX, randomY)) 
+                    end
                 end)
-                task.wait(0.1) -- Jeda gacha quark, bisa kamu perkecil jadi task.wait() jika mau brutal
+                
+                -- Jeda putaran loop utama (sesuaikan jika dirasa terlalu cepat/lambat)
+                task.wait(0.05) 
             end
         end)
     end
