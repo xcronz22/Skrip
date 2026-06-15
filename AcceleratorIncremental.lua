@@ -4,7 +4,7 @@ local Window = RZY_Library:MakeWindow("Accelerator Incremental")
 local Remotes = game:GetService("ReplicatedStorage"):WaitForChild("Remotes")
 local LocalPlayer = game:GetService("Players").LocalPlayer
 
--- Fungsi Pengubah String ke Number (Untuk Smart Check Heat)
+-- Fungsi Pengubah String ke Number dengan Kamus Lengkap sampai Centillion
 local function StringToNumber(str)
     if not str then return 0 end
     -- Hapus spasi, koma, dan simbol derajat
@@ -16,11 +16,34 @@ local function StringToNumber(str)
     
     if suffixPart then
         suffixPart = string.upper(suffixPart)
-        -- Daftar pengali suffix standar incremental
+        -- Kamus Pengali Lengkap (Standar Incremental Game)
         local multipliers = {
-            K = 1e3, M = 1e6, B = 1e9, T = 1e12,
-            QA = 1e15, QI = 1e18, SX = 1e21, SP = 1e24,
-            OC = 1e27, NO = 1e30, DC = 1e33
+            K   = 1e3,   M   = 1e6,   B   = 1e9,   T   = 1e12,  -- Thousand, Million, Billion, Trillion
+            QA  = 1e15,  QI  = 1e18,  SX  = 1e21,  SP  = 1e24,  -- Quadrillion, Quintillion, Sextillion, Septillion
+            OC  = 1e27,  NO  = 1e30,  DC  = 1e33,  UDC = 1e36,  -- Octillion, Nonillion, Decillion, Undecillion
+            DDC = 1e39,  TDC = 1e42,  QADC= 1e45,  QIDC= 1e48,  -- Duodecillion, Tredecillion, Quattuordecillion, Quindecillion
+            SXDC= 1e51,  SPDC= 1e54,  OCDC= 1e57,  NODC= 1e60,  -- Sexdecillion, Septendecillion, Octodecillion, Novemdecillion
+            VG  = 1e63,  UVG = 1e66,  DVG = 1e69,  TVG = 1e72,  -- Vigintillion, Unvigintillion, Duovigintillion, Tresvigintillion
+            QAVG= 1e75,  QIVG= 1e78,  SXVG= 1e81,  SPVG= 1e84,  -- Quattuorvigintillion, Quinvigintillion, Sexvigintillion, Septenvigintillion
+            OCVG= 1e87,  NOVG= 1e90,  TG  = 1e93,  UTG = 1e96,  -- Octovigintillion, Novemvigintillion, Trigintillion, Untrigintillion
+            DTG = 1e99,  TTG = 1e102, QATG= 1e105, QITG= 1e108, -- Duotrigintillion, Trestrigintillion, Quattuortrigintillion, Quintrigintillion
+            SXTG= 1e111, SPTG= 1e114, OCTG= 1e117, NOTG= 1e120, -- Sextrigintillion, Septentrigintillion, Octotrigintillion, Novemtrigintillion
+            QDG = 1e123, UQDG= 1e126, DQDG= 1e129, TQDG= 1e132, -- Quadragintillion, Unquadragintillion, Duoquadragintillion, Tresquadragintillion
+            QQDG= 1e135, QIDG= 1e138, SXDG= 1e141, SPDG= 1e144, -- Quattuorquadragintillion, Quinquadragintillion, Sexquadragintillion, Septenquadragintillion
+            OCDG= 1e147, NODG= 1e150, PC  = 1e153, UPC = 1e156, -- Octoquadragintillion, Novemquadragintillion, Quinquagintillion, Unquinquagintillion
+            DPC = 1e159, TPC = 1e162, QAPC= 1e165, QIPC= 1e168, -- Duoquinquagintillion, Tresquinquagintillion, Quattuorquinquagintillion, Quinquinquagintillion
+            SXPC= 1e171, SPPC= 1e174, OCPC= 1e177, NOPC= 1e180, -- Sexquinquagintillion, Septenquinquagintillion, Octoquinquagintillion, Novemquinquagintillion
+            HX  = 1e183, UHX = 1e186, DHX = 1e189, THX = 1e192, -- Sexagintillion, Unsexagintillion, Duosexagintillion, Tresexagintillion
+            QAHX= 1e195, QIHX= 1e198, SXHX= 1e201, SPHX= 1e204, -- Quattuorsexagintillion, Quinsexagintillion, Sexsexagintillion, Septensexagintillion
+            OCHX= 1e207, NOHX= 1e210, HP  = 1e213, UHP = 1e216, -- Octosexagintillion, Novemsexagintillion, Septuagintillion, Unseptuagintillion
+            DHP = 1e219, THP = 1e222, QAHP= 1e225, QIHP= 1e228, -- Duoseptuagintillion, Treseptuagintillion, Quattuorseptuagintillion, Quinseptuagintillion
+            SXHP= 1e231, SPHP= 1e234, OCHP= 1e237, NOHP= 1e240, -- Sexseptuagintillion, Septenseptuagintillion, Octoseptuagintillion, Novemseptuagintillion
+            OG  = 1e243, UOG = 1e246, DOG = 1e249, TOG = 1e252, -- Octogintillion, Unoctogintillion, Duooctogintillion, Tresoctogintillion
+            QAOG= 1e255, QIOG= 1e258, SXOG= 1e261, SPOG= 1e264, -- Quattuoroctogintillion, Quinoctogintillion, Sexoctogintillion, Septenoctogintillion
+            OCOG= 1e267, NOOG= 1e270, N   = 1e273, UN  = 1e276, -- Octooctogintillion, Novemoctogintillion, Nonagintillion, Unnonagintillion
+            DN  = 1e279, TN  = 1e282, QAN = 1e285, QIN = 1e288, -- Duononagintillion, Trenonagintillion, Quattuornonagintillion, Quinnonagintillion
+            SXN = 1e291, SPN = 1e294, OCN = 1e297, NON = 1e300, -- Sexnonagintillion, Septennonagintillion, Octononagintillion, Novemnonagintillion
+            CEN = 1e303                                         -- Centillion
         }
         if multipliers[suffixPart] then
             num = num * multipliers[suffixPart]
