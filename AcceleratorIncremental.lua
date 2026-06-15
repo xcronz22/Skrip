@@ -237,7 +237,7 @@ Window:AddToggle("Auto Prestige", false, function(state)
     end
 end)
 
--- [8] God Mode Race (CanTouch Detector Aman)
+-- [8] God Mode Race (Strict Mode: Hanya Berlaku untuk Kamu)
 local godModeRace = false
 Window:AddToggle("God Mode Race", false, function(state)
     godModeRace = state
@@ -245,37 +245,47 @@ Window:AddToggle("God Mode Race", false, function(state)
         task.spawn(function()
             while godModeRace do
                 pcall(function()
-                    -- 1. Cari Bola Karakter kita berdasarkan Attribute 'Player'
-                    for _, obj in pairs(workspace:GetChildren()) do
-                        if obj:IsA("BasePart") then
-                            if obj:GetAttribute("Player") == LocalPlayer.Name or obj.Name == LocalPlayer.Name .. " Ball" then
-                                if obj.CanTouch ~= false then obj.CanTouch = false end
+                    local raceMap = workspace:FindFirstChild("RaceMap")
+                    if raceMap then
+                        -- 1. Cari Bola Karakter DI DALAM RaceMap
+                        for _, obj in pairs(raceMap:GetChildren()) do
+                            if obj:IsA("BasePart") then
+                                -- VALIDASI KETAT: Atribut 'Player' harus sama dengan namamu
+                                -- ATAU Nama Objeknya harus pas sesuai format nama kamu (e.g., rzkym22 Ball)
+                                if obj:GetAttribute("Player") == LocalPlayer.Name or obj.Name == LocalPlayer.Name .. " Ball" then
+                                    if obj.CanTouch ~= false then 
+                                        obj.CanTouch = false 
+                                    end
+                                end
                             end
                         end
-                    end
 
-                    -- 2. Hapus rintangan map
-                    local obsFolder = workspace:FindFirstChild("RaceMap"):FindFirstChild("Obstacles")
-                    if obsFolder then
-                        for _, obj in pairs(obsFolder:GetDescendants()) do
-                            if obj:IsA("BasePart") then
-                                obj.CanCollide = false
-                                local touch = obj:FindFirstChild("TouchInterest")
-                                if touch then touch:Destroy() end
+                        -- 2. Hapus rintangan map (Tetap berjalan normal)
+                        local obsFolder = raceMap:FindFirstChild("Obstacles")
+                        if obsFolder then
+                            for _, obj in pairs(obsFolder:GetDescendants()) do
+                                if obj:IsA("BasePart") then
+                                    obj.CanCollide = false
+                                    local touch = obj:FindFirstChild("TouchInterest")
+                                    if touch then touch:Destroy() end
+                                end
                             end
                         end
                     end
                 end)
-                task.wait(0.3)
+                task.wait(0.1)
             end
         end)
     else
-        -- Mengembalikan fungsi sentuh saat Toggle DIMATIKAN
+        -- Mengembalikan fungsi sentuh ke TRUE saat Toggle DIMATIKAN (Hanya untuk kamu)
         pcall(function()
-            for _, obj in pairs(workspace:GetChildren()) do
-                if obj:IsA("BasePart") then
-                    if obj:GetAttribute("Player") == LocalPlayer.Name or obj.Name == LocalPlayer.Name .. " Ball" then
-                        obj.CanTouch = true
+            local raceMap = workspace:FindFirstChild("RaceMap")
+            if raceMap then
+                for _, obj in pairs(raceMap:GetChildren()) do
+                    if obj:IsA("BasePart") then
+                        if obj:GetAttribute("Player") == LocalPlayer.Name or obj.Name == LocalPlayer.Name .. " Ball" then
+                            obj.CanTouch = true
+                        end
                     end
                 end
             end
