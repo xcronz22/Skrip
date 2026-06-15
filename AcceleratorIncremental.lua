@@ -66,18 +66,23 @@ Window:AddToggle("Auto Upgrade & Mass Tree", false, function(state)
     end
 end)
 
--- [3] Auto Prestige Tier
+-- [3] Auto Prestige (Tier, Heat, & Mass)
 local autoPrestige = false
-Window:AddToggle("Auto Prestige Tier", false, function(state)
+Window:AddToggle("Auto Prestige", false, function(state)
     autoPrestige = state
     if state then
         task.spawn(function()
             local prestigeRemote = Remotes:WaitForChild("Prestige")
+            -- Daftar tipe prestige yang akan dieksekusi otomatis
+            local prestigeTypes = {"Tier", "Heat", "Mass"}
+            
             while autoPrestige do
-                pcall(function()
-                    prestigeRemote:FireServer("Tier")
-                end)
-                task.wait(0.1)
+                for _, prestigeType in ipairs(prestigeTypes) do
+                    pcall(function()
+                        prestigeRemote:FireServer(prestigeType)
+                    end)
+                end
+                task.wait(0.1) -- Jeda waktu 0.1 detik sesuai permintaan
             end
         end)
     end
