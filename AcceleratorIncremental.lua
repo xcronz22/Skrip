@@ -15,11 +15,8 @@ local function GetRemote(name)
     return nil
 end
 
--- [[ 2. UTILITY FUNCTIONS ]] --
-local function GetRemote(name)
-    return Remotes:FindFirstChild(name)
-end
-
+-- [[ 3. UTILITY FUNCTIONS ]] --
+-- Fungsi Pengubah String ke Number dengan Kamus Lengkap sampai Centillion
 local function StringToNumber(str)
     if not str then return 0 end
     str = tostring(str):gsub("Cost:%s*", ""):gsub(" g", ""):gsub(" G", ""):gsub("°", ""):gsub(",", ""):gsub(" ", "")
@@ -52,7 +49,7 @@ local function StringToNumber(str)
     return num
 end
 
--- [[ 4. TOGGLES ]] --
+-- [[ 4. TOGGLES & FEATURES ]] --
 
 -- [1] Auto Click Brutal (Click + Pressure + Quark)
 local autoClick = false
@@ -266,11 +263,11 @@ Window:AddToggle("Auto Prestige", false, function(state)
                         local heatLabel = freeze.SurfaceGui.Frame.Heat
                         local currentHeat = StringToNumber(heatLabel.Text)
                         
-                        if currentHeat >= 0 then
+                        if currentHeat >= 1 then
                             tickCounter = tickCounter + 1
                             if tickCounter >= 4 then
                                 local gain = currentHeat - lastHeat
-                                if lastHeat > 0 and gain < (currentHeat * 0.30) then
+                                if lastHeat > 0 and gain < (currentHeat * 0.005) then
                                     prestigeRemote:FireServer("Heat")
                                     lastHeat = 0
                                 else
@@ -300,11 +297,11 @@ Window:AddToggle("Auto Prestige", false, function(state)
                         local massLabel = massConvert.SurfaceGui.Frame.Mass
                         local currentMass = StringToNumber(massLabel.Text)
                         
-                        if currentMass >= 0 then
+                        if currentMass >= 1 then
                             massTickCounter = massTickCounter + 1
                             if massTickCounter >= 4 then
                                 local gain = currentMass - lastMass
-                                if lastMass > 0 and gain < (currentMass * 0.30) then
+                                if lastMass > 0 and gain < (currentMass * 0.005) then
                                     prestigeRemote:FireServer("Mass")
                                     lastMass = 0
                                 else
