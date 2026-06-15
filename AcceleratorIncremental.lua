@@ -149,7 +149,7 @@ Window:AddToggle("Auto Up Flux", false, function(state)
     end
 end)
 
--- [6] Auto Up MassUpgradeTree
+-- [6] Auto Up MassUpgradeTree (Update: Sistem Deteksi Cost Cerdas & Anti-Unbuy Loop)
 local autoUpMassTree = false
 Window:AddToggle("Auto Up MassUpgradeTree", false, function(state)
     autoUpMassTree = state
@@ -158,9 +158,48 @@ Window:AddToggle("Auto Up MassUpgradeTree", false, function(state)
             while autoUpMassTree do
                 pcall(function()
                     local treeFolder = workspace:FindFirstChild("MassUpgradeTree")
-                    if treeFolder then
-                        for _, v in pairs(treeFolder:GetDescendants()) do
-                            if v:IsA("ClickDetector") then fireclickdetector(v) end
+                    local massConvert = workspace:FindFirstChild("MassConvert")
+                    
+                    if treeFolder and massConvert then
+                        -- Ambil total uang (Mass) kamu saat ini
+                        local currentMass = StringToNumber(massConvert.SurfaceGui.Frame.Mass.Text)
+                        
+                        -- Scan folder pohon upgrade dari nomor 1 sampai 19
+                        for i = 1, 19 do
+                            local folder = treeFolder:FindFirstChild(tostring(i))
+                            if folder then
+                                local main = folder:FindFirstChild("Main")
+                                local frame = main and main:FindFirstChild("SurfaceGui") and main.SurfaceGui:FindFirstChild("Frame")
+                                local costLabel = frame and frame:FindFirstChild("Cost")
+                                
+                                if costLabel then
+                                    local isBlocked = false
+                                    
+                                    -- Periksa semua TextLabel di dalam Frame untuk mendeteksi status Maxed / Unbuy
+                                    for _, child in pairs(frame:GetChildren()) do
+                                        if child:IsA("TextLabel") then
+                                            local labelText = string.lower(child.Text)
+                                            if string.find(labelText, "max") or string.find(labelText, "unbuy") then
+                                                isBlocked = true
+                                                break
+                                            end
+                                        end
+                                    end
+                                    
+                                    -- Jika tidak Maxed dan bukan berstatus "Click to unbuy", cek harga vs dompet
+                                    if not isBlocked then
+                                        local costValue = StringToNumber(costLabel.Text)
+                                        
+                                        -- Hanya eksekusi klik jika uang (Mass) kamu cukup mendanai harganya
+                                        if currentMass >= costValue then
+                                            local clickDetector = folder:FindFirstChildWhichIsA("ClickDetector", true)
+                                            if clickDetector then
+                                                fireclickdetector(clickDetector)
+                                            end
+                                        end
+                                    end
+                                end
+                            end
                         end
                     end
                 end)
