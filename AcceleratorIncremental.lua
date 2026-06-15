@@ -236,15 +236,41 @@ Window:AddToggle("Auto Prestige", false, function(state)
             end
         end)
 
-        -- Jalur 3: Prestige MASS
+        -- Jalur 3: Prestige MASS (Update: Minimal Syarat 1e23)
         task.spawn(function()
+            local lastMass = 0
+            local massTickCounter = 0
             while autoPrestige do
-                pcall(function() prestigeRemote:FireServer("Mass") end)
-                task.wait(0.1)
+                pcall(function()
+                    local massConvert = workspace:FindFirstChild("MassConvert")
+                    if massConvert then
+                        local massLabel = massConvert.SurfaceGui.Frame.Mass
+                        local currentMass = StringToNumber(massLabel.Text)
+                        
+                        -- Syarat game: Mass harus mencapai minimal 1e23 sebelum bisa prestige
+                        if currentMass >= 1e23 then
+                            massTickCounter = massTickCounter + 1
+                            if massTickCounter >= 4 then -- Cek kestabilan setiap ~0.2 detik
+                                local gain = currentMass - lastMass
+                                -- Jika peningkatan Mass melambat drastis (gain kurang dari 0.5%)
+                                if lastMass > 0 and gain < (currentMass * 0.005) then
+                                    prestigeRemote:FireServer("Mass")
+                                    lastMass = 0
+                                else
+                                    lastMass = currentMass
+                                end
+                                massTickCounter = 0
+                            end
+                        else
+                            -- Terus perbarui angka lastMass selama belum menyentuh syarat 1e23
+                            lastMass = currentMass
+                            massTickCounter = 0
+                        end
+                    end
+                end)
+                task.wait(0.05)
             end
         end)
-    end
-end)
 
 -- [8] God Mode Race (Update: Fokus Murni di Bola Karakter Kamu)
 local godModeRace = false
