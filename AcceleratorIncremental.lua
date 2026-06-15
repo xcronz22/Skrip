@@ -29,17 +29,26 @@ local function StringToNumber(str)
     return num
 end
 
--- [1] Auto Click Brutal
+-- [1] Auto Click Brutal (Speed Boost & Pressure)
 local autoClick = false
 Window:AddToggle("Auto Click Brutal", false, function(state)
     autoClick = state
     if state then
         task.spawn(function()
             local clickRemote = Remotes:WaitForChild("IncreaseSpeedBoost")
+            local pressureRemote = Remotes:WaitForChild("IncreasePressure")
+            
             while autoClick do
                 pcall(function()
+                    -- Simulasi sentuhan acak untuk Speed Boost
                     clickRemote:FireServer(Vector2.new(math.random(100, 800), math.random(100, 600)))
                 end)
+                
+                pcall(function()
+                    -- Eksekusi Increase Pressure
+                    pressureRemote:FireServer()
+                end)
+                
                 task.wait()
             end
         end)
