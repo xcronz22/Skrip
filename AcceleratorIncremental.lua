@@ -66,23 +66,40 @@ Window:AddToggle("Auto Upgrade & Mass Tree", false, function(state)
     end
 end)
 
--- [3] Auto Prestige (Tier, Heat, & Mass)
+-- [3] Auto Prestige (1 Tombol untuk Semua)
 local autoPrestige = false
 Window:AddToggle("Auto Prestige", false, function(state)
     autoPrestige = state
     if state then
+        local prestigeRemote = Remotes:WaitForChild("Prestige")
+        
+        -- Jalur 1: Mengurus Prestige TIER
         task.spawn(function()
-            local prestigeRemote = Remotes:WaitForChild("Prestige")
-            -- Daftar tipe prestige yang akan dieksekusi otomatis
-            local prestigeTypes = {"Tier", "Heat", "Mass"}
-            
             while autoPrestige do
-                for _, prestigeType in ipairs(prestigeTypes) do
-                    pcall(function()
-                        prestigeRemote:FireServer(prestigeType)
-                    end)
-                end
-                task.wait(0.1) -- Jeda waktu 0.1 detik sesuai permintaan
+                pcall(function()
+                    prestigeRemote:FireServer("Tier")
+                end)
+                task.wait(0.1)
+            end
+        end)
+        
+        -- Jalur 2: Mengurus Prestige HEAT
+        task.spawn(function()
+            while autoPrestige do
+                pcall(function()
+                    prestigeRemote:FireServer("Heat")
+                end)
+                task.wait(0.1)
+            end
+        end)
+        
+        -- Jalur 3: Mengurus Prestige MASS
+        task.spawn(function()
+            while autoPrestige do
+                pcall(function()
+                    prestigeRemote:FireServer("Mass")
+                end)
+                task.wait(0.1)
             end
         end)
     end
