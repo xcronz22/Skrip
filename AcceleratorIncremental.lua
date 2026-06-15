@@ -1,69 +1,50 @@
--- [[ 1. SERVICE & LIBRARY INITIALIZATION ]] --
+-- [[ 1. UI INITIALIZATION (Dijalankan paling awal agar panel PASTI muncul) ]] --
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 
--- Buka UI library DI PALING ATAS agar panel PASTI muncul tanpa tertahan loading game
 local RZY_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
 local Window = RZY_Library:MakeWindow("Accelerator Incremental")
 
+-- [[ 2. DYNAMIC REMOTE FETCHING (Anti-Macet / Decoupled Execution) ]] --
+local function GetRemote(name)
+    local remotes = ReplicatedStorage:FindFirstChild("Remotes") or ReplicatedStorage:FindFirstChild("remotes")
+    if remotes then
+        return remotes:FindFirstChild(name)
+    end
+    return nil
+end
+
 -- [[ 2. UTILITY FUNCTIONS ]] --
--- Fungsi Pengubah String ke Number dengan Kamus Lengkap sampai Centillion
+local function GetRemote(name)
+    return Remotes:FindFirstChild(name)
+end
+
 local function StringToNumber(str)
     if not str then return 0 end
-    
-    -- Hapus kata "Cost:" jika ada di depan angka
-    str = tostring(str):gsub("Cost:%s*", "")
-    
-    -- Hapus unit " g" atau " G" di bagian paling belakang (e.g., "6.226Qd g" -> "6.226Qd")
-    str = str:gsub(" g", ""):gsub(" G", "")
-    
-    -- Hapus simbol derajat, koma, dan sisa spasi
-    str = str:gsub("°", ""):gsub(",", ""):gsub(" ", "")
+    str = tostring(str):gsub("Cost:%s*", ""):gsub(" g", ""):gsub(" G", ""):gsub("°", ""):gsub(",", ""):gsub(" ", "")
     
     local numberPart = string.match(str, "[%d%.]+")
     local suffixPart = string.match(str, "%a+")
     local num = tonumber(numberPart) or 0
     
     if suffixPart then
-        -- Ubah ke huruf besar semua agar mudah dicocokkan (contoh: De -> DE, UDe -> UDE)
         suffixPart = string.upper(suffixPart)
         local multipliers = {
-            K   = 1e3,   M   = 1e6,   B   = 1e9,   T   = 1e12,  
-            QD  = 1e15,  QN  = 1e18,  SX  = 1e21,  SP  = 1e24,  
-            OC  = 1e27,  NO  = 1e30,  
-            -- Diubah: DC diganti menjadi DE menyesuaikan format "De", "UDe", "DDe" di dalam game
-            DE  = 1e33,  UDE = 1e36,  DDE = 1e39,  TDE = 1e42,  
-            QDDE= 1e45,  QNDE= 1e48,  SXDE= 1e51,  SPDE= 1e54,  
-            OCDE= 1e57,  NODE= 1e60,  
-            VG  = 1e63,  UVG = 1e66,  DVG = 1e69,  TVG = 1e72,  
-            QDVG= 1e75,  QNVG= 1e78,  SXVG= 1e81,  SPVG= 1e84,  
-            OCVG= 1e87,  NOVG= 1e90,  TG  = 1e93,  UTG = 1e96,  
-            DTG = 1e99,  TTG = 1e102, QDTG= 1e105, QNTG= 1e108, 
-            SXTG= 1e111, SPTG= 1e114, OCTG= 1e117, NOTG= 1e120, 
-            QDG = 1e123, UQDG= 1e126, DQDG= 1e129, TQDG= 1e132, 
-            QQDG= 1e135, QIDG= 1e138, SXDG= 1e141, SPDG= 1e144, 
-            OCDG= 1e147, NODG= 1e150, PC  = 1e153, UPC = 1e156, 
-            DPC = 1e159, TPC = 1e162, QAPC= 1e165, QIPC= 1e168, 
-            SXPC= 1e171, SPPC= 1e174, OCPC= 1e177, NOPC= 1e180, 
-            HX  = 1e183, UHX = 1e186, DHX = 1e189, THX = 1e192, 
-            QAHX= 1e195, QIHX= 1e198, SXHX= 1e201, SPHX= 1e204, 
-            OCHX= 1e207, NOHX= 1e210, HP  = 1e213, UHP = 1e216, -- OCHX typo bawaan 2e207 dibenarkan
-            DHP = 1e219, THP = 1e222, QAHP= 1e225, QIHP= 1e228, 
-            SXHP= 1e231, SPHP= 1e234, OCHP= 1e237, NOHP= 1e240, 
-            OG  = 1e243, UOG = 1e246, DOG = 1e249, TOG = 1e252, 
-            QAOG= 1e255, QIOG= 1e258, SXOG= 1e261, SPOG= 1e264, 
-            OCOG= 1e267, NOOG= 1e270, N   = 1e273, UN  = 1e276, 
-            DN  = 1e279, TN  = 1e282, QAN = 1e285, QIN = 1e288, 
-            SXN = 1e291, SPN = 1e294, OCN = 1e297, NON = 1e300, 
-            CEN = 1e303                                         
+            K = 1e3, M = 1e6, B = 1e9, T = 1e12, QD = 1e15, QN = 1e18, SX = 1e21, SP = 1e24, OC = 1e27, NO = 1e30,
+            DE = 1e33, UDE = 1e36, DDE = 1e39, TDE = 1e42, QDDE = 1e45, QNDE = 1e48, SXDE = 1e51, SPDE = 1e54, OCDE = 1e57, NODE = 1e60,
+            VG = 1e63, UVG = 1e66, DVG = 1e69, TVG = 1e72, QDVG = 1e75, QNVG = 1e78, SXVG = 1e81, SPVG = 1e84, OCVG = 1e87, NOVG = 1e90,
+            TG = 1e93, UTG = 1e96, DTG = 1e99, TTG = 1e102, QDTG = 1e105, QNTG = 1e108, SXTG = 1e111, SPTG = 1e114, OCTG = 1e117, NOTG = 1e120,
+            QDG = 1e123, UQDG = 1e126, DQDG = 1e129, TQDG = 1e132, QQDG = 1e135, QIDG = 1e138, SXDG = 1e141, SPDG = 1e144, OCDG = 1e147, NODG = 1e150,
+            PC = 1e153, UPC = 1e156, DPC = 1e159, TPC = 1e162, QAPC = 1e165, QIPC = 1e168, SXPC = 1e171, SPPC = 1e174, OCPC = 1e177, NOPC = 1e180,
+            HX = 1e183, UHX = 1e186, DHX = 1e189, THX = 1e192, QAHX = 1e195, QIHX = 1e198, SXHX = 1e201, SPHX = 1e204, OCHX = 1e207, NOHX = 1e210,
+            HP = 1e213, UHP = 1e216, DHP = 1e219, THP = 1e222, QAHP = 1e225, QIHP = 1e228, SXHP = 1e231, SPHP = 1e234, OCHP = 1e237, NOHP = 1e240,
+            OG = 1e243, UOG = 1e246, DOG = 1e249, TOG = 1e252, QAOG = 1e255, QIOG = 1e258, SXOG = 1e261, SPOG = 1e264, OCOG = 1e267, NOOG = 1e270,
+            N = 1e273, UN = 1e276, DN = 1e279, TN = 1e282, QAN = 1e285, QIN = 1e288, SXN = 1e291, SPN = 1e294, OCN = 1e297, NON = 1e300, CEN = 1e303
         }
-        
-        -- Alias untuk huruf tertentu
         multipliers["QA"] = multipliers.QD
         multipliers["QI"] = multipliers.QN
         
-        -- Eksekusi perkalian
         if multipliers[suffixPart] then
             num = num * multipliers[suffixPart]
         end
@@ -71,9 +52,9 @@ local function StringToNumber(str)
     return num
 end
 
--- [[ 3. TOGGLES & FEATURES ]] --
+-- [[ 4. TOGGLES ]] --
 
--- [1] Auto Click Brutal
+-- [1] Auto Click, Pressure, & Quark (Hardcoded Absolute Path)
 local autoClick = false
 Window:AddToggle("Auto Click Brutal", false, function(state)
     autoClick = state
@@ -81,15 +62,11 @@ Window:AddToggle("Auto Click Brutal", false, function(state)
         task.spawn(function()
             while autoClick do
                 pcall(function() 
-                    local clickRemote = GetRemote("IncreaseSpeedBoost")
-                    local pressureRemote = GetRemote("IncreasePressure")
-                    local rollRemote = GetRemote("RollParticle") -- (TAMBAHAN)
-                    
-                    if clickRemote then clickRemote:FireServer(Vector2.new(math.random(100, 800), math.random(100, 600))) end
-                    if pressureRemote then pressureRemote:FireServer() end
-                    if rollRemote then rollRemote:FireServer("Quark") end -- (TAMBAHAN)
+                    Remotes.IncreasePressure:FireServer()
+                    Remotes.RollParticle:FireServer("Quark")
+                    Remotes.IncreaseSpeedBoost:FireServer(Vector2.new(math.random(800, 1000), math.random(-50, 50)))
                 end)
-                task.wait()
+                task.wait(0.05)
             end
         end)
     end
@@ -99,13 +76,15 @@ end)
 local autoUpSpeed = false
 Window:AddToggle("Auto Up Speed", false, function(state)
     autoUpSpeed = state
-    if state and Remotes then
+    if state then
         task.spawn(function()
-            local buyRemote = Remotes:FindFirstChild("BuyUpgrade")
             local upgrades = {"AutoIncrement", "BoostMax", "CompoundingMultiplier", "FlatAddition", "ParticleBulk"}
-            while autoUpSpeed and buyRemote do
-                for _, upgradeName in ipairs(upgrades) do
-                    pcall(function() buyRemote:FireServer("Speed", upgradeName, true) end)
+            while autoUpSpeed do
+                local buyRemote = GetRemote("BuyUpgrade")
+                if buyRemote then
+                    for _, upgradeName in ipairs(upgrades) do
+                        pcall(function() buyRemote:FireServer("Speed", upgradeName, true) end)
+                    end
                 end
                 task.wait(0.1)
             end
@@ -117,13 +96,15 @@ end)
 local autoUpHeat = false
 Window:AddToggle("Auto Up Heat", false, function(state)
     autoUpHeat = state
-    if state and Remotes then
+    if state then
         task.spawn(function()
-            local buyRemote = Remotes:FindFirstChild("BuyUpgrade")
             local upgrades = {"AccelerationMultiplier", "AutoIncrement", "HeatAmountToSpeedMultiplier", "PressureAdd", "SpeedAmountToHeatMultiplier"}
-            while autoUpHeat and buyRemote do
-                for _, upgradeName in ipairs(upgrades) do
-                    pcall(function() buyRemote:FireServer("Heat", upgradeName, true) end)
+            while autoUpHeat do
+                local buyRemote = GetRemote("BuyUpgrade")
+                if buyRemote then
+                    for _, upgradeName in ipairs(upgrades) do
+                        pcall(function() buyRemote:FireServer("Heat", upgradeName, true) end)
+                    end
                 end
                 task.wait(0.1)
             end
@@ -135,13 +116,15 @@ end)
 local autoUpRacePoint = false
 Window:AddToggle("Auto Up RacePoint", false, function(state)
     autoUpRacePoint = state
-    if state and Remotes then
+    if state then
         task.spawn(function()
-            local buyRemote = Remotes:FindFirstChild("BuyUpgrade")
             local upgrades = {"Health", "MassMultiplier", "PointMultiplier", "PressureMultiplier", "SpeedMultiplier"}
-            while autoUpRacePoint and buyRemote do
-                for _, upgradeName in ipairs(upgrades) do
-                    pcall(function() buyRemote:FireServer("RacePoint", upgradeName, true) end)
+            while autoUpRacePoint do
+                local buyRemote = GetRemote("BuyUpgrade")
+                if buyRemote then
+                    for _, upgradeName in ipairs(upgrades) do
+                        pcall(function() buyRemote:FireServer("RacePoint", upgradeName, true) end)
+                    end
                 end
                 task.wait(0.1)
             end
@@ -153,13 +136,15 @@ end)
 local autoUpFlux = false
 Window:AddToggle("Auto Up Flux", false, function(state)
     autoUpFlux = state
-    if state and Remotes then
+    if state then
         task.spawn(function()
-            local buyRemote = Remotes:FindFirstChild("BuyUpgrade")
             local upgrades = {"BarrierThinning", "Resonance", "SuccessRate"}
-            while autoUpFlux and buyRemote do
-                for _, upgradeName in ipairs(upgrades) do
-                    pcall(function() buyRemote:FireServer("Flux", upgradeName, true) end)
+            while autoUpFlux do
+                local buyRemote = GetRemote("BuyUpgrade")
+                if buyRemote then
+                    for _, upgradeName in ipairs(upgrades) do
+                        pcall(function() buyRemote:FireServer("Flux", upgradeName, true) end)
+                    end
                 end
                 task.wait(0.1)
             end
@@ -167,7 +152,7 @@ Window:AddToggle("Auto Up Flux", false, function(state)
     end
 end)
 
--- [6] Auto Up MassUpgradeTree (Safe Indexing & Anti-Unbuy Loop)
+-- [6] Auto Up MassUpgradeTree (Sistem Akurat Proteksi Kandungan Teks)
 local autoUpMassTree = false
 Window:AddToggle("Auto Up MassUpgradeTree", false, function(state)
     autoUpMassTree = state
@@ -191,7 +176,7 @@ Window:AddToggle("Auto Up MassUpgradeTree", false, function(state)
                                 
                                 if costLabel then
                                     local isBlocked = false
-                                    for _, child in pairs(frame:GetChildren()) do
+                                    for _, child in ipairs(frame:GetChildren()) do
                                         if child:IsA("TextLabel") then
                                             local labelText = string.lower(child.Text)
                                             if string.find(labelText, "max") or string.find(labelText, "unbuy") then
@@ -221,102 +206,107 @@ Window:AddToggle("Auto Up MassUpgradeTree", false, function(state)
     end
 end)
 
--- [7] Auto Prestige (Smart 30% + Anti Stuck)
+-- [7] Auto Prestige (Tier, Smart Heat, & Smart Mass Syarat 1e23)
 local autoPrestige = false
 Window:AddToggle("Auto Prestige", false, function(state)
     autoPrestige = state
     if state then
-        local Remotes = game:GetService("ReplicatedStorage"):WaitForChild("Remotes")
-        
-        -- Jalur 1: Prestige TIER (Tanpa delay pencarian)
+        -- Jalur 1: Prestige TIER
         task.spawn(function()
             while autoPrestige do
                 pcall(function()
-                    local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-                    if playerGui then
-                        local tierUpBar = playerGui:FindFirstChild("TierUpBar")
-                        if tierUpBar then
-                            local progressBar = tierUpBar:FindFirstChild("ProgressBar")
-                            if progressBar then
-                                local progressLabel = progressBar:FindFirstChild("ProgressLabel")
-                                local tierUpReady = progressBar:FindFirstChild("TierUpReady")
-                                
-                                local isReady = (tierUpReady and tierUpReady.Visible) or (progressLabel and (string.find(progressLabel.Text, "100.00%%") or string.find(progressLabel.Text, "100%%")))
-                                
-                                if isReady then 
-                                    Remotes:WaitForChild("Prestige"):FireServer("Tier") 
-                                end
-                            end
-                        end
+                    local prestigeRemote = GetRemote("Prestige")
+                    local playerGui = LocalPlayer:WaitForChild("PlayerGui", 5)
+                    local tierUpBar = playerGui:WaitForChild("TierUpBar", 5)
+                    local progressBar = tierUpBar:WaitForChild("ProgressBar", 5)
+                    
+                    local progressLabel = progressBar.ProgressLabel
+                    local tierUpReady = progressBar.TierUpReady
+                    
+                    local isReadyToTierUp = false
+                    if tierUpReady.Visible == true then
+                        isReadyToTierUp = true
+                    elseif string.find(progressLabel.Text, "100.00%%") or string.find(progressLabel.Text, "100%%") then
+                        isReadyToTierUp = true
                     end
+                    
+                    if isReadyToTierUp and prestigeRemote then prestigeRemote:FireServer("Tier") end
                 end)
-                task.wait(0.5)
+                task.wait(0.1)
             end
         end)
             
-        -- Jalur 2: Prestige HEAT (Smart 30% & Failsafe)
+        -- Jalur 2: Prestige HEAT (Hyper Responsive)
         task.spawn(function()
             local lastHeat = 0
-            local stuckCounter = 0
+            local tickCounter = 0
             while autoPrestige do
                 pcall(function()
+                    local prestigeRemote = GetRemote("Prestige")
                     local freeze = workspace:FindFirstChild("Freeze")
-                    if freeze then
+                    if freeze and prestigeRemote then
                         local heatLabel = freeze.SurfaceGui.Frame.Heat
                         local currentHeat = StringToNumber(heatLabel.Text)
-                        local gain = currentHeat - lastHeat
                         
-                        -- Logika: Jika gain di bawah 30% ATAU angkanya macet (0)
-                        if lastHeat > 0 and (gain < (currentHeat * 0.30) or gain == 0) then
-                            stuckCounter = stuckCounter + 1
-                            if stuckCounter >= 3 then
-                                Remotes:WaitForChild("Prestige"):FireServer("Heat")
-                                lastHeat = 0
-                                stuckCounter = 0
+                        if currentHeat >= 0 then
+                            tickCounter = tickCounter + 1
+                            if tickCounter >= 4 then
+                                local gain = currentHeat - lastHeat
+                                if lastHeat > 0 and gain < (currentHeat * 0.30) then
+                                    prestigeRemote:FireServer("Heat")
+                                    lastHeat = 0
+                                else
+                                    lastHeat = currentHeat
+                                end
+                                tickCounter = 0
                             end
                         else
                             lastHeat = currentHeat
-                            stuckCounter = 0
+                            tickCounter = 0
                         end
                     end
                 end)
-                task.wait(0.1)
+                task.wait(0.05)
             end
         end)
 
-        -- Jalur 3: Prestige MASS (Smart 30% & Failsafe)
+        -- Jalur 3: Prestige MASS (Minimal Syarat 1e23)
         task.spawn(function()
             local lastMass = 0
-            local massStuckCounter = 0
+            local massTickCounter = 0
             while autoPrestige do
                 pcall(function()
+                    local prestigeRemote = GetRemote("Prestige")
                     local massConvert = workspace:FindFirstChild("MassConvert")
-                    if massConvert then
+                    if massConvert and prestigeRemote then
                         local massLabel = massConvert.SurfaceGui.Frame.Mass
                         local currentMass = StringToNumber(massLabel.Text)
-                        local gain = currentMass - lastMass
                         
-                        -- Logika: Jika gain di bawah 30% ATAU angkanya macet (0)
-                        if lastMass > 0 and (gain < (currentMass * 0.30) or gain == 0) then
-                            massStuckCounter = massStuckCounter + 1
-                            if massStuckCounter >= 3 then
-                                Remotes:WaitForChild("Prestige"):FireServer("Mass")
-                                lastMass = 0
-                                massStuckCounter = 0
+                        if currentMass >= 0 then
+                            massTickCounter = massTickCounter + 1
+                            if massTickCounter >= 4 then
+                                local gain = currentMass - lastMass
+                                if lastMass > 0 and gain < (currentMass * 0.30) then
+                                    prestigeRemote:FireServer("Mass")
+                                    lastMass = 0
+                                else
+                                    lastMass = currentMass
+                                end
+                                massTickCounter = 0
                             end
                         else
                             lastMass = currentMass
-                            massStuckCounter = 0
+                            massTickCounter = 0
                         end
                     end
                 end)
-                task.wait(0.1)
+                task.wait(0.05)
             end
         end)
     end
 end)
 
--- [8] God Mode Race (Fokus Murni di Bola Karakter Kamu)
+-- [8] God Mode Race
 local godModeRace = false
 Window:AddToggle("God Mode Race", false, function(state)
     godModeRace = state
