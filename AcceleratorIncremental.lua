@@ -30,7 +30,7 @@ local function StringToNumber(str)
         local multipliers = {
             K = 1e3, M = 1e6, B = 1e9, T = 1e12, QD = 1e15, QN = 1e18, SX = 1e21, SP = 1e24, OC = 1e27, NO = 1e30,
             DE = 1e33, UDE = 1e36, DDE = 1e39, TDE = 1e42, QDDE = 1e45, QNDE = 1e48, SXDE = 1e51, SPDE = 1e54, OCDE = 1e57, NODE = 1e60,
-            VG = 1e63, UVG = 1e66, DVG = 1e69, TVG = 1e72, QDVG = 1e75, QNVG = 1e78, SXVG = 1e81, SPVG = 1e84, OCVG = 1e87, NOVG = 1e90,
+            VT = 1e63, UVT = 1e66, DVT = 1e69, TVT = 1e72, QDVT = 1e75, QNVT = 1e78, SXVT = 1e81, SPVT = 1e84, OCVT = 1e87, NOVT = 1e90,
             TG = 1e93, UTG = 1e96, DTG = 1e99, TTG = 1e102, QDTG = 1e105, QNTG = 1e108, SXTG = 1e111, SPTG = 1e114, OCTG = 1e117, NOTG = 1e120,
             QDG = 1e123, UQDG = 1e126, DQDG = 1e129, TQDG = 1e132, QQDG = 1e135, QIDG = 1e138, SXDG = 1e141, SPDG = 1e144, OCDG = 1e147, NODG = 1e150,
             PC = 1e153, UPC = 1e156, DPC = 1e159, TPC = 1e162, QAPC = 1e165, QIPC = 1e168, SXPC = 1e171, SPPC = 1e174, OCPC = 1e177, NOPC = 1e180,
