@@ -262,3 +262,35 @@ Window:AddToggle("Auto Prestige", false, function(state)
         end)
     end
 end)
+
+-- [8] God Mode Race (Tembus Rintangan)
+local godModeRace = false
+Window:AddToggle("God Mode Race", false, function(state)
+    godModeRace = state
+    if state then
+        task.spawn(function()
+            while godModeRace do
+                pcall(function()
+                    -- Mencari folder Obstacles di dalam RaceMap
+                    local raceMap = workspace:FindFirstChild("RaceMap")
+                    if raceMap then
+                        local obstacles = raceMap:FindFirstChild("Obstacles")
+                        if obstacles then
+                            -- Looping semua rintangan di dalamnya
+                            for _, obj in pairs(obstacles:GetDescendants()) do
+                                if obj:IsA("BasePart") and obj.CanCollide then
+                                    obj.CanCollide = false
+                                    
+                                    -- Opsional: Kita buat rintangannya agak transparan (kaca)
+                                    -- agar kamu tahu kalau rintangan itu sudah "jinak" dan bisa ditembus
+                                    obj.Transparency = 0.6 
+                                end
+                            end
+                        end
+                    end
+                end)
+                task.wait(0.1)
+            end
+        end)
+    end
+end)
