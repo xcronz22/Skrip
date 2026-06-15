@@ -177,7 +177,7 @@ Window:AddToggle("Auto Prestige", false, function(state)
     if state then
         local prestigeRemote = Remotes:WaitForChild("Prestige")
         
-        -- Jalur 1: Prestige TIER (Menggunakan WaitForChild agar aman)
+        -- Jalur 1: Prestige TIER
         task.spawn(function()
             while autoPrestige do
                 pcall(function()
@@ -201,9 +201,10 @@ Window:AddToggle("Auto Prestige", false, function(state)
             end
         end)
             
-        -- Jalur 2: Prestige HEAT 
+        -- Jalur 2: Prestige HEAT (Update: Hyper Responsive & Instan Aktif)
         task.spawn(function()
             local lastHeat = 0
+            local tickCounter = 0
             while autoPrestige do
                 pcall(function()
                     local freeze = workspace:FindFirstChild("Freeze")
@@ -212,18 +213,26 @@ Window:AddToggle("Auto Prestige", false, function(state)
                         local currentHeat = StringToNumber(heatLabel.Text)
                         
                         if currentHeat >= 10000 then
-                            local gain = currentHeat - lastHeat
-                            if lastHeat > 0 and gain < (currentHeat * 0.01) then
-                                prestigeRemote:FireServer("Heat")
-                                task.wait(2)
-                                lastHeat = 0
-                            else
-                                lastHeat = currentHeat
+                            tickCounter = tickCounter + 1
+                            -- Cek efisiensi plateau setiap 4 tick (~0.2 detik) agar responsif
+                            if tickCounter >= 4 then
+                                local gain = currentHeat - lastHeat
+                                -- Jika kenaikan melambat (kurang dari 0.5% per 0.2 detik dari total Heat saat ini)
+                                if lastHeat > 0 and gain < (currentHeat * 0.005) then
+                                    prestigeRemote:FireServer("Heat")
+                                    lastHeat = 0
+                                else
+                                    lastHeat = currentHeat
+                                end
+                                tickCounter = 0
                             end
+                        else
+                            lastHeat = currentHeat
+                            tickCounter = 0
                         end
                     end
                 end)
-                task.wait(1)
+                task.wait(0.05) -- Deteksi super cepat 0.05 detik
             end
         end)
 
@@ -237,7 +246,7 @@ Window:AddToggle("Auto Prestige", false, function(state)
     end
 end)
 
--- [8] God Mode Race (Strict Mode: Hanya Berlaku untuk Kamu)
+-- [8] God Mode Race (Update: Fokus Murni di Bola Karakter Kamu)
 local godModeRace = false
 Window:AddToggle("God Mode Race", false, function(state)
     godModeRace = state
@@ -247,11 +256,9 @@ Window:AddToggle("God Mode Race", false, function(state)
                 pcall(function()
                     local raceMap = workspace:FindFirstChild("RaceMap")
                     if raceMap then
-                        -- 1. Cari Bola Karakter DI DALAM RaceMap
+                        -- Cari Bola Karakter khusus milikmu di dalam RaceMap
                         for _, obj in pairs(raceMap:GetChildren()) do
                             if obj:IsA("BasePart") then
-                                -- VALIDASI KETAT: Atribut 'Player' harus sama dengan namamu
-                                -- ATAU Nama Objeknya harus pas sesuai format nama kamu (e.g., rzkym22 Ball)
                                 if obj:GetAttribute("Player") == LocalPlayer.Name or obj.Name == LocalPlayer.Name .. " Ball" then
                                     if obj.CanTouch ~= false then 
                                         obj.CanTouch = false 
@@ -259,25 +266,13 @@ Window:AddToggle("God Mode Race", false, function(state)
                                 end
                             end
                         end
-
-                        -- 2. Hapus rintangan map (Tetap berjalan normal)
-                        local obsFolder = raceMap:FindFirstChild("Obstacles")
-                        if obsFolder then
-                            for _, obj in pairs(obsFolder:GetDescendants()) do
-                                if obj:IsA("BasePart") then
-                                    obj.CanCollide = false
-                                    local touch = obj:FindFirstChild("TouchInterest")
-                                    if touch then touch:Destroy() end
-                                end
-                            end
-                        end
                     end
                 end)
-                task.wait(0.1)
+                task.wait(0.05) -- Deteksi secepat kilat saat bola baru muncul
             end
         end)
     else
-        -- Mengembalikan fungsi sentuh ke TRUE saat Toggle DIMATIKAN (Hanya untuk kamu)
+        -- Mengembalikan fungsi sentuh ke TRUE saat Toggle DIMATIKAN
         pcall(function()
             local raceMap = workspace:FindFirstChild("RaceMap")
             if raceMap then
