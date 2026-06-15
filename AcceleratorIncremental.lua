@@ -12,7 +12,15 @@ local Window = RZY_Library:MakeWindow("Accelerator Incremental")
 local function StringToNumber(str)
     if not str then return 0 end
     
-    str = tostring(str):gsub("°", ""):gsub(",", ""):gsub(" ", "")
+    -- Hapus kata "Cost:" jika ada di depan angka
+    str = tostring(str):gsub("Cost:%s*", "")
+    
+    -- Hapus unit " g" atau " G" di bagian paling belakang (e.g., "6.226Qd g" -> "6.226Qd")
+    str = str:gsub(" g", ""):gsub(" G", "")
+    
+    -- Hapus simbol derajat, koma, dan sisa spasi
+    str = str:gsub("°", ""):gsub(",", ""):gsub(" ", "")
+    
     local numberPart = string.match(str, "[%d%.]+")
     local suffixPart = string.match(str, "%a+")
     local num = tonumber(numberPart) or 0
@@ -37,7 +45,7 @@ local function StringToNumber(str)
             SXPC= 1e171, SPPC= 1e174, OCPC= 1e177, NOPC= 1e180, 
             HX  = 1e183, UHX = 1e186, DHX = 1e189, THX = 1e192, 
             QAHX= 1e195, QIHX= 1e198, SXHX= 1e201, SPHX= 1e204, 
-            OCHX= 1e207, NOHX= 1e210, HP  = 1e213, UHP = 1e216, 
+            OCHX= 2e207, NOHX= 1e210, HP  = 1e213, UHP = 1e216, 
             DHP = 1e219, THP = 1e222, QAHP= 1e225, QIHP= 1e228, 
             SXHP= 1e231, SPHP= 1e234, OCHP= 1e237, NOHP= 1e240, 
             OG  = 1e243, UOG = 1e246, DOG = 1e249, TOG = 1e252, 
@@ -209,7 +217,7 @@ Window:AddToggle("Auto Up MassUpgradeTree", false, function(state)
     end
 end)
 
--- [7] Auto Prestige (Tier, Smart Heat, & Mass)
+-- [7] Auto Prestige (Tier, Smart Heat, & Smart Mass)
 local autoPrestige = false
 Window:AddToggle("Auto Prestige", false, function(state)
     autoPrestige = state
@@ -240,7 +248,7 @@ Window:AddToggle("Auto Prestige", false, function(state)
             end
         end)
             
-        -- Jalur 2: Prestige HEAT (Update: Hyper Responsive & Instan Aktif)
+        -- Jalur 2: Prestige HEAT (Hyper Responsive)
         task.spawn(function()
             local lastHeat = 0
             local tickCounter = 0
@@ -253,10 +261,8 @@ Window:AddToggle("Auto Prestige", false, function(state)
                         
                         if currentHeat >= 10000 then
                             tickCounter = tickCounter + 1
-                            -- Cek efisiensi plateau setiap 4 tick (~0.2 detik) agar responsif
                             if tickCounter >= 4 then
                                 local gain = currentHeat - lastHeat
-                                -- Jika kenaikan melambat (kurang dari 0.5% per 0.2 detik dari total Heat saat ini)
                                 if lastHeat > 0 and gain < (currentHeat * 0.005) then
                                     prestigeRemote:FireServer("Heat")
                                     lastHeat = 0
@@ -271,11 +277,11 @@ Window:AddToggle("Auto Prestige", false, function(state)
                         end
                     end
                 end)
-                task.wait(0.05) -- Deteksi super cepat 0.05 detik
+                task.wait(0.05)
             end
         end)
 
-        -- Jalur 3: Prestige MASS (Update: Minimal Syarat 1e23)
+        -- Jalur 3: Prestige MASS (Minimal Syarat 1e23)
         task.spawn(function()
             local lastMass = 0
             local massTickCounter = 0
@@ -286,12 +292,10 @@ Window:AddToggle("Auto Prestige", false, function(state)
                         local massLabel = massConvert.SurfaceGui.Frame.Mass
                         local currentMass = StringToNumber(massLabel.Text)
                         
-                        -- Syarat game: Mass harus mencapai minimal 1e23 sebelum bisa prestige
                         if currentMass >= 1e23 then
                             massTickCounter = massTickCounter + 1
-                            if massTickCounter >= 4 then -- Cek kestabilan setiap ~0.2 detik
+                            if massTickCounter >= 4 then
                                 local gain = currentMass - lastMass
-                                -- Jika peningkatan Mass melambat drastis (gain kurang dari 0.5%)
                                 if lastMass > 0 and gain < (currentMass * 0.005) then
                                     prestigeRemote:FireServer("Mass")
                                     lastMass = 0
@@ -301,7 +305,6 @@ Window:AddToggle("Auto Prestige", false, function(state)
                                 massTickCounter = 0
                             end
                         else
-                            -- Terus perbarui angka lastMass selama belum menyentuh syarat 1e23
                             lastMass = currentMass
                             massTickCounter = 0
                         end
@@ -310,8 +313,10 @@ Window:AddToggle("Auto Prestige", false, function(state)
                 task.wait(0.05)
             end
         end)
+    end
+end)
 
--- [8] God Mode Race (Update: Fokus Murni di Bola Karakter Kamu)
+-- [8] God Mode Race (Fokus Murni di Bola Karakter Kamu)
 local godModeRace = false
 Window:AddToggle("God Mode Race", false, function(state)
     godModeRace = state
@@ -321,7 +326,6 @@ Window:AddToggle("God Mode Race", false, function(state)
                 pcall(function()
                     local raceMap = workspace:FindFirstChild("RaceMap")
                     if raceMap then
-                        -- Cari Bola Karakter khusus milikmu di dalam RaceMap
                         for _, obj in pairs(raceMap:GetChildren()) do
                             if obj:IsA("BasePart") then
                                 if obj:GetAttribute("Player") == LocalPlayer.Name or obj.Name == LocalPlayer.Name .. " Ball" then
@@ -333,11 +337,10 @@ Window:AddToggle("God Mode Race", false, function(state)
                         end
                     end
                 end)
-                task.wait(0.05) -- Deteksi secepat kilat saat bola baru muncul
+                task.wait(0.05)
             end
         end)
     else
-        -- Mengembalikan fungsi sentuh ke TRUE saat Toggle DIMATIKAN
         pcall(function()
             local raceMap = workspace:FindFirstChild("RaceMap")
             if raceMap then
