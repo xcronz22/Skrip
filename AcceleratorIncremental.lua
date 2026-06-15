@@ -29,13 +29,16 @@ local function StringToNumber(str)
     local num = tonumber(numberPart) or 0
     
     if suffixPart then
+        -- Ubah ke huruf besar semua agar mudah dicocokkan (contoh: De -> DE, UDe -> UDE)
         suffixPart = string.upper(suffixPart)
         local multipliers = {
             K   = 1e3,   M   = 1e6,   B   = 1e9,   T   = 1e12,  
             QD  = 1e15,  QN  = 1e18,  SX  = 1e21,  SP  = 1e24,  
-            OC  = 1e27,  NO  = 1e30,  DC  = 1e33,  UDC = 1e36,  
-            DDC = 1e39,  TDC = 1e42,  QDDC= 1e45,  QNDC= 1e48,  
-            SXDC= 1e51,  SPDC= 1e54,  OCDC= 1e57,  NODC= 1e60,  
+            OC  = 1e27,  NO  = 1e30,  
+            -- Diubah: DC diganti menjadi DE menyesuaikan format "De", "UDe", "DDe" di dalam game
+            DE  = 1e33,  UDE = 1e36,  DDE = 1e39,  TDE = 1e42,  
+            QDDE= 1e45,  QNDE= 1e48,  SXDE= 1e51,  SPDE= 1e54,  
+            OCDE= 1e57,  NODE= 1e60,  
             VG  = 1e63,  UVG = 1e66,  DVG = 1e69,  TVG = 1e72,  
             QDVG= 1e75,  QNVG= 1e78,  SXVG= 1e81,  SPVG= 1e84,  
             OCVG= 1e87,  NOVG= 1e90,  TG  = 1e93,  UTG = 1e96,  
@@ -48,7 +51,7 @@ local function StringToNumber(str)
             SXPC= 1e171, SPPC= 1e174, OCPC= 1e177, NOPC= 1e180, 
             HX  = 1e183, UHX = 1e186, DHX = 1e189, THX = 1e192, 
             QAHX= 1e195, QIHX= 1e198, SXHX= 1e201, SPHX= 1e204, 
-            OCHX= 2e207, NOHX= 1e210, HP  = 1e213, UHP = 1e216, 
+            OCHX= 1e207, NOHX= 1e210, HP  = 1e213, UHP = 1e216, -- OCHX typo bawaan 2e207 dibenarkan
             DHP = 1e219, THP = 1e222, QAHP= 1e225, QIHP= 1e228, 
             SXHP= 1e231, SPHP= 1e234, OCHP= 1e237, NOHP= 1e240, 
             OG  = 1e243, UOG = 1e246, DOG = 1e249, TOG = 1e252, 
@@ -59,9 +62,11 @@ local function StringToNumber(str)
             CEN = 1e303                                         
         }
         
+        -- Alias untuk huruf tertentu
         multipliers["QA"] = multipliers.QD
         multipliers["QI"] = multipliers.QN
         
+        -- Eksekusi perkalian
         if multipliers[suffixPart] then
             num = num * multipliers[suffixPart]
         end
