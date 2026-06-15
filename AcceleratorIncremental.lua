@@ -203,54 +203,35 @@ Window:AddToggle("Auto Prestige", false, function(state)
                 task.wait(0.1)
             end
         end)
-        
-        -- Jalur 2: Prestige HEAT (Smart Check Melambat)
-        task.spawn(function()
-            local lastHeat = 0
-            local maxGain = 0
             
-            while autoPrestige do
-                pcall(function()
-                    local heatLabel = workspace.Freeze.SurfaceGui.Frame.Heat
-                    local currentHeat = StringToNumber(heatLabel.Text)
-                    
-                    if currentHeat >= 10000 then -- Syarat minimal 10k
-                        local gain = currentHeat - lastHeat
-                        
-                        -- Simpan rekor penambahan (Peak)
-                        if gain > maxGain then
-                            maxGain = gain
-                        end
-                        
-                        -- Kalkulasi kondisi "Melambat"
-                        -- Kondisi 1: Laju per detiknya anjlok di bawah 40% dari rekor tertinggi
-                        -- Kondisi 2: Kenaikan per detiknya sangat kecil (di bawah 2% dari Heat keseluruhan)
-                        local isSlowingDown = false
-                        if maxGain > 0 and gain < (maxGain * 0.4) then
-                            isSlowingDown = true
-                        elseif gain < (currentHeat * 0.02) then
-                            isSlowingDown = true
-                        end
-                        
-                        if isSlowingDown then
-                            prestigeRemote:FireServer("Heat")
-                            -- Reset riwayat kalkulasi setelah sukses prestige
-                            lastHeat = 0
-                            maxGain = 0
-                            task.wait(1.5) -- Jeda lebih lama agar tidak tembak beruntun saat loading game
-                        else
-                            lastHeat = currentHeat -- Simpan untuk perbandingan berikutnya
-                        end
-                    else
-                        -- Reset memori penambahan jika berada di bawah 10k (baru selesai prestige)
-                        lastHeat = currentHeat
-                        maxGain = 0
-                    end
-                end)
-                task.wait(0.5) -- Pengecekan interval 0.5 detik untuk menangkap selisih penambahan
+        -- Jalur 2: Prestige HEAT (Lebih Cerdas & Responsif)
+task.spawn(function()
+    local lastHeat = 0
+    
+    while autoPrestige do
+        pcall(function()
+            local heatLabel = workspace.Freeze.SurfaceGui.Frame.Heat
+            local currentHeat = StringToNumber(heatLabel.Text)
+            
+            -- Jika sudah di atas 10k
+            if currentHeat >= 10000 then
+                -- Logika: Jika kenaikan dalam 1 detik kurang dari 1% dari total Heat kamu saat ini, 
+                -- berarti sudah melambat drastis (plateau).
+                local gain = currentHeat - lastHeat
+                
+                if lastHeat > 0 and gain < (currentHeat * 0.01) then
+                    prestigeRemote:FireServer("Heat")
+                    task.wait(2) -- Beri waktu untuk reset
+                    lastHeat = 0 -- Reset agar mulai dari awal lagi
+                else
+                    lastHeat = currentHeat
+                end
             end
         end)
-        
+        task.wait(1) -- Kita cek setiap 1 detik agar kalkulasinya lebih stabil
+    end
+end)
+
         -- Jalur 3: Prestige MASS
         task.spawn(function()
             while autoPrestige do
@@ -263,7 +244,7 @@ Window:AddToggle("Auto Prestige", false, function(state)
     end
 end)
 
--- [8] God Mode Race (Tembus Rintangan)
+-- [8] God Mode Race (Lebih Agresif)
 local godModeRace = false
 Window:AddToggle("God Mode Race", false, function(state)
     godModeRace = state
@@ -271,25 +252,20 @@ Window:AddToggle("God Mode Race", false, function(state)
         task.spawn(function()
             while godModeRace do
                 pcall(function()
-                    -- Mencari folder Obstacles di dalam RaceMap
-                    local raceMap = workspace:FindFirstChild("RaceMap")
-                    if raceMap then
-                        local obstacles = raceMap:FindFirstChild("Obstacles")
-                        if obstacles then
-                            -- Looping semua rintangan di dalamnya
-                            for _, obj in pairs(obstacles:GetDescendants()) do
-                                if obj:IsA("BasePart") and obj.CanCollide then
-                                    obj.CanCollide = false
-                                    
-                                    -- Opsional: Kita buat rintangannya agak transparan (kaca)
-                                    -- agar kamu tahu kalau rintangan itu sudah "jinak" dan bisa ditembus
-                                    obj.Transparency = 0.6 
-                                end
+                    local obsFolder = workspace:FindFirstChild("RaceMap"):FindFirstChild("Obstacles")
+                    if obsFolder then
+                        for _, obj in pairs(obsFolder:GetDescendants()) do
+                            -- Matikan kolisi
+                            if obj:IsA("BasePart") then
+                                obj.CanCollide = false
+                                -- Hapus pendeteksi sentuhan (Ini yang bikin kamu kalah)
+                                local touch = obj:FindFirstChild("TouchInterest")
+                                if touch then touch:Destroy() end
                             end
                         end
                     end
                 end)
-                task.wait(0.1)
+                task.wait(0.5)
             end
         end)
     end
