@@ -1,58 +1,53 @@
+-- [[ 1. SERVICE & LIBRARY INITIALIZATION ]] --
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+
 local RZY_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
 local Window = RZY_Library:MakeWindow("Accelerator Incremental")
 
-local Remotes = game:GetService("ReplicatedStorage"):WaitForChild("Remotes")
-local LocalPlayer = game:GetService("Players").LocalPlayer
-
+-- [[ 2. UTILITY FUNCTIONS ]] --
 -- Fungsi Pengubah String ke Number dengan Kamus Lengkap sampai Centillion
 local function StringToNumber(str)
     if not str then return 0 end
     
-    -- Hapus spasi, koma, dan simbol derajat
     str = tostring(str):gsub("°", ""):gsub(",", ""):gsub(" ", "")
-    
-    -- Mengambil bagian angka (termasuk desimal)
     local numberPart = string.match(str, "[%d%.]+")
-    -- Mengambil bagian teks/suffix
     local suffixPart = string.match(str, "%a+")
-    
     local num = tonumber(numberPart) or 0
     
     if suffixPart then
-        -- Mengubah ke UPPERCASE agar tidak sensitif huruf besar/kecil (e.g., qd jadi QD)
         suffixPart = string.upper(suffixPart)
-        
-        -- Kamus Pengali Lengkap (Sudah disesuaikan dengan Qd dan Qn)
         local multipliers = {
-            K   = 1e3,   M   = 1e6,   B   = 1e9,   T   = 1e12,  -- Thousand, Million, Billion, Trillion
-            QD  = 1e15,  QN  = 1e18,  SX  = 1e21,  SP  = 1e24,  -- Quadrillion (QD), Quintillion (QN), Sextillion, Septillion
-            OC  = 1e27,  NO  = 1e30,  DC  = 1e33,  UDC = 1e36,  -- Octillion, Nonillion, Decillion, Undecillion
-            DDC = 1e39,  TDC = 1e42,  QDDC= 1e45,  QNDC= 1e48,  -- Duodecillion, Tredecillion, Quattuordecillion, Quindecillion
-            SXDC= 1e51,  SPDC= 1e54,  OCDC= 1e57,  NODC= 1e60,  -- Sexdecillion, Septendecillion, Octodecillion, Novemdecillion
-            VG  = 1e63,  UVG = 1e66,  DVG = 1e69,  TVG = 1e72,  -- Vigintillion, Unvigintillion, Duovigintillion, Tresvigintillion
-            QDVG= 1e75,  QNVG= 1e78,  SXVG= 1e81,  SPVG= 1e84,  -- Quattuorvigintillion, Quinvigintillion, Sexvigintillion, Septenvigintillion
-            OCVG= 1e87,  NOVG= 1e90,  TG  = 1e93,  UTG = 1e96,  -- Octovigintillion, Novemvigintillion, Trigintillion, Untrigintillion
-            DTG = 1e99,  TTG = 1e102, QDTG= 1e105, QNTG= 1e108, -- Duotrigintillion, Trestrigintillion, Quattuortrigintillion, Quintrigintillion
-            SXTG= 1e111, SPTG= 1e114, OCTG= 1e117, NOTG= 1e120, -- Sextrigintillion, Septentrigintillion, Octotrigintillion, Novemtrigintillion
-            QDG = 1e123, UQDG= 1e126, DQDG= 1e129, TQDG= 1e132, -- Quadragintillion, Unquadragintillion, Duoquadragintillion, Tresquadragintillion
-            QQDG= 1e135, QIDG= 1e138, SXDG= 1e141, SPDG= 1e144, -- Quattuorquadragintillion, Quinquadragintillion, Sexquadragintillion, Septenquadragintillion
-            OCDG= 1e147, NODG= 1e150, PC  = 1e153, UPC = 1e156, -- Octoquadragintillion, Novemquadragintillion, Quinquagintillion, Unquinquagintillion
-            DPC = 1e159, TPC = 1e162, QAPC= 1e165, QIPC= 1e168, -- Duoquinquagintillion, Tresquinquagintillion, Quattuorquinquagintillion, Quinquinquagintillion
-            SXPC= 1e171, SPPC= 1e174, OCPC= 1e177, NOPC= 1e180, -- Sexquinquagintillion, Septenquinquagintillion, Octoquinquagintillion, Novemquinquagintillion
-            HX  = 1e183, UHX = 1e186, DHX = 1e189, THX = 1e192, -- Sexagintillion, Unsexagintillion, Duosexagintillion, Tresexagintillion
-            QAHX= 1e195, QIHX= 1e198, SXHX= 1e201, SPHX= 1e204, -- Quattuorsexagintillion, Quinsexagintillion, Sexsexagintillion, Septensexagintillion
-            OCHX= 1e207, NOHX= 1e210, HP  = 1e213, UHP = 1e216, -- Octosexagintillion, Novemsexagintillion, Septuagintillion, Unseptuagintillion
-            DHP = 1e219, THP = 1e222, QAHP= 1e225, QIHP= 1e228, -- Duoseptuagintillion, Treseptuagintillion, Quattuorseptuagintillion, Quinseptuagintillion
-            SXHP= 1e231, SPHP= 1e234, OCHP= 1e237, NOHP= 1e240, -- Sexseptuagintillion, Septenseptuagintillion, Octoseptuagintillion, Novemseptuagintillion
-            OG  = 1e243, UOG = 1e246, DOG = 1e249, TOG = 1e252, -- Octogintillion, Unoctogintillion, Duooctogintillion, Tresoctogintillion
-            QAOG= 1e255, QIOG= 1e258, SXOG= 1e261, SPOG= 1e264, -- Quattuoroctogintillion, Quinoctogintillion, Sexoctogintillion, Septenoctogintillion
-            OCOG= 1e267, NOOG= 1e270, N   = 1e273, UN  = 1e276, -- Octooctogintillion, Novemoctogintillion, Nonagintillion, Unnonagintillion
-            DN  = 1e279, TN  = 1e282, QAN = 1e285, QIN = 1e288, -- Duononagintillion, Trenonagintillion, Quattuornonagintillion, Quinnonagintillion
-            SXN = 1e291, SPN = 1e294, OCN = 1e297, NON = 1e300, -- Sexnonagintillion, Septennonagintillion, Octononagintillion, Novemnonagintillion
-            CEN = 1e303                                         -- Centillion
+            K   = 1e3,   M   = 1e6,   B   = 1e9,   T   = 1e12,  
+            QD  = 1e15,  QN  = 1e18,  SX  = 1e21,  SP  = 1e24,  
+            OC  = 1e27,  NO  = 1e30,  DC  = 1e33,  UDC = 1e36,  
+            DDC = 1e39,  TDC = 1e42,  QDDC= 1e45,  QNDC= 1e48,  
+            SXDC= 1e51,  SPDC= 1e54,  OCDC= 1e57,  NODC= 1e60,  
+            VG  = 1e63,  UVG = 1e66,  DVG = 1e69,  TVG = 1e72,  
+            QDVG= 1e75,  QNVG= 1e78,  SXVG= 1e81,  SPVG= 1e84,  
+            OCVG= 1e87,  NOVG= 1e90,  TG  = 1e93,  UTG = 1e96,  
+            DTG = 1e99,  TTG = 1e102, QDTG= 1e105, QNTG= 1e108, 
+            SXTG= 1e111, SPTG= 1e114, OCTG= 1e117, NOTG= 1e120, 
+            QDG = 1e123, UQDG= 1e126, DQDG= 1e129, TQDG= 1e132, 
+            QQDG= 1e135, QIDG= 1e138, SXDG= 1e141, SPDG= 1e144, 
+            OCDG= 1e147, NODG= 1e150, PC  = 1e153, UPC = 1e156, 
+            DPC = 1e159, TPC = 1e162, QAPC= 1e165, QIPC= 1e168, 
+            SXPC= 1e171, SPPC= 1e174, OCPC= 1e177, NOPC= 1e180, 
+            HX  = 1e183, UHX = 1e186, DHX = 1e189, THX = 1e192, 
+            QAHX= 1e195, QIHX= 1e198, SXHX= 1e201, SPHX= 1e204, 
+            OCHX= 1e207, NOHX= 1e210, HP  = 1e213, UHP = 1e216, 
+            DHP = 1e219, THP = 1e222, QAHP= 1e225, QIHP= 1e228, 
+            SXHP= 1e231, SPHP= 1e234, OCHP= 1e237, NOHP= 1e240, 
+            OG  = 1e243, UOG = 1e246, DOG = 1e249, TOG = 1e252, 
+            QAOG= 1e255, QIOG= 1e258, SXOG= 1e261, SPOG= 1e264, 
+            OCOG= 1e267, NOOG= 1e270, N   = 1e273, UN  = 1e276, 
+            DN  = 1e279, TN  = 1e282, QAN = 1e285, QIN = 1e288, 
+            SXN = 1e291, SPN = 1e294, OCN = 1e297, NON = 1e300, 
+            CEN = 1e303                                         
         }
         
-        -- Tambahan Alias untuk toleransi jika game mendadak pakai format lama Anda
         multipliers["QA"] = multipliers.QD
         multipliers["QI"] = multipliers.QN
         
@@ -63,7 +58,9 @@ local function StringToNumber(str)
     return num
 end
 
--- [1] Auto Click Brutal (Speed Boost & Pressure)
+-- [[ 3. TOGGLES & FEATURES ]] --
+
+-- [1] Auto Click Brutal
 local autoClick = false
 Window:AddToggle("Auto Click Brutal", false, function(state)
     autoClick = state
@@ -71,18 +68,9 @@ Window:AddToggle("Auto Click Brutal", false, function(state)
         task.spawn(function()
             local clickRemote = Remotes:WaitForChild("IncreaseSpeedBoost")
             local pressureRemote = Remotes:WaitForChild("IncreasePressure")
-            
             while autoClick do
-                pcall(function()
-                    -- Simulasi sentuhan acak untuk Speed Boost
-                    clickRemote:FireServer(Vector2.new(math.random(100, 800), math.random(100, 600)))
-                end)
-                
-                pcall(function()
-                    -- Eksekusi Increase Pressure
-                    pressureRemote:FireServer()
-                end)
-                
+                pcall(function() clickRemote:FireServer(Vector2.new(math.random(100, 800), math.random(100, 600))) end)
+                pcall(function() pressureRemote:FireServer() end)
                 task.wait()
             end
         end)
@@ -172,9 +160,7 @@ Window:AddToggle("Auto Up MassUpgradeTree", false, function(state)
                     local treeFolder = workspace:FindFirstChild("MassUpgradeTree")
                     if treeFolder then
                         for _, v in pairs(treeFolder:GetDescendants()) do
-                            if v:IsA("ClickDetector") then
-                                fireclickdetector(v)
-                            end
+                            if v:IsA("ClickDetector") then fireclickdetector(v) end
                         end
                     end
                 end)
@@ -191,71 +177,67 @@ Window:AddToggle("Auto Prestige", false, function(state)
     if state then
         local prestigeRemote = Remotes:WaitForChild("Prestige")
         
-        -- Jalur 1: Prestige TIER (Smart Check 100%)
+        -- Jalur 1: Prestige TIER (Menggunakan WaitForChild agar aman)
         task.spawn(function()
             while autoPrestige do
                 pcall(function()
-                    local progressBar = LocalPlayer.PlayerGui.TierUpBar.ProgressBar
+                    local playerGui = LocalPlayer:WaitForChild("PlayerGui", 5)
+                    local tierUpBar = playerGui:WaitForChild("TierUpBar", 5)
+                    local progressBar = tierUpBar:WaitForChild("ProgressBar", 5)
+                    
                     local progressLabel = progressBar.ProgressLabel
                     local tierUpReady = progressBar.TierUpReady
                     
                     local isReadyToTierUp = false
-                    
                     if tierUpReady.Visible == true then
                         isReadyToTierUp = true
                     elseif string.find(progressLabel.Text, "100.00%%") or string.find(progressLabel.Text, "100%%") then
                         isReadyToTierUp = true
                     end
                     
-                    if isReadyToTierUp then
-                        prestigeRemote:FireServer("Tier")
-                    end
+                    if isReadyToTierUp then prestigeRemote:FireServer("Tier") end
                 end)
                 task.wait(0.1)
             end
         end)
             
-        -- Jalur 2: Prestige HEAT (Lebih Cerdas & Responsif)
-task.spawn(function()
-    local lastHeat = 0
-    
-    while autoPrestige do
-        pcall(function()
-            local heatLabel = workspace.Freeze.SurfaceGui.Frame.Heat
-            local currentHeat = StringToNumber(heatLabel.Text)
-            
-            -- Jika sudah di atas 10k
-            if currentHeat >= 10000 then
-                -- Logika: Jika kenaikan dalam 1 detik kurang dari 1% dari total Heat kamu saat ini, 
-                -- berarti sudah melambat drastis (plateau).
-                local gain = currentHeat - lastHeat
-                
-                if lastHeat > 0 and gain < (currentHeat * 0.01) then
-                    prestigeRemote:FireServer("Heat")
-                    task.wait(2) -- Beri waktu untuk reset
-                    lastHeat = 0 -- Reset agar mulai dari awal lagi
-                else
-                    lastHeat = currentHeat
-                end
+        -- Jalur 2: Prestige HEAT 
+        task.spawn(function()
+            local lastHeat = 0
+            while autoPrestige do
+                pcall(function()
+                    local freeze = workspace:FindFirstChild("Freeze")
+                    if freeze then
+                        local heatLabel = freeze.SurfaceGui.Frame.Heat
+                        local currentHeat = StringToNumber(heatLabel.Text)
+                        
+                        if currentHeat >= 10000 then
+                            local gain = currentHeat - lastHeat
+                            if lastHeat > 0 and gain < (currentHeat * 0.01) then
+                                prestigeRemote:FireServer("Heat")
+                                task.wait(2)
+                                lastHeat = 0
+                            else
+                                lastHeat = currentHeat
+                            end
+                        end
+                    end
+                end)
+                task.wait(1)
             end
         end)
-        task.wait(1) -- Kita cek setiap 1 detik agar kalkulasinya lebih stabil
-    end
-end)
 
         -- Jalur 3: Prestige MASS
         task.spawn(function()
             while autoPrestige do
-                pcall(function()
-                    prestigeRemote:FireServer("Mass")
-                end)
+                pcall(function() prestigeRemote:FireServer("Mass") end)
                 task.wait(0.1)
             end
         end)
     end
 end)
 
--- [8] God Mode Race (Lebih Agresif)
+-- [8] God Mode Race (CanTouch Detector Aman)
 local godModeRace = false
 Window:AddToggle("God Mode Race", false, function(state)
     godModeRace = state
@@ -263,20 +245,39 @@ Window:AddToggle("God Mode Race", false, function(state)
         task.spawn(function()
             while godModeRace do
                 pcall(function()
+                    -- 1. Cari Bola Karakter kita berdasarkan Attribute 'Player'
+                    for _, obj in pairs(workspace:GetChildren()) do
+                        if obj:IsA("BasePart") then
+                            if obj:GetAttribute("Player") == LocalPlayer.Name or obj.Name == LocalPlayer.Name .. " Ball" then
+                                if obj.CanTouch ~= false then obj.CanTouch = false end
+                            end
+                        end
+                    end
+
+                    -- 2. Hapus rintangan map
                     local obsFolder = workspace:FindFirstChild("RaceMap"):FindFirstChild("Obstacles")
                     if obsFolder then
                         for _, obj in pairs(obsFolder:GetDescendants()) do
-                            -- Matikan kolisi
                             if obj:IsA("BasePart") then
                                 obj.CanCollide = false
-                                -- Hapus pendeteksi sentuhan (Ini yang bikin kamu kalah)
                                 local touch = obj:FindFirstChild("TouchInterest")
                                 if touch then touch:Destroy() end
                             end
                         end
                     end
                 end)
-                task.wait(0.5)
+                task.wait(0.3)
+            end
+        end)
+    else
+        -- Mengembalikan fungsi sentuh saat Toggle DIMATIKAN
+        pcall(function()
+            for _, obj in pairs(workspace:GetChildren()) do
+                if obj:IsA("BasePart") then
+                    if obj:GetAttribute("Player") == LocalPlayer.Name or obj.Name == LocalPlayer.Name .. " Ball" then
+                        obj.CanTouch = true
+                    end
+                end
             end
         end)
     end
