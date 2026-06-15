@@ -86,13 +86,30 @@ Window:AddToggle("Auto Click Brutal", false, function(state)
                 pcall(function() 
                     local clickRemote = GetRemote("IncreaseSpeedBoost")
                     local pressureRemote = GetRemote("IncreasePressure")
-                    local rollRemote = GetRemote("RollParticle") -- (TAMBAHAN)
                     
                     if clickRemote then clickRemote:FireServer(Vector2.new(math.random(100, 800), math.random(100, 600))) end
                     if pressureRemote then pressureRemote:FireServer() end
-                    if rollRemote then rollRemote:FireServer("Quark") end -- (TAMBAHAN)
                 end)
                 task.wait()
+            end
+        end)
+    end
+end)
+
+-- Toggle Baru Khusus Quark (Terpisah agar klik utama tidak lag)
+local autoQuark = false
+Window:AddToggle("Auto Roll Quark", false, function(state)
+    autoQuark = state
+    if state then
+        task.spawn(function()
+            while autoQuark do
+                pcall(function()
+                    local rollRemote = GetRemote("RollParticle")
+                    if rollRemote then 
+                        rollRemote:FireServer("Quark") 
+                    end
+                end)
+                task.wait(0.1) -- Jeda gacha quark, bisa kamu perkecil jadi task.wait() jika mau brutal
             end
         end)
     end
@@ -224,7 +241,7 @@ Window:AddToggle("Auto Up MassUpgradeTree", false, function(state)
     end
 end)
 
--- [7] Auto Prestige (Tier, Smart Heat, & Smart Mass Tanpa Batas Minimal)
+-- [7] Auto Prestige (Tier, Smart Heat Cepat, & Smart Mass Cepat)
 local autoPrestige = false
 Window:AddToggle("Auto Prestige", false, function(state)
     autoPrestige = state
@@ -254,7 +271,7 @@ Window:AddToggle("Auto Prestige", false, function(state)
             end
         end)
             
-        -- Jalur 2: Prestige HEAT (Filter Minimal Dihapus)
+        -- Jalur 2: Prestige HEAT (Smart Mode - Lebih Responsif)
         task.spawn(function()
             local lastHeat = 0
             local tickCounter = 0
@@ -266,11 +283,14 @@ Window:AddToggle("Auto Prestige", false, function(state)
                         local heatLabel = freeze.SurfaceGui.Frame.Heat
                         local currentHeat = StringToNumber(heatLabel.Text)
                         
-                        -- Langsung hitung tanpa syarat >= 10000
                         tickCounter = tickCounter + 1
-                        if tickCounter >= 4 then
+                        -- Mengecek setiap 3 tick (dipercepat dari 4 tick)
+                        if tickCounter >= 3 then
                             local gain = currentHeat - lastHeat
-                            if lastHeat > 0 and gain < (currentHeat * 0.005) then
+                            
+                            -- Sensitivitas dinaikkan menjadi 0.05 (5%). 
+                            -- Kalau pertumbuhan melambat di bawah 5%, langsung prestige!
+                            if lastHeat > 0 and gain < (currentHeat * 0.30) then
                                 prestigeRemote:FireServer("Heat")
                                 lastHeat = 0
                             else
@@ -284,7 +304,7 @@ Window:AddToggle("Auto Prestige", false, function(state)
             end
         end)
 
-        -- Jalur 3: Prestige MASS (Filter Minimal Dihapus)
+        -- Jalur 3: Prestige MASS (Smart Mode - Lebih Responsif)
         task.spawn(function()
             local lastMass = 0
             local massTickCounter = 0
@@ -296,11 +316,13 @@ Window:AddToggle("Auto Prestige", false, function(state)
                         local massLabel = massConvert.SurfaceGui.Frame.Mass
                         local currentMass = StringToNumber(massLabel.Text)
                         
-                        -- Langsung hitung tanpa syarat >= 1e23
                         massTickCounter = massTickCounter + 1
-                        if massTickCounter >= 4 then
+                        -- Mengecek setiap 3 tick (dipercepat dari 4 tick)
+                        if massTickCounter >= 3 then
                             local gain = currentMass - lastMass
-                            if lastMass > 0 and gain < (currentMass * 0.005) then
+                            
+                            -- Sensitivitas dinaikkan menjadi 0.05 (5%).
+                            if lastMass > 0 and gain < (currentMass * 0.30) then
                                 prestigeRemote:FireServer("Mass")
                                 lastMass = 0
                             else
