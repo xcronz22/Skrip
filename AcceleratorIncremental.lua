@@ -7,9 +7,6 @@ local LocalPlayer = Players.LocalPlayer
 local RZY_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
 local Window = RZY_Library:MakeWindow("Accelerator Incremental")
 
--- Cari folder Remotes dengan aman (Anti-Infinite Yield / Cegah Skrip Macet)
-local Remotes = ReplicatedStorage:FindFirstChild("Remotes") or ReplicatedStorage:FindFirstChild("remotes") or ReplicatedStorage:WaitForChild("Remotes", 5)
-
 -- [[ 2. UTILITY FUNCTIONS ]] --
 -- Fungsi Pengubah String ke Number dengan Kamus Lengkap sampai Centillion
 local function StringToNumber(str)
@@ -76,44 +73,23 @@ end
 
 -- [[ 3. TOGGLES & FEATURES ]] --
 
--- [1] Auto Click Brutal + Pressure + Quark (Digabung 1 Tombol dengan Optimasi)
-local autoClickAll = false
+-- [1] Auto Click Brutal
+local autoClick = false
 Window:AddToggle("Auto Click Brutal", false, function(state)
-    autoClickAll = state
+    autoClick = state
     if state then
         task.spawn(function()
-            while autoClickAll do
+            while autoClick do
                 pcall(function() 
-                    -- 1. Ambil semua remote event
-                    local pressureRemote = GetRemote("IncreasePressure")
-                    local rollRemote = GetRemote("RollParticle")
                     local clickRemote = GetRemote("IncreaseSpeedBoost")
+                    local pressureRemote = GetRemote("IncreasePressure")
+                    local rollRemote = GetRemote("RollParticle") -- (TAMBAHAN)
                     
-                    -- 2. Eksekusi Pressure
-                    if pressureRemote then 
-                        pressureRemote:FireServer() 
-                    end
-                    
-                    -- Jeda mikro agar remote tidak bertabrakan
-                    task.wait(0.01) 
-                    
-                    -- 3. Eksekusi Roll Particle Quark
-                    if rollRemote then 
-                        rollRemote:FireServer("Quark") 
-                    end
-                    
-                    task.wait(0.01)
-                    
-                    -- 4. Eksekusi Speed Boost Klik (Koordinat dibuat agak acak agar tidak dicurigai server)
-                    if clickRemote then 
-                        local randomX = math.random(800, 1000)
-                        local randomY = math.random(-50, 50)
-                        clickRemote:FireServer(Vector2.new(randomX, randomY)) 
-                    end
+                    if clickRemote then clickRemote:FireServer(Vector2.new(math.random(100, 800), math.random(100, 600))) end
+                    if pressureRemote then pressureRemote:FireServer() end
+                    if rollRemote then rollRemote:FireServer("Quark") end -- (TAMBAHAN)
                 end)
-                
-                -- Jeda putaran loop utama (sesuaikan jika dirasa terlalu cepat/lambat)
-                task.wait(0.05) 
+                task.wait()
             end
         end)
     end
@@ -245,98 +221,96 @@ Window:AddToggle("Auto Up MassUpgradeTree", false, function(state)
     end
 end)
 
--- [7] Auto Prestige (Tier, Smart Heat Cepat, & Smart Mass Cepat)
+-- [7] Auto Prestige (Smart 30% + Anti Stuck)
 local autoPrestige = false
 Window:AddToggle("Auto Prestige", false, function(state)
     autoPrestige = state
     if state then
-        -- Jalur 1: Prestige TIER
+        local Remotes = game:GetService("ReplicatedStorage"):WaitForChild("Remotes")
+        
+        -- Jalur 1: Prestige TIER (Tanpa delay pencarian)
         task.spawn(function()
             while autoPrestige do
                 pcall(function()
-                    local prestigeRemote = GetRemote("Prestige")
-                    local playerGui = LocalPlayer:WaitForChild("PlayerGui", 5)
-                    local tierUpBar = playerGui:WaitForChild("TierUpBar", 5)
-                    local progressBar = tierUpBar:WaitForChild("ProgressBar", 5)
-                    
-                    local progressLabel = progressBar.ProgressLabel
-                    local tierUpReady = progressBar.TierUpReady
-                    
-                    local isReadyToTierUp = false
-                    if tierUpReady.Visible == true then
-                        isReadyToTierUp = true
-                    elseif string.find(progressLabel.Text, "100.00%%") or string.find(progressLabel.Text, "100%%") then
-                        isReadyToTierUp = true
+                    local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+                    if playerGui then
+                        local tierUpBar = playerGui:FindFirstChild("TierUpBar")
+                        if tierUpBar then
+                            local progressBar = tierUpBar:FindFirstChild("ProgressBar")
+                            if progressBar then
+                                local progressLabel = progressBar:FindFirstChild("ProgressLabel")
+                                local tierUpReady = progressBar:FindFirstChild("TierUpReady")
+                                
+                                local isReady = (tierUpReady and tierUpReady.Visible) or (progressLabel and (string.find(progressLabel.Text, "100.00%%") or string.find(progressLabel.Text, "100%%")))
+                                
+                                if isReady then 
+                                    Remotes:WaitForChild("Prestige"):FireServer("Tier") 
+                                end
+                            end
+                        end
                     end
-                    
-                    if isReadyToTierUp and prestigeRemote then prestigeRemote:FireServer("Tier") end
+                end)
+                task.wait(0.5)
+            end
+        end)
+            
+        -- Jalur 2: Prestige HEAT (Smart 30% & Failsafe)
+        task.spawn(function()
+            local lastHeat = 0
+            local stuckCounter = 0
+            while autoPrestige do
+                pcall(function()
+                    local freeze = workspace:FindFirstChild("Freeze")
+                    if freeze then
+                        local heatLabel = freeze.SurfaceGui.Frame.Heat
+                        local currentHeat = StringToNumber(heatLabel.Text)
+                        local gain = currentHeat - lastHeat
+                        
+                        -- Logika: Jika gain di bawah 30% ATAU angkanya macet (0)
+                        if lastHeat > 0 and (gain < (currentHeat * 0.30) or gain == 0) then
+                            stuckCounter = stuckCounter + 1
+                            if stuckCounter >= 3 then
+                                Remotes:WaitForChild("Prestige"):FireServer("Heat")
+                                lastHeat = 0
+                                stuckCounter = 0
+                            end
+                        else
+                            lastHeat = currentHeat
+                            stuckCounter = 0
+                        end
+                    end
                 end)
                 task.wait(0.1)
             end
         end)
-            
-        -- Jalur 2: Prestige HEAT (Smart Mode - Lebih Responsif)
-        task.spawn(function()
-            local lastHeat = 0
-            local tickCounter = 0
-            while autoPrestige do
-                pcall(function()
-                    local prestigeRemote = GetRemote("Prestige")
-                    local freeze = workspace:FindFirstChild("Freeze")
-                    if freeze and prestigeRemote then
-                        local heatLabel = freeze.SurfaceGui.Frame.Heat
-                        local currentHeat = StringToNumber(heatLabel.Text)
-                        
-                        tickCounter = tickCounter + 1
-                        -- Mengecek setiap 3 tick (dipercepat dari 4 tick)
-                        if tickCounter >= 3 then
-                            local gain = currentHeat - lastHeat
-                            
-                            -- Sensitivitas dinaikkan menjadi 0.05 (5%). 
-                            -- Kalau pertumbuhan melambat di bawah 5%, langsung prestige!
-                            if lastHeat > 0 and gain < (currentHeat * 0.30) then
-                                prestigeRemote:FireServer("Heat")
-                                lastHeat = 0
-                            else
-                                lastHeat = currentHeat
-                            end
-                            tickCounter = 0
-                        end
-                    end
-                end)
-                task.wait(0.05)
-            end
-        end)
 
-        -- Jalur 3: Prestige MASS (Smart Mode - Lebih Responsif)
+        -- Jalur 3: Prestige MASS (Smart 30% & Failsafe)
         task.spawn(function()
             local lastMass = 0
-            local massTickCounter = 0
+            local massStuckCounter = 0
             while autoPrestige do
                 pcall(function()
-                    local prestigeRemote = GetRemote("Prestige")
                     local massConvert = workspace:FindFirstChild("MassConvert")
-                    if massConvert and prestigeRemote then
+                    if massConvert then
                         local massLabel = massConvert.SurfaceGui.Frame.Mass
                         local currentMass = StringToNumber(massLabel.Text)
+                        local gain = currentMass - lastMass
                         
-                        massTickCounter = massTickCounter + 1
-                        -- Mengecek setiap 3 tick (dipercepat dari 4 tick)
-                        if massTickCounter >= 3 then
-                            local gain = currentMass - lastMass
-                            
-                            -- Sensitivitas dinaikkan menjadi 0.05 (5%).
-                            if lastMass > 0 and gain < (currentMass * 0.30) then
-                                prestigeRemote:FireServer("Mass")
+                        -- Logika: Jika gain di bawah 30% ATAU angkanya macet (0)
+                        if lastMass > 0 and (gain < (currentMass * 0.30) or gain == 0) then
+                            massStuckCounter = massStuckCounter + 1
+                            if massStuckCounter >= 3 then
+                                Remotes:WaitForChild("Prestige"):FireServer("Mass")
                                 lastMass = 0
-                            else
-                                lastMass = currentMass
+                                massStuckCounter = 0
                             end
-                            massTickCounter = 0
+                        else
+                            lastMass = currentMass
+                            massStuckCounter = 0
                         end
                     end
                 end)
-                task.wait(0.05)
+                task.wait(0.1)
             end
         end)
     end
