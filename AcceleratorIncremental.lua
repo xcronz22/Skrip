@@ -2,10 +2,13 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
-local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 
+-- Buka UI library DI PALING ATAS agar panel PASTI muncul tanpa tertahan loading game
 local RZY_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
 local Window = RZY_Library:MakeWindow("Accelerator Incremental")
+
+-- Cari folder Remotes dengan aman (Anti-Infinite Yield / Cegah Skrip Macet)
+local Remotes = ReplicatedStorage:FindFirstChild("Remotes") or ReplicatedStorage:FindFirstChild("remotes") or ReplicatedStorage:WaitForChild("Remotes", 5)
 
 -- [[ 2. UTILITY FUNCTIONS ]] --
 -- Fungsi Pengubah String ke Number dengan Kamus Lengkap sampai Centillion
@@ -72,13 +75,15 @@ end
 local autoClick = false
 Window:AddToggle("Auto Click Brutal", false, function(state)
     autoClick = state
-    if state then
+    if state and Remotes then
         task.spawn(function()
-            local clickRemote = Remotes:WaitForChild("IncreaseSpeedBoost")
-            local pressureRemote = Remotes:WaitForChild("IncreasePressure")
+            local clickRemote = Remotes:FindFirstChild("IncreaseSpeedBoost")
+            local pressureRemote = Remotes:FindFirstChild("IncreasePressure")
             while autoClick do
-                pcall(function() clickRemote:FireServer(Vector2.new(math.random(100, 800), math.random(100, 600))) end)
-                pcall(function() pressureRemote:FireServer() end)
+                pcall(function() 
+                    if clickRemote then clickRemote:FireServer(Vector2.new(math.random(100, 800), math.random(100, 600))) end
+                    if pressureRemote then pressureRemote:FireServer() end
+                end)
                 task.wait()
             end
         end)
@@ -89,11 +94,11 @@ end)
 local autoUpSpeed = false
 Window:AddToggle("Auto Up Speed", false, function(state)
     autoUpSpeed = state
-    if state then
+    if state and Remotes then
         task.spawn(function()
-            local buyRemote = Remotes:WaitForChild("BuyUpgrade")
+            local buyRemote = Remotes:FindFirstChild("BuyUpgrade")
             local upgrades = {"AutoIncrement", "BoostMax", "CompoundingMultiplier", "FlatAddition", "ParticleBulk"}
-            while autoUpSpeed do
+            while autoUpSpeed and buyRemote do
                 for _, upgradeName in ipairs(upgrades) do
                     pcall(function() buyRemote:FireServer("Speed", upgradeName, true) end)
                 end
@@ -107,11 +112,11 @@ end)
 local autoUpHeat = false
 Window:AddToggle("Auto Up Heat", false, function(state)
     autoUpHeat = state
-    if state then
+    if state and Remotes then
         task.spawn(function()
-            local buyRemote = Remotes:WaitForChild("BuyUpgrade")
+            local buyRemote = Remotes:FindFirstChild("BuyUpgrade")
             local upgrades = {"AccelerationMultiplier", "AutoIncrement", "HeatAmountToSpeedMultiplier", "PressureAdd", "SpeedAmountToHeatMultiplier"}
-            while autoUpHeat do
+            while autoUpHeat and buyRemote do
                 for _, upgradeName in ipairs(upgrades) do
                     pcall(function() buyRemote:FireServer("Heat", upgradeName, true) end)
                 end
@@ -125,11 +130,11 @@ end)
 local autoUpRacePoint = false
 Window:AddToggle("Auto Up RacePoint", false, function(state)
     autoUpRacePoint = state
-    if state then
+    if state and Remotes then
         task.spawn(function()
-            local buyRemote = Remotes:WaitForChild("BuyUpgrade")
+            local buyRemote = Remotes:FindFirstChild("BuyUpgrade")
             local upgrades = {"Health", "MassMultiplier", "PointMultiplier", "PressureMultiplier", "SpeedMultiplier"}
-            while autoUpRacePoint do
+            while autoUpRacePoint and buyRemote do
                 for _, upgradeName in ipairs(upgrades) do
                     pcall(function() buyRemote:FireServer("RacePoint", upgradeName, true) end)
                 end
@@ -143,11 +148,11 @@ end)
 local autoUpFlux = false
 Window:AddToggle("Auto Up Flux", false, function(state)
     autoUpFlux = state
-    if state then
+    if state and Remotes then
         task.spawn(function()
-            local buyRemote = Remotes:WaitForChild("BuyUpgrade")
+            local buyRemote = Remotes:FindFirstChild("BuyUpgrade")
             local upgrades = {"BarrierThinning", "Resonance", "SuccessRate"}
-            while autoUpFlux do
+            while autoUpFlux and buyRemote do
                 for _, upgradeName in ipairs(upgrades) do
                     pcall(function() buyRemote:FireServer("Flux", upgradeName, true) end)
                 end
@@ -157,7 +162,7 @@ Window:AddToggle("Auto Up Flux", false, function(state)
     end
 end)
 
--- [6] Auto Up MassUpgradeTree (Update: Sistem Deteksi Cost Cerdas & Anti-Unbuy Loop)
+-- [6] Auto Up MassUpgradeTree (Safe Indexing & Anti-Unbuy Loop)
 local autoUpMassTree = false
 Window:AddToggle("Auto Up MassUpgradeTree", false, function(state)
     autoUpMassTree = state
@@ -169,21 +174,18 @@ Window:AddToggle("Auto Up MassUpgradeTree", false, function(state)
                     local massConvert = workspace:FindFirstChild("MassConvert")
                     
                     if treeFolder and massConvert then
-                        -- Ambil total uang (Mass) kamu saat ini
                         local currentMass = StringToNumber(massConvert.SurfaceGui.Frame.Mass.Text)
                         
-                        -- Scan folder pohon upgrade dari nomor 1 sampai 19
                         for i = 1, 19 do
                             local folder = treeFolder:FindFirstChild(tostring(i))
                             if folder then
                                 local main = folder:FindFirstChild("Main")
-                                local frame = main and main:FindFirstChild("SurfaceGui") and main.SurfaceGui:FindFirstChild("Frame")
+                                local surfaceGui = main and main:FindFirstChild("SurfaceGui")
+                                local frame = surfaceGui and surfaceGui:FindFirstChild("Frame")
                                 local costLabel = frame and frame:FindFirstChild("Cost")
                                 
                                 if costLabel then
                                     local isBlocked = false
-                                    
-                                    -- Periksa semua TextLabel di dalam Frame untuk mendeteksi status Maxed / Unbuy
                                     for _, child in pairs(frame:GetChildren()) do
                                         if child:IsA("TextLabel") then
                                             local labelText = string.lower(child.Text)
@@ -194,11 +196,8 @@ Window:AddToggle("Auto Up MassUpgradeTree", false, function(state)
                                         end
                                     end
                                     
-                                    -- Jika tidak Maxed dan bukan berstatus "Click to unbuy", cek harga vs dompet
                                     if not isBlocked then
                                         local costValue = StringToNumber(costLabel.Text)
-                                        
-                                        -- Hanya eksekusi klik jika uang (Mass) kamu cukup mendanai harganya
                                         if currentMass >= costValue then
                                             local clickDetector = folder:FindFirstChildWhichIsA("ClickDetector", true)
                                             if clickDetector then
@@ -221,12 +220,12 @@ end)
 local autoPrestige = false
 Window:AddToggle("Auto Prestige", false, function(state)
     autoPrestige = state
-    if state then
-        local prestigeRemote = Remotes:WaitForChild("Prestige")
+    if state and Remotes then
+        local prestigeRemote = Remotes:FindFirstChild("Prestige")
         
         -- Jalur 1: Prestige TIER
         task.spawn(function()
-            while autoPrestige do
+            while autoPrestige and prestigeRemote do
                 pcall(function()
                     local playerGui = LocalPlayer:WaitForChild("PlayerGui", 5)
                     local tierUpBar = playerGui:WaitForChild("TierUpBar", 5)
@@ -252,7 +251,7 @@ Window:AddToggle("Auto Prestige", false, function(state)
         task.spawn(function()
             local lastHeat = 0
             local tickCounter = 0
-            while autoPrestige do
+            while autoPrestige and prestigeRemote do
                 pcall(function()
                     local freeze = workspace:FindFirstChild("Freeze")
                     if freeze then
@@ -285,7 +284,7 @@ Window:AddToggle("Auto Prestige", false, function(state)
         task.spawn(function()
             local lastMass = 0
             local massTickCounter = 0
-            while autoPrestige do
+            while autoPrestige and prestigeRemote do
                 pcall(function()
                     local massConvert = workspace:FindFirstChild("MassConvert")
                     if massConvert then
