@@ -7,26 +7,32 @@ local LocalPlayer = game:GetService("Players").LocalPlayer
 -- Fungsi Pengubah String ke Number dengan Kamus Lengkap sampai Centillion
 local function StringToNumber(str)
     if not str then return 0 end
+    
     -- Hapus spasi, koma, dan simbol derajat
     str = tostring(str):gsub("°", ""):gsub(",", ""):gsub(" ", "")
     
+    -- Mengambil bagian angka (termasuk desimal)
     local numberPart = string.match(str, "[%d%.]+")
+    -- Mengambil bagian teks/suffix
     local suffixPart = string.match(str, "%a+")
+    
     local num = tonumber(numberPart) or 0
     
     if suffixPart then
+        -- Mengubah ke UPPERCASE agar tidak sensitif huruf besar/kecil (e.g., qd jadi QD)
         suffixPart = string.upper(suffixPart)
-        -- Kamus Pengali Lengkap (Standar Incremental Game)
+        
+        -- Kamus Pengali Lengkap (Sudah disesuaikan dengan Qd dan Qn)
         local multipliers = {
             K   = 1e3,   M   = 1e6,   B   = 1e9,   T   = 1e12,  -- Thousand, Million, Billion, Trillion
-            QA  = 1e15,  QI  = 1e18,  SX  = 1e21,  SP  = 1e24,  -- Quadrillion, Quintillion, Sextillion, Septillion
+            QD  = 1e15,  QN  = 1e18,  SX  = 1e21,  SP  = 1e24,  -- Quadrillion (QD), Quintillion (QN), Sextillion, Septillion
             OC  = 1e27,  NO  = 1e30,  DC  = 1e33,  UDC = 1e36,  -- Octillion, Nonillion, Decillion, Undecillion
-            DDC = 1e39,  TDC = 1e42,  QADC= 1e45,  QIDC= 1e48,  -- Duodecillion, Tredecillion, Quattuordecillion, Quindecillion
+            DDC = 1e39,  TDC = 1e42,  QDDC= 1e45,  QNDC= 1e48,  -- Duodecillion, Tredecillion, Quattuordecillion, Quindecillion
             SXDC= 1e51,  SPDC= 1e54,  OCDC= 1e57,  NODC= 1e60,  -- Sexdecillion, Septendecillion, Octodecillion, Novemdecillion
             VG  = 1e63,  UVG = 1e66,  DVG = 1e69,  TVG = 1e72,  -- Vigintillion, Unvigintillion, Duovigintillion, Tresvigintillion
-            QAVG= 1e75,  QIVG= 1e78,  SXVG= 1e81,  SPVG= 1e84,  -- Quattuorvigintillion, Quinvigintillion, Sexvigintillion, Septenvigintillion
+            QDVG= 1e75,  QNVG= 1e78,  SXVG= 1e81,  SPVG= 1e84,  -- Quattuorvigintillion, Quinvigintillion, Sexvigintillion, Septenvigintillion
             OCVG= 1e87,  NOVG= 1e90,  TG  = 1e93,  UTG = 1e96,  -- Octovigintillion, Novemvigintillion, Trigintillion, Untrigintillion
-            DTG = 1e99,  TTG = 1e102, QATG= 1e105, QITG= 1e108, -- Duotrigintillion, Trestrigintillion, Quattuortrigintillion, Quintrigintillion
+            DTG = 1e99,  TTG = 1e102, QDTG= 1e105, QNTG= 1e108, -- Duotrigintillion, Trestrigintillion, Quattuortrigintillion, Quintrigintillion
             SXTG= 1e111, SPTG= 1e114, OCTG= 1e117, NOTG= 1e120, -- Sextrigintillion, Septentrigintillion, Octotrigintillion, Novemtrigintillion
             QDG = 1e123, UQDG= 1e126, DQDG= 1e129, TQDG= 1e132, -- Quadragintillion, Unquadragintillion, Duoquadragintillion, Tresquadragintillion
             QQDG= 1e135, QIDG= 1e138, SXDG= 1e141, SPDG= 1e144, -- Quattuorquadragintillion, Quinquadragintillion, Sexquadragintillion, Septenquadragintillion
@@ -45,6 +51,11 @@ local function StringToNumber(str)
             SXN = 1e291, SPN = 1e294, OCN = 1e297, NON = 1e300, -- Sexnonagintillion, Septennonagintillion, Octononagintillion, Novemnonagintillion
             CEN = 1e303                                         -- Centillion
         }
+        
+        -- Tambahan Alias untuk toleransi jika game mendadak pakai format lama Anda
+        multipliers["QA"] = multipliers.QD
+        multipliers["QI"] = multipliers.QN
+        
         if multipliers[suffixPart] then
             num = num * multipliers[suffixPart]
         end
