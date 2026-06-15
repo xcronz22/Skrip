@@ -75,14 +75,17 @@ end
 local autoClick = false
 Window:AddToggle("Auto Click Brutal", false, function(state)
     autoClick = state
-    if state and Remotes then
+    if state then
         task.spawn(function()
-            local clickRemote = Remotes:FindFirstChild("IncreaseSpeedBoost")
-            local pressureRemote = Remotes:FindFirstChild("IncreasePressure")
             while autoClick do
                 pcall(function() 
+                    local clickRemote = GetRemote("IncreaseSpeedBoost")
+                    local pressureRemote = GetRemote("IncreasePressure")
+                    local rollRemote = GetRemote("RollParticle") -- (TAMBAHAN)
+                    
                     if clickRemote then clickRemote:FireServer(Vector2.new(math.random(100, 800), math.random(100, 600))) end
                     if pressureRemote then pressureRemote:FireServer() end
+                    if rollRemote then rollRemote:FireServer("Quark") end -- (TAMBAHAN)
                 end)
                 task.wait()
             end
@@ -216,17 +219,16 @@ Window:AddToggle("Auto Up MassUpgradeTree", false, function(state)
     end
 end)
 
--- [7] Auto Prestige (Tier, Smart Heat, & Smart Mass)
+-- [7] Auto Prestige (Tier, Smart Heat, & Smart Mass Tanpa Batas Minimal)
 local autoPrestige = false
 Window:AddToggle("Auto Prestige", false, function(state)
     autoPrestige = state
-    if state and Remotes then
-        local prestigeRemote = Remotes:FindFirstChild("Prestige")
-        
+    if state then
         -- Jalur 1: Prestige TIER
         task.spawn(function()
-            while autoPrestige and prestigeRemote do
+            while autoPrestige do
                 pcall(function()
+                    local prestigeRemote = GetRemote("Prestige")
                     local playerGui = LocalPlayer:WaitForChild("PlayerGui", 5)
                     local tierUpBar = playerGui:WaitForChild("TierUpBar", 5)
                     local progressBar = tierUpBar:WaitForChild("ProgressBar", 5)
@@ -241,37 +243,34 @@ Window:AddToggle("Auto Prestige", false, function(state)
                         isReadyToTierUp = true
                     end
                     
-                    if isReadyToTierUp then prestigeRemote:FireServer("Tier") end
+                    if isReadyToTierUp and prestigeRemote then prestigeRemote:FireServer("Tier") end
                 end)
                 task.wait(0.1)
             end
         end)
             
-        -- Jalur 2: Prestige HEAT (Hyper Responsive)
+        -- Jalur 2: Prestige HEAT (Filter Minimal Dihapus)
         task.spawn(function()
             local lastHeat = 0
             local tickCounter = 0
-            while autoPrestige and prestigeRemote do
+            while autoPrestige do
                 pcall(function()
+                    local prestigeRemote = GetRemote("Prestige")
                     local freeze = workspace:FindFirstChild("Freeze")
-                    if freeze then
+                    if freeze and prestigeRemote then
                         local heatLabel = freeze.SurfaceGui.Frame.Heat
                         local currentHeat = StringToNumber(heatLabel.Text)
                         
-                        if currentHeat >= 10000 then
-                            tickCounter = tickCounter + 1
-                            if tickCounter >= 4 then
-                                local gain = currentHeat - lastHeat
-                                if lastHeat > 0 and gain < (currentHeat * 0.005) then
-                                    prestigeRemote:FireServer("Heat")
-                                    lastHeat = 0
-                                else
-                                    lastHeat = currentHeat
-                                end
-                                tickCounter = 0
+                        -- Langsung hitung tanpa syarat >= 10000
+                        tickCounter = tickCounter + 1
+                        if tickCounter >= 4 then
+                            local gain = currentHeat - lastHeat
+                            if lastHeat > 0 and gain < (currentHeat * 0.005) then
+                                prestigeRemote:FireServer("Heat")
+                                lastHeat = 0
+                            else
+                                lastHeat = currentHeat
                             end
-                        else
-                            lastHeat = currentHeat
                             tickCounter = 0
                         end
                     end
@@ -280,31 +279,28 @@ Window:AddToggle("Auto Prestige", false, function(state)
             end
         end)
 
-        -- Jalur 3: Prestige MASS (Minimal Syarat 1e23)
+        -- Jalur 3: Prestige MASS (Filter Minimal Dihapus)
         task.spawn(function()
             local lastMass = 0
             local massTickCounter = 0
-            while autoPrestige and prestigeRemote do
+            while autoPrestige do
                 pcall(function()
+                    local prestigeRemote = GetRemote("Prestige")
                     local massConvert = workspace:FindFirstChild("MassConvert")
-                    if massConvert then
+                    if massConvert and prestigeRemote then
                         local massLabel = massConvert.SurfaceGui.Frame.Mass
                         local currentMass = StringToNumber(massLabel.Text)
                         
-                        if currentMass >= 1e23 then
-                            massTickCounter = massTickCounter + 1
-                            if massTickCounter >= 4 then
-                                local gain = currentMass - lastMass
-                                if lastMass > 0 and gain < (currentMass * 0.005) then
-                                    prestigeRemote:FireServer("Mass")
-                                    lastMass = 0
-                                else
-                                    lastMass = currentMass
-                                end
-                                massTickCounter = 0
+                        -- Langsung hitung tanpa syarat >= 1e23
+                        massTickCounter = massTickCounter + 1
+                        if massTickCounter >= 4 then
+                            local gain = currentMass - lastMass
+                            if lastMass > 0 and gain < (currentMass * 0.005) then
+                                prestigeRemote:FireServer("Mass")
+                                lastMass = 0
+                            else
+                                lastMass = currentMass
                             end
-                        else
-                            lastMass = currentMass
                             massTickCounter = 0
                         end
                     end
