@@ -2,15 +2,18 @@
 local RZY_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
 
 -- Membuat Window Utama
-local Win = RZY_Library:MakeWindow("100 Days at Sea - V3")
+local Win = RZY_Library:MakeWindow("100 Days at Sea - V4")
 
 local AutoGrinderEnabled = false
 
-Win:AddToggle("Auto Grinder (Smart Drop)", false, function(state)
+Win:AddToggle("Auto Grinder V4 (Natural)", false, function(state)
     AutoGrinderEnabled = state
     
     if AutoGrinderEnabled then
         task.spawn(function()
+            local Players = game:GetService("Players")
+            local LocalPlayer = Players.LocalPlayer
+            
             while AutoGrinderEnabled do
                 local workspace = game:GetService("Workspace")
                 local DebrisField = workspace:FindFirstChild("DebrisField")
@@ -19,37 +22,45 @@ Win:AddToggle("Auto Grinder (Smart Drop)", false, function(state)
                     and workspace.SpawnIsland.Grinder:FindFirstChild("Collection")
 
                 if DebrisField and GrinderPart then
-                    -- Titik pusat jatuh: 4 stud tepat di atas Collection box
-                    local dropCenter = GrinderPart.CFrame * CFrame.new(0, 4, 0)
+                    -- Titik Jatuh: Tepat di tengah-tengah (X, Z) koordinat Grinder, dinaikkan 2.5 stud (Y)
+                    local dropTargetCFrame = CFrame.new(GrinderPart.Position + Vector3.new(0, 2.5, 0))
                     
                     for _, obj in ipairs(DebrisField:GetChildren()) do
                         local resType = obj:GetAttribute("Resource")
                         
-                        -- Cek apakah item adalah material yang kita inginkan
+                        -- Deteksi material Wood, Metal, dan Goo
                         if resType == "Wood" or resType == "Metal" or resType == "Goo" then
                             local primary = obj:IsA("Model") and obj.PrimaryPart or (obj:IsA("BasePart") and obj)
                             
                             if primary then
-                                -- Cek Jarak: Hanya tarik item yang jaraknya lebih dari 12 stud dari Grinder
-                                -- Jika sudah di dalam/dekat grinder, biarkan game memprosesnya
-                                if (primary.Position - GrinderPart.Position).Magnitude > 12 then
+                                -- Jarak aman: jika objek berada di luar radius 6 stud dari gilingan, langsung tarik
+                                if (primary.Position - GrinderPart.Position).Magnitude > 6 then
                                     
-                                    -- Efek Pasir: Beri variasi ketinggian acak (0 sampai 3 stud ke atas)
-                                    -- Agar item tidak bertabrakan dan meledak di satu titik
-                                    local heightOffset = math.random() * 3 
-                                    local finalCFrame = dropCenter * CFrame.new(0, heightOffset, 0)
-                                    
+                                    -- Eksekusi Teleportasi
                                     if obj:IsA("BasePart") then
-                                        obj.CFrame = finalCFrame
-                                        -- Beri dorongan ringan ke bawah agar langsung jatuh rapi
-                                        obj.AssemblyLinearVelocity = Vector3.new(0, -15, 0)
+                                        -- Reset kecepatan bawaan air agar tidak mental kesamping
+                                        obj.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                                         obj.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                                        obj.CFrame = dropTargetCFrame
+                                        
+                                        -- Paksa Fisika dan Gravitasi aktif seketika di Client kita
+                                        pcall(function()
+                                            if obj.CanCollide == false then obj.CanCollide = true end
+                                            obj:SetNetworkOwner(LocalPlayer)
+                                        end)
+                                        
                                     elseif obj:IsA("Model") then
-                                        obj:PivotTo(finalCFrame)
+                                        obj:PivotTo(dropTargetCFrame)
+                                        
                                         for _, part in ipairs(obj:GetDescendants()) do
                                             if part:IsA("BasePart") then
-                                                part.AssemblyLinearVelocity = Vector3.new(0, -15, 0)
+                                                part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                                                 part.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                                                
+                                                pcall(function()
+                                                    if part.CanCollide == false then part.CanCollide = true end
+                                                    part:SetNetworkOwner(LocalPlayer)
+                                                end)
                                             end
                                         end
                                     end
@@ -60,7 +71,7 @@ Win:AddToggle("Auto Grinder (Smart Drop)", false, function(state)
                     end
                 end
                 
-                -- Jeda sangat singkat agar ultra-responsif tapi tidak bikin CPU lag
+                -- Kecepatan ultra responsif (0.05 detik) untuk mendeteksi material baru tanpa jeda
                 task.wait(0.05) 
             end
         end)
