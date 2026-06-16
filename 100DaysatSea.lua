@@ -2,69 +2,67 @@
 local RZY_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
 
 -- Membuat Window Utama
-local Win = RZY_Library:MakeWindow("100 Days at Sea - Pro")
+local Win = RZY_Library:MakeWindow("100 Days at Sea - V3")
 
 local AutoGrinderEnabled = false
-local Connection -- Variabel untuk menyimpan event listener
 
--- [FUNGSI PRO] Fungsi terpisah untuk memproses dan memindahkan resource
-local function TeleportResource(obj, GrinderPart)
-    if not obj then return end
-    
-    local resType = obj:GetAttribute("Resource")
-    
-    if resType == "Wood" or resType == "Metal" or resType == "Goo" then
-        if obj:IsA("BasePart") then
-            obj.CFrame = GrinderPart.CFrame
-            -- Reset fisika agar tidak terpental (Bouncing fix)
-            obj.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-            obj.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-        elseif obj:IsA("Model") and obj.PrimaryPart then
-            obj:PivotTo(GrinderPart.CFrame)
-            -- Reset fisika untuk seluruh part di dalam model
-            for _, part in ipairs(obj:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                    part.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-                end
-            end
-        end
-    end
-end
-
--- Membuat Toggle Auto Grinder
-Win:AddToggle("Auto Grinder", false, function(state)
+Win:AddToggle("Auto Grinder (Smart Drop)", false, function(state)
     AutoGrinderEnabled = state
     
-    local workspace = game:GetService("Workspace")
-    -- Menggunakan WaitForChild agar aman saat map belum sepenuhnya load
-    local DebrisField = workspace:WaitForChild("DebrisField", 5)
-    local SpawnIsland = workspace:WaitForChild("SpawnIsland", 5)
-    local Grinder = SpawnIsland and SpawnIsland:WaitForChild("Grinder", 5)
-    local Collection = Grinder and Grinder:WaitForChild("Collection", 5)
-
-    if not DebrisField or not Collection then
-        warn("[RZY Hub] Elemen map gagal dimuat. Pastikan Anda sudah di dalam game.")
-        return
-    end
-
     if AutoGrinderEnabled then
-        -- 1. Initial Sweep: Sapu bersih semua item yang *sudah ada* di laut saat ini
-        for _, obj in ipairs(DebrisField:GetChildren()) do
-            TeleportResource(obj, Collection)
-        end
+        task.spawn(function()
+            while AutoGrinderEnabled do
+                local workspace = game:GetService("Workspace")
+                local DebrisField = workspace:FindFirstChild("DebrisField")
+                local GrinderPart = workspace:FindFirstChild("SpawnIsland") 
+                    and workspace.SpawnIsland:FindFirstChild("Grinder") 
+                    and workspace.SpawnIsland.Grinder:FindFirstChild("Collection")
 
-        -- 2. Event Listener: Langsung TP item detik itu juga saat baru spawn
-        Connection = DebrisField.ChildAdded:Connect(function(newObj)
-            -- Jeda sangat singkat (0.1s) agar game punya waktu memuat atribut 'Resource' pada objek baru
-            task.wait(0.1) 
-            TeleportResource(newObj, Collection)
+                if DebrisField and GrinderPart then
+                    -- Titik pusat jatuh: 4 stud tepat di atas Collection box
+                    local dropCenter = GrinderPart.CFrame * CFrame.new(0, 4, 0)
+                    
+                    for _, obj in ipairs(DebrisField:GetChildren()) do
+                        local resType = obj:GetAttribute("Resource")
+                        
+                        -- Cek apakah item adalah material yang kita inginkan
+                        if resType == "Wood" or resType == "Metal" or resType == "Goo" then
+                            local primary = obj:IsA("Model") and obj.PrimaryPart or (obj:IsA("BasePart") and obj)
+                            
+                            if primary then
+                                -- Cek Jarak: Hanya tarik item yang jaraknya lebih dari 12 stud dari Grinder
+                                -- Jika sudah di dalam/dekat grinder, biarkan game memprosesnya
+                                if (primary.Position - GrinderPart.Position).Magnitude > 12 then
+                                    
+                                    -- Efek Pasir: Beri variasi ketinggian acak (0 sampai 3 stud ke atas)
+                                    -- Agar item tidak bertabrakan dan meledak di satu titik
+                                    local heightOffset = math.random() * 3 
+                                    local finalCFrame = dropCenter * CFrame.new(0, heightOffset, 0)
+                                    
+                                    if obj:IsA("BasePart") then
+                                        obj.CFrame = finalCFrame
+                                        -- Beri dorongan ringan ke bawah agar langsung jatuh rapi
+                                        obj.AssemblyLinearVelocity = Vector3.new(0, -15, 0)
+                                        obj.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                                    elseif obj:IsA("Model") then
+                                        obj:PivotTo(finalCFrame)
+                                        for _, part in ipairs(obj:GetDescendants()) do
+                                            if part:IsA("BasePart") then
+                                                part.AssemblyLinearVelocity = Vector3.new(0, -15, 0)
+                                                part.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                                            end
+                                        end
+                                    end
+                                    
+                                end
+                            end
+                        end
+                    end
+                end
+                
+                -- Jeda sangat singkat agar ultra-responsif tapi tidak bikin CPU lag
+                task.wait(0.05) 
+            end
         end)
-    else
-        -- [FUNGSI PRO] Bersihkan event listener saat dimatikan agar tidak lag/memory leak
-        if Connection then
-            Connection:Disconnect()
-            Connection = nil
-        end
     end
 end)
