@@ -20,7 +20,7 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
 -- ====================================================================
--- [FITUR 1]: AUTO GRINDER (AGRESIF & SMART FILTER)
+-- [FITUR 1]: AUTO GRINDER (SMART FILTER, ANTI-ARMOR & PENARIKAN SANTAI)
 -- ====================================================================
 Win:AddToggle("Mulai Auto Grinder", false, function(state)
     AutoGrinderEnabled = state
@@ -39,6 +39,17 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
                         local resType = obj:GetAttribute("Resource")
                         
                         if resType and TargetMaterials[resType] then
+                            
+                            -- [BARU] Pengecualian Armor: Cek jika ada atribut bertulisan "armor"
+                            local isArmor = false
+                            for attrName, attrValue in pairs(obj:GetAttributes()) do
+                                if string.find(string.lower(attrName), "armor") or (type(attrValue) == "string" and string.find(string.lower(attrValue), "armor")) then
+                                    isArmor = true
+                                    break
+                                end
+                            end
+                            if isArmor then continue end -- Lewati jika ini adalah armor
+
                             local primary = obj:IsA("Model") and obj.PrimaryPart or (obj:IsA("BasePart") and obj)
                             
                             if primary then
@@ -58,12 +69,11 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
                                         isGrabberMe = (grabberAttr == myId or tostring(grabberAttr) == tostring(myId) or grabberAttr == myName)
                                     end
                                     
-                                    -- [FILTER MUTLAK]: Lewati HANYA JIKA sedang dipegang (Grabbed=true) OLEH PLAYER LAIN
+                                    -- [LEWATI]: Hanya jika sedang aktif dipegang fisik oleh player lain
                                     if isGrabbed == true and not isGrabberMe then
                                         continue
                                     end
                                     
-                                    -- Selain itu (Alam murni, bekas sendiri, bekas player lain), sedot semua!
                                     table.insert(itemsToProcess, {
                                         Object = obj,
                                         Distance = distance
@@ -73,16 +83,25 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
                         end
                     end
 
-                    -- Urutkan berdasarkan jarak paling dekat dengan mesin giling terlebih dahulu
+                    -- Urutkan berdasarkan jarak paling dekat terlebih dahulu
                     table.sort(itemsToProcess, function(a, b)
                         return a.Distance < b.Distance 
                     end)
 
-                    -- Eksekusi TP langsung ke dalam Grinder
+                    -- Eksekusi penarikan satu per satu dengan tempo santai (0.1s)
                     for _, data in ipairs(itemsToProcess) do
+                        if not AutoGrinderEnabled then break end -- Berhenti jika toggle dimatikan
+                        
                         local obj = data.Object
                         local targetCFrame = GrinderCol.CFrame
+                        
+                        -- Mengubah history menjadi milik kamu (Spoofing)
+                        local myId = LocalPlayer.UserId
+                        local myName = LocalPlayer.Name
+                        obj:SetAttribute("Grabber", myId)      -- Diisi Angka UserId kamu
+                        obj:SetAttribute("LastHolder", myName)  -- Diisi Teks Username kamu
 
+                        -- Proses Teleportasi ke Grinder
                         if obj:IsA("BasePart") then
                             obj.CFrame = targetCFrame
                             obj.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
@@ -94,16 +113,19 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
                                 end
                             end
                         end
+                        
+                        -- Jeda santai 0.1 detik per barang agar penarikan mengalir alami
+                        task.wait(0.1)
                     end
                 end
-                task.wait(0.1) 
+                task.wait(0.1) -- Jeda loop utama
             end
         end)
     end
 end)
 
 -- ====================================================================
--- [FITUR 2]: AUTO CAMPFIRE (KHUSUS KAYU, AGRESIF & SMART FILTER)
+-- [FITUR 2]: AUTO CAMPFIRE (KHUSUS KAYU, ANTI-ARMOR & PENARIKAN SANTAI)
 -- ====================================================================
 Win:AddToggle("Mulai Auto Campfire", false, function(state)
     AutoCampfireEnabled = state
@@ -125,6 +147,17 @@ Win:AddToggle("Mulai Auto Campfire", false, function(state)
                             local resType = obj:GetAttribute("Resource")
                             
                             if resType == "Wood" then
+                                
+                                -- [BARU] Pengecualian Armor: Cek jika ada atribut bertulisan "armor"
+                                local isArmor = false
+                                for attrName, attrValue in pairs(obj:GetAttributes()) do
+                                    if string.find(string.lower(attrName), "armor") or (type(attrValue) == "string" and string.find(string.lower(attrValue), "armor")) then
+                                        isArmor = true
+                                        break
+                                    end
+                                end
+                                if isArmor then continue end -- Lewati jika ini adalah armor
+
                                 local primary = obj:IsA("Model") and obj.PrimaryPart or (obj:IsA("BasePart") and obj)
                                 
                                 if primary then
@@ -143,7 +176,7 @@ Win:AddToggle("Mulai Auto Campfire", false, function(state)
                                             isGrabberMe = (grabberAttr == myId or tostring(grabberAttr) == tostring(myId) or grabberAttr == myName)
                                         end
                                         
-                                        -- [FILTER MUTLAK]: Lewati HANYA JIKA sedang dipegang (Grabbed=true) OLEH PLAYER LAIN
+                                        -- [LEWATI]: Hanya jika sedang aktif dipegang fisik oleh player lain
                                         if isGrabbed == true and not isGrabberMe then
                                             continue
                                         end
@@ -157,14 +190,23 @@ Win:AddToggle("Mulai Auto Campfire", false, function(state)
                             end
                         end
                         
-                        -- Urutkan jarak untuk Campfire agar eksekusi rapi dari yang terdekat
+                        -- Urutkan berdasarkan jarak paling dekat
                         table.sort(itemsToProcess, function(a, b)
                             return a.Distance < b.Distance 
                         end)
 
+                        -- Eksekusi pembakaran satu per satu dengan tempo santai (0.1s)
                         for _, data in ipairs(itemsToProcess) do
+                            if not AutoCampfireEnabled then break end -- Berhenti jika toggle dimatikan
+                            
                             local obj = data.Object
                             local targetCFrame = dropperPart.CFrame
+
+                            -- Mengubah history menjadi milik kamu (Spoofing)
+                            local myId = LocalPlayer.UserId
+                            local myName = LocalPlayer.Name
+                            obj:SetAttribute("Grabber", myId)      -- Diisi Angka UserId kamu
+                            obj:SetAttribute("LastHolder", myName)  -- Diisi Teks Username kamu
 
                             -- Teleportasi langsung ke Campfire
                             if obj:IsA("BasePart") then
@@ -188,10 +230,13 @@ Win:AddToggle("Mulai Auto Campfire", false, function(state)
                                     firetouchinterest(dropperPart, touchPart, 1) 
                                 end
                             end
+                            
+                            -- Jeda santai 0.1 detik per kayu agar efek bakar rapi berurutan
+                            task.wait(0.1)
                         end
                     end
                 end
-                task.wait(0.1) 
+                task.wait(0.1) -- Jeda loop utama
             end
         end)
     end
