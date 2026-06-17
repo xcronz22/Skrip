@@ -1,15 +1,13 @@
--- Memuat Library RZY (Pastikan link github sudah yang terbaru)
+-- Memuat Library RZY
 local RZY_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
-local Win = RZY_Library:MakeWindow("100 Days at Sea - V4")
+local Win = RZY_Library:MakeWindow("100 Days at Sea - V5")
 
--- Default status material
 local TargetMaterials = {
     ["Wood"] = false,
     ["Metal"] = false,
     ["Goo"] = false
 }
 
--- Menambahkan Dropdown Centang Ganda
 Win:AddMultiDropdown("Pilih Material (Bisa >1)", {"Wood", "Metal", "Goo"}, function(selectedTable)
     TargetMaterials = selectedTable
 end)
@@ -21,14 +19,14 @@ local AutoCrabTrapEnabled = false
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local SocialService = game:GetService("SocialService")
 
 -- ====================================================================
--- [SISTEM INTI]: ANTI DESYNC / TOKEN INTERCEPTOR (PERBAIKAN HOOK)
+-- [UPDATE PENTING]: SERVICE REMOTE BERADA DI LOCALIZATION SERVICE
 -- ====================================================================
+local LocalizationService = game:GetService("LocalizationService")
 local CurrentSyncToken = nil
 
--- Menyadap komunikasi secaran aman (FIXED: Mencegah UI Stuck/Crash)
+-- Menyadap komunikasi secaran aman untuk Event & Function
 pcall(function()
     if hookmetamethod then
         local oldNamecall
@@ -36,12 +34,10 @@ pcall(function()
             local method = getnamecallmethod()
             local args = {...}
             
-            -- Deteksi remote yang dituju
-            if method == "FireServer" and self.Name == "RemoteEvent" and self.Parent == SocialService then
-                -- Jika argumen pertama adalah angka (Token)
+            -- Deteksi RemoteEvent (FireServer) & RemoteFunction (InvokeServer) di LocalizationService
+            if (method == "FireServer" or method == "InvokeServer") and (self.Name == "RemoteEvent" or self.Name == "RemoteFunction") and self.Parent == LocalizationService then
                 if type(args[1]) == "number" then
                     if not checkcaller() then
-                        -- Script asli game mengirim data, sinkronkan token kita!
                         if CurrentSyncToken then
                             CurrentSyncToken = CurrentSyncToken + 1
                             args[1] = CurrentSyncToken
@@ -57,25 +53,34 @@ pcall(function()
     end
 end)
 
--- Fungsi Remote Aman (Tidak akan merusak status tangan/grabbed)
-local function SafeRemoteInteract(actionName, targetData)
-    local remote = SocialService:FindFirstChild("RemoteEvent")
-    if not remote then return end
-    
-    if not CurrentSyncToken then 
-        CurrentSyncToken = math.random(100000, 999999) 
-    end
-    
+-- Fungsi Generator Token
+local function GetNextToken()
+    if not CurrentSyncToken then CurrentSyncToken = math.random(100000, 999999) end
     CurrentSyncToken = CurrentSyncToken + 1
-    remote:FireServer(CurrentSyncToken, actionName, targetData)
+    return CurrentSyncToken
+end
+
+-- Eksekusi Remote Event
+local function SafeRemoteEvent(actionName, ...)
+    local remote = LocalizationService:FindFirstChild("RemoteEvent")
+    if remote then
+        remote:FireServer(GetNextToken(), actionName, ...)
+    end
+end
+
+-- Eksekusi Remote Function
+local function SafeRemoteFunction(actionName, ...)
+    local remote = LocalizationService:FindFirstChild("RemoteFunction")
+    if remote then
+        return remote:InvokeServer(GetNextToken(), actionName, ...)
+    end
 end
 
 -- ====================================================================
--- [FITUR 1]: AUTO GRINDER (SMART FILTER, ANTI-ARMOR & FIXED GRAB BUG)
+-- [FITUR 1 & 2]: AUTO GRINDER & CAMPFIRE (TETAP SAMA SEPERTI V4)
 -- ====================================================================
 Win:AddToggle("Mulai Auto Grinder", false, function(state)
     AutoGrinderEnabled = state
-    
     if AutoGrinderEnabled then
         task.spawn(function()
             while AutoGrinderEnabled do
@@ -85,10 +90,8 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
 
                 if DebrisField and GrinderCol then
                     local itemsToProcess = {}
-                    
                     for _, obj in ipairs(DebrisField:GetChildren()) do
                         local resType = obj:GetAttribute("Resource")
-                        
                         if resType and TargetMaterials[resType] then
                             local isArmor = false
                             for attrName, attrValue in pairs(obj:GetAttributes()) do
@@ -100,37 +103,29 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
                             if isArmor then continue end 
 
                             local primary = obj:IsA("Model") and obj.PrimaryPart or (obj:IsA("BasePart") and obj)
-                            
                             if primary then
                                 local distance = (primary.Position - GrinderCol.Position).Magnitude
                                 if distance > 3 then
                                     local isGrabbed = obj:GetAttribute("Grabbed")
                                     local grabberAttr = obj:GetAttribute("Grabber")
-                                    
-                                    local myId = LocalPlayer.UserId
-                                    local myName = LocalPlayer.Name
-                                    
+                                    local myId, myName = LocalPlayer.UserId, LocalPlayer.Name
                                     local isGrabberMe = false
                                     if grabberAttr ~= nil then
                                         isGrabberMe = (grabberAttr == myId or tostring(grabberAttr) == tostring(myId) or grabberAttr == myName)
                                     end
                                     
                                     if isGrabbed == true and not isGrabberMe then continue end
-                                    
                                     table.insert(itemsToProcess, { Object = obj, Distance = distance })
                                 end
                             end
                         end
                     end
-
                     table.sort(itemsToProcess, function(a, b) return a.Distance < b.Distance end)
 
                     for _, data in ipairs(itemsToProcess) do
                         if not AutoGrinderEnabled then break end 
-                        
                         local obj = data.Object
                         local targetCFrame = GrinderCol.CFrame
-                        
                         obj:SetAttribute("Grabbed", false) 
                         obj:SetAttribute("LastHolder", LocalPlayer.Name)  
 
@@ -140,9 +135,7 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
                         elseif obj:IsA("Model") then
                             obj:PivotTo(targetCFrame)
                             for _, part in ipairs(obj:GetDescendants()) do
-                                if part:IsA("BasePart") then
-                                    part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                                end
+                                if part:IsA("BasePart") then part.AssemblyLinearVelocity = Vector3.new(0, 0, 0) end
                             end
                         end
                         task.wait(0.1)
@@ -154,12 +147,8 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
     end
 end)
 
--- ====================================================================
--- [FITUR 2]: AUTO CAMPFIRE (KHUSUS KAYU, ANTI-ARMOR & FIXED GRAB BUG)
--- ====================================================================
 Win:AddToggle("Mulai Auto Campfire", false, function(state)
     AutoCampfireEnabled = state
-    
     if AutoCampfireEnabled then
         task.spawn(function()
             while AutoCampfireEnabled do
@@ -169,39 +158,27 @@ Win:AddToggle("Mulai Auto Campfire", false, function(state)
 
                 if DebrisField and Dropper then
                     local dropperPart = Dropper:IsA("BasePart") and Dropper or Dropper:FindFirstChildWithClass("BasePart") or (Dropper:IsA("Model") and Dropper.PrimaryPart)
-                    
                     if dropperPart then
                         local itemsToProcess = {}
-                        
                         for _, obj in ipairs(DebrisField:GetChildren()) do
-                            local resType = obj:GetAttribute("Resource")
-                            
-                            if resType == "Wood" then
+                            if obj:GetAttribute("Resource") == "Wood" then
                                 local isArmor = false
                                 for attrName, attrValue in pairs(obj:GetAttributes()) do
                                     if string.find(string.lower(attrName), "armor") or (type(attrValue) == "string" and string.find(string.lower(attrValue), "armor")) then
-                                        isArmor = true
-                                        break
+                                        isArmor = true; break
                                     end
                                 end
                                 if isArmor then continue end
 
                                 local primary = obj:IsA("Model") and obj.PrimaryPart or (obj:IsA("BasePart") and obj)
-                                
                                 if primary then
                                     local distance = (primary.Position - dropperPart.Position).Magnitude
                                     if distance > 3 then
                                         local isGrabbed = obj:GetAttribute("Grabbed")
                                         local grabberAttr = obj:GetAttribute("Grabber")
-                                        
-                                        local myId = LocalPlayer.UserId
-                                        local myName = LocalPlayer.Name
-                                        
+                                        local myId, myName = LocalPlayer.UserId, LocalPlayer.Name
                                         local isGrabberMe = false
-                                        if grabberAttr ~= nil then
-                                            isGrabberMe = (grabberAttr == myId or tostring(grabberAttr) == tostring(myId) or grabberAttr == myName)
-                                        end
-                                        
+                                        if grabberAttr ~= nil then isGrabberMe = (grabberAttr == myId or tostring(grabberAttr) == tostring(myId) or grabberAttr == myName) end
                                         if isGrabbed == true and not isGrabberMe then continue end
                                         
                                         table.insert(itemsToProcess, { Object = obj, Distance = distance })
@@ -209,15 +186,12 @@ Win:AddToggle("Mulai Auto Campfire", false, function(state)
                                 end
                             end
                         end
-                        
                         table.sort(itemsToProcess, function(a, b) return a.Distance < b.Distance end)
 
                         for _, data in ipairs(itemsToProcess) do
                             if not AutoCampfireEnabled then break end 
-                            
                             local obj = data.Object
                             local targetCFrame = dropperPart.CFrame
-
                             obj:SetAttribute("Grabbed", false) 
                             obj:SetAttribute("LastHolder", LocalPlayer.Name)
 
@@ -227,9 +201,7 @@ Win:AddToggle("Mulai Auto Campfire", false, function(state)
                             elseif obj:IsA("Model") then
                                 obj:PivotTo(targetCFrame)
                                 for _, part in ipairs(obj:GetDescendants()) do
-                                    if part:IsA("BasePart") then
-                                        part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                                    end
+                                    if part:IsA("BasePart") then part.AssemblyLinearVelocity = Vector3.new(0, 0, 0) end
                                 end
                             end
                             
@@ -252,7 +224,7 @@ Win:AddToggle("Mulai Auto Campfire", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 3]: AUTO EAT (DENGAN UI DETEKTOR & REMOTE AMAN)
+-- [FITUR 3]: AUTO EAT (SEKUENS: DRAG -> EAT -> GIVE UP)
 -- ====================================================================
 Win:AddToggle("Mulai Auto Eat", false, function(state)
     AutoEatEnabled = state
@@ -279,8 +251,22 @@ Win:AddToggle("Mulai Auto Eat", false, function(state)
                                 if not AutoEatEnabled then break end 
                                 
                                 if obj:GetAttribute("Food") then
-                                    while foodFill.Size.X.Scale < 0.95 and AutoEatEnabled do
-                                        SafeRemoteInteract("Eat", "~s" .. obj.Name)
+                                    local targetPart = obj:IsA("BasePart") and obj or obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+                                    
+                                    while foodFill.Size.X.Scale < 0.95 and AutoEatEnabled and targetPart do
+                                        -- 1. Berusaha memegang objek
+                                        pcall(function()
+                                            SafeRemoteFunction("AttemptDrag", targetPart)
+                                        end)
+                                        task.wait(0.1)
+                                        
+                                        -- 2. Memakan objek
+                                        SafeRemoteEvent("Eat", "~s" .. obj.Name)
+                                        task.wait(0.2)
+                                        
+                                        -- 3. Melepaskan objek (agar tidak nyangkut)
+                                        SafeRemoteEvent("GiveUpOwnership", targetPart, "~v0,0,0")
+                                        
                                         task.wait(0.5) 
                                     end
                                     
@@ -297,7 +283,7 @@ Win:AddToggle("Mulai Auto Eat", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 4]: AUTO INTERACT (CRAB TRAP)
+-- [FITUR 4]: AUTO INTERACT (CRAB TRAP FIX DETEKSI FOLDER)
 -- ====================================================================
 Win:AddToggle("Auto Harvest Crab Trap", false, function(state)
     AutoCrabTrapEnabled = state
@@ -308,15 +294,17 @@ Win:AddToggle("Auto Harvest Crab Trap", false, function(state)
                 local workspace = game:GetService("Workspace")
                 local CraftedFolder = workspace:FindFirstChild("SpawnIsland") and workspace.SpawnIsland:FindFirstChild("Crafted")
                 
+                -- Memastikan folder Crafted ada, lalu mencari isi di dalamnya
                 if CraftedFolder then
                     for _, obj in ipairs(CraftedFolder:GetChildren()) do
+                        -- Mengecek apakah objek yang ada di dalam folder tersebut mengandung kata "Crab Trap"
                         if string.find(string.lower(obj.Name), "crab trap") then
-                            SafeRemoteInteract("Interact", obj)
-                            task.wait(0.2) 
+                            SafeRemoteEvent("Interact", obj)
+                            task.wait(0.5) -- Jeda sebentar agar tidak spam remote
                         end
                     end
                 end
-                task.wait(5) 
+                task.wait(3) 
             end
         end)
     end
