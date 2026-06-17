@@ -32,55 +32,60 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
                 if DebrisField and currentGrinder then
                     local itemsToProcess = {}
                     
-                    -- 1. Kumpulkan semua material yang valid
+                    -- 1. Kumpulkan material dan filter jarak
                     for _, obj in ipairs(DebrisField:GetChildren()) do
                         local resType = obj:GetAttribute("Resource")
                         
-                        -- Cek apakah tipe material dicentang di UI
                         if resType and TargetMaterials[resType] then
+                            
+                            -- [BLOKIR MUTLAK]: Jika sedang dipegang (Grabbed = true), lewati!
+                            if obj:GetAttribute("Grabbed") == true then
+                                continue 
+                            end
+
                             local primary = obj:IsA("Model") and obj.PrimaryPart or (obj:IsA("BasePart") and obj)
                             
                             if primary then
                                 local distance = (primary.Position - currentGrinder.Position).Magnitude
-                                if distance > 12 then
+                                
+                                -- Jarak sangat dekat, ditarik jika jaraknya lebih dari 3 stud dari tengah mesin
+                                if distance > 3 then
+                                    local grabberAttr = obj:GetAttribute("Grabber")
+                                    local lastHolderAttr = obj:GetAttribute("LastHolder")
+                                    
+                                    -- Tentukan Kategori saat ini
+                                    local category = 2 
+                                    if grabberAttr ~= nil and lastHolderAttr ~= nil then
+                                        category = 1 -- Kategori 1 (Prioritas Utama)
+                                    end
+
                                     table.insert(itemsToProcess, {
                                         Object = obj,
                                         Distance = distance,
-                                        Grabbed = obj:GetAttribute("Grabbed"),
-                                        Grabber = obj:GetAttribute("Grabber"),
-                                        LastHolder = obj:GetAttribute("LastHolder")
+                                        Category = category
                                     })
                                 end
                             end
                         end
                     end
 
-                    -- 2. Urutkan berdasarkan Prioritas dan Jarak Terdekat
+                    -- 2. Alur Baru: Urutkan murni berdasarkan Jarak Terdekat dulu
                     table.sort(itemsToProcess, function(a, b)
-                        -- KONDISI PRIORITAS UTAMA: Grabbed kosong/false, TAPI Grabber & LastHolder ada isinya
-                        local aIsPriority = (a.Grabbed == nil or a.Grabbed == false) and (a.Grabber ~= nil) and (a.LastHolder ~= nil)
-                        local bIsPriority = (b.Grabbed == nil or b.Grabbed == false) and (b.Grabber ~= nil) and (b.LastHolder ~= nil)
-
-                        if aIsPriority ~= bIsPriority then
-                            return aIsPriority -- Utamakan yang Prioritas Utama (true)
-                        else
-                            return a.Distance < b.Distance -- Jika prioritasnya sama, tarik yang paling dekat dulu
-                        end
+                        return a.Distance < b.Distance 
                     end)
 
-                    -- 3. Eksekusi Teleportasi
+                    -- 3. Eksekusi Teleportasi berdasarkan Kategori
                     for _, data in ipairs(itemsToProcess) do
                         local obj = data.Object
-                        local isPriority = (data.Grabbed == nil or data.Grabbed == false) and (data.Grabber ~= nil) and (data.LastHolder ~= nil)
                         
-                        -- Penentuan Titik Drop berdasarkan Prioritas
+                        -- Penentuan Posisi berdasarkan Kategori
                         local targetCFrame
-                        if isPriority then
-                            -- Prioritas Utama: TP pas di tengah penggiling
+                        if data.Category == 1 then
+                            -- Kategori 1: Langsung masuk di titik tengah mesin
                             targetCFrame = currentGrinder.CFrame 
                         else
-                            -- Prioritas Kedua (selain di atas): TP sedikit lebih tinggi agar tidak aneh (1.2 stud di atasnya)
-                            targetCFrame = currentGrinder.CFrame * CFrame.new(0, 1.2, 0)
+                            -- Kategori 2: Posisi di atas mesin (jarak 2.5 stud)
+                            targetCFrame = currentGrinder.CFrame * CFrame.new(0, 2.5, 0)
                         end
 
                         if obj:IsA("BasePart") then
@@ -99,8 +104,8 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
                     end
                 end
                 
-                -- Jeda pemrosesan
-                task.wait(0.05) 
+                -- Jeda lebih santai (10 kali cek per detik) sangat aman untuk performa dan tidak akan ngadat
+                task.wait(0.1) 
             end
         end)
     end
