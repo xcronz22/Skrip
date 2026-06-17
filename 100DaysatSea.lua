@@ -24,36 +24,37 @@ local LocalPlayer = Players.LocalPlayer
 local SocialService = game:GetService("SocialService")
 
 -- ====================================================================
--- [SISTEM INTI]: ANTI DESYNC / TOKEN INTERCEPTOR (FIX BUG GRAB)
+-- [SISTEM INTI]: ANTI DESYNC / TOKEN INTERCEPTOR (PERBAIKAN HOOK)
 -- ====================================================================
 local CurrentSyncToken = nil
 
--- Menyadap komunikasi secara aman TANPA menghentikan loading UI
+-- Menyadap komunikasi secaran aman (FIXED: Mencegah UI Stuck/Crash)
 pcall(function()
-    local oldNamecall
-    oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-        local method = getnamecallmethod()
-        
-        -- Deteksi remote yang dituju
-        if method == "FireServer" and self.Name == "RemoteEvent" and self.Parent == SocialService then
+    if hookmetamethod then
+        local oldNamecall
+        oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+            local method = getnamecallmethod()
             local args = {...}
             
-            -- Jika argumen pertama adalah angka (Token)
-            if type(args[1]) == "number" then
-                if not checkcaller() then
-                    -- Script asli game mengirim data, sinkronkan token kita!
-                    if CurrentSyncToken then
-                        CurrentSyncToken = CurrentSyncToken + 1
-                        args[1] = CurrentSyncToken
-                        return oldNamecall(self, unpack(args))
-                    else
-                        CurrentSyncToken = args[1]
+            -- Deteksi remote yang dituju
+            if method == "FireServer" and self.Name == "RemoteEvent" and self.Parent == SocialService then
+                -- Jika argumen pertama adalah angka (Token)
+                if type(args[1]) == "number" then
+                    if not checkcaller() then
+                        -- Script asli game mengirim data, sinkronkan token kita!
+                        if CurrentSyncToken then
+                            CurrentSyncToken = CurrentSyncToken + 1
+                            args[1] = CurrentSyncToken
+                            return oldNamecall(self, unpack(args))
+                        else
+                            CurrentSyncToken = args[1]
+                        end
                     end
                 end
             end
-        end
-        return oldNamecall(self, ...)
-    end)
+            return oldNamecall(self, ...)
+        end)
+    end
 end)
 
 -- Fungsi Remote Aman (Tidak akan merusak status tangan/grabbed)
