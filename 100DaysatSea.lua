@@ -20,7 +20,7 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
 -- ====================================================================
--- [FITUR 1]: AUTO GRINDER (HANYA HISTORY KARAKTER SENDIRI)
+-- [FITUR 1]: AUTO GRINDER (AGRESIF & SMART FILTER)
 -- ====================================================================
 Win:AddToggle("Mulai Auto Grinder", false, function(state)
     AutoGrinderEnabled = state
@@ -39,11 +39,6 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
                         local resType = obj:GetAttribute("Resource")
                         
                         if resType and TargetMaterials[resType] then
-                            -- Filter ketat: Jangan ambil jika sedang di-grab player
-                            if obj:GetAttribute("Grabbed") == true or obj:FindFirstChild("Drag") then
-                                continue 
-                            end
-
                             local primary = obj:IsA("Model") and obj.PrimaryPart or (obj:IsA("BasePart") and obj)
                             
                             if primary then
@@ -51,24 +46,28 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
                                 
                                 -- Ambil jika jaraknya di luar radius 3 stud dari penggiling
                                 if distance > 3 then
+                                    local isGrabbed = obj:GetAttribute("Grabbed")
                                     local grabberAttr = obj:GetAttribute("Grabber")
-                                    local lastHolderAttr = obj:GetAttribute("LastHolder")
                                     
                                     -- Data Identitas Player Kamu
                                     local myId = LocalPlayer.UserId
                                     local myName = LocalPlayer.Name
                                     
-                                    -- Validasi mutlak: Apakah Grabber & LastHolder milik kamu sendiri?
-                                    local isGrabberMe = (grabberAttr == myId or tostring(grabberAttr) == tostring(myId) or grabberAttr == myName)
-                                    local isLastHolderMe = (lastHolderAttr == myId or tostring(lastHolderAttr) == tostring(myId) or lastHolderAttr == myName)
-                                    
-                                    -- [FILTER MODIFIKASI]: Hanya masukkan ke antrean jika history milik ANDA SENDIRI
-                                    if isGrabberMe and isLastHolderMe then
-                                        table.insert(itemsToProcess, {
-                                            Object = obj,
-                                            Distance = distance
-                                        })
+                                    local isGrabberMe = false
+                                    if grabberAttr ~= nil then
+                                        isGrabberMe = (grabberAttr == myId or tostring(grabberAttr) == tostring(myId) or grabberAttr == myName)
                                     end
+                                    
+                                    -- [FILTER MUTLAK]: Lewati HANYA JIKA sedang dipegang (Grabbed=true) OLEH PLAYER LAIN
+                                    if isGrabbed == true and not isGrabberMe then
+                                        continue
+                                    end
+                                    
+                                    -- Selain itu (Alam murni, bekas sendiri, bekas player lain), sedot semua!
+                                    table.insert(itemsToProcess, {
+                                        Object = obj,
+                                        Distance = distance
+                                    })
                                 end
                             end
                         end
@@ -104,7 +103,7 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 2]: AUTO CAMPFIRE (KHUSUS KAYU & HANYA HISTORY KARAKTER SENDIRI)
+-- [FITUR 2]: AUTO CAMPFIRE (KHUSUS KAYU, AGRESIF & SMART FILTER)
 -- ====================================================================
 Win:AddToggle("Mulai Auto Campfire", false, function(state)
     AutoCampfireEnabled = state
@@ -120,61 +119,73 @@ Win:AddToggle("Mulai Auto Campfire", false, function(state)
                     local dropperPart = Dropper:IsA("BasePart") and Dropper or Dropper:FindFirstChildWithClass("BasePart") or (Dropper:IsA("Model") and Dropper.PrimaryPart)
                     
                     if dropperPart then
+                        local itemsToProcess = {}
+                        
                         for _, obj in ipairs(DebrisField:GetChildren()) do
                             local resType = obj:GetAttribute("Resource")
                             
                             if resType == "Wood" then
-                                -- FILTER KETAT: Abaikan jika sedang di-grab player
-                                if obj:GetAttribute("Grabbed") == true or obj:FindFirstChild("Drag") then
-                                    continue
-                                end
-                                
                                 local primary = obj:IsA("Model") and obj.PrimaryPart or (obj:IsA("BasePart") and obj)
                                 
                                 if primary then
                                     local distance = (primary.Position - dropperPart.Position).Magnitude
                                     
                                     if distance > 3 then
+                                        local isGrabbed = obj:GetAttribute("Grabbed")
                                         local grabberAttr = obj:GetAttribute("Grabber")
-                                        local lastHolderAttr = obj:GetAttribute("LastHolder")
                                         
                                         -- Data Identitas Player Kamu
                                         local myId = LocalPlayer.UserId
                                         local myName = LocalPlayer.Name
                                         
-                                        -- Validasi mutlak: Apakah Grabber & LastHolder milik kamu sendiri?
-                                        local isGrabberMe = (grabberAttr == myId or tostring(grabberAttr) == tostring(myId) or grabberAttr == myName)
-                                        local isLastHolderMe = (lastHolderAttr == myId or tostring(lastHolderAttr) == tostring(myId) or lastHolderAttr == myName)
-                                        
-                                        -- [FILTER MODIFIKASI]: Hanya proses jika kayu punya history ANDA SENDIRI
-                                        if isGrabberMe and isLastHolderMe then
-                                            local targetCFrame = dropperPart.CFrame
-
-                                            -- Teleportasi langsung ke Campfire
-                                            if obj:IsA("BasePart") then
-                                                obj.CFrame = targetCFrame
-                                                obj.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                                            elseif obj:IsA("Model") then
-                                                obj:PivotTo(targetCFrame)
-                                                for _, part in ipairs(obj:GetDescendants()) do
-                                                    if part:IsA("BasePart") then
-                                                        part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                                                    end
-                                                end
-                                            end
-                                            
-                                            -- Memicu sensor pembakaran secara instan
-                                            if firetouchinterest then
-                                                local touchPart = obj:IsA("BasePart") and obj or obj.PrimaryPart
-                                                if touchPart then
-                                                    firetouchinterest(dropperPart, touchPart, 0) 
-                                                    task.wait()
-                                                    firetouchinterest(dropperPart, touchPart, 1) 
-                                                end
-                                            end
+                                        local isGrabberMe = false
+                                        if grabberAttr ~= nil then
+                                            isGrabberMe = (grabberAttr == myId or tostring(grabberAttr) == tostring(myId) or grabberAttr == myName)
                                         end
                                         
+                                        -- [FILTER MUTLAK]: Lewati HANYA JIKA sedang dipegang (Grabbed=true) OLEH PLAYER LAIN
+                                        if isGrabbed == true and not isGrabberMe then
+                                            continue
+                                        end
+                                        
+                                        table.insert(itemsToProcess, {
+                                            Object = obj,
+                                            Distance = distance
+                                        })
                                     end
+                                end
+                            end
+                        end
+                        
+                        -- Urutkan jarak untuk Campfire agar eksekusi rapi dari yang terdekat
+                        table.sort(itemsToProcess, function(a, b)
+                            return a.Distance < b.Distance 
+                        end)
+
+                        for _, data in ipairs(itemsToProcess) do
+                            local obj = data.Object
+                            local targetCFrame = dropperPart.CFrame
+
+                            -- Teleportasi langsung ke Campfire
+                            if obj:IsA("BasePart") then
+                                obj.CFrame = targetCFrame
+                                obj.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                            elseif obj:IsA("Model") then
+                                obj:PivotTo(targetCFrame)
+                                for _, part in ipairs(obj:GetDescendants()) do
+                                    if part:IsA("BasePart") then
+                                        part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                                    end
+                                end
+                            end
+                            
+                            -- Memicu sensor pembakaran secara instan
+                            if firetouchinterest then
+                                local touchPart = obj:IsA("BasePart") and obj or obj.PrimaryPart
+                                if touchPart then
+                                    firetouchinterest(dropperPart, touchPart, 0) 
+                                    task.wait()
+                                    firetouchinterest(dropperPart, touchPart, 1) 
                                 end
                             end
                         end
