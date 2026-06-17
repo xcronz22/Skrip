@@ -165,77 +165,93 @@ Win:AddToggle("Mulai Auto Campfire", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 3]: GOD MODE OPTIONS (ANTI-RESPAWN & SEMUA VARIASI)
+-- [FITUR 3]: ADVANCED GOD MODE (BYPASS SERVER-SIDE)
 -- ====================================================================
 
--- [OPSI 1]: God Mode via Auto Heal (Membaca karakter secara dinamis di dalam loop)
-Win:AddToggle("God Mode (Auto Heal)", false, function(state)
-    GodModeHeal = state
-    
-    if GodModeHeal then
-        task.spawn(function()
-            while GodModeHeal do
-                local char = LocalPlayer.Character
-                local humanoid = char and char:FindFirstChildOfClass("Humanoid")
-                
-                if humanoid and humanoid.Health > 0 then
-                    humanoid.Health = humanoid.MaxHealth
-                end
-                task.wait() -- Loop super cepat per frame
-            end
-        end)
-    end
-end)
+local RunService = game:GetService("RunService")
+local DesyncEnabled = false
+local FakeRoot = nil
 
--- [OPSI 2]: God Mode via CanTouch (Otomatis mengunci CanTouch = false saat respawn)
-Win:AddToggle("God Mode (Disable CanTouch)", false, function(state)
-    GodModeCanTouch = state
-    
-    local function applyCanTouch(character)
-        if not character then return end
-        for _, part in ipairs(character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanTouch = not GodModeCanTouch
-            end
-        end
-    end
-
-    -- Eksekusi ke karakter saat ini
-    applyCanTouch(LocalPlayer.Character)
-end)
-
--- Loop konstan khusus CanTouch agar bagian tubuh yang baru/respawn langsung terkunci CanTouch = false
-task.spawn(function()
-    while task.wait(0.5) do
-        if GodModeCanTouch and LocalPlayer.Character then
-            for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
-                if part:IsA("BasePart") and part.CanTouch == true then
-                    part.CanTouch = false
-                end
-            end
-        end
-    end
-end)
-
--- [OPSI 3]: God Mode via ForceField Bawaan Roblox
-Win:AddButton("Beri ForceField Kebal", function()
+-- [NEW OPSI 1]: Matikan Script Damage/Survival Bawaan Game
+Win:AddButton("Matikan Script Damage/Survival Game", function()
     local char = LocalPlayer.Character
-    if char and not char:FindFirstChildOfClass("ForceField") then
-        local ff = Instance.new("ForceField")
-        ff.Visible = true -- Ubah ke false jika ingin efek birunya hilang tapi tetap kebal
-        ff.Parent = char
+    local playerScripts = LocalPlayer:FindFirstChild("PlayerScripts")
+    
+    -- Daftar nama script yang biasanya mengatur damage/survival di game
+    -- Kamu bisa cek nama script aslinya via Dex Explorer jika namanya berbeda
+    local targetScripts = {"Health", "Survival", "Damage", "Hunger", "Thirst", "Oxygen", "EnvironmentDamage"}
+    
+    -- Cari di dalam Karakter
+    if char then
+        for _, v in ipairs(char:GetDescendants()) do
+            if v:IsA("LocalScript") then
+                for _, name in ipairs(targetScripts) do
+                    if string.find(string.lower(v.Name), string.lower(name)) then
+                        v.Disabled = true
+                        print("Berhasil mematikan script karakter: " .. v.Name)
+                    end
+                end
+            end
+        end
+    end
+    
+    -- Cari di dalam PlayerScripts
+    if playerScripts then
+        for _, v in ipairs(playerScripts:GetDescendants()) do
+            if v:IsA("LocalScript") then
+                for _, name in ipairs(targetScripts) do
+                    if string.find(string.lower(v.Name), string.lower(name)) then
+                        v.Disabled = true
+                        print("Berhasil mematikan script player: " .. v.Name)
+                    end
+                end
+            end
+        end
     end
 end)
 
--- Otomatis memberikan ForceField kembali secara otomatis setelah mati/respawn
-LocalPlayer.CharacterAdded:Connect(function(newChar)
-    -- Jika tombol CanTouch sedang aktif saat respawn, langsung matikan CanTouch karakter baru
-    if GodModeCanTouch then
-        task.wait(0.2)
-        for _, part in ipairs(newChar:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanTouch = false
+-- [NEW OPSI 2]: Desync Hitbox God Mode (Memisahkan Tubuh dari Hitbox)
+Win:AddToggle("Desync Hitbox (God Mode)", false, function(state)
+    DesyncEnabled = state
+    local char = LocalPlayer.Character
+    local root = char UltraFindFirstChild("HumanoidRootPart")
+    
+    if DesyncEnabled and char and root then
+        task.spawn(function()
+            -- Membuat tiruan posisi aman di langit agar tidak terkena hit server
+            root.Anchored = true
+            local originalCFrame = root.CFrame
+            root.CFrame = originalCFrame * CFrame.new(0, 500, 0) -- Lempar hitbox asli ke langit 500 stud
+            
+            while DesyncEnabled do
+                -- Memaksa bagian tubuh visual tetap bisa digerakkan di bawah olehmu
+                for _, part in ipairs(char:GetChildren()) do
+                    if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                        part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                    end
+                end
+                RunService.RenderStepped:Wait()
             end
-        end
+            
+            -- Jika dimatikan, kembalikan hitbox ke tubuh
+            root.Anchored = false
+            root.CFrame = originalCFrame
+        end)
+    else
+        if root then root.Anchored = false end
+    end
+end)
+
+-- [NEW OPSI 3]: Mencegah Kematian via Reset State (State Bypass)
+Win:AddButton("Bypass Humanoid State", function()
+    local char = LocalPlayer.Character
+    local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+    
+    if humanoid then
+        -- Mematikan paksa beberapa kondisi status yang memicu kematian/damage bawaan engine
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+        print("Humanoid State Berhasil di-Bypass!")
     end
 end)
