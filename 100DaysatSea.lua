@@ -16,6 +16,9 @@ end)
 
 local AutoGrinderEnabled = false
 local AutoCampfireEnabled = false
+local GodModeHeal = false
+local GodModeCanTouch = false
+
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
@@ -39,7 +42,6 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
                         local resType = obj:GetAttribute("Resource")
                         
                         if resType and TargetMaterials[resType] then
-                            -- Filter ketat: Jangan ambil jika sedang di-grab player
                             if obj:GetAttribute("Grabbed") == true or obj:FindFirstChild("Drag") then
                                 continue 
                             end
@@ -49,12 +51,10 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
                             if primary then
                                 local distance = (primary.Position - GrinderCol.Position).Magnitude
                                 
-                                -- Ambil jika jaraknya di luar radius 3 stud dari penggiling
                                 if distance > 3 then
                                     local grabberAttr = obj:GetAttribute("Grabber")
                                     local lastHolderAttr = obj:GetAttribute("LastHolder")
                                     
-                                    -- [FILTER MUTLAK]: Hanya masukkan ke antrean jika punya history (Prioritas Utama)
                                     if grabberAttr ~= nil and lastHolderAttr ~= nil then
                                         table.insert(itemsToProcess, {
                                             Object = obj,
@@ -66,12 +66,10 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
                         end
                     end
 
-                    -- Urutkan berdasarkan jarak paling dekat dengan mesin giling terlebih dahulu
                     table.sort(itemsToProcess, function(a, b)
                         return a.Distance < b.Distance 
                     end)
 
-                    -- Eksekusi TP langsung ke dalam Grinder
                     for _, data in ipairs(itemsToProcess) do
                         local obj = data.Object
                         local targetCFrame = GrinderCol.CFrame
@@ -116,7 +114,6 @@ Win:AddToggle("Mulai Auto Campfire", false, function(state)
                             local resType = obj:GetAttribute("Resource")
                             
                             if resType == "Wood" then
-                                -- FILTER KETAT: Abaikan jika sedang di-grab player
                                 if obj:GetAttribute("Grabbed") == true or obj:FindFirstChild("Drag") then
                                     continue
                                 end
@@ -130,11 +127,9 @@ Win:AddToggle("Mulai Auto Campfire", false, function(state)
                                         local grabberAttr = obj:GetAttribute("Grabber")
                                         local lastHolderAttr = obj:GetAttribute("LastHolder")
                                         
-                                        -- [FILTER MUTLAK]: Hanya proses jika kayu punya history (Prioritas Utama)
                                         if grabberAttr ~= nil and lastHolderAttr ~= nil then
                                             local targetCFrame = dropperPart.CFrame
 
-                                            -- Teleportasi langsung ke Campfire
                                             if obj:IsA("BasePart") then
                                                 obj.CFrame = targetCFrame
                                                 obj.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
@@ -147,7 +142,6 @@ Win:AddToggle("Mulai Auto Campfire", false, function(state)
                                                 end
                                             end
                                             
-                                            -- Memicu sensor pembakaran secara instan
                                             if firetouchinterest then
                                                 local touchPart = obj:IsA("BasePart") and obj or obj.PrimaryPart
                                                 if touchPart then
@@ -167,5 +161,81 @@ Win:AddToggle("Mulai Auto Campfire", false, function(state)
                 task.wait(0.1) 
             end
         end)
+    end
+end)
+
+-- ====================================================================
+-- [FITUR 3]: GOD MODE OPTIONS (ANTI-RESPAWN & SEMUA VARIASI)
+-- ====================================================================
+
+-- [OPSI 1]: God Mode via Auto Heal (Membaca karakter secara dinamis di dalam loop)
+Win:AddToggle("God Mode (Auto Heal)", false, function(state)
+    GodModeHeal = state
+    
+    if GodModeHeal then
+        task.spawn(function()
+            while GodModeHeal do
+                local char = LocalPlayer.Character
+                local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+                
+                if humanoid and humanoid.Health > 0 then
+                    humanoid.Health = humanoid.MaxHealth
+                end
+                task.wait() -- Loop super cepat per frame
+            end
+        end)
+    end
+end)
+
+-- [OPSI 2]: God Mode via CanTouch (Otomatis mengunci CanTouch = false saat respawn)
+Win:AddToggle("God Mode (Disable CanTouch)", false, function(state)
+    GodModeCanTouch = state
+    
+    local function applyCanTouch(character)
+        if not character then return end
+        for _, part in ipairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanTouch = not GodModeCanTouch
+            end
+        end
+    end
+
+    -- Eksekusi ke karakter saat ini
+    applyCanTouch(LocalPlayer.Character)
+end)
+
+-- Loop konstan khusus CanTouch agar bagian tubuh yang baru/respawn langsung terkunci CanTouch = false
+task.spawn(function()
+    while task.wait(0.5) do
+        if GodModeCanTouch and LocalPlayer.Character then
+            for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
+                if part:IsA("BasePart") and part.CanTouch == true then
+                    part.CanTouch = false
+                end
+            end
+        end
+    end
+end)
+
+-- [OPSI 3]: God Mode via ForceField Bawaan Roblox
+Win:AddButton("Beri ForceField Kebal", function()
+    local char = LocalPlayer.Character
+    if char and not char:FindFirstChildOfClass("ForceField") then
+        local ff = Instance.new("ForceField")
+        ff.Visible = true -- Ubah ke false jika ingin efek birunya hilang tapi tetap kebal
+        ff.Parent = char
+    end
+end)
+
+-- Otomatis memberikan ForceField kembali secara otomatis setelah mati/respawn
+LocalPlayer.CharacterAdded:Connect(function(newChar)
+    -- Jika tombol CanTouch sedang aktif saat respawn, langsung matikan CanTouch karakter baru
+    if GodModeCanTouch then
+        task.wait(0.2)
+        for _, part in ipairs(newChar:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanTouch = false
+            end
+        end
     end
 end)
