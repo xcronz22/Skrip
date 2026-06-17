@@ -16,11 +16,11 @@ end)
 
 local AutoGrinderEnabled = false
 local AutoCampfireEnabled = false
-local GodModeHeal = false
-local GodModeCanTouch = false
+local DesyncEnabled = false
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
 
 -- ====================================================================
 -- [FITUR 1]: AUTO GRINDER (HANYA PRIORITAS UTAMA)
@@ -168,41 +168,30 @@ end)
 -- [FITUR 3]: ADVANCED GOD MODE (BYPASS SERVER-SIDE)
 -- ====================================================================
 
-local RunService = game:GetService("RunService")
-local DesyncEnabled = false
-local FakeRoot = nil
-
--- [NEW OPSI 1]: Matikan Script Damage/Survival Bawaan Game
+-- [OPSI 1]: Matikan Script Damage/Survival Bawaan Game
 Win:AddButton("Matikan Script Damage/Survival Game", function()
     local char = LocalPlayer.Character
     local playerScripts = LocalPlayer:FindFirstChild("PlayerScripts")
-    
-    -- Daftar nama script yang biasanya mengatur damage/survival di game
-    -- Kamu bisa cek nama script aslinya via Dex Explorer jika namanya berbeda
     local targetScripts = {"Health", "Survival", "Damage", "Hunger", "Thirst", "Oxygen", "EnvironmentDamage"}
     
-    -- Cari di dalam Karakter
     if char then
         for _, v in ipairs(char:GetDescendants()) do
             if v:IsA("LocalScript") then
                 for _, name in ipairs(targetScripts) do
                     if string.find(string.lower(v.Name), string.lower(name)) then
                         v.Disabled = true
-                        print("Berhasil mematikan script karakter: " .. v.Name)
                     end
                 end
             end
         end
     end
     
-    -- Cari di dalam PlayerScripts
     if playerScripts then
         for _, v in ipairs(playerScripts:GetDescendants()) do
             if v:IsA("LocalScript") then
                 for _, name in ipairs(targetScripts) do
                     if string.find(string.lower(v.Name), string.lower(name)) then
                         v.Disabled = true
-                        print("Berhasil mematikan script player: " .. v.Name)
                     end
                 end
             end
@@ -210,21 +199,19 @@ Win:AddButton("Matikan Script Damage/Survival Game", function()
     end
 end)
 
--- [NEW OPSI 2]: Desync Hitbox God Mode (Memisahkan Tubuh dari Hitbox)
+-- [OPSI 2]: Desync Hitbox God Mode (Memisahkan Tubuh dari Hitbox)
 Win:AddToggle("Desync Hitbox (God Mode)", false, function(state)
     DesyncEnabled = state
     local char = LocalPlayer.Character
-    local root = char UltraFindFirstChild("HumanoidRootPart")
+    local root = char and char:FindFirstChild("HumanoidRootPart") -- SudaFix: Menggunakan :FindFirstChild yang benar
     
     if DesyncEnabled and char and root then
         task.spawn(function()
-            -- Membuat tiruan posisi aman di langit agar tidak terkena hit server
             root.Anchored = true
             local originalCFrame = root.CFrame
-            root.CFrame = originalCFrame * CFrame.new(0, 500, 0) -- Lempar hitbox asli ke langit 500 stud
+            root.CFrame = originalCFrame * CFrame.new(0, 500, 0) -- Melempar hitbox asli ke langit bebas
             
             while DesyncEnabled do
-                -- Memaksa bagian tubuh visual tetap bisa digerakkan di bawah olehmu
                 for _, part in ipairs(char:GetChildren()) do
                     if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
                         part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
@@ -233,7 +220,6 @@ Win:AddToggle("Desync Hitbox (God Mode)", false, function(state)
                 RunService.RenderStepped:Wait()
             end
             
-            -- Jika dimatikan, kembalikan hitbox ke tubuh
             root.Anchored = false
             root.CFrame = originalCFrame
         end)
@@ -242,16 +228,14 @@ Win:AddToggle("Desync Hitbox (God Mode)", false, function(state)
     end
 end)
 
--- [NEW OPSI 3]: Mencegah Kematian via Reset State (State Bypass)
+-- [OPSI 3]: Mencegah Kematian via Reset State
 Win:AddButton("Bypass Humanoid State", function()
     local char = LocalPlayer.Character
     local humanoid = char and char:FindFirstChildOfClass("Humanoid")
     
     if humanoid then
-        -- Mematikan paksa beberapa kondisi status yang memicu kematian/damage bawaan engine
         humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
         humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
         humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
-        print("Humanoid State Berhasil di-Bypass!")
     end
 end)
