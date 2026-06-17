@@ -20,7 +20,7 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
 -- ====================================================================
--- [FITUR 1]: AUTO GRINDER (HANYA PRIORITAS UTAMA)
+-- [FITUR 1]: AUTO GRINDER (HANYA HISTORY KARAKTER SENDIRI)
 -- ====================================================================
 Win:AddToggle("Mulai Auto Grinder", false, function(state)
     AutoGrinderEnabled = state
@@ -54,8 +54,16 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
                                     local grabberAttr = obj:GetAttribute("Grabber")
                                     local lastHolderAttr = obj:GetAttribute("LastHolder")
                                     
-                                    -- [FILTER MUTLAK]: Hanya masukkan ke antrean jika punya history (Prioritas Utama)
-                                    if grabberAttr ~= nil and lastHolderAttr ~= nil then
+                                    -- Data Identitas Player Kamu
+                                    local myId = LocalPlayer.UserId
+                                    local myName = LocalPlayer.Name
+                                    
+                                    -- Validasi mutlak: Apakah Grabber & LastHolder milik kamu sendiri?
+                                    local isGrabberMe = (grabberAttr == myId or tostring(grabberAttr) == tostring(myId) or grabberAttr == myName)
+                                    local isLastHolderMe = (lastHolderAttr == myId or tostring(lastHolderAttr) == tostring(myId) or lastHolderAttr == myName)
+                                    
+                                    -- [FILTER MODIFIKASI]: Hanya masukkan ke antrean jika history milik ANDA SENDIRI
+                                    if isGrabberMe and isLastHolderMe then
                                         table.insert(itemsToProcess, {
                                             Object = obj,
                                             Distance = distance
@@ -96,7 +104,7 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 2]: AUTO CAMPFIRE (KHUSUS KAYU & HANYA PRIORITAS UTAMA)
+-- [FITUR 2]: AUTO CAMPFIRE (KHUSUS KAYU & HANYA HISTORY KARAKTER SENDIRI)
 -- ====================================================================
 Win:AddToggle("Mulai Auto Campfire", false, function(state)
     AutoCampfireEnabled = state
@@ -130,8 +138,16 @@ Win:AddToggle("Mulai Auto Campfire", false, function(state)
                                         local grabberAttr = obj:GetAttribute("Grabber")
                                         local lastHolderAttr = obj:GetAttribute("LastHolder")
                                         
-                                        -- [FILTER MUTLAK]: Hanya proses jika kayu punya history (Prioritas Utama)
-                                        if grabberAttr ~= nil and lastHolderAttr ~= nil then
+                                        -- Data Identitas Player Kamu
+                                        local myId = LocalPlayer.UserId
+                                        local myName = LocalPlayer.Name
+                                        
+                                        -- Validasi mutlak: Apakah Grabber & LastHolder milik kamu sendiri?
+                                        local isGrabberMe = (grabberAttr == myId or tostring(grabberAttr) == tostring(myId) or grabberAttr == myName)
+                                        local isLastHolderMe = (lastHolderAttr == myId or tostring(lastHolderAttr) == tostring(myId) or lastHolderAttr == myName)
+                                        
+                                        -- [FILTER MODIFIKASI]: Hanya proses jika kayu punya history ANDA SENDIRI
+                                        if isGrabberMe and isLastHolderMe then
                                             local targetCFrame = dropperPart.CFrame
 
                                             -- Teleportasi langsung ke Campfire
