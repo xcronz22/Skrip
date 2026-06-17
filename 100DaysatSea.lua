@@ -16,11 +16,8 @@ end)
 
 local AutoGrinderEnabled = false
 local AutoCampfireEnabled = false
-local DesyncEnabled = false
-
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local RunService = game:GetService("RunService")
 
 -- ====================================================================
 -- [FITUR 1]: AUTO GRINDER (HANYA PRIORITAS UTAMA)
@@ -42,6 +39,7 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
                         local resType = obj:GetAttribute("Resource")
                         
                         if resType and TargetMaterials[resType] then
+                            -- Filter ketat: Jangan ambil jika sedang di-grab player
                             if obj:GetAttribute("Grabbed") == true or obj:FindFirstChild("Drag") then
                                 continue 
                             end
@@ -51,10 +49,12 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
                             if primary then
                                 local distance = (primary.Position - GrinderCol.Position).Magnitude
                                 
+                                -- Ambil jika jaraknya di luar radius 3 stud dari penggiling
                                 if distance > 3 then
                                     local grabberAttr = obj:GetAttribute("Grabber")
                                     local lastHolderAttr = obj:GetAttribute("LastHolder")
                                     
+                                    -- [FILTER MUTLAK]: Hanya masukkan ke antrean jika punya history (Prioritas Utama)
                                     if grabberAttr ~= nil and lastHolderAttr ~= nil then
                                         table.insert(itemsToProcess, {
                                             Object = obj,
@@ -66,10 +66,12 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
                         end
                     end
 
+                    -- Urutkan berdasarkan jarak paling dekat dengan mesin giling terlebih dahulu
                     table.sort(itemsToProcess, function(a, b)
                         return a.Distance < b.Distance 
                     end)
 
+                    -- Eksekusi TP langsung ke dalam Grinder
                     for _, data in ipairs(itemsToProcess) do
                         local obj = data.Object
                         local targetCFrame = GrinderCol.CFrame
@@ -114,6 +116,7 @@ Win:AddToggle("Mulai Auto Campfire", false, function(state)
                             local resType = obj:GetAttribute("Resource")
                             
                             if resType == "Wood" then
+                                -- FILTER KETAT: Abaikan jika sedang di-grab player
                                 if obj:GetAttribute("Grabbed") == true or obj:FindFirstChild("Drag") then
                                     continue
                                 end
@@ -127,9 +130,11 @@ Win:AddToggle("Mulai Auto Campfire", false, function(state)
                                         local grabberAttr = obj:GetAttribute("Grabber")
                                         local lastHolderAttr = obj:GetAttribute("LastHolder")
                                         
+                                        -- [FILTER MUTLAK]: Hanya proses jika kayu punya history (Prioritas Utama)
                                         if grabberAttr ~= nil and lastHolderAttr ~= nil then
                                             local targetCFrame = dropperPart.CFrame
 
+                                            -- Teleportasi langsung ke Campfire
                                             if obj:IsA("BasePart") then
                                                 obj.CFrame = targetCFrame
                                                 obj.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
@@ -142,6 +147,7 @@ Win:AddToggle("Mulai Auto Campfire", false, function(state)
                                                 end
                                             end
                                             
+                                            -- Memicu sensor pembakaran secara instan
                                             if firetouchinterest then
                                                 local touchPart = obj:IsA("BasePart") and obj or obj.PrimaryPart
                                                 if touchPart then
@@ -161,81 +167,5 @@ Win:AddToggle("Mulai Auto Campfire", false, function(state)
                 task.wait(0.1) 
             end
         end)
-    end
-end)
-
--- ====================================================================
--- [FITUR 3]: ADVANCED GOD MODE (BYPASS SERVER-SIDE)
--- ====================================================================
-
--- [OPSI 1]: Matikan Script Damage/Survival Bawaan Game
-Win:AddButton("Matikan Script Damage/Survival Game", function()
-    local char = LocalPlayer.Character
-    local playerScripts = LocalPlayer:FindFirstChild("PlayerScripts")
-    local targetScripts = {"Health", "Survival", "Damage", "Hunger", "Thirst", "Oxygen", "EnvironmentDamage"}
-    
-    if char then
-        for _, v in ipairs(char:GetDescendants()) do
-            if v:IsA("LocalScript") then
-                for _, name in ipairs(targetScripts) do
-                    if string.find(string.lower(v.Name), string.lower(name)) then
-                        v.Disabled = true
-                    end
-                end
-            end
-        end
-    end
-    
-    if playerScripts then
-        for _, v in ipairs(playerScripts:GetDescendants()) do
-            if v:IsA("LocalScript") then
-                for _, name in ipairs(targetScripts) do
-                    if string.find(string.lower(v.Name), string.lower(name)) then
-                        v.Disabled = true
-                    end
-                end
-            end
-        end
-    end
-end)
-
--- [OPSI 2]: Desync Hitbox God Mode (Memisahkan Tubuh dari Hitbox)
-Win:AddToggle("Desync Hitbox (God Mode)", false, function(state)
-    DesyncEnabled = state
-    local char = LocalPlayer.Character
-    local root = char and char:FindFirstChild("HumanoidRootPart") -- SudaFix: Menggunakan :FindFirstChild yang benar
-    
-    if DesyncEnabled and char and root then
-        task.spawn(function()
-            root.Anchored = true
-            local originalCFrame = root.CFrame
-            root.CFrame = originalCFrame * CFrame.new(0, 500, 0) -- Melempar hitbox asli ke langit bebas
-            
-            while DesyncEnabled do
-                for _, part in ipairs(char:GetChildren()) do
-                    if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-                        part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                    end
-                end
-                RunService.RenderStepped:Wait()
-            end
-            
-            root.Anchored = false
-            root.CFrame = originalCFrame
-        end)
-    else
-        if root then root.Anchored = false end
-    end
-end)
-
--- [OPSI 3]: Mencegah Kematian via Reset State
-Win:AddButton("Bypass Humanoid State", function()
-    local char = LocalPlayer.Character
-    local humanoid = char and char:FindFirstChildOfClass("Humanoid")
-    
-    if humanoid then
-        humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
-        humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-        humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
     end
 end)
