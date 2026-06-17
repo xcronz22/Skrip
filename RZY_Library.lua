@@ -313,6 +313,89 @@ function RZY_Library:MakeWindow(TitleText)
         return InputHandler
     end
 
+        -- [FITUR BARU] AddMultiDropdown (Banyak Pilihan dengan Centang)
+    function WindowElements:AddMultiDropdown(Text, Options, Callback)
+        local DropdownFrame = Instance.new("Frame")
+        DropdownFrame.Size = UDim2.new(1, -10, 0, 35)
+        DropdownFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+        DropdownFrame.ClipsDescendants = true
+        DropdownFrame.Parent = Container
+
+        Instance.new("UICorner", DropdownFrame).CornerRadius = UDim.new(0, 5)
+        local UIStroke = Instance.new("UIStroke", DropdownFrame)
+        UIStroke.Color = Color3.fromRGB(0, 100, 150)
+        UIStroke.Thickness = 1
+
+        local TitleBtn = Instance.new("TextButton")
+        TitleBtn.Size = UDim2.new(1, 0, 0, 35)
+        TitleBtn.BackgroundTransparency = 1
+        TitleBtn.Text = Text .. " ▼"
+        TitleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        TitleBtn.Font = Enum.Font.GothamBold
+        TitleBtn.TextSize = 12
+        TitleBtn.Parent = DropdownFrame
+
+        local DropdownList = Instance.new("ScrollingFrame")
+        DropdownList.Size = UDim2.new(1, -10, 1, -40)
+        DropdownList.Position = UDim2.new(0, 5, 0, 35)
+        DropdownList.BackgroundTransparency = 1
+        DropdownList.ScrollBarThickness = 2
+        DropdownList.Parent = DropdownFrame
+
+        local ListLayout = Instance.new("UIListLayout", DropdownList)
+        ListLayout.Padding = UDim.new(0, 4)
+        ListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+        local isOpen = false
+        TitleBtn.MouseButton1Click:Connect(function()
+            isOpen = not isOpen
+            if isOpen then
+                DropdownFrame.Size = UDim2.new(1, -10, 0, 140) -- Buka
+                TitleBtn.Text = Text .. " ▲"
+            else
+                DropdownFrame.Size = UDim2.new(1, -10, 0, 35) -- Tutup
+                TitleBtn.Text = Text .. " ▼"
+            end
+        end)
+
+        -- Menyimpan status pilihan (centang/tidak)
+        local SelectedOptions = {}
+
+        for _, option in ipairs(Options) do
+            SelectedOptions[option] = false -- Default belum tercentang
+
+            local OptBtn = Instance.new("TextButton")
+            OptBtn.Size = UDim2.new(1, 0, 0, 25)
+            OptBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+            OptBtn.Text = option
+            OptBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+            OptBtn.Font = Enum.Font.Gotham
+            OptBtn.TextSize = 12
+            OptBtn.Parent = DropdownList
+            Instance.new("UICorner", OptBtn).CornerRadius = UDim.new(0, 4)
+
+            -- Fungsi ketika opsi diklik
+            OptBtn.MouseButton1Click:Connect(function()
+                SelectedOptions[option] = not SelectedOptions[option]
+                
+                if SelectedOptions[option] then
+                    OptBtn.Text = "✅ " .. option
+                    OptBtn.TextColor3 = Color3.fromRGB(0, 255, 100)
+                else
+                    OptBtn.Text = option
+                    OptBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+                end
+                
+                -- Kirim table status terbaru ke skrip utama
+                pcall(Callback, SelectedOptions)
+            end)
+        end
+
+        ListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            DropdownList.CanvasSize = UDim2.new(0, 0, 0, ListLayout.AbsoluteContentSize.Y)
+        end)
+    end
+    
     return WindowElements
 end
 
