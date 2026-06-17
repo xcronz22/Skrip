@@ -20,7 +20,7 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
 -- ====================================================================
--- [FITUR 1]: AUTO GRINDER
+-- [FITUR 1]: AUTO GRINDER (HANYA PRIORITAS UTAMA)
 -- ====================================================================
 Win:AddToggle("Mulai Auto Grinder", false, function(state)
     AutoGrinderEnabled = state
@@ -54,17 +54,13 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
                                     local grabberAttr = obj:GetAttribute("Grabber")
                                     local lastHolderAttr = obj:GetAttribute("LastHolder")
                                     
-                                    -- Cek Kategori berdasarkan Atribut History
-                                    local category = 2 
+                                    -- [FILTER MUTLAK]: Hanya masukkan ke antrean jika punya history (Prioritas Utama)
                                     if grabberAttr ~= nil and lastHolderAttr ~= nil then
-                                        category = 1 
+                                        table.insert(itemsToProcess, {
+                                            Object = obj,
+                                            Distance = distance
+                                        })
                                     end
-
-                                    table.insert(itemsToProcess, {
-                                        Object = obj,
-                                        Distance = distance,
-                                        Category = category
-                                    })
                                 end
                             end
                         end
@@ -75,15 +71,10 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
                         return a.Distance < b.Distance 
                     end)
 
+                    -- Eksekusi TP langsung ke dalam Grinder
                     for _, data in ipairs(itemsToProcess) do
                         local obj = data.Object
-                        local targetCFrame
-                        
-                        if data.Category == 1 then
-                            targetCFrame = GrinderCol.CFrame -- Kategori 1 masuk ke Grinder
-                        else
-                            targetCFrame = GrinderCol.CFrame * CFrame.new(0, 4, 0) -- Kategori 2 melayang 4 stud di atas Grinder
-                        end
+                        local targetCFrame = GrinderCol.CFrame
 
                         if obj:IsA("BasePart") then
                             obj.CFrame = targetCFrame
@@ -105,7 +96,7 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 2]: AUTO CAMPFIRE (KHUSUS KAYU)
+-- [FITUR 2]: AUTO CAMPFIRE (KHUSUS KAYU & HANYA PRIORITAS UTAMA)
 -- ====================================================================
 Win:AddToggle("Mulai Auto Campfire", false, function(state)
     AutoCampfireEnabled = state
@@ -116,9 +107,8 @@ Win:AddToggle("Mulai Auto Campfire", false, function(state)
                 local workspace = game:GetService("Workspace")
                 local DebrisField = workspace:FindFirstChild("DebrisField")
                 local Dropper = workspace:FindFirstChild("SpawnIsland") and workspace.SpawnIsland:FindFirstChild("Dropper")
-                local GrinderCol = workspace:FindFirstChild("SpawnIsland") and workspace.SpawnIsland:FindFirstChild("Grinder") and workspace.SpawnIsland.Grinder:FindFirstChild("Collection")
 
-                if DebrisField and Dropper and GrinderCol then
+                if DebrisField and Dropper then
                     local dropperPart = Dropper:IsA("BasePart") and Dropper or Dropper:FindFirstChildWithClass("BasePart") or (Dropper:IsA("Model") and Dropper.PrimaryPart)
                     
                     if dropperPart then
@@ -140,37 +130,31 @@ Win:AddToggle("Mulai Auto Campfire", false, function(state)
                                         local grabberAttr = obj:GetAttribute("Grabber")
                                         local lastHolderAttr = obj:GetAttribute("LastHolder")
                                         
-                                        local category = 2 
+                                        -- [FILTER MUTLAK]: Hanya proses jika kayu punya history (Prioritas Utama)
                                         if grabberAttr ~= nil and lastHolderAttr ~= nil then
-                                            category = 1 
-                                        end
+                                            local targetCFrame = dropperPart.CFrame
 
-                                        local targetCFrame
-                                        if category == 1 then
-                                            targetCFrame = dropperPart.CFrame -- Kategori 1 masuk ke Campfire Dropper
-                                        else
-                                            targetCFrame = GrinderCol.CFrame * CFrame.new(0, 4, 0) -- Kategori 2 melayang 4 stud di atas Grinder
-                                        end
-
-                                        if obj:IsA("BasePart") then
-                                            obj.CFrame = targetCFrame
-                                            obj.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                                        elseif obj:IsA("Model") then
-                                            obj:PivotTo(targetCFrame)
-                                            for _, part in ipairs(obj:GetDescendants()) do
-                                                if part:IsA("BasePart") then
-                                                    part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                                            -- Teleportasi langsung ke Campfire
+                                            if obj:IsA("BasePart") then
+                                                obj.CFrame = targetCFrame
+                                                obj.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                                            elseif obj:IsA("Model") then
+                                                obj:PivotTo(targetCFrame)
+                                                for _, part in ipairs(obj:GetDescendants()) do
+                                                    if part:IsA("BasePart") then
+                                                        part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                                                    end
                                                 end
                                             end
-                                        end
-                                        
-                                        -- FIRETOUCH SIMULATION: Hanya dilakukan jika kayu dikirim ke api unggun (Kategori 1)
-                                        if category == 1 and firetouchinterest then
-                                            local touchPart = obj:IsA("BasePart") and obj or obj.PrimaryPart
-                                            if touchPart then
-                                                firetouchinterest(dropperPart, touchPart, 0) 
-                                                task.wait()
-                                                firetouchinterest(dropperPart, touchPart, 1) 
+                                            
+                                            -- Memicu sensor pembakaran secara instan
+                                            if firetouchinterest then
+                                                local touchPart = obj:IsA("BasePart") and obj or obj.PrimaryPart
+                                                if touchPart then
+                                                    firetouchinterest(dropperPart, touchPart, 0) 
+                                                    task.wait()
+                                                    firetouchinterest(dropperPart, touchPart, 1) 
+                                                end
                                             end
                                         end
                                         
