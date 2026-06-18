@@ -363,7 +363,7 @@ Win:AddToggle("Auto Doubloon Chest", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 5]: BRUTAL AUTO ATTACK (HARPOON & MAGMA STAFF)
+-- [FITUR 5]: BRUTAL AUTO ATTACK (HARPOON & MAGMA STAFF) + AUTO EQUIP
 -- ====================================================================
 Win:AddToggle("Brutal Auto Tool", false, function(state)
     AutoHarpoonEnabled = state
@@ -375,9 +375,11 @@ Win:AddToggle("Brutal Auto Tool", false, function(state)
                 local CreatureContainer = workspace:FindFirstChild("CreatureContainer")
                 
                 local character = LocalPlayer.Character
+                local humanoid = character and character:FindFirstChild("Humanoid")
                 local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso") or character:FindFirstChildWhichIsA("BasePart"))
+                local backpack = LocalPlayer:FindFirstChild("Backpack")
                 
-                if CreatureContainer and rootPart then
+                if CreatureContainer and rootPart and humanoid then
                     local nearestEnemy = nil
                     local shortestDistance = math.huge
                     
@@ -401,26 +403,46 @@ Win:AddToggle("Brutal Auto Tool", false, function(state)
                         local enemyPos = nearestEnemy:IsA("Model") and nearestEnemy:GetPivot().Position or nearestEnemy.Position
                         local vecStr = string.format("~v%.4f,%.4f,%.4f", enemyPos.X, enemyPos.Y, enemyPos.Z)
                         
+                        -- Fungsi Equip Internal
+                        local function EquipAndAttack(toolName, attackLogic)
+                            local tool = character:FindFirstChild(toolName)
+                            
+                            if not tool and backpack then
+                                tool = backpack:FindFirstChild(toolName)
+                                if tool then
+                                    humanoid:EquipTool(tool)
+                                    task.wait(0.05) -- Jeda pengesahan server
+                                end
+                            end
+                            
+                            if tool then
+                                attackLogic()
+                            end
+                        end
+
                         pcall(function()
                             -- Tembak Harpoon
-                            SafeRemoteFunction("ToolReplicator", "~sHarpoon", "~sHitEnemy", nearestEnemy)
+                            EquipAndAttack("Harpoon", function()
+                                SafeRemoteFunction("ToolReplicator", "~sHarpoon", "~sHitEnemy", nearestEnemy)
+                            end)
                             
                             -- Tembak Magma Staff
-                            -- Menggunakan argumen sesuai contoh yang Anda berikan
-                            SafeRemoteFunction("ToolReplicator", "~sMagma Staff", "~sFire", vecStr)
+                            EquipAndAttack("Magma Staff", function()
+                                SafeRemoteFunction("ToolReplicator", "~sMagma Staff", "~sFire", vecStr)
+                            end)
                         end)
                     end
                 end
                 
-                -- Kecepatan serangan (bisa diubah ke task.wait(0.1) jika terlalu berat)
-                task.wait() 
+                -- Jeda aman agar pergantian senjata mulus dan tidak membuat game lag
+                task.wait(0.1) 
             end
         end)
     end
 end)
 
 -- ====================================================================
--- [FITUR 6]: AUTO PICK MATERIAL (HARPOON SYSTEM - TARGET TERDEKAT)
+-- [FITUR 6]: AUTO PICK MATERIAL (HARPOON SYSTEM) + AUTO EQUIP
 -- ====================================================================
 Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
     AutoPickEnabled = state
@@ -432,9 +454,11 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                 local DebrisField = workspace:FindFirstChild("DebrisField")
                 
                 local character = LocalPlayer.Character
+                local humanoid = character and character:FindFirstChild("Humanoid")
                 local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso") or character:FindFirstChildWhichIsA("BasePart"))
+                local backpack = LocalPlayer:FindFirstChild("Backpack")
                 
-                if DebrisField and rootPart then
+                if DebrisField and rootPart and humanoid then
                     local nearestItem = nil
                     local targetPart = nil
                     local shortestDistance = math.huge
@@ -490,11 +514,22 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                     -- Jika menemukan item target terdekat, tembak dengan harpoon
                     if nearestItem and targetPart then
                         pcall(function()
-                            -- Konversi titik posisi ke string format Game (contoh: ~v22.6462,-26.8099,15.0381)
                             local pos = targetPart.Position
                             local vecStr = string.format("~v%.4f,%.4f,%.4f", pos.X, pos.Y, pos.Z)
                             
-                            SafeRemoteFunction("ToolReplicator", "~sHarpoon", "~sGrab", nearestItem, vecStr)
+                            -- Pastikan Harpoon di-equip sebelum menembak
+                            local tool = character:FindFirstChild("Harpoon")
+                            if not tool and backpack then
+                                tool = backpack:FindFirstChild("Harpoon")
+                                if tool then
+                                    humanoid:EquipTool(tool)
+                                    task.wait(0.05) -- Jeda pengesahan server
+                                end
+                            end
+                            
+                            if tool then
+                                SafeRemoteFunction("ToolReplicator", "~sHarpoon", "~sGrab", nearestItem, vecStr)
+                            end
                         end)
                         task.wait(0.2) -- Jeda biar harpoon tidak error karena spam berlebih
                     end
