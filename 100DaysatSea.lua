@@ -110,66 +110,68 @@ end
 -- ====================================================================
 -- [FITUR 1 & 2]: AUTO GRINDER & CAMPFIRE (TETAP SAMA SEPERTI V4)
 -- ====================================================================
+-- ====================================================================
+-- [FITUR 1]: AUTO GRINDER (METODE DRAG & DROP KE DEPAN PLAYER)
+-- ====================================================================
 Win:AddToggle("Mulai Auto Grinder", false, function(state)
     AutoGrinderEnabled = state
+    
     if AutoGrinderEnabled then
         task.spawn(function()
             while AutoGrinderEnabled do
                 local workspace = game:GetService("Workspace")
                 local DebrisField = workspace:FindFirstChild("DebrisField")
-                local GrinderCol = workspace:FindFirstChild("SpawnIsland") and workspace.SpawnIsland:FindFirstChild("Grinder") and workspace.SpawnIsland.Grinder:FindFirstChild("Collection")
-
-                if DebrisField and GrinderCol then
-                    local itemsToProcess = {}
-                    for _, obj in ipairs(DebrisField:GetChildren()) do
-                        local resType = obj:GetAttribute("Resource")
-                        if resType and TargetMaterials[resType] then
+                
+                if DebrisField then
+                    -- Looping semua folder ID di dalam laut
+                    for _, folderObj in ipairs(DebrisField:GetChildren()) do
+                        if not AutoGrinderEnabled then break end
+                        
+                        -- Cek resource di folder ATAU di part dalamnya
+                        local resType = folderObj:GetAttribute("Resource")
+                        local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
+                        
+                        if not resType and part then
+                            resType = part:GetAttribute("Resource")
+                        end
+                        
+                        -- Jika tipe sesuai dengan dropdown dan part fisik ditemukan
+                        if resType and TargetMaterials[resType] and part then
+                            
+                            -- Filter Armor (Abaikan jika itu armor)
                             local isArmor = false
-                            for attrName, attrValue in pairs(obj:GetAttributes()) do
+                            for attrName, attrValue in pairs(folderObj:GetAttributes()) do
                                 if string.find(string.lower(attrName), "armor") or (type(attrValue) == "string" and string.find(string.lower(attrValue), "armor")) then
-                                    isArmor = true
-                                    break
+                                    isArmor = true; break
                                 end
                             end
-                            if isArmor then continue end 
-
-                            local primary = obj:IsA("Model") and obj.PrimaryPart or (obj:IsA("BasePart") and obj)
-                            if primary then
-                                local distance = (primary.Position - GrinderCol.Position).Magnitude
-                                if distance > 3 then
-                                    local isGrabbed = obj:GetAttribute("Grabbed")
-                                    local grabberAttr = obj:GetAttribute("Grabber")
-                                    local myId, myName = LocalPlayer.UserId, LocalPlayer.Name
-                                    local isGrabberMe = false
-                                    if grabberAttr ~= nil then
-                                        isGrabberMe = (grabberAttr == myId or tostring(grabberAttr) == tostring(myId) or grabberAttr == myName)
+                            if not isArmor and part then
+                                for attrName, attrValue in pairs(part:GetAttributes()) do
+                                    if string.find(string.lower(attrName), "armor") or (type(attrValue) == "string" and string.find(string.lower(attrValue), "armor")) then
+                                        isArmor = true; break
                                     end
+                                end
+                            end
+                            
+                            if not isArmor then
+                                -- Mengecek status apakah benda sedang digenggam orang lain
+                                local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
+                                
+                                if not isGrabbed then
+                                    -- 1. Menggenggam objek (objek otomatis terbang ke tangan/kursor player)
+                                    pcall(function()
+                                        SafeRemoteFunction("AttemptDrag", part)
+                                    end)
                                     
-                                    if isGrabbed == true and not isGrabberMe then continue end
-                                    table.insert(itemsToProcess, { Object = obj, Distance = distance })
+                                    task.wait(0.1) -- Jeda memastikan server mendaftarkan genggaman
+                                    
+                                    -- 2. Melepaskan objek secara instan agar jatuh di tempat Anda berdiri
+                                    SafeRemoteEvent("GiveUpOwnership", part, "~v0,0,0")
+                                    
+                                    task.wait(0.15) -- Jeda antar barang agar tidak menumpuk
                                 end
                             end
                         end
-                    end
-                    table.sort(itemsToProcess, function(a, b) return a.Distance < b.Distance end)
-
-                    for _, data in ipairs(itemsToProcess) do
-                        if not AutoGrinderEnabled then break end 
-                        local obj = data.Object
-                        local targetCFrame = GrinderCol.CFrame
-                        obj:SetAttribute("Grabbed", false) 
-                        obj:SetAttribute("LastHolder", LocalPlayer.Name)  
-
-                        if obj:IsA("BasePart") then
-                            obj.CFrame = targetCFrame
-                            obj.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                        elseif obj:IsA("Model") then
-                            obj:PivotTo(targetCFrame)
-                            for _, part in ipairs(obj:GetDescendants()) do
-                                if part:IsA("BasePart") then part.AssemblyLinearVelocity = Vector3.new(0, 0, 0) end
-                            end
-                        end
-                        task.wait(0.1)
                     end
                 end
                 task.wait(0.1) 
@@ -255,7 +257,7 @@ Win:AddToggle("Mulai Auto Campfire", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 3]: AUTO EAT (OPTIMIZED: INSTANT EAT VIA DYNAMIC ID)
+-- [FITUR 3]: AUTO EAT (5 DETIK SEKALI, 5X KUNYAH, TANPA FILTER UI)
 -- ====================================================================
 Win:AddToggle("Mulai Auto Eat", false, function(state)
     AutoEatEnabled = state
@@ -263,56 +265,42 @@ Win:AddToggle("Mulai Auto Eat", false, function(state)
     if AutoEatEnabled then
         task.spawn(function()
             while AutoEatEnabled do
-                local char = LocalPlayer.Character
-                if char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
+                local workspace = game:GetService("Workspace")
+                local DebrisField = workspace:FindFirstChild("DebrisField")
+                
+                if DebrisField then
+                    local ateSomething = false
                     
-                    local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-                    local foodFill = playerGui 
-                        and playerGui:FindFirstChild("HUD") 
-                        and playerGui.HUD:FindFirstChild("Food") 
-                        and playerGui.HUD.Food:FindFirstChild("Bar") 
-                        and playerGui.HUD.Food.Bar:FindFirstChild("Fill")
-                    
-                    -- Skrip hanya berjalan jika indikator makanan di bawah 30%
-                    if foodFill and foodFill.Size.X.Scale <= 0.3 then
-                        local workspace = game:GetService("Workspace")
-                        local DebrisField = workspace:FindFirstChild("DebrisField")
+                    for _, folderObj in ipairs(DebrisField:GetChildren()) do
+                        if not AutoEatEnabled then break end 
                         
-                        if DebrisField then
-                            for _, obj in ipairs(DebrisField:GetChildren()) do
-                                if not AutoEatEnabled then break end 
-                                
-                                -- Deteksi jika objek di laut memiliki attribute Food
-                                if obj:GetAttribute("Food") then
-                                    
-                                    -- EXTRACT ID: Mengambil angka unik di antara titik dua (Contoh: "Burger:1781769071:3834" -> "1781769071")
-                                    local foodId = string.match(obj.Name, ":(%d+)")
-                                    
-                                    -- Backup jika format nama berbeda, ambil angka apa saja yang tersedia di nama objek
-                                    if not foodId then
-                                        foodId = string.match(obj.Name, "%d+")
-                                    end
-                                    
-                                    if foodId then
-                                        -- Loop makan objek tersebut sampai indikator kenyang (X Scale >= 0.95)
-                                        while foodFill.Size.X.Scale < 0.95 and AutoEatEnabled and obj.Parent do
-                                            
-                                            -- LANGSUNG EAT: Hanya menembak remote Eat menggunakan ID yang sudah dibersihkan
-                                            SafeRemoteEvent("Eat", "~s" .. foodId)
-                                            
-                                            -- Jeda sangat singkat agar server sempat memproses penambahan indikator lapar
-                                            task.wait(0.15) 
-                                        end
-                                    end
-                                    
-                                    -- Jika sudah kenyang, stop mencari makanan lain
-                                    if foodFill.Size.X.Scale >= 0.95 then break end
-                                end
+                        -- Cek atribut Food di folder atau di part dalamnya
+                        local isFood = folderObj:GetAttribute("Food")
+                        local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
+                        
+                        if not isFood and part then
+                            isFood = part:GetAttribute("Food")
+                        end
+                        
+                        -- Jika ini makanan
+                        if isFood then
+                            local foodId = folderObj.Name -- Nama folder adalah ID angkanya
+                            
+                            -- Melakukan remote makan sebanyak 5x
+                            for i = 1, 5 do
+                                if not AutoEatEnabled then break end
+                                SafeRemoteEvent("Eat", "~s" .. foodId)
+                                task.wait(0.2) -- Jeda singkat saat mengunyah
                             end
+                            
+                            ateSomething = true
+                            break -- Keluar dari for loop agar tidak makan benda lain sekaligus
                         end
                     end
                 end
-                task.wait(1) -- Cek status kelaparan setiap 1 detik
+                
+                -- Skrip akan diam selama 5 detik, lalu mencari makanan lagi
+                task.wait(5) 
             end
         end)
     end
