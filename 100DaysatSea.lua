@@ -8,7 +8,7 @@ local TargetMaterials = {
     ["Goo"] = false
 }
 
-Win:AddMultiDropdown("Pilih Material (Bisa >1)", {"Wood", "Metal", "Goo"}, function(selectedTable)
+Win:AddMultiDropdown("Material", {"Wood", "Metal", "Goo"}, function(selectedTable)
     TargetMaterials = selectedTable
 end)
 
@@ -121,7 +121,7 @@ end
 -- ====================================================================
 -- [FITUR 1]: AUTO GRINDER (PERFECT COMBINATION: GRABBED & LAST HOLDER)
 -- ====================================================================
-Win:AddToggle("Mulai Auto Grinder", false, function(state)
+Win:AddToggle("Auto Grinder", false, function(state)
     AutoGrinderEnabled = state
     
     if AutoGrinderEnabled then
@@ -185,7 +185,7 @@ end)
 -- ====================================================================
 -- [FITUR 2]: AUTO CAMPFIRE
 -- ====================================================================
-Win:AddToggle("Mulai Auto Campfire", false, function(state)
+Win:AddToggle("Auto Campfire", false, function(state)
     AutoCampfireEnabled = state
     if AutoCampfireEnabled then
         task.spawn(function()
@@ -264,7 +264,7 @@ end)
 -- ====================================================================
 -- [FITUR 3]: AUTO EAT (DENGAN SENSOR UI - MAKAN JIKA BAR <= 0.7)
 -- ====================================================================
-Win:AddToggle("Mulai Auto Eat (Sensor UI)", false, function(state)
+Win:AddToggle("Auto Eat", false, function(state)
     AutoEatEnabled = state
     
     if AutoEatEnabled then
@@ -363,9 +363,9 @@ Win:AddToggle("Auto Doubloon Chest", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 5]: BRUTAL AUTO ATTACK HARPOON SYSTEM (TARGET TERDEKAT)
+-- [FITUR 5]: BRUTAL AUTO ATTACK (HARPOON & MAGMA STAFF)
 -- ====================================================================
-Win:AddToggle("Brutal Auto Harpoon", false, function(state)
+Win:AddToggle("Brutal Auto Tool", false, function(state)
     AutoHarpoonEnabled = state
     
     if AutoHarpoonEnabled then
@@ -374,26 +374,20 @@ Win:AddToggle("Brutal Auto Harpoon", false, function(state)
                 local workspace = game:GetService("Workspace")
                 local CreatureContainer = workspace:FindFirstChild("CreatureContainer")
                 
-                -- Pastikan Karakter Anda dan RootPart-nya ada untuk menghitung jarak
                 local character = LocalPlayer.Character
                 local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso") or character:FindFirstChildWhichIsA("BasePart"))
                 
                 if CreatureContainer and rootPart then
                     local nearestEnemy = nil
-                    local shortestDistance = math.huge -- Set awal ke nilai tak terhingga
+                    local shortestDistance = math.huge
                     
-                    -- LOOP 1: Mencari target musuh yang paling dekat
+                    -- LOOP 1: Mencari musuh terdekat
                     for _, enemy in ipairs(CreatureContainer:GetChildren()) do
-                        -- Sesuai kondisi: Abaikan jika musuh bernama Seagull
                         if enemy.Name ~= "Seagull" then
-                            -- Cari part fisik musuh untuk mendeteksi koordinat posisi
                             local enemyPart = enemy:IsA("BasePart") and enemy or enemy:FindFirstChildWhichIsA("BasePart") or (enemy:IsA("Model") and enemy.PrimaryPart)
                             
                             if enemyPart then
-                                -- Hitung jarak antara posisi Anda dengan posisi musuh tersebut
                                 local distance = (enemyPart.Position - rootPart.Position).Magnitude
-                                
-                                -- Jika jaraknya lebih dekat dari rekor jarak sebelumnya, simpan sebagai target utama
                                 if distance < shortestDistance then
                                     shortestDistance = distance
                                     nearestEnemy = enemy
@@ -402,16 +396,23 @@ Win:AddToggle("Brutal Auto Harpoon", false, function(state)
                         end
                     end
                     
-                    -- LOOP 2: Jika target terdekat ditemukan, bantai secara brutal
+                    -- LOOP 2: Serangan Brutal (Harpoon + Magma Staff)
                     if nearestEnemy then
-                        -- Menggunakan fungsi remote bawaan aman agar otomatis bypass dimanapun remote berada
+                        local enemyPos = nearestEnemy:IsA("Model") and nearestEnemy:GetPivot().Position or nearestEnemy.Position
+                        local vecStr = string.format("~v%.4f,%.4f,%.4f", enemyPos.X, enemyPos.Y, enemyPos.Z)
+                        
                         pcall(function()
+                            -- Tembak Harpoon
                             SafeRemoteFunction("ToolReplicator", "~sHarpoon", "~sHitEnemy", nearestEnemy)
+                            
+                            -- Tembak Magma Staff
+                            -- Menggunakan argumen sesuai contoh yang Anda berikan
+                            SafeRemoteFunction("ToolReplicator", "~sMagma Staff", "~sFire", vecStr)
                         end)
                     end
                 end
                 
-                -- Kecepatan serangan brutal (task.wait tanpa angka = secepat frame rate game Anda)
+                -- Kecepatan serangan (bisa diubah ke task.wait(0.1) jika terlalu berat)
                 task.wait() 
             end
         end)
