@@ -111,7 +111,7 @@ end
 -- [FITUR 1 & 2]: AUTO GRINDER & CAMPFIRE (TETAP SAMA SEPERTI V4)
 -- ====================================================================
 -- ====================================================================
--- [FITUR 1]: AUTO GRINDER (METODE DRAG & DROP KE DEPAN PLAYER)
+-- [FITUR 1]: AUTO GRINDER (PERFECT COMBINATION: GRABBED & LAST HOLDER)
 -- ====================================================================
 Win:AddToggle("Mulai Auto Grinder", false, function(state)
     AutoGrinderEnabled = state
@@ -121,13 +121,12 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
             while AutoGrinderEnabled do
                 local workspace = game:GetService("Workspace")
                 local DebrisField = workspace:FindFirstChild("DebrisField")
+                local GrinderCol = workspace:FindFirstChild("SpawnIsland") and workspace.SpawnIsland:FindFirstChild("Grinder") and workspace.SpawnIsland.Grinder:FindFirstChild("Collection")
                 
-                if DebrisField then
-                    -- Looping semua folder ID di dalam laut
+                if DebrisField and GrinderCol then
                     for _, folderObj in ipairs(DebrisField:GetChildren()) do
                         if not AutoGrinderEnabled then break end
                         
-                        -- Cek resource di folder ATAU di part dalamnya
                         local resType = folderObj:GetAttribute("Resource")
                         local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
                         
@@ -135,46 +134,41 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
                             resType = part:GetAttribute("Resource")
                         end
                         
-                        -- Jika tipe sesuai dengan dropdown dan part fisik ditemukan
                         if resType and TargetMaterials[resType] and part then
-                            
-                            -- Filter Armor (Abaikan jika itu armor)
+                            -- Abaikan jika itu Armor
                             local isArmor = false
                             for attrName, attrValue in pairs(folderObj:GetAttributes()) do
                                 if string.find(string.lower(attrName), "armor") or (type(attrValue) == "string" and string.find(string.lower(attrValue), "armor")) then
                                     isArmor = true; break
                                 end
                             end
-                            if not isArmor and part then
-                                for attrName, attrValue in pairs(part:GetAttributes()) do
-                                    if string.find(string.lower(attrName), "armor") or (type(attrValue) == "string" and string.find(string.lower(attrValue), "armor")) then
-                                        isArmor = true; break
-                                    end
-                                end
-                            end
                             
                             if not isArmor then
-                                -- Mengecek status apakah benda sedang digenggam orang lain
+                                -- Ambil semua atribut data dari folder atau part fisik
                                 local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
+                                local grabber = folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber")
+                                local lastHolder = folderObj:GetAttribute("LastHolder") or part:GetAttribute("LastHolder")
                                 
-                                if not isGrabbed then
-                                    -- 1. Menggenggam objek (objek otomatis terbang ke tangan/kursor player)
-                                    pcall(function()
-                                        SafeRemoteFunction("AttemptDrag", part)
-                                    end)
-                                    
-                                    task.wait(0.1) -- Jeda memastikan server mendaftarkan genggaman
-                                    
-                                    -- 2. Melepaskan objek secara instan agar jatuh di tempat Anda berdiri
-                                    SafeRemoteEvent("GiveUpOwnership", part, "~v0,0,0")
-                                    
-                                    task.wait(0.15) -- Jeda antar barang agar tidak menumpuk
+                                local myId = tostring(LocalPlayer.UserId)
+                                local myName = LocalPlayer.Name
+                                
+                                -- KONDISI 1: Jika sedang dipegang langsung oleh Anda
+                                local isCurrentlyMyGrab = (isGrabbed == true and (tostring(grabber) == myId or grabber == myName))
+                                
+                                -- KONDISI 2: Jika bekas Anda (Sudah dilepas tapi LastHolder tetap Anda)
+                                local isMyPastItem = (lastHolder == myName)
+                                
+                                -- Eksekusi TP jika salah satu atau kedua kondisi di atas terpenuhi
+                                if isCurrentlyMyGrab or isMyPastItem then
+                                    part.CFrame = GrinderCol.CFrame
+                                    part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                                 end
                             end
                         end
                     end
                 end
-                task.wait(0.1) 
+                -- Jeda sangat kecil (0.05) agar secepat kilat merespons klik Anda
+                task.wait(0.05) 
             end
         end)
     end
@@ -257,7 +251,7 @@ Win:AddToggle("Mulai Auto Campfire", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 3]: AUTO EAT (5 DETIK SEKALI, 5X KUNYAH, TANPA FILTER UI)
+-- [FITUR 3]: AUTO EAT (5 DETIK SEKALI, GRAB -> EAT 5X -> DROP)
 -- ====================================================================
 Win:AddToggle("Mulai Auto Eat", false, function(state)
     AutoEatEnabled = state
@@ -269,12 +263,9 @@ Win:AddToggle("Mulai Auto Eat", false, function(state)
                 local DebrisField = workspace:FindFirstChild("DebrisField")
                 
                 if DebrisField then
-                    local ateSomething = false
-                    
                     for _, folderObj in ipairs(DebrisField:GetChildren()) do
                         if not AutoEatEnabled then break end 
                         
-                        -- Cek atribut Food di folder atau di part dalamnya
                         local isFood = folderObj:GetAttribute("Food")
                         local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
                         
@@ -282,24 +273,44 @@ Win:AddToggle("Mulai Auto Eat", false, function(state)
                             isFood = part:GetAttribute("Food")
                         end
                         
-                        -- Jika ini makanan
-                        if isFood then
-                            local foodId = folderObj.Name -- Nama folder adalah ID angkanya
+                        if isFood and part then
+                            local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
+                            local grabber = folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber")
                             
-                            -- Melakukan remote makan sebanyak 5x
-                            for i = 1, 5 do
-                                if not AutoEatEnabled then break end
-                                SafeRemoteEvent("Eat", "~s" .. foodId)
-                                task.wait(0.2) -- Jeda singkat saat mengunyah
+                            -- Abaikan makanan jika sedang dipegang oleh player lain
+                            if isGrabbed and tostring(grabber) ~= tostring(LocalPlayer.UserId) and grabber ~= LocalPlayer.Name then
+                                continue
                             end
                             
-                            ateSomething = true
-                            break -- Keluar dari for loop agar tidak makan benda lain sekaligus
+                            local foodId = folderObj.Name 
+                            
+                            -- 1. Wajib mengirim AttemptDrag agar Server mengizinkan aksi Eat
+                            pcall(function()
+                                SafeRemoteFunction("AttemptDrag", part)
+                            end)
+                            task.wait(0.2) 
+                            
+                            -- 2. Makan sebanyak 5x
+                            for i = 1, 5 do
+                                if not AutoEatEnabled or not folderObj.Parent then break end
+                                SafeRemoteEvent("Eat", "~s" .. foodId)
+                                task.wait(0.2)
+                            end
+                            
+                            -- 3. Melepaskan kepemilikan agar tidak nyangkut di tangan (Invisible Part)
+                            if part and part.Parent then
+                                pcall(function()
+                                    SafeRemoteEvent("GiveUpOwnership", part, "~v0,0,0")
+                                end)
+                            end
+                            
+                            -- Berhenti memproses makanan lain pada loop ini
+                            break 
                         end
                     end
                 end
                 
-                -- Skrip akan diam selama 5 detik, lalu mencari makanan lagi
+                -- Skrip akan diam selama 5 detik, lalu mencari makanan berikutnya
                 task.wait(5) 
             end
         end)
