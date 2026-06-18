@@ -393,7 +393,7 @@ Win:AddToggle("Auto Doubloon Chest", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 6]: BRUTAL AUTO ATTACK HARPOON SYSTEM (TARGET TERDEKAT)
+-- [FITUR 6]: BRUTAL AUTO ATTACK HARPOON & RIPTIDE (TARGET TERDEKAT)
 -- ====================================================================
 Win:AddToggle("Brutal Auto Harpoon", false, function(state)
     AutoHarpoonEnabled = state
@@ -432,16 +432,16 @@ Win:AddToggle("Brutal Auto Harpoon", false, function(state)
                         end
                     end
                     
-                    -- LOOP 2: Jika target terdekat ditemukan, bantai secara brutal
+                    -- LOOP 2: Jika 1 target terdekat ditemukan, tembak dengan kedua senjata
                     if nearestEnemy then
-                        -- Menggunakan fungsi remote bawaan aman agar otomatis bypass dimanapun remote berada
                         pcall(function()
                             SafeRemoteFunction("ToolReplicator", "~sHarpoon", "~sHitEnemy", nearestEnemy)
+                            SafeRemoteFunction("ToolReplicator", "~sRiptide", "~sHitEnemy", nearestEnemy)
                         end)
                     end
                 end
                 
-                -- Kecepatan serangan brutal (task.wait tanpa angka = secepat frame rate game Anda)
+                -- Kecepatan serangan brutal
                 task.wait() 
             end
         end)
@@ -449,7 +449,7 @@ Win:AddToggle("Brutal Auto Harpoon", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 7]: AUTO PICK MATERIAL (HARPOON SYSTEM - TARGET TERDEKAT)
+-- [FITUR 7]: AUTO PICK MATERIAL HARPOON & RIPTIDE (TARGET TERDEKAT)
 -- ====================================================================
 Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
     AutoPickEnabled = state
@@ -505,7 +505,7 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                                     continue
                                 end
                                 
-                                -- Mencari yang terdekat
+                                -- Mencari 1 yang paling dekat
                                 local distance = (part.Position - rootPart.Position).Magnitude
                                 if distance < shortestDistance then
                                     shortestDistance = distance
@@ -516,16 +516,17 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                         end
                     end
                     
-                    -- Jika menemukan item target terdekat, tembak dengan harpoon
+                    -- Jika menemukan 1 item target terdekat, tembak dengan kedua alat
                     if nearestItem and targetPart then
                         pcall(function()
-                            -- Konversi titik posisi ke string format Game (contoh: ~v22.6462,-26.8099,15.0381)
+                            -- Konversi titik posisi ke string format Game
                             local pos = targetPart.Position
                             local vecStr = string.format("~v%.4f,%.4f,%.4f", pos.X, pos.Y, pos.Z)
                             
                             SafeRemoteFunction("ToolReplicator", "~sHarpoon", "~sGrab", nearestItem, vecStr)
+                            SafeRemoteFunction("ToolReplicator", "~sRiptide", "~sGrab", nearestItem, vecStr)
                         end)
-                        task.wait(0.2) -- Jeda biar harpoon tidak error karena spam berlebih
+                        task.wait(0.2) -- Jeda agar tarikan tidak error atau nyangkut
                     end
                 end
                 
