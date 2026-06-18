@@ -283,7 +283,7 @@ Win:AddToggle("Mulai Auto Eat", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 4]: AUTO INTERACT (CRAB TRAP FIX DETEKSI FOLDER)
+-- [FITUR 4]: AUTO INTERACT (CRAB TRAP - PROXIMITY PROMPT METHOD)
 -- ====================================================================
 Win:AddToggle("Auto Harvest Crab Trap", false, function(state)
     AutoCrabTrapEnabled = state
@@ -292,18 +292,39 @@ Win:AddToggle("Auto Harvest Crab Trap", false, function(state)
         task.spawn(function()
             while AutoCrabTrapEnabled do
                 local workspace = game:GetService("Workspace")
-                local CraftedFolder = workspace:FindFirstChild("SpawnIsland") and workspace.SpawnIsland:FindFirstChild("Crafted")
+                local SpawnIsland = workspace:FindFirstChild("SpawnIsland")
                 
-                -- Memastikan folder Crafted ada, lalu mencari isi di dalamnya
-                if CraftedFolder then
-                    for _, obj in ipairs(CraftedFolder:GetChildren()) do
-                        -- Mengecek apakah objek yang ada di dalam folder tersebut mengandung kata "Crab Trap"
-                        if string.find(string.lower(obj.Name), "crab trap") then
-                            SafeRemoteEvent("Interact", obj)
-                            task.wait(0.5) -- Jeda sebentar agar tidak spam remote
+                -- Pastikan SpawnIsland ada sebelum mencari Crafted
+                if SpawnIsland then
+                    -- Gunakan FindFirstChild (Bukan WaitForChild)
+                    -- Jika folder belum dibuat, skrip akan diam dan mengulang loop sampai folder ada
+                    local CraftedFolder = SpawnIsland:FindFirstChild("Crafted")
+                    
+                    if CraftedFolder then
+                        -- Looping semua benda di dalam folder Crafted
+                        for _, obj in ipairs(CraftedFolder:GetChildren()) do
+                            
+                            -- Deteksi nama dinamis: mencari kata "crab trap" di dalam nama panjangnya
+                            if string.find(string.lower(obj.Name), "crab trap") then
+                                
+                                -- Mencari part ACTIVATE dan ProximityPrompt di dalamnya
+                                local activatePart = obj:FindFirstChild("ACTIVATE")
+                                if activatePart then
+                                    local prompt = activatePart:FindFirstChildWhichIsA("ProximityPrompt")
+                                    
+                                    if prompt then
+                                        -- Memicu (menekan) prompt secara otomatis lewat skrip
+                                        fireproximityprompt(prompt)
+                                        task.wait(0.2) -- Jeda singkat antar eksekusi
+                                    end
+                                end
+                                
+                            end
                         end
                     end
                 end
+                
+                -- Looping berjalan setiap 3 detik untuk mengecek apakah folder/trap sudah ada
                 task.wait(3) 
             end
         end)
