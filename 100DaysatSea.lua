@@ -16,6 +16,7 @@ local AutoGrinderEnabled = false
 local AutoCampfireEnabled = false
 local AutoEatEnabled = false
 local AutoCrabTrapEnabled = false
+local AutoDoubloonEnabled = false 
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -27,9 +28,8 @@ local CurrentSyncToken = nil
 local GameRemoteEvent = nil
 local GameRemoteFunction = nil
 
--- 1. FUNGSI PELACAK REMOTE (Otomatis mencari di semua Service)
+-- 1. FUNGSI PELACAK REMOTE (Otomatis mencari di semua Service secara dinamis)
 local function FindHiddenRemotes()
-    -- Daftar Service yang sering dipakai developer untuk menyembunyikan Remote
     local hiddenServices = {
         "Chat", "LocalizationService", "SocialService", 
         "TestService", "SoundService", "Lighting", "Stats", "JointsService"
@@ -96,7 +96,13 @@ local function SafeRemoteEvent(actionName, ...)
     if GameRemoteEvent then
         GameRemoteEvent:FireServer(GetNextToken(), actionName, ...)
     else
-        warn("[RZY Hub] RemoteEvent belum ditemukan! Coba bergerak atau ambil 1 item manual.")
+        -- Jika mendadak hilang/berubah di tengah game, kita paksa lacak ulang di sini
+        FindHiddenRemotes()
+        if GameRemoteEvent then
+            GameRemoteEvent:FireServer(GetNextToken(), actionName, ...)
+        else
+            warn("[RZY Hub] RemoteEvent belum ditemukan! Coba bergerak atau ambil 1 item manual.")
+        end
     end
 end
 
@@ -107,9 +113,6 @@ local function SafeRemoteFunction(actionName, ...)
     end
 end
 
--- ====================================================================
--- [FITUR 1 & 2]: AUTO GRINDER & CAMPFIRE (TETAP SAMA SEPERTI V4)
--- ====================================================================
 -- ====================================================================
 -- [FITUR 1]: AUTO GRINDER (PERFECT COMBINATION: GRABBED & LAST HOLDER)
 -- ====================================================================
@@ -167,13 +170,15 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
                         end
                     end
                 end
-                -- Jeda sangat kecil (0.05) agar secepat kilat merespons klik Anda
                 task.wait(0.05) 
             end
         end)
     end
 end)
 
+-- ====================================================================
+-- [FITUR 2]: AUTO CAMPFIRE
+-- ====================================================================
 Win:AddToggle("Mulai Auto Campfire", false, function(state)
     AutoCampfireEnabled = state
     if AutoCampfireEnabled then
@@ -251,7 +256,7 @@ Win:AddToggle("Mulai Auto Campfire", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 3]: AUTO EAT (MURNI HANYA EAT 5X, TANPA MENGGANGGU GRAB)
+-- [FITUR 3]: AUTO EAT (MAKAN SATUAN & CEPAT)
 -- ====================================================================
 Win:AddToggle("Mulai Auto Eat", false, function(state)
     AutoEatEnabled = state
@@ -266,7 +271,6 @@ Win:AddToggle("Mulai Auto Eat", false, function(state)
                     for _, folderObj in ipairs(DebrisField:GetChildren()) do
                         if not AutoEatEnabled then break end 
                         
-                        -- Cek atribut Food di folder atau di part dalamnya
                         local isFood = folderObj:GetAttribute("Food")
                         local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
                         
@@ -278,35 +282,32 @@ Win:AddToggle("Mulai Auto Eat", false, function(state)
                             local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
                             local grabber = folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber")
                             
-                            -- Abaikan makanan jika sedang dipegang oleh player lain
                             if isGrabbed and tostring(grabber) ~= tostring(LocalPlayer.UserId) and grabber ~= LocalPlayer.Name then
                                 continue
                             end
                             
                             local foodId = folderObj.Name 
                             
-                            -- HANYA MAKAN: Mengeksekusi remote Eat 5x berturut-turut tanpa AttemptDrag
-                            for i = 1, 5 do
+                            -- Menggunakan setelan 1x makan (Satuan) sesuai request Anda sebelumnya
+                            for i = 1, 1 do
                                 if not AutoEatEnabled or not folderObj.Parent then break end
                                 SafeRemoteEvent("Eat", "~s" .. foodId)
-                                task.wait(0.2) -- Jeda aman antar suapan
+                                task.wait(0.2) 
                             end
                             
-                            -- Berhenti memproses makanan lain pada loop ini agar tidak kalap
                             break 
                         end
                     end
                 end
-                
-                -- Skrip akan diam selama 5 detik, lalu mencari makanan berikutnya jika masih lapar
-                task.wait(3) 
+                -- Scanning super cepat (1 detik) setelah memakan makanan satuan
+                task.wait(1) 
             end
         end)
     end
 end)
 
 -- ====================================================================
--- [FITUR 4]: AUTO INTERACT (CRAB TRAP FIX REMOTE & FOLDER DETECT)
+-- [FITUR 4]: AUTO INTERACT CRAB TRAP
 -- ====================================================================
 Win:AddToggle("Auto Harvest Crab Trap", false, function(state)
     AutoCrabTrapEnabled = state
@@ -318,25 +319,67 @@ Win:AddToggle("Auto Harvest Crab Trap", false, function(state)
                 local SpawnIsland = workspace:FindFirstChild("SpawnIsland")
                 
                 if SpawnIsland then
-                    -- Mencari folder tanpa takut error jika foldernya belum dibuat
                     local CraftedFolder = SpawnIsland:FindFirstChild("Crafted")
-                    
                     if CraftedFolder then
                         for _, obj in ipairs(CraftedFolder:GetChildren()) do
-                            
-                            -- Mendeteksi otomatis Crab Trap yang angkanya selalu berubah-ubah
                             if string.find(string.lower(obj.Name), "crab trap") then
-                                -- Mengeksekusi interaksi menggunakan RemoteEvent yang sudah ditemukan otomatis
                                 SafeRemoteEvent("Interact", obj)
-                                task.wait(0.3) -- Jeda aman agar tidak dikira spam oleh server
+                                task.wait(0.3) 
                             end
-                            
                         end
                     end
                 end
-                
-                -- Cek setiap 4 detik untuk melihat apakah ada trap baru yang siap dipanen
                 task.wait(4) 
+            end
+        end)
+    end
+end)
+
+-- ====================================================================
+-- [FITUR 5]: AUTO DOUBLOON CHEST (100% DINAMIS & BYPASS SEPANJANG WAKTU)
+-- ====================================================================
+Win:AddToggle("Auto Doubloon Chest", false, function(state)
+    AutoDoubloonEnabled = state
+    
+    if AutoDoubloonEnabled then
+        task.spawn(function()
+            while AutoDoubloonEnabled do
+                local workspace = game:GetService("Workspace")
+                local DebrisField = workspace:FindFirstChild("DebrisField")
+                
+                if DebrisField then
+                    for _, folderObj in ipairs(DebrisField:GetChildren()) do
+                        if not AutoDoubloonEnabled then break end
+                        
+                        local isChest = folderObj:GetAttribute("DoubloonChest")
+                        local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
+                        
+                        if not isChest and part then
+                            isChest = part:GetAttribute("DoubloonChest")
+                        end
+                        
+                        if not isChest then
+                            for attrName, attrValue in pairs(folderObj:GetAttributes()) do
+                                if string.find(string.lower(attrName), "doubloonchest") or (type(attrValue) == "string" and string.find(string.lower(attrValue), "doubloonchest")) then
+                                    isChest = true
+                                    break
+                                end
+                            end
+                        end
+                        
+                        if isChest then
+                            local chestId = folderObj.Name 
+                            
+                            -- SEKARANG MENGGUNAKAN SAFEREMOTEEVENT! 
+                            -- Tidak peduli di Service mana RemoteEvent ini disembunyikan game saat server restart,
+                            -- fungsi ini akan otomatis menembak ke jalur yang benar secara instan.
+                            SafeRemoteEvent("Collect", "~s" .. chestId)
+                            
+                            task.wait(0.3) 
+                        end
+                    end
+                end
+                task.wait(1) 
             end
         end)
     end
