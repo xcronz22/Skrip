@@ -255,7 +255,7 @@ Win:AddToggle("Mulai Auto Campfire", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 3]: AUTO EAT (SEKUENS: DRAG -> EAT -> GIVE UP)
+-- [FITUR 3]: AUTO EAT (OPTIMIZED: INSTANT EAT VIA DYNAMIC ID)
 -- ====================================================================
 Win:AddToggle("Mulai Auto Eat", false, function(state)
     AutoEatEnabled = state
@@ -273,6 +273,7 @@ Win:AddToggle("Mulai Auto Eat", false, function(state)
                         and playerGui.HUD.Food:FindFirstChild("Bar") 
                         and playerGui.HUD.Food.Bar:FindFirstChild("Fill")
                     
+                    -- Skrip hanya berjalan jika indikator makanan di bawah 30%
                     if foodFill and foodFill.Size.X.Scale <= 0.3 then
                         local workspace = game:GetService("Workspace")
                         local DebrisField = workspace:FindFirstChild("DebrisField")
@@ -281,33 +282,37 @@ Win:AddToggle("Mulai Auto Eat", false, function(state)
                             for _, obj in ipairs(DebrisField:GetChildren()) do
                                 if not AutoEatEnabled then break end 
                                 
+                                -- Deteksi jika objek di laut memiliki attribute Food
                                 if obj:GetAttribute("Food") then
-                                    local targetPart = obj:IsA("BasePart") and obj or obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
                                     
-                                    while foodFill.Size.X.Scale < 0.95 and AutoEatEnabled and targetPart do
-                                        -- 1. Berusaha memegang objek
-                                        pcall(function()
-                                            SafeRemoteFunction("AttemptDrag", targetPart)
-                                        end)
-                                        task.wait(0.1)
-                                        
-                                        -- 2. Memakan objek
-                                        SafeRemoteEvent("Eat", "~s" .. obj.Name)
-                                        task.wait(0.2)
-                                        
-                                        -- 3. Melepaskan objek (agar tidak nyangkut)
-                                        SafeRemoteEvent("GiveUpOwnership", targetPart, "~v0,0,0")
-                                        
-                                        task.wait(0.5) 
+                                    -- EXTRACT ID: Mengambil angka unik di antara titik dua (Contoh: "Burger:1781769071:3834" -> "1781769071")
+                                    local foodId = string.match(obj.Name, ":(%d+)")
+                                    
+                                    -- Backup jika format nama berbeda, ambil angka apa saja yang tersedia di nama objek
+                                    if not foodId then
+                                        foodId = string.match(obj.Name, "%d+")
                                     end
                                     
+                                    if foodId then
+                                        -- Loop makan objek tersebut sampai indikator kenyang (X Scale >= 0.95)
+                                        while foodFill.Size.X.Scale < 0.95 and AutoEatEnabled and obj.Parent do
+                                            
+                                            -- LANGSUNG EAT: Hanya menembak remote Eat menggunakan ID yang sudah dibersihkan
+                                            SafeRemoteEvent("Eat", "~s" .. foodId)
+                                            
+                                            -- Jeda sangat singkat agar server sempat memproses penambahan indikator lapar
+                                            task.wait(0.15) 
+                                        end
+                                    end
+                                    
+                                    -- Jika sudah kenyang, stop mencari makanan lain
                                     if foodFill.Size.X.Scale >= 0.95 then break end
                                 end
                             end
                         end
                     end
                 end
-                task.wait(1) 
+                task.wait(1) -- Cek status kelaparan setiap 1 detik
             end
         end)
     end
