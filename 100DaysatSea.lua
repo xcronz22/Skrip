@@ -1,6 +1,6 @@
 -- Memuat Library RZY
 local RZY_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
-local Win = RZY_Library:MakeWindow("100 Days at Sea - V5")
+local Win = RZY_Library:MakeWindow("100 Days at Sea - V6")
 
 local TargetMaterials = {
     ["Wood"] = false,
@@ -17,6 +17,7 @@ local AutoCampfireEnabled = false
 local AutoEatEnabled = false
 local AutoCrabTrapEnabled = false
 local AutoDoubloonEnabled = false 
+local AutoHarpoonEnabled = false -- [BARU] Variabel untuk Auto Harpoon
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -96,7 +97,6 @@ local function SafeRemoteEvent(actionName, ...)
     if GameRemoteEvent then
         GameRemoteEvent:FireServer(GetNextToken(), actionName, ...)
     else
-        -- Jika mendadak hilang/berubah di tengah game, kita paksa lacak ulang di sini
         FindHiddenRemotes()
         if GameRemoteEvent then
             GameRemoteEvent:FireServer(GetNextToken(), actionName, ...)
@@ -110,6 +110,11 @@ end
 local function SafeRemoteFunction(actionName, ...)
     if GameRemoteFunction then
         return GameRemoteFunction:InvokeServer(GetNextToken(), actionName, ...)
+    else
+        FindHiddenRemotes()
+        if GameRemoteFunction then
+            return GameRemoteFunction:InvokeServer(GetNextToken(), actionName, ...)
+        end
     end
 end
 
@@ -147,7 +152,6 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
                             end
                             
                             if not isArmor then
-                                -- Ambil semua atribut data dari folder atau part fisik
                                 local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
                                 local grabber = folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber")
                                 local lastHolder = folderObj:GetAttribute("LastHolder") or part:GetAttribute("LastHolder")
@@ -155,13 +159,9 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
                                 local myId = tostring(LocalPlayer.UserId)
                                 local myName = LocalPlayer.Name
                                 
-                                -- KONDISI 1: Jika sedang dipegang langsung oleh Anda
                                 local isCurrentlyMyGrab = (isGrabbed == true and (tostring(grabber) == myId or grabber == myName))
-                                
-                                -- KONDISI 2: Jika bekas Anda (Sudah dilepas tapi LastHolder tetap Anda)
                                 local isMyPastItem = (lastHolder == myName)
                                 
-                                -- Eksekusi TP jika salah satu atau kedua kondisi di atas terpenuhi
                                 if isCurrentlyMyGrab or isMyPastItem then
                                     part.CFrame = GrinderCol.CFrame
                                     part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
@@ -288,7 +288,6 @@ Win:AddToggle("Mulai Auto Eat", false, function(state)
                             
                             local foodId = folderObj.Name 
                             
-                            -- Menggunakan setelan 1x makan (Satuan) sesuai request Anda sebelumnya
                             for i = 1, 1 do
                                 if not AutoEatEnabled or not folderObj.Parent then break end
                                 SafeRemoteEvent("Eat", "~s" .. foodId)
@@ -299,7 +298,6 @@ Win:AddToggle("Mulai Auto Eat", false, function(state)
                         end
                     end
                 end
-                -- Scanning super cepat (1 detik) setelah memakan makanan satuan
                 task.wait(0.1) 
             end
         end)
@@ -336,7 +334,7 @@ Win:AddToggle("Auto Harvest Crab Trap", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 5]: AUTO DOUBLOON CHEST (100% DINAMIS & BYPASS SEPANJANG WAKTU)
+-- [FITUR 5]: AUTO DOUBLOON CHEST (100% DINAMIS)
 -- ====================================================================
 Win:AddToggle("Auto Doubloon Chest", false, function(state)
     AutoDoubloonEnabled = state
@@ -369,17 +367,68 @@ Win:AddToggle("Auto Doubloon Chest", false, function(state)
                         
                         if isChest then
                             local chestId = folderObj.Name 
-                            
-                            -- SEKARANG MENGGUNAKAN SAFEREMOTEEVENT! 
-                            -- Tidak peduli di Service mana RemoteEvent ini disembunyikan game saat server restart,
-                            -- fungsi ini akan otomatis menembak ke jalur yang benar secara instan.
                             SafeRemoteEvent("Collect", "~s" .. chestId)
-                            
                             task.wait(0.3) 
                         end
                     end
                 end
                 task.wait(1) 
+            end
+        end)
+    end
+end)
+
+-- ====================================================================
+-- [FITUR 6]: BRUTAL AUTO ATTACK HARPOON SYSTEM (TARGET TERDEKAT)
+-- ====================================================================
+Win:AddToggle("Brutal Auto Harpoon", false, function(state)
+    AutoHarpoonEnabled = state
+    
+    if AutoHarpoonEnabled then
+        task.spawn(function()
+            while AutoHarpoonEnabled do
+                local workspace = game:GetService("Workspace")
+                local CreatureContainer = workspace:FindFirstChild("CreatureContainer")
+                
+                -- Pastikan Karakter Anda dan RootPart-nya ada untuk menghitung jarak
+                local character = LocalPlayer.Character
+                local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso") or character:FindFirstChildWhichIsA("BasePart"))
+                
+                if CreatureContainer and rootPart then
+                    local nearestEnemy = nil
+                    local shortestDistance = math.huge -- Set awal ke nilai tak terhingga
+                    
+                    -- LOOP 1: Mencari target musuh yang paling dekat
+                    for _, enemy in ipairs(CreatureContainer:GetChildren()) do
+                        -- Sesuai kondisi: Abaikan jika musuh bernama Seagull
+                        if enemy.Name ~= "Seagull" then
+                            -- Cari part fisik musuh untuk mendeteksi koordinat posisi
+                            local enemyPart = enemy:IsA("BasePart") and enemy or enemy:FindFirstChildWhichIsA("BasePart") or (enemy:IsA("Model") and enemy.PrimaryPart)
+                            
+                            if enemyPart then
+                                -- Hitung jarak antara posisi Anda dengan posisi musuh tersebut
+                                local distance = (enemyPart.Position - rootPart.Position).Magnitude
+                                
+                                -- Jika jaraknya lebih dekat dari rekor jarak sebelumnya, simpan sebagai target utama
+                                if distance < shortestDistance then
+                                    shortestDistance = distance
+                                    nearestEnemy = enemy
+                                end
+                            end
+                        end
+                    end
+                    
+                    -- LOOP 2: Jika target terdekat ditemukan, bantai secara brutal
+                    if nearestEnemy then
+                        -- Menggunakan fungsi remote bawaan aman agar otomatis bypass dimanapun remote berada
+                        pcall(function()
+                            SafeRemoteFunction("ToolReplicator", "~sHarpoon", "~sHitEnemy", nearestEnemy)
+                        end)
+                    end
+                end
+                
+                -- Kecepatan serangan brutal (task.wait tanpa angka = secepat frame rate game Anda)
+                task.wait() 
             end
         end)
     end
