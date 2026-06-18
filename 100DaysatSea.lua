@@ -21,12 +21,36 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
 -- ====================================================================
--- [UPDATE PENTING]: SERVICE REMOTE BERADA DI LOCALIZATION SERVICE
+-- [SISTEM INTI]: DYNAMIC REMOTE FINDER & TOKEN INTERCEPTOR
 -- ====================================================================
-local LocalizationService = game:GetService("LocalizationService")
 local CurrentSyncToken = nil
+local GameRemoteEvent = nil
+local GameRemoteFunction = nil
 
--- Menyadap komunikasi secaran aman untuk Event & Function
+-- 1. FUNGSI PELACAK REMOTE (Otomatis mencari di semua Service)
+local function FindHiddenRemotes()
+    -- Daftar Service yang sering dipakai developer untuk menyembunyikan Remote
+    local hiddenServices = {
+        "Chat", "LocalizationService", "SocialService", 
+        "TestService", "SoundService", "Lighting", "Stats", "JointsService"
+    }
+    
+    for _, sName in ipairs(hiddenServices) do
+        pcall(function()
+            local service = game:GetService(sName)
+            if service then
+                local re = service:FindFirstChild("RemoteEvent")
+                local rf = service:FindFirstChild("RemoteFunction")
+                if re then GameRemoteEvent = re end
+                if rf then GameRemoteFunction = rf end
+            end
+        end)
+    end
+end
+
+FindHiddenRemotes() -- Jalankan pelacak saat script dimulai
+
+-- 2. PENYADAP KOMUNIKASI (Dibuat Dinamis Tanpa Mempedulikan Service Parent-nya)
 pcall(function()
     if hookmetamethod then
         local oldNamecall
@@ -34,16 +58,23 @@ pcall(function()
             local method = getnamecallmethod()
             local args = {...}
             
-            -- Deteksi RemoteEvent (FireServer) & RemoteFunction (InvokeServer) di LocalizationService
-            if (method == "FireServer" or method == "InvokeServer") and (self.Name == "RemoteEvent" or self.Name == "RemoteFunction") and self.Parent == LocalizationService then
-                if type(args[1]) == "number" then
-                    if not checkcaller() then
-                        if CurrentSyncToken then
-                            CurrentSyncToken = CurrentSyncToken + 1
-                            args[1] = CurrentSyncToken
-                            return oldNamecall(self, unpack(args))
-                        else
-                            CurrentSyncToken = args[1]
+            if (method == "FireServer" or method == "InvokeServer") then
+                if self.Name == "RemoteEvent" or self.Name == "RemoteFunction" then
+                    -- Verifikasi format remote game ini (Arg 1 adalah Token Angka, Arg 2 adalah String Action)
+                    if type(args[1]) == "number" and type(args[2]) == "string" then
+                        if not checkcaller() then
+                            -- Jika pelacak gagal di awal, kita tangkap/curi remotenya langsung dari gamenya di sini
+                            if self:IsA("RemoteEvent") then GameRemoteEvent = self end
+                            if self:IsA("RemoteFunction") then GameRemoteFunction = self end
+                            
+                            -- Sinkronisasi Token
+                            if CurrentSyncToken then
+                                CurrentSyncToken = CurrentSyncToken + 1
+                                args[1] = CurrentSyncToken
+                                return oldNamecall(self, unpack(args))
+                            else
+                                CurrentSyncToken = args[1]
+                            end
                         end
                     end
                 end
@@ -60,19 +91,19 @@ local function GetNextToken()
     return CurrentSyncToken
 end
 
--- Eksekusi Remote Event
+-- Eksekusi Remote Event Aman & Dinamis
 local function SafeRemoteEvent(actionName, ...)
-    local remote = LocalizationService:FindFirstChild("RemoteEvent")
-    if remote then
-        remote:FireServer(GetNextToken(), actionName, ...)
+    if GameRemoteEvent then
+        GameRemoteEvent:FireServer(GetNextToken(), actionName, ...)
+    else
+        warn("[RZY Hub] RemoteEvent belum ditemukan! Coba bergerak atau ambil 1 item manual.")
     end
 end
 
--- Eksekusi Remote Function
+-- Eksekusi Remote Function Aman & Dinamis
 local function SafeRemoteFunction(actionName, ...)
-    local remote = LocalizationService:FindFirstChild("RemoteFunction")
-    if remote then
-        return remote:InvokeServer(GetNextToken(), actionName, ...)
+    if GameRemoteFunction then
+        return GameRemoteFunction:InvokeServer(GetNextToken(), actionName, ...)
     end
 end
 
@@ -283,7 +314,7 @@ Win:AddToggle("Mulai Auto Eat", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 4]: AUTO INTERACT (CRAB TRAP - PROXIMITY PROMPT METHOD)
+-- [FITUR 4]: AUTO INTERACT (CRAB TRAP FIX REMOTE & FOLDER DETECT)
 -- ====================================================================
 Win:AddToggle("Auto Harvest Crab Trap", false, function(state)
     AutoCrabTrapEnabled = state
@@ -294,38 +325,26 @@ Win:AddToggle("Auto Harvest Crab Trap", false, function(state)
                 local workspace = game:GetService("Workspace")
                 local SpawnIsland = workspace:FindFirstChild("SpawnIsland")
                 
-                -- Pastikan SpawnIsland ada sebelum mencari Crafted
                 if SpawnIsland then
-                    -- Gunakan FindFirstChild (Bukan WaitForChild)
-                    -- Jika folder belum dibuat, skrip akan diam dan mengulang loop sampai folder ada
+                    -- Mencari folder tanpa takut error jika foldernya belum dibuat
                     local CraftedFolder = SpawnIsland:FindFirstChild("Crafted")
                     
                     if CraftedFolder then
-                        -- Looping semua benda di dalam folder Crafted
                         for _, obj in ipairs(CraftedFolder:GetChildren()) do
                             
-                            -- Deteksi nama dinamis: mencari kata "crab trap" di dalam nama panjangnya
+                            -- Mendeteksi otomatis Crab Trap yang angkanya selalu berubah-ubah
                             if string.find(string.lower(obj.Name), "crab trap") then
-                                
-                                -- Mencari part ACTIVATE dan ProximityPrompt di dalamnya
-                                local activatePart = obj:FindFirstChild("ACTIVATE")
-                                if activatePart then
-                                    local prompt = activatePart:FindFirstChildWhichIsA("ProximityPrompt")
-                                    
-                                    if prompt then
-                                        -- Memicu (menekan) prompt secara otomatis lewat skrip
-                                        fireproximityprompt(prompt)
-                                        task.wait(0.2) -- Jeda singkat antar eksekusi
-                                    end
-                                end
-                                
+                                -- Mengeksekusi interaksi menggunakan RemoteEvent yang sudah ditemukan otomatis
+                                SafeRemoteEvent("Interact", obj)
+                                task.wait(0.3) -- Jeda aman agar tidak dikira spam oleh server
                             end
+                            
                         end
                     end
                 end
                 
-                -- Looping berjalan setiap 3 detik untuk mengecek apakah folder/trap sudah ada
-                task.wait(3) 
+                -- Cek setiap 4 detik untuk melihat apakah ada trap baru yang siap dipanen
+                task.wait(4) 
             end
         end)
     end
