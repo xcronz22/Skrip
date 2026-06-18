@@ -1,8 +1,7 @@
 -- Memuat Library RZY
 local RZY_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
-local Win = RZY_Library:MakeWindow("100 Days at Sea - V7")
+local Win = RZY_Library:MakeWindow("100 Days at Sea - V6")
 
--- [DIPERBARUI]: Gas dihapus dari daftar manual
 local TargetMaterials = {
     ["Wood"] = false,
     ["Metal"] = false,
@@ -16,11 +15,9 @@ end)
 local AutoGrinderEnabled = false
 local AutoCampfireEnabled = false
 local AutoEatEnabled = false
-local AutoCrabTrapEnabled = false
 local AutoDoubloonEnabled = false 
 local AutoHarpoonEnabled = false 
-local AutoPickEnabled = false 
-local AutoOpenChestEnabled = false
+local AutoPickEnabled = false
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -32,6 +29,7 @@ local CurrentSyncToken = nil
 local GameRemoteEvent = nil
 local GameRemoteFunction = nil
 
+-- 1. FUNGSI PELACAK REMOTE (Otomatis mencari di semua Service secara dinamis)
 local function FindHiddenRemotes()
     local hiddenServices = {
         "Chat", "LocalizationService", "SocialService", 
@@ -51,8 +49,9 @@ local function FindHiddenRemotes()
     end
 end
 
-FindHiddenRemotes() 
+FindHiddenRemotes() -- Jalankan pelacak saat script dimulai
 
+-- 2. PENYADAP KOMUNIKASI (Dibuat Dinamis Tanpa Mempedulikan Service Parent-nya)
 pcall(function()
     if hookmetamethod then
         local oldNamecall
@@ -62,11 +61,14 @@ pcall(function()
             
             if (method == "FireServer" or method == "InvokeServer") then
                 if self.Name == "RemoteEvent" or self.Name == "RemoteFunction" then
+                    -- Verifikasi format remote game ini (Arg 1 adalah Token Angka, Arg 2 adalah String Action)
                     if type(args[1]) == "number" and type(args[2]) == "string" then
                         if not checkcaller() then
+                            -- Jika pelacak gagal di awal, kita tangkap/curi remotenya langsung dari gamenya di sini
                             if self:IsA("RemoteEvent") then GameRemoteEvent = self end
                             if self:IsA("RemoteFunction") then GameRemoteFunction = self end
                             
+                            -- Sinkronisasi Token
                             if CurrentSyncToken then
                                 CurrentSyncToken = CurrentSyncToken + 1
                                 args[1] = CurrentSyncToken
@@ -83,12 +85,14 @@ pcall(function()
     end
 end)
 
+-- Fungsi Generator Token
 local function GetNextToken()
     if not CurrentSyncToken then CurrentSyncToken = math.random(100000, 999999) end
     CurrentSyncToken = CurrentSyncToken + 1
     return CurrentSyncToken
 end
 
+-- Eksekusi Remote Event Aman & Dinamis
 local function SafeRemoteEvent(actionName, ...)
     if GameRemoteEvent then
         GameRemoteEvent:FireServer(GetNextToken(), actionName, ...)
@@ -102,6 +106,7 @@ local function SafeRemoteEvent(actionName, ...)
     end
 end
 
+-- Eksekusi Remote Function Aman & Dinamis
 local function SafeRemoteFunction(actionName, ...)
     if GameRemoteFunction then
         return GameRemoteFunction:InvokeServer(GetNextToken(), actionName, ...)
@@ -114,7 +119,7 @@ local function SafeRemoteFunction(actionName, ...)
 end
 
 -- ====================================================================
--- [FITUR 1]: AUTO GRINDER 
+-- [FITUR 1]: AUTO GRINDER (PERFECT COMBINATION: GRABBED & LAST HOLDER)
 -- ====================================================================
 Win:AddToggle("Mulai Auto Grinder", false, function(state)
     AutoGrinderEnabled = state
@@ -138,6 +143,7 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
                         end
                         
                         if resType and TargetMaterials[resType] and part then
+                            -- Abaikan jika itu Armor, Chest, atau Leg
                             local isExcluded = false
                             for attrName, attrValue in pairs(folderObj:GetAttributes()) do
                                 local lowerName = string.lower(attrName)
@@ -177,7 +183,7 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 2]: AUTO CAMPFIRE (GAS & WOOD)
+-- [FITUR 2]: AUTO CAMPFIRE
 -- ====================================================================
 Win:AddToggle("Mulai Auto Campfire", false, function(state)
     AutoCampfireEnabled = state
@@ -193,10 +199,7 @@ Win:AddToggle("Mulai Auto Campfire", false, function(state)
                     if dropperPart then
                         local itemsToProcess = {}
                         for _, obj in ipairs(DebrisField:GetChildren()) do
-                            local resType = obj:GetAttribute("Resource")
-                            local isGas = resType == "Gas" or string.find(string.lower(obj.Name), "gas")
-                            
-                            if resType == "Wood" or isGas then
+                            if obj:GetAttribute("Resource") == "Wood" then
                                 local isArmor = false
                                 for attrName, attrValue in pairs(obj:GetAttributes()) do
                                     if string.find(string.lower(attrName), "armor") or (type(attrValue) == "string" and string.find(string.lower(attrValue), "armor")) then
@@ -226,8 +229,7 @@ Win:AddToggle("Mulai Auto Campfire", false, function(state)
                         for _, data in ipairs(itemsToProcess) do
                             if not AutoCampfireEnabled then break end 
                             local obj = data.Object
-                            local targetCFrame = dropperPart.CFrame + Vector3.new(0, 3, 0)
-                            
+                            local targetCFrame = dropperPart.CFrame
                             obj:SetAttribute("Grabbed", false) 
                             obj:SetAttribute("LastHolder", LocalPlayer.Name)
 
@@ -260,18 +262,22 @@ Win:AddToggle("Mulai Auto Campfire", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 3]: AUTO EAT 
+-- [FITUR 3]: AUTO EAT (DENGAN SENSOR UI - MAKAN JIKA BAR <= 0.7)
 -- ====================================================================
 Win:AddToggle("Mulai Auto Eat (Sensor UI)", false, function(state)
     AutoEatEnabled = state
     
     if AutoEatEnabled then
         task.spawn(function()
+            -- Path ke UI Bar Food
             local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
             local FillBar = PlayerGui:WaitForChild("HUD"):WaitForChild("Food"):WaitForChild("Bar"):WaitForChild("Fill")
             
             while AutoEatEnabled do
+                -- Cek ukuran (Scale) bar makanan saat ini
                 local currentScale = FillBar.Size.X.Scale
+                
+                -- Jika lapar (Scale <= 0.7), mulai makan sampai kenyang (Scale >= 0.99)
                 if currentScale <= 0.7 then
                     local workspace = game:GetService("Workspace")
                     local DebrisField = workspace:FindFirstChild("DebrisField")
@@ -280,6 +286,7 @@ Win:AddToggle("Mulai Auto Eat (Sensor UI)", false, function(state)
                         for _, folderObj in ipairs(DebrisField:GetChildren()) do
                             if not AutoEatEnabled or FillBar.Size.X.Scale >= 0.99 then break end
                             
+                            -- Deteksi objek makanan
                             local isFood = folderObj:GetAttribute("Food")
                             local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
                             if not isFood and part then isFood = part:GetAttribute("Food") end
@@ -288,17 +295,22 @@ Win:AddToggle("Mulai Auto Eat (Sensor UI)", false, function(state)
                                 local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
                                 local grabber = folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber")
                                 
+                                -- Skip jika dipegang orang lain
                                 if isGrabbed and tostring(grabber) ~= tostring(LocalPlayer.UserId) and grabber ~= LocalPlayer.Name then
                                     continue
                                 end
                                 
                                 local foodId = folderObj.Name 
+                                
+                                -- Makan 1x lalu cek lagi apakah sudah kenyang
                                 SafeRemoteEvent("Eat", "~s" .. foodId)
-                                task.wait(0.05) 
+                                task.wait(0.05) -- Jeda antar suapan
                             end
                         end
                     end
                 end
+                
+                -- Cek sensor setiap 1 detik
                 task.wait(1) 
             end
         end)
@@ -306,36 +318,7 @@ Win:AddToggle("Mulai Auto Eat (Sensor UI)", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 4]: AUTO INTERACT CRAB TRAP
--- ====================================================================
-Win:AddToggle("Auto Harvest Crab Trap", false, function(state)
-    AutoCrabTrapEnabled = state
-    
-    if AutoCrabTrapEnabled then
-        task.spawn(function()
-            while AutoCrabTrapEnabled do
-                local workspace = game:GetService("Workspace")
-                local SpawnIsland = workspace:FindFirstChild("SpawnIsland")
-                
-                if SpawnIsland then
-                    local CraftedFolder = SpawnIsland:FindFirstChild("Crafted")
-                    if CraftedFolder then
-                        for _, obj in ipairs(CraftedFolder:GetChildren()) do
-                            if string.find(string.lower(obj.Name), "crab trap") then
-                                SafeRemoteEvent("Interact", obj)
-                                task.wait(0.3) 
-                            end
-                        end
-                    end
-                end
-                task.wait(4) 
-            end
-        end)
-    end
-end)
-
--- ====================================================================
--- [FITUR 5]: AUTO DOUBLOON CHEST
+-- [FITUR 4]: AUTO DOUBLOON CHEST (100% DINAMIS)
 -- ====================================================================
 Win:AddToggle("Auto Doubloon Chest", false, function(state)
     AutoDoubloonEnabled = state
@@ -380,7 +363,7 @@ Win:AddToggle("Auto Doubloon Chest", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 6]: BRUTAL AUTO ATTACK HARPOON & RIPTIDE (TARGET TERDEKAT)
+-- [FITUR 5]: BRUTAL AUTO ATTACK HARPOON SYSTEM (TARGET TERDEKAT)
 -- ====================================================================
 Win:AddToggle("Brutal Auto Harpoon", false, function(state)
     AutoHarpoonEnabled = state
@@ -391,19 +374,26 @@ Win:AddToggle("Brutal Auto Harpoon", false, function(state)
                 local workspace = game:GetService("Workspace")
                 local CreatureContainer = workspace:FindFirstChild("CreatureContainer")
                 
+                -- Pastikan Karakter Anda dan RootPart-nya ada untuk menghitung jarak
                 local character = LocalPlayer.Character
                 local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso") or character:FindFirstChildWhichIsA("BasePart"))
                 
                 if CreatureContainer and rootPart then
                     local nearestEnemy = nil
-                    local shortestDistance = math.huge
+                    local shortestDistance = math.huge -- Set awal ke nilai tak terhingga
                     
+                    -- LOOP 1: Mencari target musuh yang paling dekat
                     for _, enemy in ipairs(CreatureContainer:GetChildren()) do
+                        -- Sesuai kondisi: Abaikan jika musuh bernama Seagull
                         if enemy.Name ~= "Seagull" then
+                            -- Cari part fisik musuh untuk mendeteksi koordinat posisi
                             local enemyPart = enemy:IsA("BasePart") and enemy or enemy:FindFirstChildWhichIsA("BasePart") or (enemy:IsA("Model") and enemy.PrimaryPart)
                             
                             if enemyPart then
+                                -- Hitung jarak antara posisi Anda dengan posisi musuh tersebut
                                 local distance = (enemyPart.Position - rootPart.Position).Magnitude
+                                
+                                -- Jika jaraknya lebih dekat dari rekor jarak sebelumnya, simpan sebagai target utama
                                 if distance < shortestDistance then
                                     shortestDistance = distance
                                     nearestEnemy = enemy
@@ -412,13 +402,16 @@ Win:AddToggle("Brutal Auto Harpoon", false, function(state)
                         end
                     end
                     
+                    -- LOOP 2: Jika target terdekat ditemukan, bantai secara brutal
                     if nearestEnemy then
+                        -- Menggunakan fungsi remote bawaan aman agar otomatis bypass dimanapun remote berada
                         pcall(function()
                             SafeRemoteFunction("ToolReplicator", "~sHarpoon", "~sHitEnemy", nearestEnemy)
-                            SafeRemoteFunction("ToolReplicator", "~sRiptide", "~sHitEnemy", nearestEnemy)
                         end)
                     end
                 end
+                
+                -- Kecepatan serangan brutal (task.wait tanpa angka = secepat frame rate game Anda)
                 task.wait() 
             end
         end)
@@ -426,7 +419,7 @@ Win:AddToggle("Brutal Auto Harpoon", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 7]: AUTO PICK MATERIAL (HARPOON & RIPTIDE + GAS SENSOR)
+-- [FITUR 6]: AUTO PICK MATERIAL (HARPOON SYSTEM - TARGET TERDEKAT)
 -- ====================================================================
 Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
     AutoPickEnabled = state
@@ -453,36 +446,28 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                             resType = part:GetAttribute("Resource")
                         end
                         
-                        -- Evaluasi Material Target
-                        local isMaterial = false
-                        if resType and TargetMaterials[resType] then
-                            isMaterial = true
-                        end
-                        
-                        -- [DIPERBARUI]: Deteksi GAS HANYA akan aktif jika Auto Campfire menyala
-                        if AutoCampfireEnabled then
-                            if resType == "Gas" or string.find(string.lower(folderObj.Name), "gas") then
-                                isMaterial = true
-                            end
-                        end
-                        
-                        if isMaterial and part then
+                        -- Cek material yang dipilih di MultiDropdown
+                        if resType and TargetMaterials[resType] and part then
+                            
+                            -- Pengecualian Armor, Chest, dan Leg
                             local isExcluded = false
                             for attrName, attrValue in pairs(folderObj:GetAttributes()) do
-                                local lName = string.lower(attrName)
-                                local lValue = type(attrValue) == "string" and string.lower(attrValue) or ""
+                                local lowerName = string.lower(attrName)
+                                local lowerValue = type(attrValue) == "string" and string.lower(attrValue) or ""
                                 
-                                if string.find(lName, "armor") or string.find(lValue, "armor") or
-                                   string.find(lName, "chest") or string.find(lValue, "chest") or
-                                   string.find(lName, "leg") or string.find(lValue, "leg") then
+                                if string.find(lowerName, "armor") or string.find(lowerValue, "armor") or
+                                   string.find(lowerName, "chest") or string.find(lowerValue, "chest") or
+                                   string.find(lowerName, "leg") or string.find(lowerValue, "leg") then
                                     isExcluded = true
                                     break
                                 end
                             end
                             
                             if not isExcluded then
+                                -- Mengecek apakah item sedang dipegang oleh player lain
                                 local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
                                 local grabber = folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber")
+                                
                                 local myId = tostring(LocalPlayer.UserId)
                                 local myName = LocalPlayer.Name
                                 
@@ -490,6 +475,7 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                                     continue
                                 end
                                 
+                                -- Mencari yang terdekat
                                 local distance = (part.Position - rootPart.Position).Magnitude
                                 if distance < shortestDistance then
                                     shortestDistance = distance
@@ -500,59 +486,20 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                         end
                     end
                     
+                    -- Jika menemukan item target terdekat, tembak dengan harpoon
                     if nearestItem and targetPart then
                         pcall(function()
+                            -- Konversi titik posisi ke string format Game (contoh: ~v22.6462,-26.8099,15.0381)
                             local pos = targetPart.Position
                             local vecStr = string.format("~v%.4f,%.4f,%.4f", pos.X, pos.Y, pos.Z)
                             
                             SafeRemoteFunction("ToolReplicator", "~sHarpoon", "~sGrab", nearestItem, vecStr)
-                            SafeRemoteFunction("ToolReplicator", "~sRiptide", "~sGrab", nearestItem, vecStr)
                         end)
-                        task.wait(0.2) 
+                        task.wait(0.2) -- Jeda biar harpoon tidak error karena spam berlebih
                     end
                 end
                 
                 task.wait(0.1) 
-            end
-        end)
-    end
-end)
-
--- ====================================================================
--- [FITUR 8]: AUTO OPEN CHEST (RADIUS 5 STUD)
--- ====================================================================
-Win:AddToggle("Auto Open Chest (Radius 5)", false, function(state)
-    AutoOpenChestEnabled = state
-    
-    if AutoOpenChestEnabled then
-        task.spawn(function()
-            while AutoOpenChestEnabled do
-                local workspace = game:GetService("Workspace")
-                local ChestsFolder = workspace:FindFirstChild("Chests")
-                
-                local character = LocalPlayer.Character
-                local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso") or character:FindFirstChildWhichIsA("BasePart"))
-                
-                if ChestsFolder and rootPart then
-                    for _, chest in ipairs(ChestsFolder:GetChildren()) do
-                        if not AutoOpenChestEnabled then break end
-                        
-                        local chestPart = chest:IsA("BasePart") and chest or chest:FindFirstChildWhichIsA("BasePart") or (chest:IsA("Model") and chest.PrimaryPart)
-                        
-                        if chestPart then
-                            local distance = (chestPart.Position - rootPart.Position).Magnitude
-                            
-                            if distance <= 5 then
-                                pcall(function()
-                                    SafeRemoteFunction("OpenChest", chest)
-                                end)
-                                task.wait(0.1) 
-                            end
-                        end
-                    end
-                end
-                
-                task.wait(0.5) 
             end
         end)
     end
