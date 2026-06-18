@@ -1,16 +1,15 @@
 -- Memuat Library RZY
 local RZY_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
-local Win = RZY_Library:MakeWindow("100 Days at Sea - V6")
+local Win = RZY_Library:MakeWindow("100 Days at Sea - V7")
 
--- [DIPERBARUI]: Menambahkan "Gas" ke dalam daftar material
+-- [DIPERBARUI]: Gas dihapus dari daftar manual
 local TargetMaterials = {
     ["Wood"] = false,
     ["Metal"] = false,
-    ["Goo"] = false,
-    ["Gas"] = false
+    ["Goo"] = false
 }
 
-Win:AddMultiDropdown("Pilih Material (Bisa >1)", {"Wood", "Metal", "Goo", "Gas"}, function(selectedTable)
+Win:AddMultiDropdown("Pilih Material (Bisa >1)", {"Wood", "Metal", "Goo"}, function(selectedTable)
     TargetMaterials = selectedTable
 end)
 
@@ -21,7 +20,7 @@ local AutoCrabTrapEnabled = false
 local AutoDoubloonEnabled = false 
 local AutoHarpoonEnabled = false 
 local AutoPickEnabled = false 
-local AutoOpenChestEnabled = false -- [BARU] Variabel untuk Auto Chest
+local AutoOpenChestEnabled = false
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -115,7 +114,7 @@ local function SafeRemoteFunction(actionName, ...)
 end
 
 -- ====================================================================
--- [FITUR 1]: AUTO GRINDER (PERFECT COMBINATION: GRABBED & LAST HOLDER)
+-- [FITUR 1]: AUTO GRINDER 
 -- ====================================================================
 Win:AddToggle("Mulai Auto Grinder", false, function(state)
     AutoGrinderEnabled = state
@@ -138,15 +137,7 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
                             resType = part:GetAttribute("Resource")
                         end
                         
-                        -- Evaluasi target dengan pengecekan ganda untuk "Gas" jika atribut gagal
-                        local isValidTarget = false
-                        if resType and TargetMaterials[resType] then
-                            isValidTarget = true
-                        elseif TargetMaterials["Gas"] and string.find(string.lower(folderObj.Name), "gas") then
-                            isValidTarget = true
-                        end
-                        
-                        if isValidTarget and part then
+                        if resType and TargetMaterials[resType] and part then
                             local isExcluded = false
                             for attrName, attrValue in pairs(folderObj:GetAttributes()) do
                                 local lowerName = string.lower(attrName)
@@ -186,7 +177,7 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 2]: AUTO CAMPFIRE (DIPERBARUI: GAS & TP +3 Y)
+-- [FITUR 2]: AUTO CAMPFIRE (GAS & WOOD)
 -- ====================================================================
 Win:AddToggle("Mulai Auto Campfire", false, function(state)
     AutoCampfireEnabled = state
@@ -205,7 +196,6 @@ Win:AddToggle("Mulai Auto Campfire", false, function(state)
                             local resType = obj:GetAttribute("Resource")
                             local isGas = resType == "Gas" or string.find(string.lower(obj.Name), "gas")
                             
-                            -- Filter memasukkan Wood dan Gas
                             if resType == "Wood" or isGas then
                                 local isArmor = false
                                 for attrName, attrValue in pairs(obj:GetAttributes()) do
@@ -236,8 +226,6 @@ Win:AddToggle("Mulai Auto Campfire", false, function(state)
                         for _, data in ipairs(itemsToProcess) do
                             if not AutoCampfireEnabled then break end 
                             local obj = data.Object
-                            
-                            -- [DIPERBARUI]: Target TP dinaikkan 3 stud ke atas (Sumbu Y)
                             local targetCFrame = dropperPart.CFrame + Vector3.new(0, 3, 0)
                             
                             obj:SetAttribute("Grabbed", false) 
@@ -272,7 +260,7 @@ Win:AddToggle("Mulai Auto Campfire", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 3]: AUTO EAT (SENSOR UI)
+-- [FITUR 3]: AUTO EAT 
 -- ====================================================================
 Win:AddToggle("Mulai Auto Eat (Sensor UI)", false, function(state)
     AutoEatEnabled = state
@@ -392,7 +380,7 @@ Win:AddToggle("Auto Doubloon Chest", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 6]: BRUTAL AUTO ATTACK HARPOON SYSTEM (TARGET TERDEKAT)
+-- [FITUR 6]: BRUTAL AUTO ATTACK HARPOON & RIPTIDE (TARGET TERDEKAT)
 -- ====================================================================
 Win:AddToggle("Brutal Auto Harpoon", false, function(state)
     AutoHarpoonEnabled = state
@@ -438,7 +426,7 @@ Win:AddToggle("Brutal Auto Harpoon", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 7]: AUTO PICK MATERIAL (HARPOON + RIPTIDE + CRATE DROP)
+-- [FITUR 7]: AUTO PICK MATERIAL (HARPOON & RIPTIDE + GAS SENSOR)
 -- ====================================================================
 Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
     AutoPickEnabled = state
@@ -456,7 +444,6 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                     local nearestItem = nil
                     local targetPart = nil
                     local shortestDistance = math.huge
-                    local isNearestCrate = false
                     
                     for _, folderObj in ipairs(DebrisField:GetChildren()) do
                         local resType = folderObj:GetAttribute("Resource")
@@ -466,20 +453,20 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                             resType = part:GetAttribute("Resource")
                         end
                         
-                        -- Cek material dropdown
+                        -- Evaluasi Material Target
                         local isMaterial = false
                         if resType and TargetMaterials[resType] then
                             isMaterial = true
-                        elseif TargetMaterials["Gas"] and string.find(string.lower(folderObj.Name), "gas") then
-                            isMaterial = true
                         end
                         
-                        -- Cek apakah ini Crate
-                        local lowerName = string.lower(folderObj.Name)
-                        local isCrate = string.find(lowerName, "small crate") or string.find(lowerName, "big crate")
+                        -- [DIPERBARUI]: Deteksi GAS HANYA akan aktif jika Auto Campfire menyala
+                        if AutoCampfireEnabled then
+                            if resType == "Gas" or string.find(string.lower(folderObj.Name), "gas") then
+                                isMaterial = true
+                            end
+                        end
                         
-                        if (isMaterial or isCrate) and part then
-                            
+                        if isMaterial and part then
                             local isExcluded = false
                             for attrName, attrValue in pairs(folderObj:GetAttributes()) do
                                 local lName = string.lower(attrName)
@@ -508,7 +495,6 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                                     shortestDistance = distance
                                     nearestItem = folderObj
                                     targetPart = part
-                                    isNearestCrate = isCrate -- Simpan info jika ini peti
                                 end
                             end
                         end
@@ -521,17 +507,6 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                             
                             SafeRemoteFunction("ToolReplicator", "~sHarpoon", "~sGrab", nearestItem, vecStr)
                             SafeRemoteFunction("ToolReplicator", "~sRiptide", "~sGrab", nearestItem, vecStr)
-                            
-                            -- Jika benda terdekat adalah Crate, langsung buang setelah ditarik
-                            if isNearestCrate then
-                                task.spawn(function()
-                                    task.wait(0.3) -- Tunggu hingga sampai ke tangan
-                                    pcall(function()
-                                        SafeRemoteEvent("GiveUpOwnership", targetPart, "~v0,-0.0001,-0.0001")
-                                    end)
-                                end)
-                            end
-                            
                         end)
                         task.wait(0.2) 
                     end
@@ -559,28 +534,25 @@ Win:AddToggle("Auto Open Chest (Radius 5)", false, function(state)
                 local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso") or character:FindFirstChildWhichIsA("BasePart"))
                 
                 if ChestsFolder and rootPart then
-                    -- Looping mencari peti di folder Chests
                     for _, chest in ipairs(ChestsFolder:GetChildren()) do
                         if not AutoOpenChestEnabled then break end
                         
-                        -- Cari bagian inti peti untuk menghitung jarak
                         local chestPart = chest:IsA("BasePart") and chest or chest:FindFirstChildWhichIsA("BasePart") or (chest:IsA("Model") and chest.PrimaryPart)
                         
                         if chestPart then
                             local distance = (chestPart.Position - rootPart.Position).Magnitude
                             
-                            -- Jika jarak kurang dari sama dengan 5 stud, tembak remote
                             if distance <= 5 then
                                 pcall(function()
                                     SafeRemoteFunction("OpenChest", chest)
                                 end)
-                                task.wait(0.1) -- Jeda kecil per peti agar tidak error
+                                task.wait(0.1) 
                             end
                         end
                     end
                 end
                 
-                task.wait(0.5) -- Scan ulang setiap setengah detik
+                task.wait(0.5) 
             end
         end)
     end
