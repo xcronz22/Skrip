@@ -251,7 +251,7 @@ Win:AddToggle("Mulai Auto Campfire", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 3]: AUTO EAT (5 DETIK SEKALI, GRAB -> EAT 5X -> DROP)
+-- [FITUR 3]: AUTO EAT (MURNI HANYA EAT 5X, TANPA MENGGANGGU GRAB)
 -- ====================================================================
 Win:AddToggle("Mulai Auto Eat", false, function(state)
     AutoEatEnabled = state
@@ -266,6 +266,7 @@ Win:AddToggle("Mulai Auto Eat", false, function(state)
                     for _, folderObj in ipairs(DebrisField:GetChildren()) do
                         if not AutoEatEnabled then break end 
                         
+                        -- Cek atribut Food di folder atau di part dalamnya
                         local isFood = folderObj:GetAttribute("Food")
                         local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
                         
@@ -284,34 +285,21 @@ Win:AddToggle("Mulai Auto Eat", false, function(state)
                             
                             local foodId = folderObj.Name 
                             
-                            -- 1. Wajib mengirim AttemptDrag agar Server mengizinkan aksi Eat
-                            pcall(function()
-                                SafeRemoteFunction("AttemptDrag", part)
-                            end)
-                            task.wait(0.2) 
-                            
-                            -- 2. Makan sebanyak 5x
+                            -- HANYA MAKAN: Mengeksekusi remote Eat 5x berturut-turut tanpa AttemptDrag
                             for i = 1, 5 do
                                 if not AutoEatEnabled or not folderObj.Parent then break end
                                 SafeRemoteEvent("Eat", "~s" .. foodId)
-                                task.wait(0.2)
+                                task.wait(0.2) -- Jeda aman antar suapan
                             end
                             
-                            -- 3. Melepaskan kepemilikan agar tidak nyangkut di tangan (Invisible Part)
-                            if part and part.Parent then
-                                pcall(function()
-                                    SafeRemoteEvent("GiveUpOwnership", part, "~v0,0,0")
-                                end)
-                            end
-                            
-                            -- Berhenti memproses makanan lain pada loop ini
+                            -- Berhenti memproses makanan lain pada loop ini agar tidak kalap
                             break 
                         end
                     end
                 end
                 
-                -- Skrip akan diam selama 5 detik, lalu mencari makanan berikutnya
-                task.wait(5) 
+                -- Skrip akan diam selama 5 detik, lalu mencari makanan berikutnya jika masih lapar
+                task.wait(3) 
             end
         end)
     end
