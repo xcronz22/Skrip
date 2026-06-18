@@ -411,7 +411,7 @@ Win:AddToggle("Brutal Auto Tool", false, function(state)
                                 tool = backpack:FindFirstChild(toolName)
                                 if tool then
                                     humanoid:EquipTool(tool)
-                                    task.wait(0.05) -- Jeda pengesahan server
+                                    task.wait() -- Jeda pengesahan server
                                 end
                             end
                             
@@ -435,7 +435,7 @@ Win:AddToggle("Brutal Auto Tool", false, function(state)
                 end
                 
                 -- Jeda aman agar pergantian senjata mulus dan tidak membuat game lag
-                task.wait(0.1) 
+                task.wait() 
             end
         end)
     end
