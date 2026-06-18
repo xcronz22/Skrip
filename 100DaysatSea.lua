@@ -292,7 +292,7 @@ Win:AddToggle("Mulai Auto Eat", false, function(state)
                             for i = 1, 1 do
                                 if not AutoEatEnabled or not folderObj.Parent then break end
                                 SafeRemoteEvent("Eat", "~s" .. foodId)
-                                task.wait(0.2) 
+                                task.wait() 
                             end
                             
                             break 
@@ -300,7 +300,7 @@ Win:AddToggle("Mulai Auto Eat", false, function(state)
                     end
                 end
                 -- Scanning super cepat (1 detik) setelah memakan makanan satuan
-                task.wait(1) 
+                task.wait(0.1) 
             end
         end)
     end
