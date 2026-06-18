@@ -256,49 +256,56 @@ Win:AddToggle("Mulai Auto Campfire", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 3]: AUTO EAT (MAKAN SATUAN & CEPAT)
+-- [FITUR 3]: AUTO EAT (DENGAN SENSOR UI - MAKAN JIKA BAR <= 0.7)
 -- ====================================================================
-Win:AddToggle("Mulai Auto Eat", false, function(state)
+Win:AddToggle("Mulai Auto Eat (Sensor UI)", false, function(state)
     AutoEatEnabled = state
     
     if AutoEatEnabled then
         task.spawn(function()
+            -- Path ke UI Bar Food
+            local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+            local FillBar = PlayerGui:WaitForChild("HUD"):WaitForChild("Food"):WaitForChild("Bar"):WaitForChild("Fill")
+            
             while AutoEatEnabled do
-                local workspace = game:GetService("Workspace")
-                local DebrisField = workspace:FindFirstChild("DebrisField")
+                -- Cek ukuran (Scale) bar makanan saat ini
+                local currentScale = FillBar.Size.X.Scale
                 
-                if DebrisField then
-                    for _, folderObj in ipairs(DebrisField:GetChildren()) do
-                        if not AutoEatEnabled then break end 
-                        
-                        local isFood = folderObj:GetAttribute("Food")
-                        local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
-                        
-                        if not isFood and part then
-                            isFood = part:GetAttribute("Food")
-                        end
-                        
-                        if isFood and part then
-                            local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
-                            local grabber = folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber")
+                -- Jika lapar (Scale <= 0.7), mulai makan sampai kenyang (Scale >= 0.99)
+                if currentScale <= 0.7 then
+                    local workspace = game:GetService("Workspace")
+                    local DebrisField = workspace:FindFirstChild("DebrisField")
+                    
+                    if DebrisField then
+                        for _, folderObj in ipairs(DebrisField:GetChildren()) do
+                            if not AutoEatEnabled or FillBar.Size.X.Scale >= 0.99 then break end
                             
-                            if isGrabbed and tostring(grabber) ~= tostring(LocalPlayer.UserId) and grabber ~= LocalPlayer.Name then
-                                continue
-                            end
+                            -- Deteksi objek makanan
+                            local isFood = folderObj:GetAttribute("Food")
+                            local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
+                            if not isFood and part then isFood = part:GetAttribute("Food") end
                             
-                            local foodId = folderObj.Name 
-                            
-                            for i = 1, 1 do
-                                if not AutoEatEnabled or not folderObj.Parent then break end
+                            if isFood and part then
+                                local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
+                                local grabber = folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber")
+                                
+                                -- Skip jika dipegang orang lain
+                                if isGrabbed and tostring(grabber) ~= tostring(LocalPlayer.UserId) and grabber ~= LocalPlayer.Name then
+                                    continue
+                                end
+                                
+                                local foodId = folderObj.Name 
+                                
+                                -- Makan 1x lalu cek lagi apakah sudah kenyang
                                 SafeRemoteEvent("Eat", "~s" .. foodId)
-                                task.wait() 
+                                task.wait(0.05) -- Jeda antar suapan
                             end
-                            
-                            break 
                         end
                     end
                 end
-                task.wait(0.1) 
+                
+                -- Cek sensor setiap 1 detik
+                task.wait(1) 
             end
         end)
     end
