@@ -2,22 +2,41 @@
 local RZY_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
 local Win = RZY_Library:MakeWindow("100 Days at Sea - V6")
 
+-- Tabel Penyimpanan Status Dropdown
 local TargetMaterials = {
     ["Wood"] = false,
     ["Metal"] = false,
-    ["Goo"] = false
+    ["Goo"] = false,
+    ["Small Gas Can"] = false,
+    ["Big Gas Can"] = false,
+    ["Gas Drum"] = false
 }
 
-Win:AddMultiDropdown("Material", {"Wood", "Metal", "Goo"}, function(selectedTable)
+local TargetWeapons = {
+    ["Harpoon"] = false,
+    ["Magma Staff"] = false,
+    ["Laser"] = false,
+    ["Rifle"] = false
+}
+
+Win:AddMultiDropdown("Pilih Material Grinder & Bakar", {"Wood", "Metal", "Goo", "Small Gas Can", "Big Gas Can", "Gas Drum"}, function(selectedTable)
     TargetMaterials = selectedTable
+end)
+
+Win:AddMultiDropdown("Pilih Senjata Attack", {"Harpoon", "Magma Staff", "Laser", "Rifle"}, function(selectedTable)
+    TargetWeapons = selectedTable
 end)
 
 local AutoGrinderEnabled = false
 local AutoCampfireEnabled = false
 local AutoEatEnabled = false
 local AutoDoubloonEnabled = false 
-local AutoHarpoonEnabled = false 
+local AutoAttackEnabled = false 
 local AutoPickEnabled = false
+
+-- Variabel pengikat Toggle agar bisa dimatikan dari luar
+local GrinderToggle = nil
+local CampfireToggle = nil
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -49,9 +68,9 @@ local function FindHiddenRemotes()
     end
 end
 
-FindHiddenRemotes() -- Jalankan pelacak saat script dimulai
+FindHiddenRemotes()
 
--- 2. PENYADAP KOMUNIKASI (Dibuat Dinamis Tanpa Mempedulikan Service Parent-nya)
+-- 2. PENYADAP KOMUNIKASI (Dibuat Dinamis)
 pcall(function()
     if hookmetamethod then
         local oldNamecall
@@ -61,14 +80,11 @@ pcall(function()
             
             if (method == "FireServer" or method == "InvokeServer") then
                 if self.Name == "RemoteEvent" or self.Name == "RemoteFunction" then
-                    -- Verifikasi format remote game ini (Arg 1 adalah Token Angka, Arg 2 adalah String Action)
                     if type(args[1]) == "number" and type(args[2]) == "string" then
                         if not checkcaller() then
-                            -- Jika pelacak gagal di awal, kita tangkap/curi remotenya langsung dari gamenya di sini
                             if self:IsA("RemoteEvent") then GameRemoteEvent = self end
                             if self:IsA("RemoteFunction") then GameRemoteFunction = self end
                             
-                            -- Sinkronisasi Token
                             if CurrentSyncToken then
                                 CurrentSyncToken = CurrentSyncToken + 1
                                 args[1] = CurrentSyncToken
@@ -85,44 +101,41 @@ pcall(function()
     end
 end)
 
--- Fungsi Generator Token
 local function GetNextToken()
     if not CurrentSyncToken then CurrentSyncToken = math.random(100000, 999999) end
     CurrentSyncToken = CurrentSyncToken + 1
     return CurrentSyncToken
 end
 
--- Eksekusi Remote Event Aman & Dinamis
 local function SafeRemoteEvent(actionName, ...)
     if GameRemoteEvent then
         GameRemoteEvent:FireServer(GetNextToken(), actionName, ...)
     else
         FindHiddenRemotes()
-        if GameRemoteEvent then
-            GameRemoteEvent:FireServer(GetNextToken(), actionName, ...)
-        else
-            warn("[RZY Hub] RemoteEvent belum ditemukan! Coba bergerak atau ambil 1 item manual.")
-        end
+        if GameRemoteEvent then GameRemoteEvent:FireServer(GetNextToken(), actionName, ...) end
     end
 end
 
--- Eksekusi Remote Function Aman & Dinamis
 local function SafeRemoteFunction(actionName, ...)
     if GameRemoteFunction then
         return GameRemoteFunction:InvokeServer(GetNextToken(), actionName, ...)
     else
         FindHiddenRemotes()
-        if GameRemoteFunction then
-            return GameRemoteFunction:InvokeServer(GetNextToken(), actionName, ...)
-        end
+        if GameRemoteFunction then return GameRemoteFunction:InvokeServer(GetNextToken(), actionName, ...) end
     end
 end
 
 -- ====================================================================
--- [FITUR 1]: AUTO GRINDER (PERFECT COMBINATION: GRABBED & LAST HOLDER)
+-- [FITUR 1]: AUTO GRINDER (STRICT HISTORY & TOGGLE MUTEX)
 -- ====================================================================
-Win:AddToggle("Auto Grinder", false, function(state)
+GrinderToggle = Win:AddToggle("Auto Grinder", false, function(state)
     AutoGrinderEnabled = state
+    
+    -- [SISTEM PINTAR]: Matikan Auto Campfire jika Auto Grinder menyala
+    if state and CampfireToggle then
+        AutoCampfireEnabled = false
+        CampfireToggle:Set(false)
+    end
     
     if AutoGrinderEnabled then
         task.spawn(function()
@@ -138,20 +151,15 @@ Win:AddToggle("Auto Grinder", false, function(state)
                         local resType = folderObj:GetAttribute("Resource")
                         local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
                         
-                        if not resType and part then
-                            resType = part:GetAttribute("Resource")
-                        end
+                        if not resType and part then resType = part:GetAttribute("Resource") end
                         
+                        -- Cek material di Dropdown
                         if resType and TargetMaterials[resType] and part then
-                            -- Abaikan jika itu Armor, Chest, atau Leg
                             local isExcluded = false
                             for attrName, attrValue in pairs(folderObj:GetAttributes()) do
                                 local lowerName = string.lower(attrName)
                                 local lowerValue = type(attrValue) == "string" and string.lower(attrValue) or ""
-                                
-                                if string.find(lowerName, "armor") or string.find(lowerValue, "armor") or
-                                   string.find(lowerName, "chest") or string.find(lowerValue, "chest") or
-                                   string.find(lowerName, "leg") or string.find(lowerValue, "leg") then
+                                if string.find(lowerName, "armor") or string.find(lowerValue, "armor") or string.find(lowerName, "chest") or string.find(lowerValue, "chest") or string.find(lowerName, "leg") or string.find(lowerValue, "leg") then
                                     isExcluded = true
                                     break
                                 end
@@ -165,10 +173,11 @@ Win:AddToggle("Auto Grinder", false, function(state)
                                 local myId = tostring(LocalPlayer.UserId)
                                 local myName = LocalPlayer.Name
                                 
-                                local isCurrentlyMyGrab = (isGrabbed == true and (tostring(grabber) == myId or grabber == myName))
-                                local isMyPastItem = (lastHolder == myName)
+                                -- FILTER KETAT: Wajib Grabber = Saya DAN LastHolder = Saya (Abaikan Grabbed true/false)
+                                local isMyGrabber = (tostring(grabber) == myId or grabber == myName)
+                                local isMyLastHolder = (lastHolder == myName)
                                 
-                                if isCurrentlyMyGrab or isMyPastItem then
+                                if isMyGrabber and isMyLastHolder then
                                     part.CFrame = GrinderCol.CFrame
                                     part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                                 end
@@ -183,10 +192,17 @@ Win:AddToggle("Auto Grinder", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 2]: AUTO CAMPFIRE
+-- [FITUR 2]: AUTO CAMPFIRE (STRICT HISTORY, GAS CANS & TOGGLE MUTEX)
 -- ====================================================================
-Win:AddToggle("Auto Campfire", false, function(state)
+CampfireToggle = Win:AddToggle("Auto Campfire", false, function(state)
     AutoCampfireEnabled = state
+    
+    -- [SISTEM PINTAR]: Matikan Auto Grinder jika Auto Campfire menyala
+    if state and GrinderToggle then
+        AutoGrinderEnabled = false
+        GrinderToggle:Set(false)
+    end
+    
     if AutoCampfireEnabled then
         task.spawn(function()
             while AutoCampfireEnabled do
@@ -198,53 +214,73 @@ Win:AddToggle("Auto Campfire", false, function(state)
                     local dropperPart = Dropper:IsA("BasePart") and Dropper or Dropper:FindFirstChildWithClass("BasePart") or (Dropper:IsA("Model") and Dropper.PrimaryPart)
                     if dropperPart then
                         local itemsToProcess = {}
-                        for _, obj in ipairs(DebrisField:GetChildren()) do
-                            if obj:GetAttribute("Resource") == "Wood" then
+                        
+                        for _, folderObj in ipairs(DebrisField:GetChildren()) do
+                            local resType = folderObj:GetAttribute("Resource")
+                            local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
+                            if not resType and part then resType = part:GetAttribute("Resource") end
+                            
+                            -- Daftar material yang BISA DITERIMA oleh Campfire
+                            local validFuels = {
+                                ["Wood"] = true, 
+                                ["Small Gas Can"] = true, 
+                                ["Big Gas Can"] = true, 
+                                ["Gas Drum"] = true
+                            }
+                            
+                            -- Baca list Dropdown (TargetMaterials) DAN pastikan itu adalah validFuels
+                            if resType and TargetMaterials[resType] and validFuels[resType] and part then
+                                
                                 local isArmor = false
-                                for attrName, attrValue in pairs(obj:GetAttributes()) do
+                                for attrName, attrValue in pairs(folderObj:GetAttributes()) do
                                     if string.find(string.lower(attrName), "armor") or (type(attrValue) == "string" and string.find(string.lower(attrValue), "armor")) then
                                         isArmor = true; break
                                     end
                                 end
                                 if isArmor then continue end
 
-                                local primary = obj:IsA("Model") and obj.PrimaryPart or (obj:IsA("BasePart") and obj)
-                                if primary then
-                                    local distance = (primary.Position - dropperPart.Position).Magnitude
-                                    if distance > 3 then
-                                        local isGrabbed = obj:GetAttribute("Grabbed")
-                                        local grabberAttr = obj:GetAttribute("Grabber")
-                                        local myId, myName = LocalPlayer.UserId, LocalPlayer.Name
-                                        local isGrabberMe = false
-                                        if grabberAttr ~= nil then isGrabberMe = (grabberAttr == myId or tostring(grabberAttr) == tostring(myId) or grabberAttr == myName) end
-                                        if isGrabbed == true and not isGrabberMe then continue end
-                                        
-                                        table.insert(itemsToProcess, { Object = obj, Distance = distance })
-                                    end
+                                local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
+                                local grabber = folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber")
+                                local lastHolder = folderObj:GetAttribute("LastHolder") or part:GetAttribute("LastHolder")
+                                
+                                local myId = tostring(LocalPlayer.UserId)
+                                local myName = LocalPlayer.Name
+                                
+                                -- FILTER KETAT (Sama seperti Grinder)
+                                local isMyGrabber = (tostring(grabber) == myId or grabber == myName)
+                                local isMyLastHolder = (lastHolder == myName)
+                                
+                                if not (isMyGrabber and isMyLastHolder) then continue end
+                                
+                                local distance = (part.Position - dropperPart.Position).Magnitude
+                                if distance > 3 then
+                                    table.insert(itemsToProcess, { Object = folderObj, Part = part, Distance = distance })
                                 end
                             end
                         end
+                        
                         table.sort(itemsToProcess, function(a, b) return a.Distance < b.Distance end)
 
                         for _, data in ipairs(itemsToProcess) do
                             if not AutoCampfireEnabled then break end 
                             local obj = data.Object
-                            local targetCFrame = dropperPart.CFrame
+                            local part = data.Part
+                            
                             obj:SetAttribute("Grabbed", false) 
                             obj:SetAttribute("LastHolder", LocalPlayer.Name)
 
-                            if obj:IsA("BasePart") then
-                                obj.CFrame = targetCFrame
-                                obj.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                            if part:IsA("BasePart") then
+                                part.CFrame = dropperPart.CFrame
+                                part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                             elseif obj:IsA("Model") then
-                                obj:PivotTo(targetCFrame)
-                                for _, part in ipairs(obj:GetDescendants()) do
-                                    if part:IsA("BasePart") then part.AssemblyLinearVelocity = Vector3.new(0, 0, 0) end
+                                obj:PivotTo(dropperPart.CFrame)
+                                for _, p in ipairs(obj:GetDescendants()) do
+                                    if p:IsA("BasePart") then p.AssemblyLinearVelocity = Vector3.new(0, 0, 0) end
                                 end
                             end
                             
                             if firetouchinterest then
-                                local touchPart = obj:IsA("BasePart") and obj or obj.PrimaryPart
+                                local touchPart = part or obj.PrimaryPart
                                 if touchPart then
                                     firetouchinterest(dropperPart, touchPart, 0) 
                                     task.wait()
@@ -262,23 +298,17 @@ Win:AddToggle("Auto Campfire", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 3]: AUTO EAT (DENGAN SENSOR UI - MAKAN JIKA BAR <= 0.7)
+-- [FITUR 3]: AUTO EAT
 -- ====================================================================
 Win:AddToggle("Auto Eat", false, function(state)
     AutoEatEnabled = state
-    
     if AutoEatEnabled then
         task.spawn(function()
-            -- Path ke UI Bar Food
             local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
             local FillBar = PlayerGui:WaitForChild("HUD"):WaitForChild("Food"):WaitForChild("Bar"):WaitForChild("Fill")
             
             while AutoEatEnabled do
-                -- Cek ukuran (Scale) bar makanan saat ini
-                local currentScale = FillBar.Size.X.Scale
-                
-                -- Jika lapar (Scale <= 0.7), mulai makan sampai kenyang (Scale >= 0.99)
-                if currentScale <= 0.7 then
+                if FillBar.Size.X.Scale <= 0.7 then
                     local workspace = game:GetService("Workspace")
                     local DebrisField = workspace:FindFirstChild("DebrisField")
                     
@@ -286,7 +316,6 @@ Win:AddToggle("Auto Eat", false, function(state)
                         for _, folderObj in ipairs(DebrisField:GetChildren()) do
                             if not AutoEatEnabled or FillBar.Size.X.Scale >= 0.99 then break end
                             
-                            -- Deteksi objek makanan
                             local isFood = folderObj:GetAttribute("Food")
                             local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
                             if not isFood and part then isFood = part:GetAttribute("Food") end
@@ -295,22 +324,14 @@ Win:AddToggle("Auto Eat", false, function(state)
                                 local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
                                 local grabber = folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber")
                                 
-                                -- Skip jika dipegang orang lain
-                                if isGrabbed and tostring(grabber) ~= tostring(LocalPlayer.UserId) and grabber ~= LocalPlayer.Name then
-                                    continue
-                                end
+                                if isGrabbed and tostring(grabber) ~= tostring(LocalPlayer.UserId) and grabber ~= LocalPlayer.Name then continue end
                                 
-                                local foodId = folderObj.Name 
-                                
-                                -- Makan 1x lalu cek lagi apakah sudah kenyang
-                                SafeRemoteEvent("Eat", "~s" .. foodId)
-                                task.wait(0.05) -- Jeda antar suapan
+                                SafeRemoteEvent("Eat", "~s" .. folderObj.Name)
+                                task.wait(0.05) 
                             end
                         end
                     end
                 end
-                
-                -- Cek sensor setiap 1 detik
                 task.wait(1) 
             end
         end)
@@ -318,40 +339,52 @@ Win:AddToggle("Auto Eat", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 4]: AUTO DOUBLOON CHEST (100% DINAMIS)
+-- [FITUR 4]: AUTO COLLECT (CHEST & AMMO) + PENGECEKAN RIFLE
 -- ====================================================================
-Win:AddToggle("Auto Doubloon Chest", false, function(state)
+Win:AddToggle("Auto Collect", false, function(state)
     AutoDoubloonEnabled = state
-    
     if AutoDoubloonEnabled then
         task.spawn(function()
             while AutoDoubloonEnabled do
                 local workspace = game:GetService("Workspace")
                 local DebrisField = workspace:FindFirstChild("DebrisField")
                 
+                local character = LocalPlayer.Character
+                local backpack = LocalPlayer:FindFirstChild("Backpack")
+                
+                -- Pengecekan ketersediaan Rifle di Tas / Tangan
+                local hasRifle = (character and character:FindFirstChild("Rifle")) or (backpack and backpack:FindFirstChild("Rifle"))
+                
                 if DebrisField then
                     for _, folderObj in ipairs(DebrisField:GetChildren()) do
                         if not AutoDoubloonEnabled then break end
                         
-                        local isChest = folderObj:GetAttribute("DoubloonChest")
+                        local isChest = false
+                        local isAmmo = false
+                        
                         local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
                         
-                        if not isChest and part then
-                            isChest = part:GetAttribute("DoubloonChest")
-                        end
+                        if folderObj:GetAttribute("DoubloonChest") or (part and part:GetAttribute("DoubloonChest")) then isChest = true end
+                        if folderObj:GetAttribute("Ammo") or (part and part:GetAttribute("Ammo")) then isAmmo = true end
                         
-                        if not isChest then
+                        if not isChest and not isAmmo then
                             for attrName, attrValue in pairs(folderObj:GetAttributes()) do
-                                if string.find(string.lower(attrName), "doubloonchest") or (type(attrValue) == "string" and string.find(string.lower(attrValue), "doubloonchest")) then
+                                local lowerName = string.lower(attrName)
+                                local lowerValue = type(attrValue) == "string" and string.lower(attrValue) or ""
+                                
+                                if string.find(lowerName, "doubloonchest") or string.find(lowerValue, "doubloonchest") then
                                     isChest = true
-                                    break
+                                end
+                                if string.find(lowerName, "ammo") or string.find(lowerValue, "ammo") then
+                                    isAmmo = true
                                 end
                             end
                         end
                         
-                        if isChest then
-                            local chestId = folderObj.Name 
-                            SafeRemoteEvent("Collect", "~s" .. chestId)
+                        -- Logika Pintar: Ambil Chest selalu. Ambil Ammo HANYA JIKA punya Rifle.
+                        if isChest or (isAmmo and hasRifle) then
+                            local itemId = folderObj.Name 
+                            SafeRemoteEvent("Collect", "~s" .. itemId)
                             task.wait(0.3) 
                         end
                     end
@@ -363,14 +396,14 @@ Win:AddToggle("Auto Doubloon Chest", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 5]: BRUTAL AUTO ATTACK (HARPOON & MAGMA STAFF) + AUTO EQUIP
+-- [FITUR 5]: BRUTAL AUTO ATTACK (MULTI-TOOL & AUTO EQUIP)
 -- ====================================================================
-Win:AddToggle("Brutal Auto Tool", false, function(state)
-    AutoHarpoonEnabled = state
+Win:AddToggle("Auto Attack Multi-Tool", false, function(state)
+    AutoAttackEnabled = state
     
-    if AutoHarpoonEnabled then
+    if AutoAttackEnabled then
         task.spawn(function()
-            while AutoHarpoonEnabled do
+            while AutoAttackEnabled do
                 local workspace = game:GetService("Workspace")
                 local CreatureContainer = workspace:FindFirstChild("CreatureContainer")
                 
@@ -383,7 +416,7 @@ Win:AddToggle("Brutal Auto Tool", false, function(state)
                     local nearestEnemy = nil
                     local shortestDistance = math.huge
                     
-                    -- LOOP 1: Mencari musuh terdekat
+                    -- Mencari musuh terdekat
                     for _, enemy in ipairs(CreatureContainer:GetChildren()) do
                         if enemy.Name ~= "Seagull" then
                             local enemyPart = enemy:IsA("BasePart") and enemy or enemy:FindFirstChildWhichIsA("BasePart") or (enemy:IsA("Model") and enemy.PrimaryPart)
@@ -398,43 +431,58 @@ Win:AddToggle("Brutal Auto Tool", false, function(state)
                         end
                     end
                     
-                    -- LOOP 2: Serangan Brutal (Harpoon + Magma Staff)
                     if nearestEnemy then
                         local enemyPos = nearestEnemy:IsA("Model") and nearestEnemy:GetPivot().Position or nearestEnemy.Position
                         local vecStr = string.format("~v%.4f,%.4f,%.4f", enemyPos.X, enemyPos.Y, enemyPos.Z)
                         
-                        -- Fungsi Equip Internal
-                        local function EquipAndAttack(toolName, attackLogic)
-                            local tool = character:FindFirstChild(toolName)
+                        -- Fungsi Cerdas Equip berdasarkan status centang UI
+                        local function CheckAndAttack(toolName, attackLogic)
+                            if not TargetWeapons[toolName] then return end -- Abaikan jika tidak dicentang di UI
                             
+                            local tool = character:FindFirstChild(toolName)
                             if not tool and backpack then
                                 tool = backpack:FindFirstChild(toolName)
                                 if tool then
                                     humanoid:EquipTool(tool)
-                                    task.wait() -- Jeda pengesahan server
+                                    task.wait() 
                                 end
                             end
                             
                             if tool then
-                                attackLogic()
+                                attackLogic(tool)
                             end
                         end
 
                         pcall(function()
-                            -- Tembak Harpoon
-                            EquipAndAttack("Harpoon", function()
+                            -- 1. Harpoon
+                            CheckAndAttack("Harpoon", function(t)
                                 SafeRemoteFunction("ToolReplicator", "~sHarpoon", "~sHitEnemy", nearestEnemy)
                             end)
                             
-                            -- Tembak Magma Staff
-                            EquipAndAttack("Magma Staff", function()
+                            -- 2. Magma Staff
+                            CheckAndAttack("Magma Staff", function(t)
                                 SafeRemoteFunction("ToolReplicator", "~sMagma Staff", "~sFire", vecStr)
+                            end)
+
+                            -- 3. Laser
+                            CheckAndAttack("Laser", function(t)
+                                SafeRemoteFunction("ToolReplicator", "~sLaser", "~sShoot", vecStr)
+                            end)
+
+                            -- 4. Rifle (Gun)
+                            CheckAndAttack("Rifle", function(t)
+                                local handle = t:FindFirstChild("Handle")
+                                if handle then
+                                    -- Menghitung arah rotasi peluru (LookVector) secara matematis
+                                    local direction = (enemyPos - rootPart.Position).Unit
+                                    local rifleFormatStr = string.format("~t{1=~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0}", enemyPos.X, enemyPos.Y, enemyPos.Z, direction.X, direction.Y, direction.Z)
+                                    
+                                    SafeRemoteFunction("ToolReplicator", "~sGun", "~sShoot", handle, rifleFormatStr)
+                                end
                             end)
                         end)
                     end
                 end
-                
-                -- Jeda aman agar pergantian senjata mulus dan tidak membuat game lag
                 task.wait() 
             end
         end)
@@ -442,7 +490,7 @@ Win:AddToggle("Brutal Auto Tool", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 6]: AUTO PICK MATERIAL (HARPOON SYSTEM) + AUTO EQUIP
+-- [FITUR 6]: AUTO PICK MATERIAL (HARPOON SYSTEM) - NO AUTO EQUIP
 -- ====================================================================
 Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
     AutoPickEnabled = state
@@ -454,11 +502,9 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                 local DebrisField = workspace:FindFirstChild("DebrisField")
                 
                 local character = LocalPlayer.Character
-                local humanoid = character and character:FindFirstChild("Humanoid")
                 local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso") or character:FindFirstChildWhichIsA("BasePart"))
-                local backpack = LocalPlayer:FindFirstChild("Backpack")
                 
-                if DebrisField and rootPart and humanoid then
+                if DebrisField and rootPart then
                     local nearestItem = nil
                     local targetPart = nil
                     local shortestDistance = math.huge
@@ -466,41 +512,26 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                     for _, folderObj in ipairs(DebrisField:GetChildren()) do
                         local resType = folderObj:GetAttribute("Resource")
                         local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
+                        if not resType and part then resType = part:GetAttribute("Resource") end
                         
-                        if not resType and part then
-                            resType = part:GetAttribute("Resource")
-                        end
-                        
-                        -- Cek material yang dipilih di MultiDropdown
                         if resType and TargetMaterials[resType] and part then
-                            
-                            -- Pengecualian Armor, Chest, dan Leg
                             local isExcluded = false
                             for attrName, attrValue in pairs(folderObj:GetAttributes()) do
                                 local lowerName = string.lower(attrName)
                                 local lowerValue = type(attrValue) == "string" and string.lower(attrValue) or ""
-                                
-                                if string.find(lowerName, "armor") or string.find(lowerValue, "armor") or
-                                   string.find(lowerName, "chest") or string.find(lowerValue, "chest") or
-                                   string.find(lowerName, "leg") or string.find(lowerValue, "leg") then
-                                    isExcluded = true
-                                    break
+                                if string.find(lowerName, "armor") or string.find(lowerValue, "armor") or string.find(lowerName, "chest") or string.find(lowerValue, "chest") or string.find(lowerName, "leg") or string.find(lowerValue, "leg") then
+                                    isExcluded = true; break
                                 end
                             end
                             
                             if not isExcluded then
-                                -- Mengecek apakah item sedang dipegang oleh player lain
                                 local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
                                 local grabber = folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber")
-                                
                                 local myId = tostring(LocalPlayer.UserId)
                                 local myName = LocalPlayer.Name
                                 
-                                if isGrabbed and (tostring(grabber) ~= myId and grabber ~= myName) then
-                                    continue
-                                end
+                                if isGrabbed and (tostring(grabber) ~= myId and grabber ~= myName) then continue end
                                 
-                                -- Mencari yang terdekat
                                 local distance = (part.Position - rootPart.Position).Magnitude
                                 if distance < shortestDistance then
                                     shortestDistance = distance
@@ -511,30 +542,17 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                         end
                     end
                     
-                    -- Jika menemukan item target terdekat, tembak dengan harpoon
                     if nearestItem and targetPart then
                         pcall(function()
                             local pos = targetPart.Position
                             local vecStr = string.format("~v%.4f,%.4f,%.4f", pos.X, pos.Y, pos.Z)
                             
-                            -- Pastikan Harpoon di-equip sebelum menembak
-                            local tool = character:FindFirstChild("Harpoon")
-                            if not tool and backpack then
-                                tool = backpack:FindFirstChild("Harpoon")
-                                if tool then
-                                    humanoid:EquipTool(tool)
-                                    task.wait(0.05) -- Jeda pengesahan server
-                                end
-                            end
-                            
-                            if tool then
-                                SafeRemoteFunction("ToolReplicator", "~sHarpoon", "~sGrab", nearestItem, vecStr)
-                            end
+                            -- Dieksekusi langsung tanpa memaksa auto-equip, sangat nyaman untuk multi-tasking
+                            SafeRemoteFunction("ToolReplicator", "~sHarpoon", "~sGrab", nearestItem, vecStr)
                         end)
-                        task.wait(0.2) -- Jeda biar harpoon tidak error karena spam berlebih
+                        task.wait(0.2) 
                     end
                 end
-                
                 task.wait(0.1) 
             end
         end)
