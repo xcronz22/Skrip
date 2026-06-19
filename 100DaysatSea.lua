@@ -16,7 +16,13 @@ local TargetWeapons = {
     ["Harpoon"] = false,
     ["Magma Staff"] = false,
     ["Laser"] = false,
-    ["Rifle"] = false
+    ["Rifle"] = false,
+    ["Flintlock"] = false,
+    ["Blunderbuss"] = false,
+    ["Hand Cannon"] = false,
+    ["Revolver"] = false,
+    ["Boomstick"] = false,
+    ["Riptide"] = false
 }
 
 Win:AddMultiDropdown("Pilih Material Grinder & Bakar", {"Wood", "Metal", "Goo", "Small Gas Can", "Big Gas Can", "Gas Drum"}, function(selectedTable)
@@ -351,7 +357,7 @@ Win:AddToggle("Auto Collect", false, function(state)
                                     isChest = true
                                 end
                                 if string.find(lowerName, "ammo") or string.find(lowerValue, "ammo") then
-                                    isAmmo = true
+                                    isAmmo = false
                                 end
                             end
                         end
