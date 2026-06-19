@@ -33,6 +33,16 @@ Win:AddMultiDropdown("Pilih Senjata Attack", {"Harpoon", "Magma Staff", "Laser",
     TargetWeapons = selectedTable
 end)
 
+local MaxGunDistance = 0 
+Win:AddTextBox("Jarak Tembak Gun (0/Kosong = Asli)", function(value)
+    local num = tonumber(value)
+    if num and num > 0 then
+        MaxGunDistance = num
+    else
+        MaxGunDistance = 0 -- Kembali ke default (tanpa batas) jika kosong atau bukan angka
+    end
+end)
+
 local AutoGrinderEnabled = false
 local AutoCampfireEnabled = false
 local AutoEatEnabled = false
@@ -377,7 +387,7 @@ Win:AddToggle("Auto Collect", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 5]: BRUTAL AUTO ATTACK (MULTI-TOOL & AUTO EQUIP)
+-- [FITUR 5]: BRUTAL AUTO ATTACK (MULTI-TOOL, AUTO EQUIP & JARAK FLEKSIBEL)
 -- ====================================================================
 Win:AddToggle("Auto Attack Multi-Tool", false, function(state)
     AutoAttackEnabled = state
@@ -397,7 +407,6 @@ Win:AddToggle("Auto Attack Multi-Tool", false, function(state)
                     local nearestEnemy = nil
                     local shortestDistance = math.huge
                     
-                    -- Mencari musuh terdekat
                     for _, enemy in ipairs(CreatureContainer:GetChildren()) do
                         if enemy.Name ~= "Seagull" then
                             local enemyPart = enemy:IsA("BasePart") and enemy or enemy:FindFirstChildWhichIsA("BasePart") or (enemy:IsA("Model") and enemy.PrimaryPart)
@@ -416,9 +425,7 @@ Win:AddToggle("Auto Attack Multi-Tool", false, function(state)
                         local enemyPos = nearestEnemy:IsA("Model") and nearestEnemy:GetPivot().Position or nearestEnemy.Position
                         local vecStr = string.format("~v%.4f,%.4f,%.4f", enemyPos.X, enemyPos.Y, enemyPos.Z)
                         
-                        -- Fungsi Cerdas Equip berdasarkan status centang UI
                         local function CheckAndAttack(toolName, attackLogic)
-                            -- Pastikan UI Dropdown / Toggle target menyertakan nama-nama senjata ini
                             if not TargetWeapons[toolName] then return end 
                             
                             local tool = character:FindFirstChild(toolName)
@@ -436,7 +443,7 @@ Win:AddToggle("Auto Attack Multi-Tool", false, function(state)
                         end
 
                         pcall(function()
-                            -- 1. Tipe Harpoon (Melee / Hook)
+                            -- 1. Tipe Harpoon
                             local harpoonTypes = {"Harpoon", "Riptide"}
                             for _, wName in ipairs(harpoonTypes) do
                                 CheckAndAttack(wName, function(t)
@@ -454,18 +461,19 @@ Win:AddToggle("Auto Attack Multi-Tool", false, function(state)
                                 SafeRemoteFunction("ToolReplicator", "~sLaser", "~sShoot", vecStr)
                             end)
 
-                            -- 4. Tipe Senjata Api / Gun
+                            -- 4. Tipe Senjata Api / Gun (DENGAN PENGECEKAN JARAK FLEKSIBEL)
                             local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick"}
                             for _, gunName in ipairs(gunTypes) do
                                 CheckAndAttack(gunName, function(t)
-                                    local handle = t:FindFirstChild("Handle")
-                                    if handle then
-                                        -- Menghitung arah rotasi peluru (LookVector) secara matematis
-                                        local direction = (enemyPos - rootPart.Position).Unit
-                                        local gunFormatStr = string.format("~t{1=~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0}", enemyPos.X, enemyPos.Y, enemyPos.Z, direction.X, direction.Y, direction.Z)
-                                        
-                                        -- Menggunakan identifier "~sGun" sesuai mekanisme game untuk semua tipe ini
-                                        SafeRemoteFunction("ToolReplicator", "~sGun", "~sShoot", handle, gunFormatStr)
+                                    -- [BARU]: Eksekusi tembakan Gun HANYA jika masuk dalam jarak yang diatur, atau tidak ada batas (0)
+                                    if MaxGunDistance == 0 or shortestDistance <= MaxGunDistance then
+                                        local handle = t:FindFirstChild("Handle")
+                                        if handle then
+                                            local direction = (enemyPos - rootPart.Position).Unit
+                                            local gunFormatStr = string.format("~t{1=~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0}", enemyPos.X, enemyPos.Y, enemyPos.Z, direction.X, direction.Y, direction.Z)
+                                            
+                                            SafeRemoteFunction("ToolReplicator", "~sGun", "~sShoot", handle, gunFormatStr)
+                                        end
                                     end
                                 end)
                             end
