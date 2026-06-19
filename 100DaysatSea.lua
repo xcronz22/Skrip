@@ -1,6 +1,6 @@
 -- Memuat Library RZY
 local RZY_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
-local Win = RZY_Library:MakeWindow("100 Days at Sea - V6.3 FIX")
+local Win = RZY_Library:MakeWindow("100 Days at Sea - V6.6 FLEKSIBEL")
 
 -- Tabel Penyimpanan Status Dropdown
 local TargetMaterials = {
@@ -144,7 +144,6 @@ GrinderToggle = Win:AddToggle("Mulai Auto Grinder", false, function(state)
                     for _, folderObj in ipairs(DebrisField:GetChildren()) do
                         if not AutoGrinderEnabled then break end
                         
-                        -- Cek atribut Resource ATAU Item (Fix untuk Gas Can)
                         local resType = folderObj:GetAttribute("Resource") or folderObj:GetAttribute("Item")
                         local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
                         if not resType and part then
@@ -214,7 +213,6 @@ CampfireToggle = Win:AddToggle("Auto Campfire", false, function(state)
                         for _, folderObj in ipairs(DebrisField:GetChildren()) do
                             if not AutoCampfireEnabled then break end
                             
-                            -- Cek atribut Resource ATAU Item (Fix untuk Gas Can)
                             local resType = folderObj:GetAttribute("Resource") or folderObj:GetAttribute("Item")
                             local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
                             if not resType and part then
@@ -361,9 +359,17 @@ Win:AddToggle("Auto Collect", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 5]: BRUTAL AUTO ATTACK (MULTI-TARGET, NO WRAITH / WRAITH_CLIENT)
+-- [FITUR 5]: AUTO ATTACK FLEKSIBEL (NEAREST / ALL TARGET)
 -- ====================================================================
-Win:AddToggle("Auto Attack Multi-Tool", false, function(state)
+local AttackMode = "Nearest (50 Studs)"
+local MaxAttackDistance = 50 
+
+-- Menambahkan UI Dropdown untuk Mode Serangan
+Win:AddDropdown("Mode Auto Attack", {"Nearest (50 Studs)", "Brutal All Target"}, function(selectedMode)
+    AttackMode = selectedMode
+end)
+
+Win:AddToggle("Mulai Auto Attack", false, function(state)
     AutoAttackEnabled = state
     
     if AutoAttackEnabled then
@@ -384,49 +390,47 @@ Win:AddToggle("Auto Attack Multi-Tool", false, function(state)
                         local tool = character:FindFirstChild(toolName)
                         if not tool and backpack then
                             tool = backpack:FindFirstChild(toolName)
-                            if tool then
-                                humanoid:EquipTool(tool)
-                            end
+                            if tool then humanoid:EquipTool(tool) end
                         end
                         if tool then 
-                            task.spawn(function()
-                                pcall(attackLogic, tool)
-                            end)
+                            task.spawn(function() pcall(attackLogic, tool) end)
                         end
                     end
 
-                    -- MELOOPING SEMUA MUSUH SEKALIGUS
-                    for _, enemy in ipairs(CreatureContainer:GetChildren()) do
-                        -- [DIPERBARUI]: Mengecualikan Wraith dan Wraith_CLIENT agar tidak diserang
-                        if enemy.Name == "Wraith" or enemy.Name == "Wraith_CLIENT" then 
-                            continue 
+                    if AttackMode == "Nearest (50 Studs)" then
+                        -- ==========================================
+                        -- MODE: NEAREST (OPTIMAL & AMAN DARI LAG)
+                        -- ==========================================
+                        local nearestEnemy = nil
+                        local nearestEnemyPart = nil
+                        local shortestDistance = MaxAttackDistance 
+
+                        for _, enemy in ipairs(CreatureContainer:GetChildren()) do
+                            if enemy.Name == "Wraith" or enemy.Name == "Wraith_CLIENT" then continue end
+                            
+                            local enemyPart = enemy:IsA("BasePart") and enemy or enemy:FindFirstChildWhichIsA("BasePart") or (enemy:IsA("Model") and enemy.PrimaryPart)
+                            
+                            if enemyPart then
+                                local distance = (enemyPart.Position - rootPart.Position).Magnitude
+                                if distance <= shortestDistance then
+                                    shortestDistance = distance
+                                    nearestEnemy = enemy
+                                    nearestEnemyPart = enemyPart
+                                end
+                            end
                         end
                         
-                        local enemyPart = enemy:IsA("BasePart") and enemy or enemy:FindFirstChildWhichIsA("BasePart") or (enemy:IsA("Model") and enemy.PrimaryPart)
-                        
-                        if enemyPart then
-                            local enemyPos = enemy:IsA("Model") and enemy:GetPivot().Position or enemyPart.Position
+                        if nearestEnemy and nearestEnemyPart then
+                            local enemyPos = nearestEnemy:IsA("Model") and nearestEnemy:GetPivot().Position or nearestEnemyPart.Position
                             local vecStr = string.format("~v%.4f,%.4f,%.4f", enemyPos.X, enemyPos.Y, enemyPos.Z)
                             
                             pcall(function()
-                                -- 1. Tipe Harpoon
                                 for _, wName in ipairs({"Harpoon", "Riptide"}) do
-                                    CheckAndAttackAsync(wName, function(t)
-                                        SafeRemoteFunction("ToolReplicator", "~s" .. wName, "~sHitEnemy", enemy)
-                                    end)
+                                    CheckAndAttackAsync(wName, function(t) SafeRemoteFunction("ToolReplicator", "~s" .. wName, "~sHitEnemy", nearestEnemy) end)
                                 end
+                                CheckAndAttackAsync("Magma Staff", function(t) SafeRemoteFunction("ToolReplicator", "~sMagma Staff", "~sFire", vecStr) end)
+                                CheckAndAttackAsync("Squid Laser", function(t) SafeRemoteFunction("ToolReplicator", "~sLaser", "~sShoot", vecStr) end)
                                 
-                                -- 2. Magma Staff
-                                CheckAndAttackAsync("Magma Staff", function(t)
-                                    SafeRemoteFunction("ToolReplicator", "~sMagma Staff", "~sFire", vecStr)
-                                end)
-
-                                -- 3. Laser
-                                CheckAndAttackAsync("Squid Laser", function(t)
-                                    SafeRemoteFunction("ToolReplicator", "~sLaser", "~sShoot", vecStr)
-                                end)
-
-                                -- 4. Tipe Senjata Api / Gun (Termasuk Grenade)
                                 local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick"}
                                 for _, gunName in ipairs(gunTypes) do
                                     CheckAndAttackAsync(gunName, function(t)
@@ -440,9 +444,44 @@ Win:AddToggle("Auto Attack Multi-Tool", false, function(state)
                                 end
                             end)
                         end
+                        
+                    elseif AttackMode == "Brutal All Target" then
+                        -- ==========================================
+                        -- MODE: BRUTAL ALL TARGET (BERPOTENSI LAG)
+                        -- ==========================================
+                        for _, enemy in ipairs(CreatureContainer:GetChildren()) do
+                            if enemy.Name == "Wraith" or enemy.Name == "Wraith_CLIENT" then continue end
+                            
+                            local enemyPart = enemy:IsA("BasePart") and enemy or enemy:FindFirstChildWhichIsA("BasePart") or (enemy:IsA("Model") and enemy.PrimaryPart)
+                            
+                            if enemyPart then
+                                local enemyPos = enemy:IsA("Model") and enemy:GetPivot().Position or enemyPart.Position
+                                local vecStr = string.format("~v%.4f,%.4f,%.4f", enemyPos.X, enemyPos.Y, enemyPos.Z)
+                                
+                                pcall(function()
+                                    for _, wName in ipairs({"Harpoon", "Riptide"}) do
+                                        CheckAndAttackAsync(wName, function(t) SafeRemoteFunction("ToolReplicator", "~s" .. wName, "~sHitEnemy", enemy) end)
+                                    end
+                                    CheckAndAttackAsync("Magma Staff", function(t) SafeRemoteFunction("ToolReplicator", "~sMagma Staff", "~sFire", vecStr) end)
+                                    CheckAndAttackAsync("Squid Laser", function(t) SafeRemoteFunction("ToolReplicator", "~sLaser", "~sShoot", vecStr) end)
+
+                                    local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick"}
+                                    for _, gunName in ipairs(gunTypes) do
+                                        CheckAndAttackAsync(gunName, function(t)
+                                            local firePart = t:FindFirstChild("Handle") or t:FindFirstChildWhichIsA("BasePart") or rootPart
+                                            if firePart then
+                                                local direction = (enemyPos - rootPart.Position).Unit
+                                                local gunFormatStr = string.format("~t{1=~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0}", enemyPos.X, enemyPos.Y, enemyPos.Z, direction.X, direction.Y, direction.Z)
+                                                SafeRemoteFunction("ToolReplicator", "~sGun", "~sShoot", firePart, gunFormatStr)
+                                            end
+                                        end)
+                                    end
+                                end)
+                            end
+                        end
                     end
                 end
-                task.wait() 
+                task.wait(0.04) 
             end
         end)
     end
@@ -464,7 +503,6 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                 local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso") or character:FindFirstChildWhichIsA("BasePart"))
                 
                 if DebrisField and rootPart then
-                    -- MELOOPING SEMUA ITEM SEKALIGUS (BRUTAL MODE)
                     for _, folderObj in ipairs(DebrisField:GetChildren()) do
                         local resType = folderObj:GetAttribute("Resource") or folderObj:GetAttribute("Item")
                         local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
@@ -493,7 +531,6 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                                     continue 
                                 end
                                 
-                                -- Eksekusi asinkron: Menembakkan harpoon ke semua target di saat yang sama
                                 task.spawn(function()
                                     pcall(function()
                                         local pos = part.Position
@@ -506,7 +543,7 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                     end
                 end
                 
-                task.wait(0.2) -- Jeda loop utama (200ms) agar server punya waktu memproses tarikan harpoon massal
+                task.wait(0.2) 
             end
         end)
     end
