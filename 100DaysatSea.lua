@@ -361,7 +361,7 @@ Win:AddToggle("Auto Collect", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 5]: BRUTAL AUTO ATTACK (KEMBALI SEPERTI SEMULA)
+-- [FITUR 5]: BRUTAL AUTO ATTACK (MULTI-TARGET & NO DELAY)
 -- ====================================================================
 Win:AddToggle("Auto Attack Multi-Tool", false, function(state)
     AutoAttackEnabled = state
@@ -378,77 +378,69 @@ Win:AddToggle("Auto Attack Multi-Tool", false, function(state)
                 local backpack = LocalPlayer:FindFirstChild("Backpack")
                 
                 if CreatureContainer and rootPart and humanoid then
-                    local nearestEnemy = nil
-                    local targetPart = nil 
-                    local shortestDistance = math.huge
                     
-                    for _, enemy in ipairs(CreatureContainer:GetChildren()) do
-                        if enemy.Name ~= "Seagull" then
-                            local enemyPart = enemy:IsA("BasePart") and enemy or enemy:FindFirstChildWhichIsA("BasePart") or (enemy:IsA("Model") and enemy.PrimaryPart)
-                            
-                            if enemyPart then
-                                local distance = (enemyPart.Position - rootPart.Position).Magnitude
-                                if distance < shortestDistance then
-                                    shortestDistance = distance
-                                    nearestEnemy = enemy
-                                    targetPart = enemyPart
-                                end
+                    -- Fungsi Serang Async (Eksekusi remote tanpa menunggu server merespon agar tidak macet)
+                    local function CheckAndAttackAsync(toolName, attackLogic)
+                        if not TargetWeapons[toolName] then return end 
+                        local tool = character:FindFirstChild(toolName)
+                        if not tool and backpack then
+                            tool = backpack:FindFirstChild(toolName)
+                            if tool then
+                                humanoid:EquipTool(tool)
+                                -- Tidak ada task.wait() disini, ganti senjata dalam 0 detik.
                             end
+                        end
+                        if tool then 
+                            task.spawn(function()
+                                pcall(attackLogic, tool)
+                            end)
                         end
                     end
-                    
-                    if nearestEnemy and targetPart then
-                        local enemyPos = nearestEnemy:IsA("Model") and nearestEnemy:GetPivot().Position or targetPart.Position
-                        local vecStr = string.format("~v%.4f,%.4f,%.4f", enemyPos.X, enemyPos.Y, enemyPos.Z)
+
+                    -- MELOOPING SEMUA MUSUH SEKALIGUS (Termasuk Seagull)
+                    for _, enemy in ipairs(CreatureContainer:GetChildren()) do
+                        local enemyPart = enemy:IsA("BasePart") and enemy or enemy:FindFirstChildWhichIsA("BasePart") or (enemy:IsA("Model") and enemy.PrimaryPart)
                         
-                        local function CheckAndAttack(toolName, attackLogic)
-                            if not TargetWeapons[toolName] then return end 
-                            local tool = character:FindFirstChild(toolName)
-                            if not tool and backpack then
-                                tool = backpack:FindFirstChild(toolName)
-                                if tool then
-                                    humanoid:EquipTool(tool)
-                                    task.wait() 
-                                end
-                            end
-                            if tool then attackLogic(tool) end
-                        end
-
-                        pcall(function()
-                            -- 1. Tipe Harpoon
-                            local harpoonTypes = {"Harpoon", "Riptide"}
-                            for _, wName in ipairs(harpoonTypes) do
-                                CheckAndAttack(wName, function(t)
-                                    SafeRemoteFunction("ToolReplicator", "~s" .. wName, "~sHitEnemy", nearestEnemy)
-                                end)
-                            end
+                        if enemyPart then
+                            local enemyPos = enemy:IsA("Model") and enemy:GetPivot().Position or enemyPart.Position
+                            local vecStr = string.format("~v%.4f,%.4f,%.4f", enemyPos.X, enemyPos.Y, enemyPos.Z)
                             
-                            -- 2. Magma Staff
-                            CheckAndAttack("Magma Staff", function(t)
-                                SafeRemoteFunction("ToolReplicator", "~sMagma Staff", "~sFire", vecStr)
-                            end)
-
-                            -- 3. Laser
-                            CheckAndAttack("Laser", function(t)
-                                SafeRemoteFunction("ToolReplicator", "~sLaser", "~sShoot", vecStr)
-                            end)
-
-                            -- 4. Tipe Senjata Api / Gun (Tanpa Batas Jarak)
-                            local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick"}
-                            for _, gunName in ipairs(gunTypes) do
-                                CheckAndAttack(gunName, function(t)
-                                    local handle = t:FindFirstChild("Handle")
-                                    if handle then
-                                        local direction = (enemyPos - rootPart.Position).Unit
-                                        local gunFormatStr = string.format("~t{1=~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0}", enemyPos.X, enemyPos.Y, enemyPos.Z, direction.X, direction.Y, direction.Z)
-                                        SafeRemoteFunction("ToolReplicator", "~sGun", "~sShoot", handle, gunFormatStr)
-                                    end
+                            -- Serang target ini dengan semua senjata yang diaktifkan secara SPAM
+                            pcall(function()
+                                -- 1. Tipe Harpoon
+                                for _, wName in ipairs({"Harpoon", "Riptide"}) do
+                                    CheckAndAttackAsync(wName, function(t)
+                                        SafeRemoteFunction("ToolReplicator", "~s" .. wName, "~sHitEnemy", enemy)
+                                    end)
+                                end
+                                
+                                -- 2. Magma Staff
+                                CheckAndAttackAsync("Magma Staff", function(t)
+                                    SafeRemoteFunction("ToolReplicator", "~sMagma Staff", "~sFire", vecStr)
                                 end)
-                            end
-                        end)
+
+                                -- 3. Laser
+                                CheckAndAttackAsync("Laser", function(t)
+                                    SafeRemoteFunction("ToolReplicator", "~sLaser", "~sShoot", vecStr)
+                                end)
+
+                                -- 4. Tipe Senjata Api / Gun
+                                local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick"}
+                                for _, gunName in ipairs(gunTypes) do
+                                    CheckAndAttackAsync(gunName, function(t)
+                                        local handle = t:FindFirstChild("Handle")
+                                        if handle then
+                                            local direction = (enemyPos - rootPart.Position).Unit
+                                            local gunFormatStr = string.format("~t{1=~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0}", enemyPos.X, enemyPos.Y, enemyPos.Z, direction.X, direction.Y, direction.Z)
+                                            SafeRemoteFunction("ToolReplicator", "~sGun", "~sShoot", handle, gunFormatStr)
+                                        end
+                                    end)
+                                end
+                            end)
+                        end
                     end
                 end
-                task.wait() 
+                task.wait() -- Loop utama tanpa delay parah, langsung eksekusi massal berikutnya.
             end
         end)
     end
