@@ -612,7 +612,10 @@ Win:AddToggle("Auto Fishing", false, function(state)
                     local vecStr = string.format("~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0", 
                         pos.X, pos.Y + 1, pos.Z, dir.X, dir.Y, dir.Z)
                     
-                    -- Eksekusi instan
+                    -- Eksekusi Cast menggunakan SafeRemoteFunction agar seragam dan aman
+                    SafeRemoteFunction("ToolReplicator", "~sFishing Rod", "~sCast")
+                    
+                    -- Eksekusi instan Poof
                     SafeRemoteFunction("ToolReplicator", "~sFishing Rod", "~sFishPoof", vecStr)
                 end
                 
