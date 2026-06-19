@@ -1,17 +1,6 @@
 -- Memuat Library RZY
 local RZY_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
-local Win = RZY_Library:MakeWindow("100 Days at Sea - V6.2 FIX")
-
--- [BARU]: Variabel & UI Input untuk Jarak Tembak Gun
-local MaxGunDistance = 0 
-Win:AddInput("Jarak Tembak Gun", "Kosong/0 = Asli", function(value)
-    local num = tonumber(value)
-    if num and num > 0 then
-        MaxGunDistance = num
-    else
-        MaxGunDistance = 0 -- Kembali ke default jika kosong atau huruf
-    end
-end)
+local Win = RZY_Library:MakeWindow("100 Days at Sea - V6.3 FIX")
 
 -- Tabel Penyimpanan Status Dropdown
 local TargetMaterials = {
@@ -51,7 +40,6 @@ local AutoDoubloonEnabled = false
 local AutoAttackEnabled = false 
 local AutoPickEnabled = false
 
--- Variabel pengikat Toggle agar bisa dimatikan dari luar
 local GrinderToggle = nil
 local CampfireToggle = nil
 
@@ -156,7 +144,7 @@ GrinderToggle = Win:AddToggle("Mulai Auto Grinder", false, function(state)
                     for _, folderObj in ipairs(DebrisField:GetChildren()) do
                         if not AutoGrinderEnabled then break end
                         
-                        -- [DIPERBARUI]: Cek atribut Resource ATAU Item
+                        -- Cek atribut Resource ATAU Item (Fix untuk Gas Can)
                         local resType = folderObj:GetAttribute("Resource") or folderObj:GetAttribute("Item")
                         local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
                         if not resType and part then
@@ -226,7 +214,7 @@ CampfireToggle = Win:AddToggle("Auto Campfire", false, function(state)
                         for _, folderObj in ipairs(DebrisField:GetChildren()) do
                             if not AutoCampfireEnabled then break end
                             
-                            -- [DIPERBARUI]: Cek atribut Resource ATAU Item
+                            -- Cek atribut Resource ATAU Item (Fix untuk Gas Can)
                             local resType = folderObj:GetAttribute("Resource") or folderObj:GetAttribute("Item")
                             local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
                             if not resType and part then
@@ -321,7 +309,7 @@ Win:AddToggle("Auto Eat", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 4]: AUTO COLLECT (CHEST & AMMO) + PENGECEKAN RIFLE
+-- [FITUR 4]: AUTO COLLECT (CHEST & AMMO)
 -- ====================================================================
 Win:AddToggle("Auto Collect", false, function(state)
     AutoDoubloonEnabled = state
@@ -373,7 +361,7 @@ Win:AddToggle("Auto Collect", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 5]: BRUTAL AUTO ATTACK (MULTI-TOOL, AUTO EQUIP & JARAK)
+-- [FITUR 5]: BRUTAL AUTO ATTACK (KEMBALI SEPERTI SEMULA)
 -- ====================================================================
 Win:AddToggle("Auto Attack Multi-Tool", false, function(state)
     AutoAttackEnabled = state
@@ -391,7 +379,7 @@ Win:AddToggle("Auto Attack Multi-Tool", false, function(state)
                 
                 if CreatureContainer and rootPart and humanoid then
                     local nearestEnemy = nil
-                    local targetPart = nil -- [DIPERBAIKI]: Menyediakan wadah kosong agar tidak error
+                    local targetPart = nil 
                     local shortestDistance = math.huge
                     
                     for _, enemy in ipairs(CreatureContainer:GetChildren()) do
@@ -441,21 +429,19 @@ Win:AddToggle("Auto Attack Multi-Tool", false, function(state)
                             end)
 
                             -- 3. Laser
-                            CheckAndAttack("Squid Laser", function(t)
+                            CheckAndAttack("Laser", function(t)
                                 SafeRemoteFunction("ToolReplicator", "~sLaser", "~sShoot", vecStr)
                             end)
 
-                            -- 4. Tipe Senjata Api / Gun
+                            -- 4. Tipe Senjata Api / Gun (Tanpa Batas Jarak)
                             local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick"}
                             for _, gunName in ipairs(gunTypes) do
                                 CheckAndAttack(gunName, function(t)
-                                    if MaxGunDistance == 0 or shortestDistance <= MaxGunDistance then
-                                        local handle = t:FindFirstChild("Handle")
-                                        if handle then
-                                            local direction = (enemyPos - rootPart.Position).Unit
-                                            local gunFormatStr = string.format("~t{1=~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0}", enemyPos.X, enemyPos.Y, enemyPos.Z, direction.X, direction.Y, direction.Z)
-                                            SafeRemoteFunction("ToolReplicator", "~sGun", "~sShoot", handle, gunFormatStr)
-                                        end
+                                    local handle = t:FindFirstChild("Handle")
+                                    if handle then
+                                        local direction = (enemyPos - rootPart.Position).Unit
+                                        local gunFormatStr = string.format("~t{1=~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0}", enemyPos.X, enemyPos.Y, enemyPos.Z, direction.X, direction.Y, direction.Z)
+                                        SafeRemoteFunction("ToolReplicator", "~sGun", "~sShoot", handle, gunFormatStr)
                                     end
                                 end)
                             end
@@ -489,7 +475,7 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                     local shortestDistance = math.huge
                     
                     for _, folderObj in ipairs(DebrisField:GetChildren()) do
-                        -- [DIPERBARUI]: Mengecek Resource ATAU Item
+                        -- Mengecek Resource ATAU Item
                         local resType = folderObj:GetAttribute("Resource") or folderObj:GetAttribute("Item")
                         local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
                         if not resType and part then
@@ -512,7 +498,7 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                             if not isExcluded then
                                 local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
                                 
-                                -- [DIPERBAIKI]: Jika barang sudah ditarik/dipegang siapapun (termasuk Anda), JANGAN tembak lagi!
+                                -- FIX: Mengabaikan barang yang sudah ditarik/dipegang agar harpoon tidak stuck
                                 if isGrabbed then
                                     continue 
                                 end
