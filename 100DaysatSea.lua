@@ -47,31 +47,21 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
 -- ====================================================================
--- [SISTEM INTI]: DYNAMIC REMOTE FINDER & TOKEN INTERCEPTOR
+-- [SISTEM INTI]: DYNAMIC REMOTE FINDER & TOKEN INTERCEPTOR (FIXED)
 -- ====================================================================
 local CurrentSyncToken = nil
 local GameRemoteEvent = nil
 local GameRemoteFunction = nil
+local SystemReady = false
 
-local function FindHiddenRemotes()
-    local hiddenServices = {
-        "Chat", "LocalizationService", "SocialService", 
-        "TestService", "SoundService", "Lighting", "Stats", "JointsService"
-    }
-    for _, sName in ipairs(hiddenServices) do
-        pcall(function()
-            local service = game:GetService(sName)
-            if service then
-                local re = service:FindFirstChild("RemoteEvent")
-                local rf = service:FindFirstChild("RemoteFunction")
-                if re then GameRemoteEvent = re end
-                if rf then GameRemoteFunction = rf end
-            end
-        end)
-    end
-end
-
-FindHiddenRemotes()
+-- Menggunakan StarterGui bawaan Roblox untuk memberikan notifikasi instruksi
+pcall(function()
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "RZY HUB INFO",
+        Text = "Silakan lakukan 1x aksi manual di game (pukul/gunakan tool) untuk mengaktifkan skrip!",
+        Duration = 7
+    })
+end)
 
 pcall(function()
     if hookmetamethod then
@@ -87,12 +77,23 @@ pcall(function()
                             if self:IsA("RemoteEvent") then GameRemoteEvent = self end
                             if self:IsA("RemoteFunction") then GameRemoteFunction = self end
                             
+                            -- Interseptor Token Asli Game
+                            if not SystemReady then
+                                CurrentSyncToken = args[1]
+                                SystemReady = true
+                                pcall(function()
+                                    game:GetService("StarterGui"):SetCore("SendNotification", {
+                                        Title = "RZY HUB READY",
+                                        Text = "Token & Remote berhasil diverifikasi! Fitur siap digunakan.",
+                                        Duration = 4
+                                    })
+                                end)
+                            end
+
                             if CurrentSyncToken then
                                 CurrentSyncToken = CurrentSyncToken + 1
                                 args[1] = CurrentSyncToken
                                 return oldNamecall(self, unpack(args))
-                            else
-                                CurrentSyncToken = args[1]
                             end
                         end
                     end
@@ -104,27 +105,26 @@ pcall(function()
 end)
 
 local function GetNextToken()
-    if not CurrentSyncToken then CurrentSyncToken = math.random(100000, 999999) end
+    if not SystemReady or not CurrentSyncToken then 
+        return nil -- Mencegah pengiriman data jika token belum sinkron dengan game asli
+    end
     CurrentSyncToken = CurrentSyncToken + 1
     return CurrentSyncToken
 end
 
 local function SafeRemoteEvent(actionName, ...)
-    if GameRemoteEvent then
-        GameRemoteEvent:FireServer(GetNextToken(), actionName, ...)
-    else
-        FindHiddenRemotes()
-        if GameRemoteEvent then GameRemoteEvent:FireServer(GetNextToken(), actionName, ...) end
+    local token = GetNextToken()
+    if token and GameRemoteEvent then
+        GameRemoteEvent:FireServer(token, actionName, ...)
     end
 end
 
 local function SafeRemoteFunction(actionName, ...)
-    if GameRemoteFunction then
-        return GameRemoteFunction:InvokeServer(GetNextToken(), actionName, ...)
-    else
-        FindHiddenRemotes()
-        if GameRemoteFunction then return GameRemoteFunction:InvokeServer(GetNextToken(), actionName, ...) end
+    local token = GetNextToken()
+    if token and GameRemoteFunction then
+        return GameRemoteFunction:InvokeServer(token, actionName, ...)
     end
+    return nil
 end
 
 -- ====================================================================
