@@ -488,7 +488,7 @@ Win:AddToggle("Mulai Auto Attack", false, function(state)
                         end
                     end
                 end
-                task.wait(0.04) 
+                task.wait(0.1) 
             end
         end)
     end
