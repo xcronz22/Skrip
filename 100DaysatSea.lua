@@ -1,6 +1,6 @@
 -- Memuat Library RZY
 local RZY_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
-local Win = RZY_Library:MakeWindow("100 Days at Sea - V6.1")
+local Win = RZY_Library:MakeWindow("100 Days at Sea - V6")
 
 -- Tabel Penyimpanan Status Dropdown
 local TargetMaterials = {
@@ -35,6 +35,8 @@ end)
 
 -- [BARU]: Variabel & UI Input untuk Jarak Tembak Gun
 local MaxGunDistance = 0 
+
+-- Kita gunakan AddInput bawaan library Anda!
 Win:AddInput("Jarak Tembak Gun", "0 = Asli", function(value)
     local num = tonumber(value)
     if num and num > 0 then
@@ -143,7 +145,7 @@ local function SafeRemoteFunction(actionName, ...)
 end
 
 -- ====================================================================
--- [FITUR 1]: AUTO GRINDER
+-- [FITUR 1]: AUTO GRINDER (PERFECT COMBINATION: GRABBED & LAST HOLDER)
 -- ====================================================================
 Win:AddToggle("Mulai Auto Grinder", false, function(state)
     AutoGrinderEnabled = state
@@ -167,6 +169,7 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
                         end
                         
                         if resType and TargetMaterials[resType] and part then
+                            -- Abaikan jika itu Armor, Chest, atau Leg
                             local isExcluded = false
                             for attrName, attrValue in pairs(folderObj:GetAttributes()) do
                                 local lowerName = string.lower(attrName)
@@ -206,11 +209,12 @@ Win:AddToggle("Mulai Auto Grinder", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 2]: AUTO CAMPFIRE
+-- [FITUR 2]: AUTO CAMPFIRE (IDENTIK DENGAN GRINDER)
 -- ====================================================================
 CampfireToggle = Win:AddToggle("Auto Campfire", false, function(state)
     AutoCampfireEnabled = state
     
+    -- [SISTEM PINTAR]: Matikan Auto Grinder jika Auto Campfire menyala
     if state and GrinderToggle then
         AutoGrinderEnabled = false
         GrinderToggle:Set(false)
@@ -237,6 +241,7 @@ CampfireToggle = Win:AddToggle("Auto Campfire", false, function(state)
                                 resType = part:GetAttribute("Resource")
                             end
                             
+                            -- Filter Material Khusus Campfire
                             local validFuels = {
                                 ["Wood"] = true, 
                                 ["Small Gas Can"] = true, 
@@ -245,6 +250,7 @@ CampfireToggle = Win:AddToggle("Auto Campfire", false, function(state)
                             }
                             
                             if resType and TargetMaterials[resType] and validFuels[resType] and part then
+                                -- Abaikan jika itu Armor, Chest, atau Leg
                                 local isExcluded = false
                                 for attrName, attrValue in pairs(folderObj:GetAttributes()) do
                                     local lowerName = string.lower(attrName)
@@ -270,6 +276,7 @@ CampfireToggle = Win:AddToggle("Auto Campfire", false, function(state)
                                     local isMyPastItem = (lastHolder == myName)
                                     
                                     if isCurrentlyMyGrab or isMyPastItem then
+                                        -- Eksekusi langsung ke tungku, dinaikkan 3 stud ke atas sumbu Y
                                         part.CFrame = dropperPart.CFrame + Vector3.new(0, 3, 0)
                                         part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                                     end
@@ -278,7 +285,7 @@ CampfireToggle = Win:AddToggle("Auto Campfire", false, function(state)
                         end
                     end
                 end
-                task.wait(0.05) 
+                task.wait(0.05) -- Kecepatan disamakan dengan Grinder
             end
         end)
     end
@@ -339,6 +346,7 @@ Win:AddToggle("Auto Collect", false, function(state)
                 local character = LocalPlayer.Character
                 local backpack = LocalPlayer:FindFirstChild("Backpack")
                 
+                -- Pengecekan ketersediaan Rifle di Tas / Tangan
                 local hasRifle = (character and character:FindFirstChild("Rifle")) or (backpack and backpack:FindFirstChild("Rifle"))
                 
                 if DebrisField then
@@ -367,6 +375,7 @@ Win:AddToggle("Auto Collect", false, function(state)
                             end
                         end
                         
+                        -- Logika Pintar: Ambil Chest selalu. Ambil Ammo HANYA JIKA punya Rifle.
                         if isChest or (isAmmo and hasRifle) then
                             local itemId = folderObj.Name 
                             SafeRemoteEvent("Collect", "~s" .. itemId)
@@ -381,7 +390,7 @@ Win:AddToggle("Auto Collect", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 5]: BRUTAL AUTO ATTACK (MULTI-TOOL, AUTO EQUIP & JARAK FLEKSIBEL)
+-- [FITUR 5]: BRUTAL AUTO ATTACK (MULTI-TOOL, AUTO EQUIP & JARAK)
 -- ====================================================================
 Win:AddToggle("Auto Attack Multi-Tool", false, function(state)
     AutoAttackEnabled = state
@@ -410,13 +419,14 @@ Win:AddToggle("Auto Attack Multi-Tool", false, function(state)
                                 if distance < shortestDistance then
                                     shortestDistance = distance
                                     nearestEnemy = enemy
+                                    targetPart = enemyPart
                                 end
                             end
                         end
                     end
                     
-                    if nearestEnemy then
-                        local enemyPos = nearestEnemy:IsA("Model") and nearestEnemy:GetPivot().Position or nearestEnemy.Position
+                    if nearestEnemy and targetPart then
+                        local enemyPos = nearestEnemy:IsA("Model") and nearestEnemy:GetPivot().Position or targetPart.Position
                         local vecStr = string.format("~v%.4f,%.4f,%.4f", enemyPos.X, enemyPos.Y, enemyPos.Z)
                         
                         local function CheckAndAttack(toolName, attackLogic)
@@ -455,11 +465,11 @@ Win:AddToggle("Auto Attack Multi-Tool", false, function(state)
                                 SafeRemoteFunction("ToolReplicator", "~sLaser", "~sShoot", vecStr)
                             end)
 
-                            -- 4. Tipe Senjata Api / Gun (DENGAN PENGECEKAN JARAK FLEKSIBEL)
+                            -- 4. Tipe Senjata Api / Gun (MENGGUNAKAN VARIABEL MANUAL)
                             local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick"}
                             for _, gunName in ipairs(gunTypes) do
                                 CheckAndAttack(gunName, function(t)
-                                    -- [BARU]: Eksekusi tembakan Gun HANYA jika masuk dalam jarak yang diatur, atau tidak ada batas (0)
+                                    -- Pengecekan dari variabel MaxGunDistance di atas
                                     if MaxGunDistance == 0 or shortestDistance <= MaxGunDistance then
                                         local handle = t:FindFirstChild("Handle")
                                         if handle then
@@ -481,7 +491,7 @@ Win:AddToggle("Auto Attack Multi-Tool", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 6]: AUTO PICK MATERIAL (HARPOON SYSTEM)
+-- [FITUR 6]: AUTO PICK MATERIAL (HARPOON SYSTEM - TARGET TERDEKAT)
 -- ====================================================================
 Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
     AutoPickEnabled = state
@@ -508,7 +518,10 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                             resType = part:GetAttribute("Resource")
                         end
                         
+                        -- Cek material yang dipilih di MultiDropdown
                         if resType and TargetMaterials[resType] and part then
+                            
+                            -- Pengecualian Armor, Chest, dan Leg
                             local isExcluded = false
                             for attrName, attrValue in pairs(folderObj:GetAttributes()) do
                                 local lowerName = string.lower(attrName)
@@ -523,6 +536,7 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                             end
                             
                             if not isExcluded then
+                                -- Mengecek apakah item sedang dipegang oleh player lain
                                 local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
                                 local grabber = folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber")
                                 
@@ -533,6 +547,7 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                                     continue
                                 end
                                 
+                                -- Mencari yang terdekat
                                 local distance = (part.Position - rootPart.Position).Magnitude
                                 if distance < shortestDistance then
                                     shortestDistance = distance
@@ -543,14 +558,16 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                         end
                     end
                     
+                    -- Jika menemukan item target terdekat, tembak dengan harpoon
                     if nearestItem and targetPart then
                         pcall(function()
+                            -- Konversi titik posisi ke string format Game (contoh: ~v22.6462,-26.8099,15.0381)
                             local pos = targetPart.Position
                             local vecStr = string.format("~v%.4f,%.4f,%.4f", pos.X, pos.Y, pos.Z)
                             
                             SafeRemoteFunction("ToolReplicator", "~sHarpoon", "~sGrab", nearestItem, vecStr)
                         end)
-                        task.wait(0.2) 
+                        task.wait(0.2) -- Jeda biar harpoon tidak error karena spam berlebih
                     end
                 end
                 
