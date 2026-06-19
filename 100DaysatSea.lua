@@ -126,16 +126,10 @@ local function SafeRemoteFunction(actionName, ...)
 end
 
 -- ====================================================================
--- [FITUR 1]: AUTO GRINDER (STRICT HISTORY & TOGGLE MUTEX)
+-- [FITUR 1]: AUTO GRINDER (PERFECT COMBINATION: GRABBED & LAST HOLDER)
 -- ====================================================================
-GrinderToggle = Win:AddToggle("Auto Grinder", false, function(state)
+Win:AddToggle("Mulai Auto Grinder", false, function(state)
     AutoGrinderEnabled = state
-    
-    -- [SISTEM PINTAR]: Matikan Auto Campfire jika Auto Grinder menyala
-    if state and CampfireToggle then
-        AutoCampfireEnabled = false
-        CampfireToggle:Set(false)
-    end
     
     if AutoGrinderEnabled then
         task.spawn(function()
@@ -151,15 +145,20 @@ GrinderToggle = Win:AddToggle("Auto Grinder", false, function(state)
                         local resType = folderObj:GetAttribute("Resource")
                         local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
                         
-                        if not resType and part then resType = part:GetAttribute("Resource") end
+                        if not resType and part then
+                            resType = part:GetAttribute("Resource")
+                        end
                         
-                        -- Cek material di Dropdown
                         if resType and TargetMaterials[resType] and part then
+                            -- Abaikan jika itu Armor, Chest, atau Leg
                             local isExcluded = false
                             for attrName, attrValue in pairs(folderObj:GetAttributes()) do
                                 local lowerName = string.lower(attrName)
                                 local lowerValue = type(attrValue) == "string" and string.lower(attrValue) or ""
-                                if string.find(lowerName, "armor") or string.find(lowerValue, "armor") or string.find(lowerName, "chest") or string.find(lowerValue, "chest") or string.find(lowerName, "leg") or string.find(lowerValue, "leg") then
+                                
+                                if string.find(lowerName, "armor") or string.find(lowerValue, "armor") or
+                                   string.find(lowerName, "chest") or string.find(lowerValue, "chest") or
+                                   string.find(lowerName, "leg") or string.find(lowerValue, "leg") then
                                     isExcluded = true
                                     break
                                 end
@@ -173,11 +172,10 @@ GrinderToggle = Win:AddToggle("Auto Grinder", false, function(state)
                                 local myId = tostring(LocalPlayer.UserId)
                                 local myName = LocalPlayer.Name
                                 
-                                -- FILTER KETAT: Wajib Grabber = Saya DAN LastHolder = Saya (Abaikan Grabbed true/false)
-                                local isMyGrabber = (tostring(grabber) == myId or grabber == myName)
-                                local isMyLastHolder = (lastHolder == myName)
+                                local isCurrentlyMyGrab = (isGrabbed == true and (tostring(grabber) == myId or grabber == myName))
+                                local isMyPastItem = (lastHolder == myName)
                                 
-                                if isMyGrabber and isMyLastHolder then
+                                if isCurrentlyMyGrab or isMyPastItem then
                                     part.CFrame = GrinderCol.CFrame
                                     part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                                 end
@@ -192,7 +190,7 @@ GrinderToggle = Win:AddToggle("Auto Grinder", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 2]: AUTO CAMPFIRE (STRICT HISTORY, GAS CANS & TOGGLE MUTEX)
+-- [FITUR 2]: AUTO CAMPFIRE (IDENTIK DENGAN GRINDER)
 -- ====================================================================
 CampfireToggle = Win:AddToggle("Auto Campfire", false, function(state)
     AutoCampfireEnabled = state
@@ -212,15 +210,19 @@ CampfireToggle = Win:AddToggle("Auto Campfire", false, function(state)
 
                 if DebrisField and Dropper then
                     local dropperPart = Dropper:IsA("BasePart") and Dropper or Dropper:FindFirstChildWithClass("BasePart") or (Dropper:IsA("Model") and Dropper.PrimaryPart)
+                    
                     if dropperPart then
-                        local itemsToProcess = {}
-                        
                         for _, folderObj in ipairs(DebrisField:GetChildren()) do
+                            if not AutoCampfireEnabled then break end
+                            
                             local resType = folderObj:GetAttribute("Resource")
                             local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
-                            if not resType and part then resType = part:GetAttribute("Resource") end
                             
-                            -- Daftar material yang BISA DITERIMA oleh Campfire
+                            if not resType and part then
+                                resType = part:GetAttribute("Resource")
+                            end
+                            
+                            -- Filter Material Khusus Campfire
                             local validFuels = {
                                 ["Wood"] = true, 
                                 ["Small Gas Can"] = true, 
@@ -228,70 +230,43 @@ CampfireToggle = Win:AddToggle("Auto Campfire", false, function(state)
                                 ["Gas Drum"] = true
                             }
                             
-                            -- Baca list Dropdown (TargetMaterials) DAN pastikan itu adalah validFuels
                             if resType and TargetMaterials[resType] and validFuels[resType] and part then
-                                
-                                local isArmor = false
+                                -- Abaikan jika itu Armor, Chest, atau Leg
+                                local isExcluded = false
                                 for attrName, attrValue in pairs(folderObj:GetAttributes()) do
-                                    if string.find(string.lower(attrName), "armor") or (type(attrValue) == "string" and string.find(string.lower(attrValue), "armor")) then
-                                        isArmor = true; break
+                                    local lowerName = string.lower(attrName)
+                                    local lowerValue = type(attrValue) == "string" and string.lower(attrValue) or ""
+                                    
+                                    if string.find(lowerName, "armor") or string.find(lowerValue, "armor") or
+                                       string.find(lowerName, "chest") or string.find(lowerValue, "chest") or
+                                       string.find(lowerName, "leg") or string.find(lowerValue, "leg") then
+                                        isExcluded = true
+                                        break
                                     end
                                 end
-                                if isArmor then continue end
-
-                                local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
-                                local grabber = folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber")
-                                local lastHolder = folderObj:GetAttribute("LastHolder") or part:GetAttribute("LastHolder")
                                 
-                                local myId = tostring(LocalPlayer.UserId)
-                                local myName = LocalPlayer.Name
-                                
-                                -- FILTER KETAT (Sama seperti Grinder)
-                                local isMyGrabber = (tostring(grabber) == myId or grabber == myName)
-                                local isMyLastHolder = (lastHolder == myName)
-                                
-                                if not (isMyGrabber and isMyLastHolder) then continue end
-                                
-                                local distance = (part.Position - dropperPart.Position).Magnitude
-                                if distance > 3 then
-                                    table.insert(itemsToProcess, { Object = folderObj, Part = part, Distance = distance })
+                                if not isExcluded then
+                                    local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
+                                    local grabber = folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber")
+                                    local lastHolder = folderObj:GetAttribute("LastHolder") or part:GetAttribute("LastHolder")
+                                    
+                                    local myId = tostring(LocalPlayer.UserId)
+                                    local myName = LocalPlayer.Name
+                                    
+                                    local isCurrentlyMyGrab = (isGrabbed == true and (tostring(grabber) == myId or grabber == myName))
+                                    local isMyPastItem = (lastHolder == myName)
+                                    
+                                    if isCurrentlyMyGrab or isMyPastItem then
+                                        -- Eksekusi langsung ke tungku, dinaikkan 3 stud ke atas sumbu Y
+                                        part.CFrame = dropperPart.CFrame + Vector3.new(0, 3, 0)
+                                        part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                                    end
                                 end
                             end
-                        end
-                        
-                        table.sort(itemsToProcess, function(a, b) return a.Distance < b.Distance end)
-
-                        for _, data in ipairs(itemsToProcess) do
-                            if not AutoCampfireEnabled then break end 
-                            local obj = data.Object
-                            local part = data.Part
-                            
-                            obj:SetAttribute("Grabbed", false) 
-                            obj:SetAttribute("LastHolder", LocalPlayer.Name)
-
-                            if part:IsA("BasePart") then
-                                part.CFrame = dropperPart.CFrame
-                                part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                            elseif obj:IsA("Model") then
-                                obj:PivotTo(dropperPart.CFrame)
-                                for _, p in ipairs(obj:GetDescendants()) do
-                                    if p:IsA("BasePart") then p.AssemblyLinearVelocity = Vector3.new(0, 0, 0) end
-                                end
-                            end
-                            
-                            if firetouchinterest then
-                                local touchPart = part or obj.PrimaryPart
-                                if touchPart then
-                                    firetouchinterest(dropperPart, touchPart, 0) 
-                                    task.wait()
-                                    firetouchinterest(dropperPart, touchPart, 1) 
-                                end
-                            end
-                            task.wait(0.1)
                         end
                     end
                 end
-                task.wait(0.1) 
+                task.wait(0.05) -- Kecepatan disamakan dengan Grinder
             end
         end)
     end
