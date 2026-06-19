@@ -490,7 +490,7 @@ Win:AddToggle("Auto Attack Multi-Tool", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 6]: AUTO PICK MATERIAL (HARPOON SYSTEM) - NO AUTO EQUIP
+-- [FITUR 6]: AUTO PICK MATERIAL (HARPOON SYSTEM - TARGET TERDEKAT)
 -- ====================================================================
 Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
     AutoPickEnabled = state
@@ -512,26 +512,41 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                     for _, folderObj in ipairs(DebrisField:GetChildren()) do
                         local resType = folderObj:GetAttribute("Resource")
                         local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
-                        if not resType and part then resType = part:GetAttribute("Resource") end
                         
+                        if not resType and part then
+                            resType = part:GetAttribute("Resource")
+                        end
+                        
+                        -- Cek material yang dipilih di MultiDropdown
                         if resType and TargetMaterials[resType] and part then
+                            
+                            -- Pengecualian Armor, Chest, dan Leg
                             local isExcluded = false
                             for attrName, attrValue in pairs(folderObj:GetAttributes()) do
                                 local lowerName = string.lower(attrName)
                                 local lowerValue = type(attrValue) == "string" and string.lower(attrValue) or ""
-                                if string.find(lowerName, "armor") or string.find(lowerValue, "armor") or string.find(lowerName, "chest") or string.find(lowerValue, "chest") or string.find(lowerName, "leg") or string.find(lowerValue, "leg") then
-                                    isExcluded = true; break
+                                
+                                if string.find(lowerName, "armor") or string.find(lowerValue, "armor") or
+                                   string.find(lowerName, "chest") or string.find(lowerValue, "chest") or
+                                   string.find(lowerName, "leg") or string.find(lowerValue, "leg") then
+                                    isExcluded = true
+                                    break
                                 end
                             end
                             
                             if not isExcluded then
+                                -- Mengecek apakah item sedang dipegang oleh player lain
                                 local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
                                 local grabber = folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber")
+                                
                                 local myId = tostring(LocalPlayer.UserId)
                                 local myName = LocalPlayer.Name
                                 
-                                if isGrabbed and (tostring(grabber) ~= myId and grabber ~= myName) then continue end
+                                if isGrabbed and (tostring(grabber) ~= myId and grabber ~= myName) then
+                                    continue
+                                end
                                 
+                                -- Mencari yang terdekat
                                 local distance = (part.Position - rootPart.Position).Magnitude
                                 if distance < shortestDistance then
                                     shortestDistance = distance
@@ -542,17 +557,19 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                         end
                     end
                     
+                    -- Jika menemukan item target terdekat, tembak dengan harpoon
                     if nearestItem and targetPart then
                         pcall(function()
+                            -- Konversi titik posisi ke string format Game (contoh: ~v22.6462,-26.8099,15.0381)
                             local pos = targetPart.Position
                             local vecStr = string.format("~v%.4f,%.4f,%.4f", pos.X, pos.Y, pos.Z)
                             
-                            -- Dieksekusi langsung tanpa memaksa auto-equip, sangat nyaman untuk multi-tasking
                             SafeRemoteFunction("ToolReplicator", "~sHarpoon", "~sGrab", nearestItem, vecStr)
                         end)
-                        task.wait(0.2) 
+                        task.wait(0.2) -- Jeda biar harpoon tidak error karena spam berlebih
                     end
                 end
+                
                 task.wait(0.1) 
             end
         end)
