@@ -449,7 +449,7 @@ Win:AddToggle("Auto Attack Multi-Tool", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 6]: AUTO PICK MATERIAL (HARPOON SYSTEM)
+-- [FITUR 6]: BRUTAL AUTO PICK MATERIAL (HARPOON MASS GRAB)
 -- ====================================================================
 Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
     AutoPickEnabled = state
@@ -464,14 +464,11 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                 local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso") or character:FindFirstChildWhichIsA("BasePart"))
                 
                 if DebrisField and rootPart then
-                    local nearestItem = nil
-                    local targetPart = nil
-                    local shortestDistance = math.huge
-                    
+                    -- MELOOPING SEMUA ITEM SEKALIGUS (BRUTAL MODE)
                     for _, folderObj in ipairs(DebrisField:GetChildren()) do
-                        -- Mengecek Resource ATAU Item
                         local resType = folderObj:GetAttribute("Resource") or folderObj:GetAttribute("Item")
                         local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
+                        
                         if not resType and part then
                             resType = part:GetAttribute("Resource") or part:GetAttribute("Item")
                         end
@@ -492,33 +489,24 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                             if not isExcluded then
                                 local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
                                 
-                                -- FIX: Mengabaikan barang yang sudah ditarik/dipegang agar harpoon tidak stuck
                                 if isGrabbed then
                                     continue 
                                 end
                                 
-                                local distance = (part.Position - rootPart.Position).Magnitude
-                                if distance < shortestDistance then
-                                    shortestDistance = distance
-                                    nearestItem = folderObj
-                                    targetPart = part
-                                end
+                                -- Eksekusi asinkron: Menembakkan harpoon ke semua target di saat yang sama
+                                task.spawn(function()
+                                    pcall(function()
+                                        local pos = part.Position
+                                        local vecStr = string.format("~v%.4f,%.4f,%.4f", pos.X, pos.Y, pos.Z)
+                                        SafeRemoteFunction("ToolReplicator", "~sHarpoon", "~sGrab", folderObj, vecStr)
+                                    end)
+                                end)
                             end
                         end
                     end
-                    
-                    if nearestItem and targetPart then
-                        pcall(function()
-                            local pos = targetPart.Position
-                            local vecStr = string.format("~v%.4f,%.4f,%.4f", pos.X, pos.Y, pos.Z)
-                            
-                            SafeRemoteFunction("ToolReplicator", "~sHarpoon", "~sGrab", nearestItem, vecStr)
-                        end)
-                        task.wait(0.2) 
-                    end
                 end
                 
-                task.wait(0.1) 
+                task.wait(0.2) -- Jeda loop utama (200ms) agar server punya waktu memproses tarikan harpoon massal
             end
         end)
     end
