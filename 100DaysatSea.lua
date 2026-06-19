@@ -361,11 +361,9 @@ end)
 -- ====================================================================
 -- [FITUR 5]: AUTO ATTACK FLEKSIBEL (NEAREST / ALL TARGET)
 -- ====================================================================
-local AttackMode = "Nearest (50 Studs)"
-local MaxAttackDistance = 50 
+local AttackMode = "Nearest (Global)" -- Default diubah ke global (math.huge)
 
--- Menambahkan UI Dropdown untuk Mode Serangan
-Win:AddDropdown("Mode Auto Attack", {"Nearest (50 Studs)", "Brutal All Target"}, function(selectedMode)
+Win:AddDropdown("Mode Auto Attack", {"Nearest (Global)", "Brutal All Target"}, function(selectedMode)
     AttackMode = selectedMode
 end)
 
@@ -397,13 +395,11 @@ Win:AddToggle("Mulai Auto Attack", false, function(state)
                         end
                     end
 
-                    if AttackMode == "Nearest (50 Studs)" then
-                        -- ==========================================
-                        -- MODE: NEAREST (OPTIMAL & AMAN DARI LAG)
-                        -- ==========================================
+                    if AttackMode == "Nearest (Global)" then
+                        -- MODE: NEAREST (math.huge)
                         local nearestEnemy = nil
                         local nearestEnemyPart = nil
-                        local shortestDistance = MaxAttackDistance 
+                        local shortestDistance = math.huge -- Kembali ke math.huge sesuai permintaan
 
                         for _, enemy in ipairs(CreatureContainer:GetChildren()) do
                             if enemy.Name == "Wraith" or enemy.Name == "Wraith_CLIENT" then continue end
@@ -446,9 +442,7 @@ Win:AddToggle("Mulai Auto Attack", false, function(state)
                         end
                         
                     elseif AttackMode == "Brutal All Target" then
-                        -- ==========================================
-                        -- MODE: BRUTAL ALL TARGET (BERPOTENSI LAG)
-                        -- ==========================================
+                        -- MODE: BRUTAL ALL TARGET
                         for _, enemy in ipairs(CreatureContainer:GetChildren()) do
                             if enemy.Name == "Wraith" or enemy.Name == "Wraith_CLIENT" then continue end
                             
@@ -544,6 +538,45 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                 end
                 
                 task.wait(0.2) 
+            end
+        end)
+    end
+end)
+
+-- ====================================================================
+-- [FITUR 7]: AUTO OPEN CHEST (NEAREST)
+-- ====================================================================
+Win:AddToggle("Auto Open Chest", false, function(state)
+    AutoChestEnabled = state
+    if AutoChestEnabled then
+        task.spawn(function()
+            while AutoChestEnabled do
+                local workspace = game:GetService("Workspace")
+                local ChestsFolder = workspace:FindFirstChild("Chests")
+                local rootPart = LocalPlayer.Character and (LocalPlayer.Character:FindFirstChild("HumanoidRootPart") or LocalPlayer.Character:FindFirstChildWhichIsA("BasePart"))
+                
+                if ChestsFolder and rootPart then
+                    local nearestChest = nil
+                    local shortestDistance = math.huge
+                    
+                    for _, chest in ipairs(ChestsFolder:GetChildren()) do
+                        local part = chest:IsA("BasePart") and chest or chest:FindFirstChildWhichIsA("BasePart")
+                        if part then
+                            local distance = (part.Position - rootPart.Position).Magnitude
+                            if distance < shortestDistance then
+                                shortestDistance = distance
+                                nearestChest = chest
+                            end
+                        end
+                    end
+                    
+                    if nearestChest then
+                        pcall(function()
+                            SafeRemoteFunction("OpenChest", nearestChest)
+                        end)
+                    end
+                end
+                task.wait(1) -- Jeda 1 detik agar tidak spamming ke server
             end
         end)
     end
