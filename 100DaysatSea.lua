@@ -376,7 +376,6 @@ Win:AddToggle("Auto Collect", false, function(state)
     end
 end)
 
-
 -- ====================================================================
 -- [FITUR 5]: BRUTAL AUTO ATTACK (MULTI-TOOL & AUTO EQUIP)
 -- ====================================================================
