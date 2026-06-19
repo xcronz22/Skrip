@@ -22,15 +22,14 @@ local TargetWeapons = {
     ["Hand Cannon"] = false,
     ["Revolver"] = false,
     ["Boomstick"] = false,
-    ["Riptide"] = false,
-    ["Grenade"] = false
+    ["Riptide"] = false
 }
 
 Win:AddMultiDropdown("Pilih Material Grinder & Bakar", {"Wood", "Metal", "Goo", "Small Gas Can", "Big Gas Can", "Gas Drum"}, function(selectedTable)
     TargetMaterials = selectedTable
 end)
 
-Win:AddMultiDropdown("Pilih Senjata Attack", {"Harpoon", "Magma Staff", "Squid Laser", "Rifle", "Flintlock", "Blunderbuss", "Hand Cannon", "Revolver", "Boomstick", "Riptide", "Grenade"}, function(selectedTable)
+Win:AddMultiDropdown("Pilih Senjata Attack", {"Harpoon", "Magma Staff", "Squid Laser", "Rifle", "Flintlock", "Blunderbuss", "Hand Cannon", "Revolver", "Boomstick", "Riptide"}, function(selectedTable)
     TargetWeapons = selectedTable
 end)
 
@@ -428,7 +427,7 @@ Win:AddToggle("Auto Attack Multi-Tool", false, function(state)
                                 end)
 
                                 -- 4. Tipe Senjata Api / Gun (Termasuk Grenade)
-                                local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick", "Grenade"}
+                                local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick"}
                                 for _, gunName in ipairs(gunTypes) do
                                     CheckAndAttackAsync(gunName, function(t)
                                         local firePart = t:FindFirstChild("Handle") or t:FindFirstChildWhichIsA("BasePart") or rootPart
