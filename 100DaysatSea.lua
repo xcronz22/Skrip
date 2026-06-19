@@ -15,21 +15,22 @@ local TargetMaterials = {
 local TargetWeapons = {
     ["Harpoon"] = false,
     ["Magma Staff"] = false,
-    ["Laser"] = false,
+    ["Squid Laser"] = false,
     ["Rifle"] = false,
     ["Flintlock"] = false,
     ["Blunderbuss"] = false,
     ["Hand Cannon"] = false,
     ["Revolver"] = false,
     ["Boomstick"] = false,
-    ["Riptide"] = false
+    ["Riptide"] = false,
+    ["Grenade"] = false
 }
 
 Win:AddMultiDropdown("Pilih Material Grinder & Bakar", {"Wood", "Metal", "Goo", "Small Gas Can", "Big Gas Can", "Gas Drum"}, function(selectedTable)
     TargetMaterials = selectedTable
 end)
 
-Win:AddMultiDropdown("Pilih Senjata Attack", {"Harpoon", "Magma Staff", "Laser", "Rifle", "Flintlock", "Blunderbuss", "Hand Cannon", "Revolver", "Boomstick", "Riptide"}, function(selectedTable)
+Win:AddMultiDropdown("Pilih Senjata Attack", {"Harpoon", "Magma Staff", "Squid Laser", "Rifle", "Flintlock", "Blunderbuss", "Hand Cannon", "Revolver", "Boomstick", "Riptide", "Grenade"}, function(selectedTable)
     TargetWeapons = selectedTable
 end)
 
@@ -361,7 +362,7 @@ Win:AddToggle("Auto Collect", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 5]: BRUTAL AUTO ATTACK (MULTI-TARGET & NO DELAY)
+-- [FITUR 5]: BRUTAL AUTO ATTACK (MULTI-TARGET, NO WRAITH / WRAITH_CLIENT)
 -- ====================================================================
 Win:AddToggle("Auto Attack Multi-Tool", false, function(state)
     AutoAttackEnabled = state
@@ -379,7 +380,6 @@ Win:AddToggle("Auto Attack Multi-Tool", false, function(state)
                 
                 if CreatureContainer and rootPart and humanoid then
                     
-                    -- Fungsi Serang Async (Eksekusi remote tanpa menunggu server merespon agar tidak macet)
                     local function CheckAndAttackAsync(toolName, attackLogic)
                         if not TargetWeapons[toolName] then return end 
                         local tool = character:FindFirstChild(toolName)
@@ -387,7 +387,6 @@ Win:AddToggle("Auto Attack Multi-Tool", false, function(state)
                             tool = backpack:FindFirstChild(toolName)
                             if tool then
                                 humanoid:EquipTool(tool)
-                                -- Tidak ada task.wait() disini, ganti senjata dalam 0 detik.
                             end
                         end
                         if tool then 
@@ -397,15 +396,19 @@ Win:AddToggle("Auto Attack Multi-Tool", false, function(state)
                         end
                     end
 
-                    -- MELOOPING SEMUA MUSUH SEKALIGUS (Termasuk Seagull)
+                    -- MELOOPING SEMUA MUSUH SEKALIGUS
                     for _, enemy in ipairs(CreatureContainer:GetChildren()) do
+                        -- [DIPERBARUI]: Mengecualikan Wraith dan Wraith_CLIENT agar tidak diserang
+                        if enemy.Name == "Wraith" or enemy.Name == "Wraith_CLIENT" then 
+                            continue 
+                        end
+                        
                         local enemyPart = enemy:IsA("BasePart") and enemy or enemy:FindFirstChildWhichIsA("BasePart") or (enemy:IsA("Model") and enemy.PrimaryPart)
                         
                         if enemyPart then
                             local enemyPos = enemy:IsA("Model") and enemy:GetPivot().Position or enemyPart.Position
                             local vecStr = string.format("~v%.4f,%.4f,%.4f", enemyPos.X, enemyPos.Y, enemyPos.Z)
                             
-                            -- Serang target ini dengan semua senjata yang diaktifkan secara SPAM
                             pcall(function()
                                 -- 1. Tipe Harpoon
                                 for _, wName in ipairs({"Harpoon", "Riptide"}) do
@@ -420,19 +423,19 @@ Win:AddToggle("Auto Attack Multi-Tool", false, function(state)
                                 end)
 
                                 -- 3. Laser
-                                CheckAndAttackAsync("Laser", function(t)
+                                CheckAndAttackAsync("Squid Laser", function(t)
                                     SafeRemoteFunction("ToolReplicator", "~sLaser", "~sShoot", vecStr)
                                 end)
 
-                                -- 4. Tipe Senjata Api / Gun
-                                local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick"}
+                                -- 4. Tipe Senjata Api / Gun (Termasuk Grenade)
+                                local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick", "Grenade"}
                                 for _, gunName in ipairs(gunTypes) do
                                     CheckAndAttackAsync(gunName, function(t)
-                                        local handle = t:FindFirstChild("Handle")
-                                        if handle then
+                                        local firePart = t:FindFirstChild("Handle") or t:FindFirstChildWhichIsA("BasePart") or rootPart
+                                        if firePart then
                                             local direction = (enemyPos - rootPart.Position).Unit
                                             local gunFormatStr = string.format("~t{1=~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0}", enemyPos.X, enemyPos.Y, enemyPos.Z, direction.X, direction.Y, direction.Z)
-                                            SafeRemoteFunction("ToolReplicator", "~sGun", "~sShoot", handle, gunFormatStr)
+                                            SafeRemoteFunction("ToolReplicator", "~sGun", "~sShoot", firePart, gunFormatStr)
                                         end
                                     end)
                                 end
@@ -440,7 +443,7 @@ Win:AddToggle("Auto Attack Multi-Tool", false, function(state)
                         end
                     end
                 end
-                task.wait() -- Loop utama tanpa delay parah, langsung eksekusi massal berikutnya.
+                task.wait() 
             end
         end)
     end
