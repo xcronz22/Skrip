@@ -35,12 +35,12 @@ end)
 
 -- [BARU]: Variabel & UI Input untuk Jarak Tembak Gun
 local MaxGunDistance = 0 
-Win:AddTextBox("Jarak Tembak Gun (0/Kosong = Asli)", function(value)
+Win:AddInput("Jarak Tembak Gun", "0 = Asli", function(value)
     local num = tonumber(value)
     if num and num > 0 then
         MaxGunDistance = num
     else
-        MaxGunDistance = 0 -- Kembali ke default (tanpa batas) jika kosong atau bukan angka
+        MaxGunDistance = 0 -- Kembali ke default jika kosong
     end
 end)
 
