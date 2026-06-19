@@ -351,51 +351,44 @@ task.spawn(function()
     end
 end)
 
--- ====================================================================
--- [FITUR 6]: BRUTAL AUTO PICK MATERIAL (HARPOON MASS GRAB)
--- ====================================================================
-Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
-    AutoPickEnabled = state
-    
-    if AutoPickEnabled then
-        task.spawn(function()
-            while AutoPickEnabled do
-                local workspace = game:GetService("Workspace")
-                local DebrisField = workspace:FindFirstChild("DebrisField")
-                
-                local character = LocalPlayer.Character
-                local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso") or character:FindFirstChildWhichIsA("BasePart"))
-                
-                if DebrisField and rootPart then
-                    -- MELOOPING SEMUA ITEM SEKALIGUS (BRUTAL MODE)
-                    for _, folderObj in ipairs(DebrisField:GetChildren()) do
-                        local resType = folderObj:GetAttribute("Resource") or folderObj:GetAttribute("Item")
-                        local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
-                        
-                        if not resType and part then
-                            resType = part:GetAttribute("Resource") or part:GetAttribute("Item")
+-- LOOP FITUR 6: BRUTAL AUTO PICK MATERIAL (HARPOON MASS GRAB) - UPDATED VERSION
+task.spawn(function()
+    while true do
+        if AutoPickEnabled then
+            local workspace = game:GetService("Workspace")
+            local DebrisField = workspace:FindFirstChild("DebrisField")
+            local character = LocalPlayer.Character
+            local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso") or character:FindFirstChildWhichIsA("BasePart"))
+            
+            if DebrisField and rootPart then
+                -- MELOOPING SEMUA ITEM SEKALIGUS (BRUTAL MODE)
+                for _, folderObj in ipairs(DebrisField:GetChildren()) do
+                    if not AutoPickEnabled then break end -- Berhenti instan jika toggle dimatikan di tengah loop
+                    
+                    local resType = folderObj:GetAttribute("Resource") or folderObj:GetAttribute("Item")
+                    local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
+                    
+                    if not resType and part then
+                        resType = part:GetAttribute("Resource") or part:GetAttribute("Item")
+                    end
+                    
+                    if resType and TargetMaterials[resType] and part then
+                        local isExcluded = false
+                        for attrName, attrValue in pairs(folderObj:GetAttributes()) do
+                            local lowerName = string.lower(attrName)
+                            local lowerValue = type(attrValue) == "string" and string.lower(attrValue) or ""
+                            if string.find(lowerName, "armor") or string.find(lowerValue, "armor") or
+                               string.find(lowerName, "chest") or string.find(lowerValue, "chest") or
+                               string.find(lowerName, "leg") or string.find(lowerValue, "leg") then
+                                isExcluded = true
+                                break
+                            end
                         end
                         
-                        if resType and TargetMaterials[resType] and part then
-                            local isExcluded = false
-                            for attrName, attrValue in pairs(folderObj:GetAttributes()) do
-                                local lowerName = string.lower(attrName)
-                                local lowerValue = type(attrValue) == "string" and string.lower(attrValue) or ""
-                                if string.find(lowerName, "armor") or string.find(lowerValue, "armor") or
-                                   string.find(lowerName, "chest") or string.find(lowerValue, "chest") or
-                                   string.find(lowerName, "leg") or string.find(lowerValue, "leg") then
-                                    isExcluded = true
-                                    break
-                                end
-                            end
+                        if not isExcluded then
+                            local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
                             
-                            if not isExcluded then
-                                local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
-                                
-                                if isGrabbed then
-                                    continue 
-                                end
-                                
+                            if not isGrabbed then
                                 -- Eksekusi asinkron: Menembakkan harpoon ke semua target di saat yang sama
                                 task.spawn(function()
                                     pcall(function()
@@ -408,10 +401,11 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                         end
                     end
                 end
-                
-                task.wait(0.2) -- Jeda loop utama (200ms) agar server punya waktu memproses tarikan harpoon massal
             end
-        end)
+            task.wait(0.2) -- Jeda loop utama (200ms) agar server punya waktu memproses tarikan harpoon massal
+        else
+            task.wait(0.5) -- Hemat CPU saat toggle off
+        end
     end
 end)
 
