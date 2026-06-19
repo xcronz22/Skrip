@@ -495,7 +495,7 @@ Win:AddToggle("Mulai Auto Attack", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 6]: BRUTAL AUTO PICK MATERIAL (HARPOON MASS GRAB)
+-- [FITUR 6]: AUTO PICK MATERIAL (HARPOON SATUAN, SUPER CEPAT)
 -- ====================================================================
 Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
     AutoPickEnabled = state
@@ -510,7 +510,11 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                 local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso") or character:FindFirstChildWhichIsA("BasePart"))
                 
                 if DebrisField and rootPart then
-                    -- MELOOPING SEMUA ITEM SEKALIGUS (BRUTAL MODE)
+                    local nearestItem = nil
+                    local nearestPart = nil
+                    local shortestDistance = math.huge
+                    
+                    -- MENCARI 1 ITEM TERDEKAT SAJA
                     for _, folderObj in ipairs(DebrisField:GetChildren()) do
                         local resType = folderObj:GetAttribute("Resource") or folderObj:GetAttribute("Item")
                         local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
@@ -535,30 +539,38 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                             if not isExcluded then
                                 local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
                                 
-                                if isGrabbed then
-                                    continue 
+                                if not isGrabbed then
+                                    local distance = (part.Position - rootPart.Position).Magnitude
+                                    if distance < shortestDistance then
+                                        shortestDistance = distance
+                                        nearestItem = folderObj
+                                        nearestPart = part
+                                    end
                                 end
-                                
-                                -- Eksekusi asinkron: Menembakkan harpoon ke semua target di saat yang sama
-                                task.spawn(function()
-                                    pcall(function()
-                                        local pos = part.Position
-                                        local vecStr = string.format("~v%.4f,%.4f,%.4f", pos.X, pos.Y, pos.Z)
-                                        SafeRemoteFunction("ToolReplicator", "~sHarpoon", "~sGrab", folderObj, vecStr)
-                                    end)
-                                end)
                             end
                         end
                     end
+                    
+                    -- TEMBAKKAN HARPOON KE 1 TARGET TERDEKAT TERSEBUT
+                    if nearestItem and nearestPart then
+                        pcall(function()
+                            local pos = nearestPart.Position
+                            local vecStr = string.format("~v%.4f,%.4f,%.4f", pos.X, pos.Y, pos.Z)
+                            SafeRemoteFunction("ToolReplicator", "~sHarpoon", "~sGrab", nearestItem, vecStr)
+                        end)
+                    end
                 end
                 
-                task.wait(0.2) -- Jeda loop utama (200ms) agar server punya waktu memproses tarikan harpoon massal
+                -- Jeda sangat cepat (50ms) agar satu per satu ditarik secara kilat
+                task.wait(0.05) 
             end
         end)
     end
 end)
 
--- [FITUR 7]: AUTO OPEN CHEST (OPTIMIZED)
+-- ====================================================================
+-- [FITUR 7]: AUTO OPEN CHEST (OPTIMIZED & EXPANDED SEARCH, 15 STUDS)
+-- ====================================================================
 Win:AddToggle("Auto Open Chest", false, function(state)
     AutoChestEnabled = state
     if AutoChestEnabled then
@@ -566,13 +578,37 @@ Win:AddToggle("Auto Open Chest", false, function(state)
             while AutoChestEnabled do
                 local workspace = game:GetService("Workspace")
                 local ChestsFolder = workspace:FindFirstChild("Chests")
-                local rootPart = LocalPlayer.Character and (LocalPlayer.Character:FindFirstChild("HumanoidRootPart") or LocalPlayer.Character:FindFirstChildWhichIsA("BasePart"))
+                local IslandContainer = workspace:FindFirstChild("IslandContainer")
                 
-                if ChestsFolder and rootPart then
+                local character = LocalPlayer.Character
+                local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChildWhichIsA("BasePart"))
+                
+                if rootPart then
                     local nearestChest = nil
-                    local shortestDistance = 15 -- Hanya mencari chest dalam jarak 15 stud agar lebih fokus
+                    local shortestDistance = 15 -- Dikembalikan ke 15 stud sesuai permintaan
                     
-                    for _, chest in ipairs(ChestsFolder:GetChildren()) do
+                    local potentialChests = {}
+                    
+                    -- 1. Mengumpulkan Chest dari workspace.Chests
+                    if ChestsFolder then
+                        for _, chest in ipairs(ChestsFolder:GetChildren()) do
+                            table.insert(potentialChests, chest)
+                        end
+                    end
+                    
+                    -- 2. Mengumpulkan Chest dari workspace.IslandContainer (Cek semua pulau)
+                    if IslandContainer then
+                        for _, island in ipairs(IslandContainer:GetChildren()) do
+                            for _, item in ipairs(island:GetChildren()) do
+                                if string.find(string.lower(item.Name), "chest") then
+                                    table.insert(potentialChests, item)
+                                end
+                            end
+                        end
+                    end
+                    
+                    -- 3. Mencari 1 Chest terdekat (dalam radius 15 stud)
+                    for _, chest in ipairs(potentialChests) do
                         local part = chest:IsA("BasePart") and chest or chest:FindFirstChildWhichIsA("BasePart")
                         if part then
                             local distance = (part.Position - rootPart.Position).Magnitude
@@ -583,13 +619,15 @@ Win:AddToggle("Auto Open Chest", false, function(state)
                         end
                     end
                     
+                    -- 4. Mengeksekusi Remote untuk membuka Chest
                     if nearestChest then
                         pcall(function()
                             SafeRemoteFunction("OpenChest", nearestChest)
                         end)
                     end
                 end
-                task.wait(0.1) -- Jeda dipercepat dari 1 detik menjadi 0.1 detik
+                
+                task.wait(0.1) 
             end
         end)
     end
