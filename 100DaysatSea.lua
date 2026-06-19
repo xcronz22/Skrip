@@ -1,6 +1,6 @@
 -- Memuat Library RZY
 local RZY_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
-local Win = RZY_Library:MakeWindow("100 Days at Sea - V6.7 Clean")
+local Win = RZY_Library:MakeWindow("100 Days at Sea - V6.8 Brutal")
 
 -- ====================================================================
 -- 1. TABEL PENYIMPANAN STATUS (DATA STATES)
@@ -30,13 +30,13 @@ local GrinderToggle = nil
 local CampfireToggle = nil
 
 -- ====================================================================
--- 2. PENGELOMPOKAN KOMPONEN UI (SEMUA DI TARUH DI ATAS)
+-- 2. PENGELOMPOKAN KOMPONEN UI (SEMUA DI BAGIAN ATAS)
 -- ====================================================================
-Win:AddMultiDropdown("Material", {"Wood", "Metal", "Goo", "Small Gas Can", "Big Gas Can", "Gas Drum"}, function(selectedTable)
+Win:AddMultiDropdown("Pilih Material Grinder & Bakar", {"Wood", "Metal", "Goo", "Small Gas Can", "Big Gas Can", "Gas Drum"}, function(selectedTable)
     TargetMaterials = selectedTable
 end)
 
-Win:AddMultiDropdown("Weapon", {"Harpoon", "Magma Staff", "Squid Laser", "Rifle", "Flintlock", "Blunderbuss", "Hand Cannon", "Revolver", "Boomstick", "Riptide"}, function(selectedTable)
+Win:AddMultiDropdown("Pilih Senjata Attack", {"Harpoon", "Magma Staff", "Squid Laser", "Rifle", "Flintlock", "Blunderbuss", "Hand Cannon", "Revolver", "Boomstick", "Riptide"}, function(selectedTable)
     TargetWeapons = selectedTable
 end)
 
@@ -44,7 +44,7 @@ Win:AddDropdown("Mode Auto Attack", {"Nearest (Global)", "Brutal All Target"}, f
     AttackMode = selectedMode
 end)
 
-GrinderToggle = Win:AddToggle("Auto Grinder", false, function(state)
+GrinderToggle = Win:AddToggle("Mulai Auto Grinder", false, function(state)
     AutoGrinderEnabled = state
 end)
 
@@ -64,7 +64,7 @@ Win:AddToggle("Auto Collect", false, function(state)
     AutoDoubloonEnabled = state
 end)
 
-Win:AddToggle("Auto Attack", false, function(state)
+Win:AddToggle("Mulai Auto Attack", false, function(state)
     AutoAttackEnabled = state
 end)
 
@@ -154,7 +154,7 @@ end
 
 
 -- ====================================================================
--- 4. LOGIKA LOOPING FITUR (SEALED THREADS)
+-- 4. LOGIKA LOOPING FITUR (BACKGROUND THREADS)
 -- ====================================================================
 
 -- LOOP FITUR 1: AUTO GRINDER
@@ -257,7 +257,7 @@ task.spawn(function()
     while true do
         if AutoEatEnabled then
             local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
-            local FillBar = PlayerGui and PlayerGui:敵FindFirstChild("HUD") and PlayerGui.HUD:FindFirstChild("Food") and PlayerGui.HUD.Food.Bar.Fill
+            local FillBar = PlayerGui and PlayerGui:FindFirstChild("HUD") and PlayerGui.HUD:FindFirstChild("Food") and PlayerGui.HUD.Food.Bar.Fill
             if FillBar and FillBar.Size.X.Scale <= 0.7 then
                 local DebrisField = game:GetService("Workspace"):FindFirstChild("DebrisField")
                 if DebrisField then
