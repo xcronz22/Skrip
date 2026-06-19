@@ -1,6 +1,6 @@
 -- Memuat Library RZY
 local RZY_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
-local Win = RZY_Library:MakeWindow("100 Days at Sea - V6.8 Brutal")
+local Win = RZY_Library:MakeWindow("100 Days at Sea - V6.9 Final")
 
 -- ====================================================================
 -- 1. TABEL PENYIMPANAN STATUS (DATA STATES)
@@ -30,7 +30,7 @@ local GrinderToggle = nil
 local CampfireToggle = nil
 
 -- ====================================================================
--- 2. PENGELOMPOKAN KOMPONEN UI (SEMUA DI BAGIAN ATAS)
+-- 2. PENGELOMPOKAN KOMPONEN UI (SEMUA DI ATAS)
 -- ====================================================================
 Win:AddMultiDropdown("Pilih Material Grinder & Bakar", {"Wood", "Metal", "Goo", "Small Gas Can", "Big Gas Can", "Gas Drum"}, function(selectedTable)
     TargetMaterials = selectedTable
@@ -154,7 +154,7 @@ end
 
 
 -- ====================================================================
--- 4. LOGIKA LOOPING FITUR (BACKGROUND THREADS)
+-- 4. LOGIKA LOOPING FITUR (SEALED THREADS)
 -- ====================================================================
 
 -- LOOP FITUR 1: AUTO GRINDER
@@ -252,18 +252,31 @@ task.spawn(function()
     end
 end)
 
--- LOOP FITUR 3: AUTO EAT
+-- LOOP FITUR 3: AUTO EAT (TYPO FIXED)
 task.spawn(function()
     while true do
         if AutoEatEnabled then
             local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
-            local FillBar = PlayerGui and PlayerGui:FindFirstChild("HUD") and PlayerGui.HUD:FindFirstChild("Food") and PlayerGui.HUD.Food.Bar.Fill
+            local HUD = PlayerGui and PlayerGui:FindFirstChild("HUD")
+            local Food = HUD and HUD:FindFirstChild("Food")
+            local Bar = Food and Food:FindFirstChild("Bar")
+            local FillBar = Bar and Bar:FindFirstChild("Fill")
+            
             if FillBar and FillBar.Size.X.Scale <= 0.7 then
                 local DebrisField = game:GetService("Workspace"):FindFirstChild("DebrisField")
                 if DebrisField then
                     for _, folderObj in ipairs(DebrisField:GetChildren()) do
                         if not AutoEatEnabled or FillBar.Size.X.Scale >= 0.99 then break end
-                        if folderObj:GetAttribute("Food") then
+                        local isFood = folderObj:GetAttribute("Food")
+                        local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
+                        if not isFood and part then isFood = part:GetAttribute("Food") end
+                        
+                        if isFood and part then
+                            local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
+                            local grabber = folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber")
+                            
+                            if isGrabbed and tostring(grabber) ~= tostring(LocalPlayer.UserId) and grabber ~= LocalPlayer.Name then continue end
+                            
                             SafeRemoteEvent("Eat", "~s" .. folderObj.Name)
                             task.wait(0.05)
                         end
@@ -289,6 +302,19 @@ task.spawn(function()
                     if not AutoDoubloonEnabled then break end
                     local isChest = folderObj:GetAttribute("DoubloonChest")
                     local isAmmo = folderObj:GetAttribute("Ammo")
+                    
+                    if not isChest and not isAmmo then
+                        for attrName, attrValue in pairs(folderObj:GetAttributes()) do
+                            local lowerName = string.lower(attrName)
+                            local lowerValue = type(attrValue) == "string" and string.lower(attrValue) or ""
+                            if string.find(lowerName, "doubloonchest") or string.find(lowerValue, "doubloonchest") then
+                                isChest = true
+                            end
+                            if string.find(lowerName, "ammo") or string.find(lowerValue, "ammo") then
+                                isAmmo = true
+                            end
+                        end
+                    end
                     
                     if isChest or (isAmmo and hasRifle) then
                         SafeRemoteEvent("Collect", "~s" .. folderObj.Name)
@@ -343,6 +369,43 @@ task.spawn(function()
                         for _, wName in ipairs({"Harpoon", "Riptide"}) do CheckAndAttackAsync(wName, function() SafeRemoteFunction("ToolReplicator", "~s" .. wName, "~sHitEnemy", nearestEnemy) end) end
                         CheckAndAttackAsync("Magma Staff", function() SafeRemoteFunction("ToolReplicator", "~sMagma Staff", "~sFire", vecStr) end)
                         CheckAndAttackAsync("Squid Laser", function() SafeRemoteFunction("ToolReplicator", "~sLaser", "~sShoot", vecStr) end)
+                        
+                        local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick"}
+                        for _, gunName in ipairs(gunTypes) do
+                            CheckAndAttackAsync(gunName, function(t)
+                                local firePart = t:FindFirstChild("Handle") or t:FindFirstChildWhichIsA("BasePart") or rootPart
+                                if firePart then
+                                    local direction = (enemyPos - rootPart.Position).Unit
+                                    local gunFormatStr = string.format("~t{1=~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0}", enemyPos.X, enemyPos.Y, enemyPos.Z, direction.X, direction.Y, direction.Z)
+                                    SafeRemoteFunction("ToolReplicator", "~sGun", "~sShoot", firePart, gunFormatStr)
+                                end
+                            end)
+                        end
+                    end
+                elseif AttackMode == "Brutal All Target" then
+                    for _, enemy in ipairs(CreatureContainer:GetChildren()) do
+                        if enemy.Name == "Wraith" or enemy.Name == "Wraith_CLIENT" then continue end
+                        local enemyPart = enemy:IsA("BasePart") and enemy or enemy:FindFirstChildWhichIsA("BasePart") or (enemy:IsA("Model") and enemy.PrimaryPart)
+                        if enemyPart then
+                            local enemyPos = enemy:IsA("Model") and enemy:GetPivot().Position or enemyPart.Position
+                            local vecStr = string.format("~v%.4f,%.4f,%.4f", enemyPos.X, enemyPos.Y, enemyPos.Z)
+                            
+                            for _, wName in ipairs({"Harpoon", "Riptide"}) do CheckAndAttackAsync(wName, function() SafeRemoteFunction("ToolReplicator", "~s" .. wName, "~sHitEnemy", enemy) end) end
+                            CheckAndAttackAsync("Magma Staff", function() SafeRemoteFunction("ToolReplicator", "~sMagma Staff", "~sFire", vecStr) end)
+                            CheckAndAttackAsync("Squid Laser", function() SafeRemoteFunction("ToolReplicator", "~sLaser", "~sShoot", vecStr) end)
+                            
+                            local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick"}
+                            for _, gunName in ipairs(gunTypes) do
+                                CheckAndAttackAsync(gunName, function(t)
+                                    local firePart = t:FindFirstChild("Handle") or t:FindFirstChildWhichIsA("BasePart") or rootPart
+                                    if firePart then
+                                        local direction = (enemyPos - rootPart.Position).Unit
+                                        local gunFormatStr = string.format("~t{1=~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0}", enemyPos.X, enemyPos.Y, enemyPos.Z, direction.X, direction.Y, direction.Z)
+                                        SafeRemoteFunction("ToolReplicator", "~sGun", "~sShoot", firePart, gunFormatStr)
+                                    end
+                                end)
+                            end
+                        end
                     end
                 end
             end
@@ -351,7 +414,7 @@ task.spawn(function()
     end
 end)
 
--- LOOP FITUR 6: BRUTAL AUTO PICK MATERIAL (HARPOON MASS GRAB) - UPDATED VERSION
+-- LOOP FITUR 6: AUTO PICK MATERIAL
 task.spawn(function()
     while true do
         if AutoPickEnabled then
@@ -361,9 +424,8 @@ task.spawn(function()
             local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso") or character:FindFirstChildWhichIsA("BasePart"))
             
             if DebrisField and rootPart then
-                -- MELOOPING SEMUA ITEM SEKALIGUS (BRUTAL MODE)
                 for _, folderObj in ipairs(DebrisField:GetChildren()) do
-                    if not AutoPickEnabled then break end -- Berhenti instan jika toggle dimatikan di tengah loop
+                    if not AutoPickEnabled then break end 
                     
                     local resType = folderObj:GetAttribute("Resource") or folderObj:GetAttribute("Item")
                     local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
@@ -389,7 +451,6 @@ task.spawn(function()
                             local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
                             
                             if not isGrabbed then
-                                -- Eksekusi asinkron: Menembakkan harpoon ke semua target di saat yang sama
                                 task.spawn(function()
                                     pcall(function()
                                         local pos = part.Position
@@ -402,9 +463,9 @@ task.spawn(function()
                     end
                 end
             end
-            task.wait(0.2) -- Jeda loop utama (200ms) agar server punya waktu memproses tarikan harpoon massal
+            task.wait(0.2)
         else
-            task.wait(0.5) -- Hemat CPU saat toggle off
+            task.wait(0.5) 
         end
     end
 end)
