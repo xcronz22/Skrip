@@ -558,9 +558,7 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
     end
 end)
 
--- ====================================================================
--- [FITUR 7]: AUTO OPEN CHEST (NEAREST)
--- ====================================================================
+-- [FITUR 7]: AUTO OPEN CHEST (OPTIMIZED)
 Win:AddToggle("Auto Open Chest", false, function(state)
     AutoChestEnabled = state
     if AutoChestEnabled then
@@ -572,7 +570,7 @@ Win:AddToggle("Auto Open Chest", false, function(state)
                 
                 if ChestsFolder and rootPart then
                     local nearestChest = nil
-                    local shortestDistance = math.huge
+                    local shortestDistance = 15 -- Hanya mencari chest dalam jarak 15 stud agar lebih fokus
                     
                     for _, chest in ipairs(ChestsFolder:GetChildren()) do
                         local part = chest:IsA("BasePart") and chest or chest:FindFirstChildWhichIsA("BasePart")
@@ -591,7 +589,35 @@ Win:AddToggle("Auto Open Chest", false, function(state)
                         end)
                     end
                 end
-                task.wait(1) -- Jeda 1 detik agar tidak spamming ke server
+                task.wait(0.1) -- Jeda dipercepat dari 1 detik menjadi 0.1 detik
+            end
+        end)
+    end
+end)
+
+-- [FITUR 8]: AUTO FISHING (OPTIMIZED)
+local AutoFishingEnabled = false
+Win:AddToggle("Auto Fishing", false, function(state)
+    AutoFishingEnabled = state
+    if AutoFishingEnabled then
+        task.spawn(function()
+            while AutoFishingEnabled do
+                local rootPart = LocalPlayer.Character and (LocalPlayer.Character:FindFirstChild("HumanoidRootPart") or LocalPlayer.Character:FindFirstChildWhichIsA("BasePart"))
+                
+                if rootPart then
+                    -- Mengambil arah hadap karakter saat ini secara real-time
+                    local pos = rootPart.Position
+                    local dir = rootPart.CFrame.LookVector
+                    
+                    local vecStr = string.format("~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0", 
+                        pos.X, pos.Y + 1, pos.Z, dir.X, dir.Y, dir.Z)
+                    
+                    -- Eksekusi instan
+                    SafeRemoteFunction("ToolReplicator", "~sFishing Rod", "~sFishPoof", vecStr)
+                end
+                
+                -- Jeda 0.2 detik (sangat cepat namun cukup aman untuk server)
+                task.wait(0.2) 
             end
         end)
     end
