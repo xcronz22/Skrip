@@ -39,6 +39,7 @@ local AutoEatEnabled = false
 local AutoDoubloonEnabled = false 
 local AutoAttackEnabled = false 
 local AutoPickEnabled = false
+local AutoChestEnabled = false
 
 local GrinderToggle = nil
 local CampfireToggle = nil
@@ -552,6 +553,45 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                 end
                 
                 task.wait(0.2) -- Jeda loop utama (200ms) agar server punya waktu memproses tarikan harpoon massal
+            end
+        end)
+    end
+end)
+
+-- ====================================================================
+-- [FITUR 7]: AUTO OPEN CHEST (NEAREST)
+-- ====================================================================
+Win:AddToggle("Auto Open Chest", false, function(state)
+    AutoChestEnabled = state
+    if AutoChestEnabled then
+        task.spawn(function()
+            while AutoChestEnabled do
+                local workspace = game:GetService("Workspace")
+                local ChestsFolder = workspace:FindFirstChild("Chests")
+                local rootPart = LocalPlayer.Character and (LocalPlayer.Character:FindFirstChild("HumanoidRootPart") or LocalPlayer.Character:FindFirstChildWhichIsA("BasePart"))
+                
+                if ChestsFolder and rootPart then
+                    local nearestChest = nil
+                    local shortestDistance = math.huge
+                    
+                    for _, chest in ipairs(ChestsFolder:GetChildren()) do
+                        local part = chest:IsA("BasePart") and chest or chest:FindFirstChildWhichIsA("BasePart")
+                        if part then
+                            local distance = (part.Position - rootPart.Position).Magnitude
+                            if distance < shortestDistance then
+                                shortestDistance = distance
+                                nearestChest = chest
+                            end
+                        end
+                    end
+                    
+                    if nearestChest then
+                        pcall(function()
+                            SafeRemoteFunction("OpenChest", nearestChest)
+                        end)
+                    end
+                end
+                task.wait(1) -- Jeda 1 detik agar tidak spamming ke server
             end
         end)
     end
