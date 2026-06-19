@@ -189,11 +189,12 @@ GrinderToggle = Win:AddToggle("Mulai Auto Grinder", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 2]: AUTO CAMPFIRE
+-- [FITUR 2]: SMART AUTO CAMPFIRE (SORTING FUEL -> CAMPFIRE, LAINNYA -> GRINDER)
 -- ====================================================================
-CampfireToggle = Win:AddToggle("Auto Campfire", false, function(state)
+CampfireToggle = Win:AddToggle("Auto Campfire (Smart Sorter)", false, function(state)
     AutoCampfireEnabled = state
     
+    -- [SISTEM PINTAR]: Matikan Auto Grinder agar tidak bentrok
     if state and GrinderToggle then
         AutoGrinderEnabled = false
         GrinderToggle:Set(false)
@@ -204,59 +205,121 @@ CampfireToggle = Win:AddToggle("Auto Campfire", false, function(state)
             while AutoCampfireEnabled do
                 local workspace = game:GetService("Workspace")
                 local DebrisField = workspace:FindFirstChild("DebrisField")
+                
+                -- Deteksi kedua mesin sekaligus
                 local Dropper = workspace:FindFirstChild("SpawnIsland") and workspace.SpawnIsland:FindFirstChild("Dropper")
+                local GrinderCol = workspace:FindFirstChild("SpawnIsland") and workspace.SpawnIsland:FindFirstChild("Grinder") and workspace.SpawnIsland.Grinder:FindFirstChild("Collection")
 
-                if DebrisField and Dropper then
-                    local dropperPart = Dropper:IsA("BasePart") and Dropper or Dropper:FindFirstChildWithClass("BasePart") or (Dropper:IsA("Model") and Dropper.PrimaryPart)
+                if DebrisField then
+                    local dropperPart = Dropper and (Dropper:IsA("BasePart") and Dropper or Dropper:FindFirstChildWithClass("BasePart") or (Dropper:IsA("Model") and Dropper.PrimaryPart))
+                    local grinderPart = GrinderCol
                     
-                    if dropperPart then
-                        for _, folderObj in ipairs(DebrisField:GetChildren()) do
-                            if not AutoCampfireEnabled then break end
-                            
-                            local resType = folderObj:GetAttribute("Resource") or folderObj:GetAttribute("Item")
-                            local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
-                            if not resType and part then
-                                resType = part:GetAttribute("Resource") or part:GetAttribute("Item")
+                    local itemsToProcess = {}
+                    
+                    for _, folderObj in ipairs(DebrisField:GetChildren()) do
+                        if not AutoCampfireEnabled then break end
+                        
+                        local resType = folderObj:GetAttribute("Resource") or folderObj:GetAttribute("Item")
+                        local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
+                        if not resType and part then
+                            resType = part:GetAttribute("Resource") or part:GetAttribute("Item")
+                        end
+                        
+                        -- Daftar material khusus pembakaran (Campfire)
+                        local validFuels = {
+                            ["Wood"] = true, 
+                            ["Small Gas Can"] = true, 
+                            ["Big Gas Can"] = true, 
+                            ["Gas Drum"] = true
+                        }
+                        
+                        -- Memastikan item tersebut adalah salah satu yang kamu CENTANG di Dropdown
+                        if resType and TargetMaterials[resType] and part then
+                            local isExcluded = false
+                            for attrName, attrValue in pairs(folderObj:GetAttributes()) do
+                                local lowerName = string.lower(attrName)
+                                local lowerValue = type(attrValue) == "string" and string.lower(attrValue) or ""
+                                if string.find(lowerName, "armor") or string.find(lowerValue, "armor") or
+                                   string.find(lowerName, "chest") or string.find(lowerValue, "chest") or
+                                   string.find(lowerName, "leg") or string.find(lowerValue, "leg") then
+                                    isExcluded = true
+                                    break
+                                end
                             end
                             
-                            local validFuels = {
-                                ["Wood"] = true, 
-                                ["Small Gas Can"] = true, 
-                                ["Big Gas Can"] = true, 
-                                ["Gas Drum"] = true
-                            }
-                            
-                            if resType and TargetMaterials[resType] and validFuels[resType] and part then
-                                local isExcluded = false
-                                for attrName, attrValue in pairs(folderObj:GetAttributes()) do
-                                    local lowerName = string.lower(attrName)
-                                    local lowerValue = type(attrValue) == "string" and string.lower(attrValue) or ""
-                                    if string.find(lowerName, "armor") or string.find(lowerValue, "armor") or
-                                       string.find(lowerName, "chest") or string.find(lowerValue, "chest") or
-                                       string.find(lowerName, "leg") or string.find(lowerValue, "leg") then
-                                        isExcluded = true
-                                        break
-                                    end
-                                end
+                            if not isExcluded then
+                                local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
+                                local grabber = folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber")
+                                local lastHolder = folderObj:GetAttribute("LastHolder") or part:GetAttribute("LastHolder")
                                 
-                                if not isExcluded then
-                                    local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
-                                    local grabber = folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber")
-                                    local lastHolder = folderObj:GetAttribute("LastHolder") or part:GetAttribute("LastHolder")
+                                local myId = tostring(LocalPlayer.UserId)
+                                local myName = LocalPlayer.Name
+                                
+                                -- Filter Kepemilikan Barang (Hanya proses bekas / barang pegangan sendiri)
+                                local isCurrentlyMyGrab = (isGrabbed == true and (tostring(grabber) == myId or grabber == myName))
+                                local isMyPastItem = (lastHolder == myName)
+                                
+                                if isCurrentlyMyGrab or isMyPastItem then
                                     
-                                    local myId = tostring(LocalPlayer.UserId)
-                                    local myName = LocalPlayer.Name
+                                    -- [LOGIKA SORTIR]: Jika ini bahan bakar -> ke Dropper. Jika bukan -> ke Grinder.
+                                    local isFuel = validFuels[resType]
+                                    local targetDestination = isFuel and dropperPart or grinderPart
                                     
-                                    local isCurrentlyMyGrab = (isGrabbed == true and (tostring(grabber) == myId or grabber == myName))
-                                    local isMyPastItem = (lastHolder == myName)
-                                    
-                                    if isCurrentlyMyGrab or isMyPastItem then
-                                        part.CFrame = dropperPart.CFrame + Vector3.new(0, 3, 0)
-                                        part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                                    if targetDestination then
+                                        local distance = (part.Position - targetDestination.Position).Magnitude
+                                        
+                                        -- Tambahkan ke antrean jika berada di luar radius
+                                        if distance > 3 then
+                                            table.insert(itemsToProcess, { 
+                                                Object = folderObj, 
+                                                Part = part, 
+                                                Distance = distance,
+                                                IsFuel = isFuel,
+                                                TargetDest = targetDestination
+                                            })
+                                        end
                                     end
+                                    
                                 end
                             end
                         end
+                    end
+                    
+                    -- Urutkan jarak agar pemindahan mulus dari yang terdekat
+                    table.sort(itemsToProcess, function(a, b) return a.Distance < b.Distance end)
+
+                    for _, data in ipairs(itemsToProcess) do
+                        if not AutoCampfireEnabled then break end 
+                        local obj = data.Object
+                        local part = data.Part
+                        local targetDest = data.TargetDest
+                        local isFuel = data.IsFuel
+                        
+                        obj:SetAttribute("Grabbed", false) 
+                        obj:SetAttribute("LastHolder", LocalPlayer.Name)
+
+                        -- Eksekusi Teleportasi sesuai tujuan mesin
+                        if part:IsA("BasePart") then
+                            part.CFrame = isFuel and (targetDest.CFrame + Vector3.new(0, 3, 0)) or targetDest.CFrame
+                            part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                        elseif obj:IsA("Model") then
+                            obj:PivotTo(isFuel and (targetDest.CFrame + Vector3.new(0, 3, 0)) or targetDest.CFrame)
+                            for _, p in ipairs(obj:GetDescendants()) do
+                                if p:IsA("BasePart") then p.AssemblyLinearVelocity = Vector3.new(0, 0, 0) end
+                            end
+                        end
+                        
+                        -- Memicu trigger pembakaran HANYA jika barang masuk ke Campfire
+                        if isFuel and firetouchinterest then
+                            local touchPart = part or obj.PrimaryPart
+                            if touchPart then
+                                firetouchinterest(targetDest, touchPart, 0) 
+                                task.wait()
+                                firetouchinterest(targetDest, touchPart, 1) 
+                            end
+                        end
+                        
+                        task.wait(0.1)
                     end
                 end
                 task.wait(0.05) 
@@ -361,7 +424,7 @@ end)
 -- ====================================================================
 -- [FITUR 5]: AUTO ATTACK FLEKSIBEL (NEAREST / ALL TARGET)
 -- ====================================================================
-local AttackMode = "Nearest (Global)" -- Default diubah ke global (math.huge)
+local AttackMode = "Nearest (Global)" 
 
 Win:AddDropdown("Mode Auto Attack", {"Nearest (Global)", "Brutal All Target"}, function(selectedMode)
     AttackMode = selectedMode
@@ -383,23 +446,36 @@ Win:AddToggle("Mulai Auto Attack", false, function(state)
                 
                 if CreatureContainer and rootPart and humanoid then
                     
+                    -- Menghitung berapa banyak senjata yang sedang dicentang di UI
+                    local activeWeaponsCount = 0
+                    for _, isSelected in pairs(TargetWeapons) do
+                        if isSelected then activeWeaponsCount = activeWeaponsCount + 1 end
+                    end
+
                     local function CheckAndAttackAsync(toolName, attackLogic)
                         if not TargetWeapons[toolName] then return end 
+                        
                         local tool = character:FindFirstChild(toolName)
-                        if not tool and backpack then
-                            tool = backpack:FindFirstChild(toolName)
-                            if tool then humanoid:EquipTool(tool) end
+                        
+                        -- Logika Fleksibel: Paksa equip HANYA JIKA pilih lebih dari 1 senjata
+                        if activeWeaponsCount > 1 then
+                            if not tool and backpack then
+                                tool = backpack:FindFirstChild(toolName)
+                                if tool then humanoid:EquipTool(tool) end
+                            end
                         end
-                        if tool then 
+                        
+                        -- Hanya eksekusi serangan jika senjata BENAR-BENAR ada di tangan (Character)
+                        if tool and tool.Parent == character then 
                             task.spawn(function() pcall(attackLogic, tool) end)
                         end
                     end
 
                     if AttackMode == "Nearest (Global)" then
-                        -- MODE: NEAREST (math.huge)
+                        -- MODE: NEAREST
                         local nearestEnemy = nil
                         local nearestEnemyPart = nil
-                        local shortestDistance = math.huge -- Kembali ke math.huge sesuai permintaan
+                        local shortestDistance = math.huge 
 
                         for _, enemy in ipairs(CreatureContainer:GetChildren()) do
                             if enemy.Name == "Wraith" or enemy.Name == "Wraith_CLIENT" then continue end
