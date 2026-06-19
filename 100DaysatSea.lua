@@ -29,7 +29,7 @@ Win:AddMultiDropdown("Pilih Material Grinder & Bakar", {"Wood", "Metal", "Goo", 
     TargetMaterials = selectedTable
 end)
 
-Win:AddMultiDropdown("Pilih Senjata Attack", {"Harpoon", "Magma Staff", "Laser", "Rifle"}, function(selectedTable)
+Win:AddMultiDropdown("Pilih Senjata Attack", {"Harpoon", "Magma Staff", "Laser", "Rifle", "Flintlock", "Blunderbuss", "Hand Cannon", "Revolver", "Boomstick"}, function(selectedTable)
     TargetWeapons = selectedTable
 end)
 
