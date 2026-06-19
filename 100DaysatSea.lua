@@ -418,7 +418,8 @@ Win:AddToggle("Auto Attack Multi-Tool", false, function(state)
                         
                         -- Fungsi Cerdas Equip berdasarkan status centang UI
                         local function CheckAndAttack(toolName, attackLogic)
-                            if not TargetWeapons[toolName] then return end -- Abaikan jika tidak dicentang di UI
+                            -- Pastikan UI Dropdown / Toggle target menyertakan nama-nama senjata ini
+                            if not TargetWeapons[toolName] then return end 
                             
                             local tool = character:FindFirstChild(toolName)
                             if not tool and backpack then
@@ -435,10 +436,13 @@ Win:AddToggle("Auto Attack Multi-Tool", false, function(state)
                         end
 
                         pcall(function()
-                            -- 1. Harpoon
-                            CheckAndAttack("Harpoon", function(t)
-                                SafeRemoteFunction("ToolReplicator", "~sHarpoon", "~sHitEnemy", nearestEnemy)
-                            end)
+                            -- 1. Tipe Harpoon (Melee / Hook)
+                            local harpoonTypes = {"Harpoon", "Riptide"}
+                            for _, wName in ipairs(harpoonTypes) do
+                                CheckAndAttack(wName, function(t)
+                                    SafeRemoteFunction("ToolReplicator", "~s" .. wName, "~sHitEnemy", nearestEnemy)
+                                end)
+                            end
                             
                             -- 2. Magma Staff
                             CheckAndAttack("Magma Staff", function(t)
@@ -450,17 +454,21 @@ Win:AddToggle("Auto Attack Multi-Tool", false, function(state)
                                 SafeRemoteFunction("ToolReplicator", "~sLaser", "~sShoot", vecStr)
                             end)
 
-                            -- 4. Rifle (Gun)
-                            CheckAndAttack("Rifle", function(t)
-                                local handle = t:FindFirstChild("Handle")
-                                if handle then
-                                    -- Menghitung arah rotasi peluru (LookVector) secara matematis
-                                    local direction = (enemyPos - rootPart.Position).Unit
-                                    local rifleFormatStr = string.format("~t{1=~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0}", enemyPos.X, enemyPos.Y, enemyPos.Z, direction.X, direction.Y, direction.Z)
-                                    
-                                    SafeRemoteFunction("ToolReplicator", "~sGun", "~sShoot", handle, rifleFormatStr)
-                                end
-                            end)
+                            -- 4. Tipe Senjata Api / Gun
+                            local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick"}
+                            for _, gunName in ipairs(gunTypes) do
+                                CheckAndAttack(gunName, function(t)
+                                    local handle = t:FindFirstChild("Handle")
+                                    if handle then
+                                        -- Menghitung arah rotasi peluru (LookVector) secara matematis
+                                        local direction = (enemyPos - rootPart.Position).Unit
+                                        local gunFormatStr = string.format("~t{1=~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0}", enemyPos.X, enemyPos.Y, enemyPos.Z, direction.X, direction.Y, direction.Z)
+                                        
+                                        -- Menggunakan identifier "~sGun" sesuai mekanisme game untuk semua tipe ini
+                                        SafeRemoteFunction("ToolReplicator", "~sGun", "~sShoot", handle, gunFormatStr)
+                                    end
+                                end)
+                            end
                         end)
                     end
                 end
