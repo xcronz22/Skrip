@@ -25,11 +25,11 @@ local TargetWeapons = {
     ["Riptide"] = false
 }
 
-Win:AddMultiDropdown("Pilih Material Grinder & Bakar", {"Wood", "Metal", "Goo", "Small Gas Can", "Big Gas Can", "Gas Drum"}, function(selectedTable)
+Win:AddMultiDropdown("Material", {"Wood", "Metal", "Goo", "Small Gas Can", "Big Gas Can", "Gas Drum"}, function(selectedTable)
     TargetMaterials = selectedTable
 end)
 
-Win:AddMultiDropdown("Pilih Senjata Attack", {"Harpoon", "Magma Staff", "Squid Laser", "Rifle", "Flintlock", "Blunderbuss", "Hand Cannon", "Revolver", "Boomstick", "Riptide"}, function(selectedTable)
+Win:AddMultiDropdown("Weapon", {"Harpoon", "Magma Staff", "Squid Laser", "Rifle", "Flintlock", "Blunderbuss", "Hand Cannon", "Revolver", "Boomstick", "Riptide"}, function(selectedTable)
     TargetWeapons = selectedTable
 end)
 
@@ -311,7 +311,7 @@ end)
 -- ====================================================================
 -- [FITUR 4]: AUTO COLLECT (CHEST ONLY)
 -- ====================================================================
-Win:AddToggle("Auto Collect", false, function(state)
+Win:AddToggle("Auto Collect Coin", false, function(state)
     AutoDoubloonEnabled = state
     if AutoDoubloonEnabled then
         task.spawn(function()
@@ -360,13 +360,13 @@ end)
 -- ====================================================================
 -- [FITUR 5]: AUTO ATTACK FLEKSIBEL (NEAREST / ALL TARGET)
 -- ====================================================================
-local AttackMode = "Nearest (Global)" 
+local AttackMode = "Brutal All Target" 
 
 Win:AddDropdown("Mode Auto Attack", {"Nearest (Global)", "Brutal All Target"}, function(selectedMode)
     AttackMode = selectedMode
 end)
 
-Win:AddToggle("Mulai Auto Attack", false, function(state)
+Win:AddToggle("Auto Attack", false, function(state)
     AutoAttackEnabled = state
     
     if AutoAttackEnabled then
