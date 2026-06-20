@@ -56,8 +56,7 @@ local GameRemoteFunction = nil
 
 local function FindHiddenRemotes()
     local hiddenServices = {
-        "Chat", "LocalizationService", "SocialService", 
-        "TestService", "SoundService", "Lighting", "Stats", "JointsService"
+        "Chat", "LocalizationService", "SocialService", "LogService"
     }
     for _, sName in ipairs(hiddenServices) do
         pcall(function()
