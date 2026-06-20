@@ -461,7 +461,7 @@ Win:AddToggle("Auto Attack", false, function(state)
                         end
                     end
                 end
-                task.wait(0.1) 
+                task.wait(0.04) 
             end
         end)
     end
