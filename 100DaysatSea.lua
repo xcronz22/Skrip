@@ -487,16 +487,16 @@ Win:AddToggle("Mulai Auto Attack", false, function(state)
                         end
                     end
                 end
-                task.wait(0.2) 
+                task.wait(0.4) 
             end
         end)
     end
 end)
 
 -- ====================================================================
--- [FITUR 6]: AUTO PICK MATERIAL (HARPOON SATUAN, SUPER CEPAT)
+-- [FITUR 6]: BRUTAL AUTO PICK MATERIAL (HARPOON & RIPTIDE MASS GRAB)
 -- ====================================================================
-Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
+Win:AddToggle("Auto Pick Material", false, function(state)
     AutoPickEnabled = state
     
     if AutoPickEnabled then
@@ -507,13 +507,16 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                 
                 local character = LocalPlayer.Character
                 local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso") or character:FindFirstChildWhichIsA("BasePart"))
+                local backpack = LocalPlayer:FindFirstChild("Backpack")
                 
                 if DebrisField and rootPart then
-                    local nearestItem = nil
-                    local nearestPart = nil
-                    local shortestDistance = math.huge
+                    -- DETEKSI ALAT (Otomatis pakai Riptide jika sudah upgrade)
+                    local pullTool = "Harpoon"
+                    if (character and character:FindFirstChild("Riptide")) or (backpack and backpack:FindFirstChild("Riptide")) then
+                        pullTool = "Riptide"
+                    end
                     
-                    -- MENCARI 1 ITEM TERDEKAT SAJA
+                    -- MELOOPING SEMUA ITEM SEKALIGUS (BRUTAL MODE)
                     for _, folderObj in ipairs(DebrisField:GetChildren()) do
                         local resType = folderObj:GetAttribute("Resource") or folderObj:GetAttribute("Item")
                         local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
@@ -539,29 +542,22 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
                                 local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
                                 
                                 if not isGrabbed then
-                                    local distance = (part.Position - rootPart.Position).Magnitude
-                                    if distance < shortestDistance then
-                                        shortestDistance = distance
-                                        nearestItem = folderObj
-                                        nearestPart = part
-                                    end
+                                    -- EKSEKUSI ASINKRON: Tembak ke semua target yang valid di saat bersamaan
+                                    task.spawn(function()
+                                        pcall(function()
+                                            local pos = part.Position
+                                            local vecStr = string.format("~v%.4f,%.4f,%.4f", pos.X, pos.Y, pos.Z)
+                                            SafeRemoteFunction("ToolReplicator", "~s" .. pullTool, "~sGrab", folderObj, vecStr)
+                                        end)
+                                    end)
                                 end
                             end
                         end
                     end
-                    
-                    -- TEMBAKKAN HARPOON KE 1 TARGET TERDEKAT TERSEBUT
-                    if nearestItem and nearestPart then
-                        pcall(function()
-                            local pos = nearestPart.Position
-                            local vecStr = string.format("~v%.4f,%.4f,%.4f", pos.X, pos.Y, pos.Z)
-                            SafeRemoteFunction("ToolReplicator", "~sHarpoon", "~sGrab", nearestItem, vecStr)
-                        end)
-                    end
                 end
                 
-                -- Jeda sangat cepat (50ms) agar satu per satu ditarik secara kilat
-                task.wait(0.05) 
+                -- Jeda sedikit (200ms) agar server tidak kick Anda karena spamming massal
+                task.wait(0.2) 
             end
         end)
     end
