@@ -354,15 +354,15 @@ Win:AddToggle("Auto Collect", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 5]: AUTO ATTACK (AUTO DETECT WEAPON & ANTI-BUGGED ENEMY)
+-- [FITUR 5]: AUTO ATTACK (SMART DETECT, NO AUTO-EQUIP, ANTI-BUG)
 -- ====================================================================
-local AttackMode = "Nearest (Global)" 
+local AttackMode = "Brutal All Target"
 
 Win:AddDropdown("Mode Auto Attack", {"Nearest (Global)", "Brutal All Target"}, function(selectedMode)
     AttackMode = selectedMode
 end)
 
-Win:AddToggle("Mulai Auto Attack", false, function(state)
+Win:AddToggle("Auto Attack", false, function(state)
     AutoAttackEnabled = state
     
     if AutoAttackEnabled then
@@ -376,15 +376,15 @@ Win:AddToggle("Mulai Auto Attack", false, function(state)
                 
                 if CreatureContainer and rootPart then
                     
-                    -- DETEKSI SENJATA YANG SEDANG DIPEGANG
-                    local equippedTool = character:FindFirstChildOfClass("Tool")
+                    -- HANYA MENDETEKSI APA YANG SEDANG DIPEGANG (TIDAK MEMAKSA EQUIP)
+                    local activeTool = character:FindFirstChildOfClass("Tool")
                     
-                    -- Hanya jalankan attack jika sedang memegang senjata yang valid
-                    if equippedTool and TargetWeapons[equippedTool.Name] then
-                        local wName = equippedTool.Name
+                    -- Jika memegang sesuatu DAN sesuatu itu ada di daftar senjata valid kita, BARU SERANG
+                    if activeTool and TargetWeapons[activeTool.Name] then
+                        local wName = activeTool.Name
 
                         if AttackMode == "Nearest (Global)" then
-                            -- MODE: NEAREST
+                            -- MENCARI 1 MUSUH TERDEKAT
                             local nearestEnemy = nil
                             local nearestEnemyPart = nil
                             local shortestDistance = math.huge 
@@ -394,7 +394,7 @@ Win:AddToggle("Mulai Auto Attack", false, function(state)
                                 
                                 local enemyPart = enemy:IsA("BasePart") and enemy or enemy:FindFirstChildWhichIsA("BasePart") or (enemy:IsA("Model") and enemy.PrimaryPart)
                                 
-                                -- FILTER ANTI BUG (Mengabaikan musuh yang mati dengan Transparency 1)
+                                -- FILTER ANTI BUG: Jangan serang musuh yang Transparency-nya 1 (sudah mati/ngebug)
                                 if enemyPart and enemyPart.Transparency ~= 1 then
                                     local distance = (enemyPart.Position - rootPart.Position).Magnitude
                                     if distance <= shortestDistance then
@@ -405,7 +405,7 @@ Win:AddToggle("Mulai Auto Attack", false, function(state)
                                 end
                             end
                             
-                            -- EKSEKUSI ATTACK
+                            -- EKSEKUSI ATTACK KE 1 MUSUH
                             if nearestEnemy and nearestEnemyPart then
                                 local enemyPos = nearestEnemy:IsA("Model") and nearestEnemy:GetPivot().Position or nearestEnemyPart.Position
                                 local vecStr = string.format("~v%.4f,%.4f,%.4f", enemyPos.X, enemyPos.Y, enemyPos.Z)
@@ -418,8 +418,7 @@ Win:AddToggle("Mulai Auto Attack", false, function(state)
                                     elseif wName == "Squid Laser" then
                                         SafeRemoteFunction("ToolReplicator", "~sLaser", "~sShoot", vecStr)
                                     else
-                                        -- Tipe Senjata Api (Pistol, Rifle, dsb)
-                                        local firePart = equippedTool:FindFirstChild("Handle") or equippedTool:FindFirstChildWhichIsA("BasePart") or rootPart
+                                        local firePart = activeTool:FindFirstChild("Handle") or activeTool:FindFirstChildWhichIsA("BasePart") or rootPart
                                         if firePart then
                                             local direction = (enemyPos - rootPart.Position).Unit
                                             local gunFormatStr = string.format("~t{1=~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0}", enemyPos.X, enemyPos.Y, enemyPos.Z, direction.X, direction.Y, direction.Z)
@@ -430,13 +429,13 @@ Win:AddToggle("Mulai Auto Attack", false, function(state)
                             end
                             
                         elseif AttackMode == "Brutal All Target" then
-                            -- MODE: BRUTAL ALL TARGET
+                            -- HAJAR SEMUA MUSUH
                             for _, enemy in ipairs(CreatureContainer:GetChildren()) do
                                 if enemy.Name == "Wraith" or enemy.Name == "Wraith_CLIENT" then continue end
                                 
                                 local enemyPart = enemy:IsA("BasePart") and enemy or enemy:FindFirstChildWhichIsA("BasePart") or (enemy:IsA("Model") and enemy.PrimaryPart)
                                 
-                                -- FILTER ANTI BUG (Mengabaikan musuh yang mati dengan Transparency 1)
+                                -- FILTER ANTI BUG
                                 if enemyPart and enemyPart.Transparency ~= 1 then
                                     local enemyPos = enemy:IsA("Model") and enemy:GetPivot().Position or enemyPart.Position
                                     local vecStr = string.format("~v%.4f,%.4f,%.4f", enemyPos.X, enemyPos.Y, enemyPos.Z)
@@ -449,8 +448,7 @@ Win:AddToggle("Mulai Auto Attack", false, function(state)
                                         elseif wName == "Squid Laser" then
                                             SafeRemoteFunction("ToolReplicator", "~sLaser", "~sShoot", vecStr)
                                         else
-                                            -- Tipe Senjata Api
-                                            local firePart = equippedTool:FindFirstChild("Handle") or equippedTool:FindFirstChildWhichIsA("BasePart") or rootPart
+                                            local firePart = activeTool:FindFirstChild("Handle") or activeTool:FindFirstChildWhichIsA("BasePart") or rootPart
                                             if firePart then
                                                 local direction = (enemyPos - rootPart.Position).Unit
                                                 local gunFormatStr = string.format("~t{1=~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0}", enemyPos.X, enemyPos.Y, enemyPos.Z, direction.X, direction.Y, direction.Z)
@@ -544,7 +542,7 @@ Win:AddToggle("Auto Pick Material (Harpoon)", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 7]: AUTO OPEN CHEST (DEEP SCAN KESELURUH FOLDER & PULAU)
+-- [FITUR 7]: AUTO OPEN CHEST (SPESIFIK KE MODEL PETI, JARAK 15 STUDS)
 -- ====================================================================
 Win:AddToggle("Auto Open Chest", false, function(state)
     AutoChestEnabled = state
@@ -560,24 +558,21 @@ Win:AddToggle("Auto Open Chest", false, function(state)
                 
                 if rootPart then
                     local nearestChest = nil
-                    local shortestDistance = 15 
+                    local shortestDistance = 15 -- Batas 15 Studs
                     local potentialChests = {}
                     
-                    -- FUNGSI: Menggali ke dalam setiap folder/model tanpa batas kedalaman
-                    local function CollectChests(parentFolder)
-                        if not parentFolder then return end
-                        
-                        -- Mengambil anak langsung (Khusus untuk folder 'Chests' yang mungkin namanya cuma "Warrior" dsb)
-                        if parentFolder.Name == "Chests" then
-                            for _, item in ipairs(parentFolder:GetChildren()) do
-                                table.insert(potentialChests, item)
-                            end
+                    -- 1. Mengumpulkan Chest dari workspace.Chests
+                    if ChestsFolder then
+                        for _, chest in ipairs(ChestsFolder:GetChildren()) do
+                            table.insert(potentialChests, chest)
                         end
-                        
-                        -- GetDescendants() mengecek isi folder, isi model, di dalam folder lagi, dst.
-                        for _, item in ipairs(parentFolder:GetDescendants()) do
-                            if (item:IsA("Model") or item:IsA("Folder") or item:IsA("BasePart")) then
-                                -- string.lower mematikan case-sensitive sehingga frostchest, GhostChest, chest terbaca semua
+                    end
+                    
+                    -- 2. Mengumpulkan Chest dari workspace.IslandContainer (Cek semua pulau)
+                    if IslandContainer then
+                        for _, island in ipairs(IslandContainer:GetChildren()) do
+                            -- Hanya mengambil anak langsung dari pulau (agar tidak mendeteksi engsel/isi peti)
+                            for _, item in ipairs(island:GetChildren()) do
                                 if string.find(string.lower(item.Name), "chest") then
                                     table.insert(potentialChests, item)
                                 end
@@ -585,23 +580,29 @@ Win:AddToggle("Auto Open Chest", false, function(state)
                         end
                     end
                     
-                    -- Jalankan Pengumpulan
-                    CollectChests(ChestsFolder)
-                    CollectChests(IslandContainer)
-                    
-                    -- Mencari 1 Chest terdekat dari daftar komprehensif
+                    -- 3. Mencari Chest terdekat
                     for _, chest in ipairs(potentialChests) do
-                        local part = chest:IsA("BasePart") and chest or chest:FindFirstChildWhichIsA("BasePart")
-                        if part then
-                            local distance = (part.Position - rootPart.Position).Magnitude
-                            if distance < shortestDistance then
+                        -- Mencari posisi akurat dari chest (baik Model maupun BasePart)
+                        local chestPos = nil
+                        if chest:IsA("Model") then
+                            chestPos = chest:GetPivot().Position
+                        elseif chest:IsA("BasePart") then
+                            chestPos = chest.Position
+                        else
+                            local subPart = chest:FindFirstChildWhichIsA("BasePart") or chest:FindFirstChildWhichIsA("MeshPart")
+                            if subPart then chestPos = subPart.Position end
+                        end
+                        
+                        if chestPos then
+                            local distance = (chestPos - rootPart.Position).Magnitude
+                            if distance <= shortestDistance then
                                 shortestDistance = distance
                                 nearestChest = chest
                             end
                         end
                     end
                     
-                    -- Buka Peti
+                    -- 4. Buka Peti Terdekat
                     if nearestChest then
                         pcall(function()
                             SafeRemoteFunction("OpenChest", nearestChest)
