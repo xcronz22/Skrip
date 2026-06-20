@@ -487,14 +487,14 @@ Win:AddToggle("Auto Attack", false, function(state)
                         end
                     end
                 end
-                task.wait(0.1) 
+                task.wait(0.08) 
             end
         end)
     end
 end)
 
 -- ====================================================================
--- [FITUR 6]: BRUTAL AUTO PICK MATERIAL (HARPOON & RIPTIDE MASS GRAB)
+-- [FITUR 6]: AUTO PICK MATERIAL (NEAREST, HARPOON & RIPTIDE SUPPORT)
 -- ====================================================================
 Win:AddToggle("Auto Pick Material", false, function(state)
     AutoPickEnabled = state
@@ -510,13 +510,17 @@ Win:AddToggle("Auto Pick Material", false, function(state)
                 local backpack = LocalPlayer:FindFirstChild("Backpack")
                 
                 if DebrisField and rootPart then
+                    local nearestItem = nil
+                    local nearestPart = nil
+                    local shortestDistance = math.huge
+                    
                     -- DETEKSI ALAT (Otomatis pakai Riptide jika sudah upgrade)
                     local pullTool = "Harpoon"
                     if (character and character:FindFirstChild("Riptide")) or (backpack and backpack:FindFirstChild("Riptide")) then
                         pullTool = "Riptide"
                     end
                     
-                    -- MELOOPING SEMUA ITEM SEKALIGUS (BRUTAL MODE)
+                    -- MENCARI 1 ITEM TERDEKAT SAJA
                     for _, folderObj in ipairs(DebrisField:GetChildren()) do
                         local resType = folderObj:GetAttribute("Resource") or folderObj:GetAttribute("Item")
                         local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
@@ -542,22 +546,27 @@ Win:AddToggle("Auto Pick Material", false, function(state)
                                 local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
                                 
                                 if not isGrabbed then
-                                    -- EKSEKUSI ASINKRON: Tembak ke semua target yang valid di saat bersamaan
-                                    task.spawn(function()
-                                        pcall(function()
-                                            local pos = part.Position
-                                            local vecStr = string.format("~v%.4f,%.4f,%.4f", pos.X, pos.Y, pos.Z)
-                                            SafeRemoteFunction("ToolReplicator", "~s" .. pullTool, "~sGrab", folderObj, vecStr)
-                                        end)
-                                    end)
+                                    local distance = (part.Position - rootPart.Position).Magnitude
+                                    if distance < shortestDistance then
+                                        shortestDistance = distance
+                                        nearestItem = folderObj
+                                        nearestPart = part
+                                    end
                                 end
                             end
                         end
                     end
+                    
+                    -- TEMBAKKAN HARPOON/RIPTIDE KE 1 TARGET TERDEKAT TERSEBUT
+                    if nearestItem and nearestPart then
+                        pcall(function()
+                            local pos = nearestPart.Position
+                            local vecStr = string.format("~v%.4f,%.4f,%.4f", pos.X, pos.Y, pos.Z)
+                            SafeRemoteFunction("ToolReplicator", "~s" .. pullTool, "~sGrab", nearestItem, vecStr)
+                        end)
+                    end
                 end
-                
-                -- Jeda sedikit (200ms) agar server tidak kick Anda karena spamming massal
-                task.wait(0.2) 
+                task.wait(0.04) 
             end
         end)
     end
