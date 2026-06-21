@@ -761,7 +761,6 @@ Win:AddToggle("Auto Cook Chowder", false, function(state)
                                     pcall(function()
                                         -- Tweak: Ditambahkan '* CFrame.new(0, 3, 0)' agar TP berada di luar atas StoreBlock
                                         part.CFrame = storeBlock.CFrame * CFrame.new(0, 5, 0)
-                                        part.AssemblyLinearVelocity = Vector3.new(0, -5, 0) -- Memberi sedikit efek jatuh ke bawah
                                     end)
                                 end
                             end
