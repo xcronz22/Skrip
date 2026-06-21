@@ -713,7 +713,7 @@ Win:AddToggle("Auto Fishing", false, function(state)
                 end
                 
                 -- Jeda 0.2 detik (sangat cepat namun cukup aman untuk server)
-                task.wait(0.2) 
+                task.wait(0.5) 
             end
         end)
     end
@@ -759,7 +759,7 @@ Win:AddToggle("Auto Cook Chowder", false, function(state)
                         end
                     end
                 end
-                task.wait(0.2) -- Kecepatan tinggi agar tidak ada delay saat TP
+                task.wait(0.5) -- Kecepatan tinggi agar tidak ada delay saat TP
             end
         end)
     end
