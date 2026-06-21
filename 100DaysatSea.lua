@@ -728,46 +728,73 @@ Win:AddToggle("Auto Fishing", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 9]: AUTO COOK CHOWDER / PIZZA (VERSI SINKRON GRINDER)
+-- [FITUR 9]: AUTO COOK CHOWDER / PIZZA (SUPPORT MULTI POT/OVEN)
 -- ====================================================================
 Win:AddToggle("Auto Cook Chowder", false, function(state)
     AutoCookChowderEnabled = state
     if AutoCookChowderEnabled then
         task.spawn(function()
             while AutoCookChowderEnabled do
-                local pot = GetCookingPot()
+                local workspace = game:GetService("Workspace")
+                local DebrisField = workspace:FindFirstChild("DebrisField")
+                local IslandContainer = workspace:FindFirstChild("IslandContainer")
                 
-                -- Hanya eksekusi jika panci terdeteksi dan butuh bahan
-                if pot and PotNeedsFood(pot) then
-                    local storeBlock = pot:FindFirstChild("StoreBlock")
-                    local DebrisField = workspace:FindFirstChild("DebrisField")
+                if DebrisField and IslandContainer then
+                    -- 1. Mengumpulkan SEMUA panci/oven yang ada di pulau Anda
+                    local allPots = {}
+                    for _, island in ipairs(IslandContainer:GetChildren()) do
+                        for _, item in ipairs(island:GetChildren()) do
+                            -- Identifikasi bahwa objek tersebut adalah panci/oven karena memiliki 'StoreBlock'
+                            if item:FindFirstChild("StoreBlock") then
+                                table.insert(allPots, item)
+                            end
+                        end
+                    end
                     
-                    if storeBlock and DebrisField then
-                        for _, folderObj in ipairs(DebrisField:GetChildren()) do
-                            local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
+                    -- 2. Memproses makanan di DebrisField
+                    for _, folderObj in ipairs(DebrisField:GetChildren()) do
+                        if not AutoCookChowderEnabled then break end
+                        
+                        local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
+                        local isFood = (folderObj:GetAttribute("Food") ~= nil or folderObj:GetAttribute("food") ~= nil)
+                        
+                        if isFood and part then
+                            local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
+                            local grabber = tostring(folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber"))
+                            local lastHolder = tostring(folderObj:GetAttribute("LastHolder") or part:GetAttribute("LastHolder"))
+                            local myId = tostring(LocalPlayer.UserId)
                             
-                            -- Deteksi Atribut Food (Case-Insensitive)
-                            local isFood = (folderObj:GetAttribute("Food") ~= nil or folderObj:GetAttribute("food") ~= nil)
-                            
-                            if isFood and part then
-                                -- Filter: Hanya ambil jika item sudah jadi "milik" kita
-                                local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
-                                local grabber = tostring(folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber"))
-                                local lastHolder = tostring(folderObj:GetAttribute("LastHolder") or part:GetAttribute("LastHolder"))
-                                local myId = tostring(LocalPlayer.UserId)
+                            -- Jika makanan ini adalah milik/sedang dipegang kita
+                            if isGrabbed and (grabber == myId or lastHolder == myId) then
                                 
-                                -- Jika item sedang dipegang oleh kita (sama persis dengan logic Auto Grinder)
-                                if isGrabbed and (grabber == myId or lastHolder == myId) then
-                                    pcall(function()
-                                        -- TP ke posisi StoreBlock (tempat menaruh bahan di dalam panci)
-                                        part.CFrame = storeBlock.CFrame
-                                    end)
+                                -- 3. Mengecek satu per satu dari daftar panci yang sudah dikumpulkan
+                                for _, pot in ipairs(allPots) do
+                                    -- Jika panci ini butuh makanan (belum 3/3)
+                                    if PotNeedsFood(pot) then
+                                        local storeBlock = pot:FindFirstChild("StoreBlock")
+                                        if storeBlock then
+                                            pcall(function()
+                                                -- Teleportasi makanan 3 stud di atas StoreBlock panci yang kosong tersebut
+                                                part.CFrame = storeBlock.CFrame * CFrame.new(0, 3, 0)
+                                                part.AssemblyLinearVelocity = Vector3.new(0, -5, 0)
+                                            end)
+                                            
+                                            -- Jeda 0.1 detik agar server sempat memproses bahwa panci ini baru saja diisi
+                                            -- Ini mencegah 3 makanan masuk sekaligus menumpuk di 1 panci secara bersamaan
+                                            task.wait(0.1) 
+                                            
+                                            -- Makanan ini sudah dimasukkan ke panci, hentikan pencarian panci untuk makanan ini, lanjut ke makanan berikutnya
+                                            break 
+                                        end
+                                    end
                                 end
+                                
                             end
                         end
                     end
                 end
-                task.wait(0.05) -- Kecepatan tinggi agar tidak ada delay saat TP
+                
+                task.wait(0.05) 
             end
         end)
     end
