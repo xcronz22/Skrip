@@ -728,7 +728,7 @@ Win:AddToggle("Auto Fishing", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 9]: AUTO COOK CHOWDER / PIZZA (VERSI SINKRON GRINDER - ANTI STACK)
+-- [FITUR 9]: AUTO COOK CHOWDER / PIZZA (VERSI SINKRON GRINDER)
 -- ====================================================================
 Win:AddToggle("Auto Cook Chowder", false, function(state)
     AutoCookChowderEnabled = state
@@ -759,22 +759,16 @@ Win:AddToggle("Auto Cook Chowder", false, function(state)
                                 -- Jika item sedang dipegang oleh kita (sama persis dengan logic Auto Grinder)
                                 if isGrabbed and (grabber == myId or lastHolder == myId) then
                                     pcall(function()
-                                        -- TP berada di luar atas StoreBlock
+                                        -- Tweak: Ditambahkan '* CFrame.new(0, 3, 0)' agar TP berada di luar atas StoreBlock
                                         part.CFrame = storeBlock.CFrame * CFrame.new(0, 3, 0)
                                         part.AssemblyLinearVelocity = Vector3.new(0, -5, 0) -- Memberi sedikit efek jatuh ke bawah
                                     end)
-                                    
-                                    -- JEDA & BREAK: 
-                                    -- Tunggu 0.5 detik agar makanan masuk ke panci dan server meng-update statusnya.
-                                    -- Lalu 'break' agar loop mengulang pengecekan 'PotNeedsFood' sebelum melempar makanan selanjutnya.
-                                    task.wait(0.5)
-                                    break 
                                 end
                             end
                         end
                     end
                 end
-                task.wait(0.05) -- Kecepatan loop utama tetap tinggi agar responsif
+                task.wait(0.05) -- Kecepatan tinggi agar tidak ada delay saat TP
             end
         end)
     end
