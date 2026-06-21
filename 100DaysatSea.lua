@@ -760,7 +760,7 @@ Win:AddToggle("Auto Cook Chowder", false, function(state)
                                 if isGrabbed and (grabber == myId or lastHolder == myId) then
                                     pcall(function()
                                         -- Tweak: Ditambahkan '* CFrame.new(0, 3, 0)' agar TP berada di luar atas StoreBlock
-                                        part.CFrame = storeBlock.CFrame * CFrame.new(0, 3, 0)
+                                        part.CFrame = storeBlock.CFrame * CFrame.new(0, 5, 0)
                                         part.AssemblyLinearVelocity = Vector3.new(0, -5, 0) -- Memberi sedikit efek jatuh ke bawah
                                     end)
                                 end
@@ -768,7 +768,7 @@ Win:AddToggle("Auto Cook Chowder", false, function(state)
                         end
                     end
                 end
-                task.wait(0.05) -- Kecepatan tinggi agar tidak ada delay saat TP
+                task.wait(0.2) -- Kecepatan tinggi agar tidak ada delay saat TP
             end
         end)
     end
