@@ -728,7 +728,7 @@ Win:AddToggle("Auto Fishing", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 9]: AUTO COOK CHOWDER / PIZZA (UPDATED)
+-- [FITUR 9]: AUTO COOK CHOWDER / PIZZA (VERSI SINKRON GRINDER)
 -- ====================================================================
 Win:AddToggle("Auto Cook Chowder", false, function(state)
     AutoCookChowderEnabled = state
@@ -737,32 +737,29 @@ Win:AddToggle("Auto Cook Chowder", false, function(state)
             while AutoCookChowderEnabled do
                 local pot = GetCookingPot()
                 
+                -- Hanya eksekusi jika panci terdeteksi dan butuh bahan
                 if pot and PotNeedsFood(pot) then
                     local storeBlock = pot:FindFirstChild("StoreBlock")
-                    local debris = workspace:FindFirstChild("DebrisField")
+                    local DebrisField = workspace:FindFirstChild("DebrisField")
                     
-                    if storeBlock and debris then
-                        for _, folderObj in ipairs(debris:GetChildren()) do
+                    if storeBlock and DebrisField then
+                        for _, folderObj in ipairs(DebrisField:GetChildren()) do
                             local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
                             
-                            -- PERBAIKAN: Deteksi atribut "food" (kecil) dan "Food" (besar)
-                            local isFood = false
-                            if folderObj:GetAttribute("food") ~= nil or folderObj:GetAttribute("Food") ~= nil then
-                                isFood = true
-                            elseif part and (part:GetAttribute("food") ~= nil or part:GetAttribute("Food") ~= nil) then
-                                isFood = true
-                            end
+                            -- Deteksi Atribut Food (Case-Insensitive)
+                            local isFood = (folderObj:GetAttribute("Food") ~= nil or folderObj:GetAttribute("food") ~= nil)
                             
                             if isFood and part then
+                                -- Filter: Hanya ambil jika item sudah jadi "milik" kita
                                 local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
                                 local grabber = tostring(folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber"))
                                 local lastHolder = tostring(folderObj:GetAttribute("LastHolder") or part:GetAttribute("LastHolder"))
-                                
                                 local myId = tostring(LocalPlayer.UserId)
                                 
-                                if isGrabbed and grabber == myId and lastHolder == myId then
+                                -- Jika item sedang dipegang oleh kita (sama persis dengan logic Auto Grinder)
+                                if isGrabbed and (grabber == myId or lastHolder == myId) then
                                     pcall(function()
-                                        -- Paksa posisi dan rotasi item tepat ke dalam Pot
+                                        -- TP ke posisi StoreBlock (tempat menaruh bahan di dalam panci)
                                         part.CFrame = storeBlock.CFrame
                                     end)
                                 end
@@ -770,7 +767,7 @@ Win:AddToggle("Auto Cook Chowder", false, function(state)
                         end
                     end
                 end
-                task.wait(0.1)
+                task.wait(0.05) -- Kecepatan tinggi agar tidak ada delay saat TP
             end
         end)
     end
