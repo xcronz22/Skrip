@@ -22,6 +22,7 @@ local TargetWeapons = {
     ["Hand Cannon"] = false,
     ["Revolver"] = false,
     ["Boomstick"] = false,
+    ["Grenade"] = false,
     ["Riptide"] = false
 }
 
@@ -29,7 +30,7 @@ Win:AddMultiDropdown("Material", {"Wood", "Metal", "Goo", "Small Gas Can", "Big 
     TargetMaterials = selectedTable
 end)
 
-Win:AddMultiDropdown("Weapon", {"Harpoon", "Magma Staff", "Squid Laser", "Rifle", "Flintlock", "Blunderbuss", "Hand Cannon", "Revolver", "Boomstick", "Riptide"}, function(selectedTable)
+Win:AddMultiDropdown("Weapon", {"Harpoon", "Magma Staff", "Squid Laser", "Rifle", "Flintlock", "Blunderbuss", "Hand Cannon", "Revolver", "Boomstick", "Grenade", "Riptide"}, function(selectedTable)
     TargetWeapons = selectedTable
 end)
 
@@ -400,10 +401,10 @@ Win:AddToggle("Auto Collect Coin", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 5]: AUTO ATTACK FLEKSIBEL (NEAREST / ALL TARGET)
+-- [FITUR 5]: AUTO ATTACK FLEKSIBEL (NEAREST / ALL TARGET) + GRENADE
 -- ====================================================================
 local AttackMode = "Brutal All Target" 
-local BrutalAttackRange = 500 -- Default jarak awal jika tidak diisi
+local BrutalAttackRange = 500 
 
 Win:AddDropdown("Mode Auto Attack", {"Nearest (Global)", "Brutal All Target"}, function(selectedMode)
     AttackMode = selectedMode
@@ -489,6 +490,9 @@ Win:AddToggle("Auto Attack", false, function(state)
                                 CheckAndAttackAsync("Magma Staff", function(t) SafeRemoteFunction("ToolReplicator", "~sMagma Staff", "~sFire", vecStr) end)
                                 CheckAndAttackAsync("Squid Laser", function(t) SafeRemoteFunction("ToolReplicator", "~sLaser", "~sShoot", vecStr) end)
                                 
+                                -- Eksekusi Grenade dengan SafeRemoteFunction
+                                CheckAndAttackAsync("Grenade", function(t) SafeRemoteFunction("ToolReplicator", "~sGrenade", "~sThrow", vecStr, vecStr) end)
+                                
                                 local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick"}
                                 for _, gunName in ipairs(gunTypes) do
                                     CheckAndAttackAsync(gunName, function(t)
@@ -514,7 +518,7 @@ Win:AddToggle("Auto Attack", false, function(state)
                                 local enemyPos = enemy:IsA("Model") and enemy:GetPivot().Position or enemyPart.Position
                                 local distance = (enemyPos - rootPart.Position).Magnitude
                                 
-                                -- Hanya serang jika musuh berada dalam jarak yang diatur di Panel UI
+                                -- Hanya serang jika musuh berada dalam jarak yang diatur
                                 if distance <= BrutalAttackRange then
                                     local vecStr = string.format("~v%.4f,%.4f,%.4f", enemyPos.X, enemyPos.Y, enemyPos.Z)
                                     
@@ -524,6 +528,9 @@ Win:AddToggle("Auto Attack", false, function(state)
                                         end
                                         CheckAndAttackAsync("Magma Staff", function(t) SafeRemoteFunction("ToolReplicator", "~sMagma Staff", "~sFire", vecStr) end)
                                         CheckAndAttackAsync("Squid Laser", function(t) SafeRemoteFunction("ToolReplicator", "~sLaser", "~sShoot", vecStr) end)
+
+                                        -- Eksekusi Grenade dengan SafeRemoteFunction
+                                        CheckAndAttackAsync("Grenade", function(t) SafeRemoteFunction("ToolReplicator", "~sGrenade", "~sThrow", vecStr, vecStr) end)
 
                                         local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick"}
                                         for _, gunName in ipairs(gunTypes) do
