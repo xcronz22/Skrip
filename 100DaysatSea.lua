@@ -403,9 +403,17 @@ end)
 -- [FITUR 5]: AUTO ATTACK FLEKSIBEL (NEAREST / ALL TARGET)
 -- ====================================================================
 local AttackMode = "Brutal All Target" 
+local BrutalAttackRange = 500 -- Default jarak awal jika tidak diisi
 
 Win:AddDropdown("Mode Auto Attack", {"Nearest (Global)", "Brutal All Target"}, function(selectedMode)
     AttackMode = selectedMode
+end)
+
+Win:AddInput("Jarak Brutal Attack", "Masukkan angka (Cth: 150)", function(value)
+    local num = tonumber(value)
+    if num then
+        BrutalAttackRange = num
+    end
 end)
 
 Win:AddToggle("Auto Attack", false, function(state)
@@ -496,7 +504,7 @@ Win:AddToggle("Auto Attack", false, function(state)
                         end
                         
                     elseif AttackMode == "Brutal All Target" then
-                        -- MODE: BRUTAL ALL TARGET
+                        -- MODE: BRUTAL ALL TARGET DENGAN LIMIT JARAK
                         for _, enemy in ipairs(CreatureContainer:GetChildren()) do
                             if enemy.Name == "Wraith" or enemy.Name == "Wraith_CLIENT" then continue end
                             
@@ -504,27 +512,32 @@ Win:AddToggle("Auto Attack", false, function(state)
                             
                             if enemyPart then
                                 local enemyPos = enemy:IsA("Model") and enemy:GetPivot().Position or enemyPart.Position
-                                local vecStr = string.format("~v%.4f,%.4f,%.4f", enemyPos.X, enemyPos.Y, enemyPos.Z)
+                                local distance = (enemyPos - rootPart.Position).Magnitude
                                 
-                                pcall(function()
-                                    for _, wName in ipairs({"Harpoon", "Riptide"}) do
-                                        CheckAndAttackAsync(wName, function(t) SafeRemoteFunction("ToolReplicator", "~s" .. wName, "~sHitEnemy", enemy) end)
-                                    end
-                                    CheckAndAttackAsync("Magma Staff", function(t) SafeRemoteFunction("ToolReplicator", "~sMagma Staff", "~sFire", vecStr) end)
-                                    CheckAndAttackAsync("Squid Laser", function(t) SafeRemoteFunction("ToolReplicator", "~sLaser", "~sShoot", vecStr) end)
+                                -- Hanya serang jika musuh berada dalam jarak yang diatur di Panel UI
+                                if distance <= BrutalAttackRange then
+                                    local vecStr = string.format("~v%.4f,%.4f,%.4f", enemyPos.X, enemyPos.Y, enemyPos.Z)
+                                    
+                                    pcall(function()
+                                        for _, wName in ipairs({"Harpoon", "Riptide"}) do
+                                            CheckAndAttackAsync(wName, function(t) SafeRemoteFunction("ToolReplicator", "~s" .. wName, "~sHitEnemy", enemy) end)
+                                        end
+                                        CheckAndAttackAsync("Magma Staff", function(t) SafeRemoteFunction("ToolReplicator", "~sMagma Staff", "~sFire", vecStr) end)
+                                        CheckAndAttackAsync("Squid Laser", function(t) SafeRemoteFunction("ToolReplicator", "~sLaser", "~sShoot", vecStr) end)
 
-                                    local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick"}
-                                    for _, gunName in ipairs(gunTypes) do
-                                        CheckAndAttackAsync(gunName, function(t)
-                                            local firePart = t:FindFirstChild("Handle") or t:FindFirstChildWhichIsA("BasePart") or rootPart
-                                            if firePart then
-                                                local direction = (enemyPos - rootPart.Position).Unit
-                                                local gunFormatStr = string.format("~t{1=~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0}", enemyPos.X, enemyPos.Y, enemyPos.Z, direction.X, direction.Y, direction.Z)
-                                                SafeRemoteFunction("ToolReplicator", "~sGun", "~sShoot", firePart, gunFormatStr)
-                                            end
-                                        end)
-                                    end
-                                end)
+                                        local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick"}
+                                        for _, gunName in ipairs(gunTypes) do
+                                            CheckAndAttackAsync(gunName, function(t)
+                                                local firePart = t:FindFirstChild("Handle") or t:FindFirstChildWhichIsA("BasePart") or rootPart
+                                                if firePart then
+                                                    local direction = (enemyPos - rootPart.Position).Unit
+                                                    local gunFormatStr = string.format("~t{1=~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0}", enemyPos.X, enemyPos.Y, enemyPos.Z, direction.X, direction.Y, direction.Z)
+                                                    SafeRemoteFunction("ToolReplicator", "~sGun", "~sShoot", firePart, gunFormatStr)
+                                                end
+                                            end)
+                                        end
+                                    end)
+                                end
                             end
                         end
                     end
