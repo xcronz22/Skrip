@@ -728,83 +728,53 @@ Win:AddToggle("Auto Fishing", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 9]: AUTO COOK CHOWDER / PIZZA (FOKUS: SPAWNISLAND > CRAFTED)
+-- [FITUR 9]: AUTO COOK CHOWDER / PIZZA (VERSI SINKRON GRINDER - ANTI STACK)
 -- ====================================================================
 Win:AddToggle("Auto Cook Chowder", false, function(state)
     AutoCookChowderEnabled = state
     if AutoCookChowderEnabled then
         task.spawn(function()
             while AutoCookChowderEnabled do
-                local workspace = game:GetService("Workspace")
-                local DebrisField = workspace:FindFirstChild("DebrisField")
+                local pot = GetCookingPot()
                 
-                -- Langsung menargetkan folder yang tepat sesuai instruksi
-                local spawnIsland = workspace:FindFirstChild("SpawnIsland")
-                local craftedFolder = spawnIsland and spawnIsland:FindFirstChild("Crafted")
-                
-                if DebrisField and craftedFolder then
-                    -- 1. Mengumpulkan SEMUA Panci/Oven HANYA dari folder Crafted
-                    local activePots = {}
+                -- Hanya eksekusi jika panci terdeteksi dan butuh bahan
+                if pot and PotNeedsFood(pot) then
+                    local storeBlock = pot:FindFirstChild("StoreBlock")
+                    local DebrisField = workspace:FindFirstChild("DebrisField")
                     
-                    for _, obj in ipairs(craftedFolder:GetChildren()) do
-                        if obj:FindFirstChild("StoreBlock") then
-                            table.insert(activePots, obj)
-                        end
-                    end
-
-                    -- 2. Proses Pencarian & Pelemparan Makanan
-                    for _, folderObj in ipairs(DebrisField:GetChildren()) do
-                        if not AutoCookChowderEnabled then break end
-                        
-                        local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
-                        local isFood = (folderObj:GetAttribute("Food") ~= nil or folderObj:GetAttribute("food") ~= nil)
-                        
-                        if isFood and part then
-                            local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
-                            local grabber = tostring(folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber"))
-                            local lastHolder = tostring(folderObj:GetAttribute("LastHolder") or part:GetAttribute("LastHolder"))
-                            local myId = tostring(LocalPlayer.UserId)
+                    if storeBlock and DebrisField then
+                        for _, folderObj in ipairs(DebrisField:GetChildren()) do
+                            local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
                             
-                            -- Jika makanan adalah milik kita
-                            if isGrabbed and (grabber == myId or lastHolder == myId) then
-                                local foodSent = false
+                            -- Deteksi Atribut Food (Case-Insensitive)
+                            local isFood = (folderObj:GetAttribute("Food") ~= nil or folderObj:GetAttribute("food") ~= nil)
+                            
+                            if isFood and part then
+                                -- Filter: Hanya ambil jika item sudah jadi "milik" kita
+                                local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
+                                local grabber = tostring(folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber"))
+                                local lastHolder = tostring(folderObj:GetAttribute("LastHolder") or part:GetAttribute("LastHolder"))
+                                local myId = tostring(LocalPlayer.UserId)
                                 
-                                -- Cek satu per satu panci yang tersedia di folder Crafted
-                                for _, pot in ipairs(activePots) do
-                                    
-                                    local needsFood = false
+                                -- Jika item sedang dipegang oleh kita (sama persis dengan logic Auto Grinder)
+                                if isGrabbed and (grabber == myId or lastHolder == myId) then
                                     pcall(function()
-                                        needsFood = PotNeedsFood(pot)
+                                        -- TP berada di luar atas StoreBlock
+                                        part.CFrame = storeBlock.CFrame * CFrame.new(0, 3, 0)
+                                        part.AssemblyLinearVelocity = Vector3.new(0, -5, 0) -- Memberi sedikit efek jatuh ke bawah
                                     end)
                                     
-                                    if needsFood then
-                                        local storeBlock = pot:FindFirstChild("StoreBlock")
-                                        if storeBlock then
-                                            pcall(function()
-                                                -- TP 3 stud di atas StoreBlock panci
-                                                part.CFrame = storeBlock.CFrame * CFrame.new(0, 3, 0)
-                                                part.AssemblyLinearVelocity = Vector3.new(0, -5, 0)
-                                            end)
-                                            
-                                            foodSent = true
-                                            
-                                            -- JEDA (0.5 Detik): 
-                                            -- Menunggu server memproses 1 makanan ini masuk ke dalam panci.
-                                            -- Mencegah makanan bertumpuk/melayang.
-                                            task.wait(0.5) 
-                                            break -- Pindah ke makanan berikutnya
-                                        end
-                                    end
+                                    -- JEDA & BREAK: 
+                                    -- Tunggu 0.5 detik agar makanan masuk ke panci dan server meng-update statusnya.
+                                    -- Lalu 'break' agar loop mengulang pengecekan 'PotNeedsFood' sebelum melempar makanan selanjutnya.
+                                    task.wait(0.5)
+                                    break 
                                 end
-                                
-                                -- Jika baru saja mengirim makanan, break loop makanan agar skrip mengulang deteksi dari awal
-                                if foodSent then break end
                             end
                         end
                     end
                 end
-                
-                task.wait(0.05) 
+                task.wait(0.05) -- Kecepatan loop utama tetap tinggi agar responsif
             end
         end)
     end
