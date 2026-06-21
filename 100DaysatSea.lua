@@ -41,6 +41,48 @@ local AutoAttackEnabled = false
 local AutoPickEnabled = false
 local AutoChestEnabled = false
 
+-- ====================================================================
+-- [FUNGSI BANTUAN]: DETEKSI COOKING POT & CHOWDER/PIZZA
+-- ====================================================================
+local function GetCookingPot()
+    local spawnIsland = workspace:FindFirstChild("SpawnIsland")
+    if spawnIsland then
+        local crafted = spawnIsland:FindFirstChild("Crafted")
+        if crafted then
+            -- Mencari objek yang mengandung kata "Cooking Pot" pada namanya
+            for _, obj in ipairs(crafted:GetChildren()) do
+                if string.find(obj.Name, "Cooking Pot") then
+                    return obj
+                end
+            end
+        end
+    end
+    return nil
+end
+
+local function PotNeedsFood(pot)
+    local activate = pot:FindFirstChild("ACTIVATE")
+    if activate then
+        -- Cek dari Bar Enabled
+        local bar = activate:FindFirstChild("Bar")
+        if bar and bar.Enabled == false then
+            return true
+        end
+        
+        -- Cek dari TextLabel 0/3, 1/3, 2/3
+        local bg = activate:FindFirstChild("BillboardGui")
+        if bg and bg:FindFirstChild("TextLabel") then
+            local txt = bg.TextLabel.Text
+            if string.match(txt, "0/3") or string.match(txt, "1/3") or string.match(txt, "2/3") then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+local AutoCookChowderEnabled = false
+
 local GrinderToggle = nil
 local CampfireToggle = nil
 
@@ -494,7 +536,7 @@ Win:AddToggle("Auto Attack", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 6]: AUTO PICK MATERIAL (NEAREST, HARPOON & RIPTIDE SUPPORT)
+-- [FITUR 6]: AUTO PICK MATERIAL (NEAREST) + INJEKSI AUTO COOK CHOWDER
 -- ====================================================================
 Win:AddToggle("Auto Pick Material", false, function(state)
     AutoPickEnabled = state
@@ -520,16 +562,30 @@ Win:AddToggle("Auto Pick Material", false, function(state)
                         pullTool = "Riptide"
                     end
                     
-                    -- MENCARI 1 ITEM TERDEKAT SAJA
-                    for _, folderObj in ipairs(DebrisField:GetChildren()) do
-                        local resType = folderObj:GetAttribute("Resource") or folderObj:GetAttribute("Item")
-                        local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
-                        
-                        if not resType and part then
-                            resType = part:GetAttribute("Resource") or part:GetAttribute("Item")
+                    -- Pre-check status panci masak agar tidak memanggil fungsi berulang-ulang di dalam loop
+                    local pot = nil
+                    local potNeedsFood = false
+                    if AutoCookChowderEnabled then
+                        pot = GetCookingPot()
+                        if pot and PotNeedsFood(pot) then
+                            potNeedsFood = true
                         end
+                    end
+                    
+                    -- MENCARI 1 TARGET TERDEKAT SAJA
+                    for _, folderObj in ipairs(DebrisField:GetChildren()) do
+                        local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
+                        if not part then continue end
                         
-                        if resType and TargetMaterials[resType] and part then
+                        local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
+                        if isGrabbed then continue end -- Abaikan yang sedang ditarik
+
+                        -- 1. Evaluasi apakah ini target reguler (Material)
+                        local resType = folderObj:GetAttribute("Resource") or folderObj:GetAttribute("Item")
+                        if not resType then resType = part:GetAttribute("Resource") or part:GetAttribute("Item") end
+                        
+                        local isTargetMaterial = false
+                        if resType and TargetMaterials[resType] then
                             local isExcluded = false
                             for attrName, attrValue in pairs(folderObj:GetAttributes()) do
                                 local lowerName = string.lower(attrName)
@@ -541,18 +597,24 @@ Win:AddToggle("Auto Pick Material", false, function(state)
                                     break
                                 end
                             end
-                            
-                            if not isExcluded then
-                                local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
-                                
-                                if not isGrabbed then
-                                    local distance = (part.Position - rootPart.Position).Magnitude
-                                    if distance < shortestDistance then
-                                        shortestDistance = distance
-                                        nearestItem = folderObj
-                                        nearestPart = part
-                                    end
-                                end
+                            if not isExcluded then isTargetMaterial = true end
+                        end
+                        
+                        -- 2. Evaluasi apakah ini target masakan (Food)
+                        local isTargetFood = false
+                        if potNeedsFood then
+                            if folderObj:GetAttribute("Food") or part:GetAttribute("Food") then
+                                isTargetFood = true
+                            end
+                        end
+                        
+                        -- 3. JIKA Valid (Material atau Makanan), hitung jaraknya
+                        if isTargetMaterial or isTargetFood then
+                            local distance = (part.Position - rootPart.Position).Magnitude
+                            if distance < shortestDistance then
+                                shortestDistance = distance
+                                nearestItem = folderObj
+                                nearestPart = part
                             end
                         end
                     end
@@ -663,6 +725,53 @@ Win:AddToggle("Auto Fishing", false, function(state)
                 
                 -- Jeda 0.2 detik (sangat cepat namun cukup aman untuk server)
                 task.wait(0.2) 
+            end
+        end)
+    end
+end)
+
+-- ====================================================================
+-- [FITUR 9]: AUTO COOK CHOWDER / PIZZA
+-- ====================================================================
+Win:AddToggle("Auto Cook", false, function(state)
+    AutoCookChowderEnabled = state
+    if AutoCookChowderEnabled then
+        task.spawn(function()
+            while AutoCookChowderEnabled do
+                local pot = GetCookingPot()
+                
+                -- Hanya berjalan jika Panci ada dan sedang membutuhkan makanan
+                if pot and PotNeedsFood(pot) then
+                    local storeBlock = pot:FindFirstChild("StoreBlock")
+                    local debris = workspace:FindFirstChild("DebrisField")
+                    
+                    if storeBlock and debris then
+                        for _, folderObj in ipairs(debris:GetChildren()) do
+                            -- Deteksi apakah ini makanan
+                            if folderObj:GetAttribute("Food") or (folderObj:FindFirstChildWhichIsA("BasePart") and folderObj:FindFirstChildWhichIsA("BasePart"):GetAttribute("Food")) then
+                                
+                                local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
+                                if part then
+                                    -- Filter Grabbed, Grabber, Lastholder
+                                    local grabber = tostring(folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber"))
+                                    local lastHolder = tostring(folderObj:GetAttribute("LastHolder") or part:GetAttribute("LastHolder"))
+                                    local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
+                                    
+                                    local myId = tostring(LocalPlayer.UserId)
+                                    
+                                    -- Hanya TP jika item sedang dipegang/ditarik oleh pemain kita sendiri
+                                    if isGrabbed and grabber == myId and lastHolder == myId then
+                                        pcall(function()
+                                            part.CFrame = storeBlock.CFrame
+                                        end)
+                                        task.wait(0.05) -- Jeda sangat singkat per item agar tidak membebani physics engine
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+                task.wait(0.1)
             end
         end)
     end
