@@ -561,14 +561,6 @@ Win:AddToggle("Auto Pick Material", false, function(state)
                         pullTool = "Riptide"
                     end
                     
-                    local potNeedsFood = false
-                    if AutoCookChowderEnabled then
-                        local pot = GetCookingPot()
-                        if pot and PotNeedsFood(pot) then
-                            potNeedsFood = true
-                        end
-                    end
-                    
                     for _, folderObj in ipairs(DebrisField:GetChildren()) do
                         local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
                         if not part then continue end
@@ -596,12 +588,12 @@ Win:AddToggle("Auto Pick Material", false, function(state)
                             if not isExcluded then isTargetMaterial = true end
                         end
                         
-                        -- 2. Evaluasi Makanan (PERBAIKAN SENSITIVITAS HURUF)
+                        -- 2. Evaluasi Makanan (Hanya jika Auto Cook Chowder aktif)
                         local isTargetFood = false
-                        if potNeedsFood then
-                            if folderObj:GetAttribute("food") ~= nil or folderObj:GetAttribute("Food") ~= nil then
+                        if AutoCookChowderEnabled then
+                            if folderObj:GetAttribute("Food") ~= nil or folderObj:GetAttribute("food") ~= nil then
                                 isTargetFood = true
-                            elseif part and (part:GetAttribute("food") ~= nil or part:GetAttribute("Food") ~= nil) then
+                            elseif part and (part:GetAttribute("Food") ~= nil or part:GetAttribute("food") ~= nil) then
                                 isTargetFood = true
                             end
                         end
