@@ -220,7 +220,7 @@ GrinderToggle = Win:AddToggle("Auto Grinder", false, function(state)
                                 local isMyPastItem = (lastHolder == myName)
                                 
                                 if isCurrentlyMyGrab or isMyPastItem then
-                                    part.CFrame = GrinderCol.CFrame + Vector3.new(0, 3, 0)
+                                    part.CFrame = GrinderCol.CFrame + Vector3.new(0, 0, 0)
                                     part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                                 end
                             end
@@ -353,47 +353,18 @@ Win:AddToggle("Auto Eat", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 4]: AUTO COLLECT (TIER ARMOR, COLLECT ONCE, SACK, AMMO & BANDAGE)
+-- [FITUR 4]: AUTO COLLECT (ONLY DIAMOND CHEST, STEEL LEGS, AMMO, BANDAGE & WEAPONS)
 -- ====================================================================
 local CollectedItems = {} 
-local CurrentChestTier = 0
-local CurrentLegsTier = 0
+local HasDiamondChest = false
+local HasSteelLegs = false
 
--- Reset data saat respawn agar bisa ambil armor dari awal lagi
+-- Reset data saat respawn / ngulang game
 LocalPlayer.CharacterAdded:Connect(function()
     CollectedItems = {}
-    CurrentChestTier = 0
-    CurrentLegsTier = 0
+    HasDiamondChest = false
+    HasSteelLegs = false
 end)
-
--- Tabel Kata Kunci Armor (Huruf Kecil Semua)
-local ChestKeywords = {
-    ["wood"] = 1, ["wooden"] = 1,
-    ["bronze"] = 2,
-    ["warrior"] = 3,
-    ["gold"] = 4,
-    ["iron"] = 5,
-    ["steel"] = 6,
-    ["diamond"] = 7
-}
-
-local LegKeywords = {
-    ["wood"] = 1, ["wooden"] = 1,
-    ["bronze"] = 2,
-    ["iron"] = 3,
-    ["steel"] = 4
-}
-
--- Fungsi Pencari Tier Terkuat (Bebas dari salah eja nama game)
-local function GetTier(itemName, tierTable)
-    local highest = 0
-    for kw, tier in pairs(tierTable) do
-        if string.find(itemName, kw) and tier > highest then
-            highest = tier
-        end
-    end
-    return highest
-end
 
 -- Daftar senjata (Huruf kecil untuk pencocokan mutlak)
 local TargetWeaponsCollect = {
@@ -415,10 +386,10 @@ Win:AddToggle("Auto Collect (All Items)", false, function(state)
                 local humanoid = character and character:FindFirstChild("Humanoid")
                 local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso") or character:FindFirstChildWhichIsA("BasePart"))
                 
-                -- Detektor Kematian Ekstra (Jaga-jaga jika CharacterAdded delay)
+                -- Detektor Kematian Ekstra
                 if humanoid and humanoid.Health <= 0 then
-                    CurrentChestTier = 0
-                    CurrentLegsTier = 0
+                    HasDiamondChest = false
+                    HasSteelLegs = false
                     CollectedItems = {}
                 end
                 
@@ -431,7 +402,7 @@ Win:AddToggle("Auto Collect (All Items)", false, function(state)
                         
                         local isChest = false
                         
-                        -- Cek DoubloonChest (Tetap Global)
+                        -- Cek DoubloonChest (Peti Koin)
                         if folderObj:GetAttribute("DoubloonChest") or (part and part:GetAttribute("DoubloonChest")) then 
                             isChest = true 
                         end
@@ -454,7 +425,6 @@ Win:AddToggle("Auto Collect (All Items)", false, function(state)
                         
                         -- Cek Item dengan batas 15 Studs
                         if part then
-                            -- Pembacaan Berlapis: Atribut Folder -> Atribut Part -> NAMA PART FISIK
                             local resType = folderObj:GetAttribute("Resource") or folderObj:GetAttribute("Item")
                             if not resType then resType = part:GetAttribute("Resource") or part:GetAttribute("Item") end
                             if not resType then resType = part.Name end 
@@ -469,27 +439,18 @@ Win:AddToggle("Auto Collect (All Items)", false, function(state)
                                     if string.find(lowerRes, "ammo") or string.find(lowerRes, "bandage") then
                                         shouldCollect = true
                                         
-                                    -- 2. Sistem Upgrade Sack Otomatis
-                                    elseif string.find(lowerRes, "sack") then
-                                        shouldCollect = true
-                                        pcall(function()
-                                            -- Menembak Remote Upgrade Sack sesuai SPY Anda
-                                            SafeRemoteEvent("UpgradeSack", Instance.new("Model"))
-                                        end)
-
-                                    -- 3. Sistem Armor Cerdas (Chest & Legs)
-                                    elseif string.find(lowerRes, "leg") then
-                                        local itemTier = GetTier(lowerRes, LegKeywords)
-                                        if itemTier > CurrentLegsTier then
+                                    -- 2. HANYA Diamond Chest / Armor
+                                    elseif string.find(lowerRes, "diamond") and (string.find(lowerRes, "chest") or string.find(lowerRes, "armor")) then
+                                        if not HasDiamondChest then
                                             shouldCollect = true
-                                            CurrentLegsTier = itemTier
+                                            HasDiamondChest = true
                                         end
                                         
-                                    elseif string.find(lowerRes, "chest") or string.find(lowerRes, "armor") then
-                                        local itemTier = GetTier(lowerRes, ChestKeywords)
-                                        if itemTier > CurrentChestTier then
+                                    -- 3. HANYA Steel Legs
+                                    elseif string.find(lowerRes, "steel") and string.find(lowerRes, "leg") then
+                                        if not HasSteelLegs then
                                             shouldCollect = true
-                                            CurrentChestTier = itemTier
+                                            HasSteelLegs = true
                                         end
                                         
                                     -- 4. Weapons (Collect Once)
@@ -500,7 +461,7 @@ Win:AddToggle("Auto Collect (All Items)", false, function(state)
                                                     shouldCollect = true
                                                     CollectedItems[wName] = true
                                                 end
-                                                break -- Berhenti mencari jika sudah cocok
+                                                break 
                                             end
                                         end
                                     end
