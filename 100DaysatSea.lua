@@ -794,15 +794,11 @@ Win:AddToggle("Auto Open Chest", false, function(state)
     end
 end)
 
--- ====================================================================
--- [FITUR 8]: AUTO FISHING (DENGAN AUTO DROP IKAN / ANTI-STUCK)
--- ====================================================================
+-- [FITUR 8]: AUTO FISHING (OPTIMIZED)
 local AutoFishingEnabled = false
 Win:AddToggle("Auto Fishing", false, function(state)
     AutoFishingEnabled = state
-    
     if AutoFishingEnabled then
-        -- [LOOP 1]: Casting & Poofing Ikan
         task.spawn(function()
             while AutoFishingEnabled do
                 local rootPart = LocalPlayer.Character and (LocalPlayer.Character:FindFirstChild("HumanoidRootPart") or LocalPlayer.Character:FindFirstChildWhichIsA("BasePart"))
@@ -815,53 +811,12 @@ Win:AddToggle("Auto Fishing", false, function(state)
                     local vecStr = string.format("~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0", 
                         pos.X, pos.Y + 1, pos.Z, dir.X, dir.Y, dir.Z)
                     
-                    -- Eksekusi Cast
                     SafeRemoteFunction("ToolReplicator", "~sFishing Rod", "~sCast")
                     
-                    -- Eksekusi instan Poof
                     SafeRemoteFunction("ToolReplicator", "~sFishing Rod", "~sFishPoof", vecStr)
                 end
                 
                 task.wait(0.5) 
-            end
-        end)
-
-        -- [LOOP 2]: Auto Drop Ikan (Food) yang Nyangkut di Tangan
-        task.spawn(function()
-            local myId = tostring(LocalPlayer.UserId)
-            local myName = LocalPlayer.Name
-            
-            while AutoFishingEnabled do
-                local workspace = game:GetService("Workspace")
-                local DebrisField = workspace:FindFirstChild("DebrisField")
-                
-                if DebrisField then
-                    for _, folderObj in ipairs(DebrisField:GetChildren()) do
-                        local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
-                        if not part then continue end
-                        
-                        -- 1. Cek apakah ini Ikan/Makanan (Penting: Agar tidak membuang senjata/material)
-                        local isFood = folderObj:GetAttribute("Food")
-                        if isFood == nil then isFood = part:GetAttribute("Food") end
-                        
-                        if isFood ~= nil then
-                            -- 2. Cek apakah sedang dipegang oleh kita (Sistem Anti-Stuck)
-                            local isGrabbed = folderObj:GetAttribute("Grabbed")
-                            if isGrabbed == nil then isGrabbed = part:GetAttribute("Grabbed") end
-                            
-                            local grabber = tostring(folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber"))
-                            local lastHolder = tostring(folderObj:GetAttribute("LastHolder") or part:GetAttribute("LastHolder"))
-                            
-                            if isGrabbed == true and grabber == myId and lastHolder == myName then
-                                pcall(function()
-                                    -- Tembak remote buang persis seperti di Spy: "GiveUpOwnership" + Part Target
-                                    SafeRemoteEvent("GiveUpOwnership", part)
-                                end)
-                            end
-                        end
-                    end
-                end
-                task.wait(0.1) -- Jeda sangat cepat agar ikan jatuh instan begitu terambil
             end
         end)
     end
