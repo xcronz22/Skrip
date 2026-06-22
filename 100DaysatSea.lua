@@ -16,6 +16,7 @@ local TargetWeapons = {
     ["Harpoon"] = false,
     ["Magma Staff"] = false,
     ["Squid Laser"] = false,
+    ["DualPistols"] = false,
     ["Rifle"] = false,
     ["Flintlock"] = false,
     ["Blunderbuss"] = false,
@@ -30,7 +31,7 @@ Win:AddMultiDropdown("Material", {"Wood", "Metal", "Goo", "Small Gas Can", "Big 
     TargetMaterials = selectedTable
 end)
 
-Win:AddMultiDropdown("Weapon", {"Harpoon", "Magma Staff", "Squid Laser", "Rifle", "Flintlock", "Blunderbuss", "Hand Cannon", "Revolver", "Boomstick", "Grenade", "Riptide"}, function(selectedTable)
+Win:AddMultiDropdown("Weapon", {"Harpoon", "Magma Staff", "Squid Laser", "DualPistols", "Rifle", "Flintlock", "Blunderbuss", "Hand Cannon", "Revolver", "Boomstick", "Grenade", "Riptide"}, function(selectedTable)
     TargetWeapons = selectedTable
 end)
 
@@ -352,9 +353,9 @@ Win:AddToggle("Auto Eat", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 4]: AUTO COLLECT (CHEST ONLY)
+-- [FITUR 4]: AUTO COLLECT (CHEST GLOBAL & AMMO 5 STUDS)
 -- ====================================================================
-Win:AddToggle("Auto Collect Coin", false, function(state)
+Win:AddToggle("Auto Collect (Coin & Ammo)", false, function(state)
     AutoDoubloonEnabled = state
     if AutoDoubloonEnabled then
         task.spawn(function()
@@ -362,19 +363,23 @@ Win:AddToggle("Auto Collect Coin", false, function(state)
                 local workspace = game:GetService("Workspace")
                 local DebrisField = workspace:FindFirstChild("DebrisField")
                 
-                if DebrisField then
+                -- Deklarasikan karakter dan rootPart untuk menghitung jarak ammo
+                local character = LocalPlayer.Character
+                local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso") or character:FindFirstChildWhichIsA("BasePart"))
+                
+                if DebrisField and rootPart then
                     for _, folderObj in ipairs(DebrisField:GetChildren()) do
                         if not AutoDoubloonEnabled then break end
                         
-                        local isChest = false
                         local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
+                        local isChest = false
                         
-                        -- Cek atribut langsung
+                        -- Cek atribut langsung untuk Chest
                         if folderObj:GetAttribute("DoubloonChest") or (part and part:GetAttribute("DoubloonChest")) then 
                             isChest = true 
                         end
                         
-                        -- Cek melalui atribut iterasi (fallback)
+                        -- Cek melalui atribut iterasi (fallback) untuk Chest
                         if not isChest then
                             for attrName, attrValue in pairs(folderObj:GetAttributes()) do
                                 local lowerName = string.lower(attrName)
@@ -386,12 +391,26 @@ Win:AddToggle("Auto Collect Coin", false, function(state)
                             end
                         end
                         
-                        -- Eksekusi hanya jika terdeteksi chest
+                        -- Eksekusi Chest (TETAP GLOBAL, TANPA BATAS JARAK)
                         if isChest then
                             local itemId = folderObj.Name 
                             SafeRemoteEvent("Collect", "~s" .. itemId)
                             task.wait(0.3) 
+                            continue -- Lanjut ke item berikutnya di DebrisField
                         end
+                        
+                        -- Eksekusi Ammo (DENGAN BATAS JARAK MAKS 5 STUD)
+                        if part then
+                            local itemName = folderObj.Name
+                            if itemName == "PistolAmmo" or itemName == "ShotgunAmmo" or itemName == "RifleAmmo" then
+                                local distance = (part.Position - rootPart.Position).Magnitude
+                                if distance <= 5 then
+                                    SafeRemoteEvent("Collect", "~s" .. itemName)
+                                    task.wait(0.1)
+                                end
+                            end
+                        end
+                        
                     end
                 end
                 task.wait(1) 
@@ -493,7 +512,8 @@ Win:AddToggle("Auto Attack", false, function(state)
                                 -- Eksekusi Grenade dengan SafeRemoteFunction
                                 CheckAndAttackAsync("Grenade", function(t) SafeRemoteFunction("ToolReplicator", "~sGrenade", "~sThrow", vecStr, vecStr) end)
                                 
-                                local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick"}
+                                -- Menambahkan DualPistols ke dalam array gunTypes
+                                local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick", "DualPistols"}
                                 for _, gunName in ipairs(gunTypes) do
                                     CheckAndAttackAsync(gunName, function(t)
                                         local firePart = t:FindFirstChild("Handle") or t:FindFirstChildWhichIsA("BasePart") or rootPart
@@ -532,7 +552,8 @@ Win:AddToggle("Auto Attack", false, function(state)
                                         -- Eksekusi Grenade dengan SafeRemoteFunction
                                         CheckAndAttackAsync("Grenade", function(t) SafeRemoteFunction("ToolReplicator", "~sGrenade", "~sThrow", vecStr, vecStr) end)
 
-                                        local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick"}
+                                        -- Menambahkan DualPistols ke dalam array gunTypes
+                                        local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick", "DualPistols"}
                                         for _, gunName in ipairs(gunTypes) do
                                             CheckAndAttackAsync(gunName, function(t)
                                                 local firePart = t:FindFirstChild("Handle") or t:FindFirstChildWhichIsA("BasePart") or rootPart
