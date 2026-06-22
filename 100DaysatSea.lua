@@ -353,9 +353,35 @@ Win:AddToggle("Auto Eat", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 4]: AUTO COLLECT (CHEST GLOBAL & AMMO 5 STUDS)
+-- [FITUR 4]: AUTO COLLECT (TIER ARMOR, COLLECT ONCE, AMMO & BANDAGE)
 -- ====================================================================
-Win:AddToggle("Auto Collect (Coin & Ammo)", false, function(state)
+local CollectedItems = {} 
+local CurrentChestTier = 0
+local CurrentLegsTier = 0
+
+local ChestTiers = {
+    ["Wooden Chest"] = 1,
+    ["Bronze Chest"] = 2,
+    ["Warrior Chest"] = 3,
+    ["Gold Chest"] = 4,
+    ["Iron Chest"] = 5,
+    ["Steel Chest"] = 6,
+    ["Diamond Chest"] = 7
+}
+
+local LegTiers = {
+    ["Wooden Legs"] = 1,
+    ["Bronze Legs"] = 2,
+    ["Iron Legs"] = 3,
+    ["Steel Legs"] = 4
+}
+
+local TargetWeaponsCollect = {
+    ["Machete"] = true, ["Ghost Cutlass"] = true,
+    ["Flintlock"] = true, ["Blunderbuss"] = true, ["Rifle"] = true, ["Boomstick"] = true
+}
+
+Win:AddToggle("Auto Collect (All Items)", false, function(state)
     AutoDoubloonEnabled = state
     if AutoDoubloonEnabled then
         task.spawn(function()
@@ -363,7 +389,6 @@ Win:AddToggle("Auto Collect (Coin & Ammo)", false, function(state)
                 local workspace = game:GetService("Workspace")
                 local DebrisField = workspace:FindFirstChild("DebrisField")
                 
-                -- Deklarasikan karakter dan rootPart untuk menghitung jarak ammo
                 local character = LocalPlayer.Character
                 local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso") or character:FindFirstChildWhichIsA("BasePart"))
                 
@@ -372,14 +397,14 @@ Win:AddToggle("Auto Collect (Coin & Ammo)", false, function(state)
                         if not AutoDoubloonEnabled then break end
                         
                         local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
+                        local uniqueId = folderObj.Name 
+                        
                         local isChest = false
                         
-                        -- Cek atribut langsung untuk Chest
+                        -- Cek DoubloonChest (Tetap Global)
                         if folderObj:GetAttribute("DoubloonChest") or (part and part:GetAttribute("DoubloonChest")) then 
                             isChest = true 
                         end
-                        
-                        -- Cek melalui atribut iterasi (fallback) untuk Chest
                         if not isChest then
                             for attrName, attrValue in pairs(folderObj:GetAttributes()) do
                                 local lowerName = string.lower(attrName)
@@ -391,26 +416,66 @@ Win:AddToggle("Auto Collect (Coin & Ammo)", false, function(state)
                             end
                         end
                         
-                        -- Eksekusi Chest (TETAP GLOBAL, TANPA BATAS JARAK)
                         if isChest then
-                            local itemId = folderObj.Name 
-                            SafeRemoteEvent("Collect", "~s" .. itemId)
+                            SafeRemoteEvent("Collect", "~s" .. uniqueId)
                             task.wait(0.3) 
-                            continue -- Lanjut ke item berikutnya di DebrisField
+                            continue 
                         end
                         
-                        -- Eksekusi Ammo (DENGAN BATAS JARAK MAKS 5 STUD)
+                        -- Cek Item dengan batas 5 Studs
                         if part then
-                            local itemName = folderObj.Name
-                            if itemName == "PistolAmmo" or itemName == "ShotgunAmmo" or itemName == "RifleAmmo" then
+                            local resType = folderObj:GetAttribute("Resource") or folderObj:GetAttribute("Item")
+                            if not resType then 
+                                resType = part:GetAttribute("Resource") or part:GetAttribute("Item") 
+                            end
+                            
+                            -- Fallback jika resType masih kosong
+                            if not resType then
+                                local pName = string.lower(part.Name)
+                                if string.find(pName, "ammo") then resType = part.Name
+                                elseif string.find(pName, "bandage") then resType = "Bandage"
+                                end
+                            end
+                            
+                            if resType then
                                 local distance = (part.Position - rootPart.Position).Magnitude
                                 if distance <= 5 then
-                                    SafeRemoteEvent("Collect", "~s" .. itemName)
-                                    task.wait(0.1)
+                                    local shouldCollect = false
+                                    
+                                    -- 1. Repeatable (Ammo & Bandage)
+                                    if resType == "PistolAmmo" or resType == "ShotgunAmmo" or resType == "RifleAmmo" or string.find(string.lower(resType), "ammo") or string.find(string.lower(resType), "bandage") then
+                                        shouldCollect = true
+                                        
+                                    -- 2. Chest Armor Logic (Hanya ambil jika Tier > Tier Saat Ini)
+                                    elseif ChestTiers[resType] then
+                                        if ChestTiers[resType] > CurrentChestTier then
+                                            shouldCollect = true
+                                            CurrentChestTier = ChestTiers[resType] -- Update tier
+                                        end
+                                        
+                                    -- 3. Legs Armor Logic (Hanya ambil jika Tier > Tier Saat Ini)
+                                    elseif LegTiers[resType] then
+                                        if LegTiers[resType] > CurrentLegsTier then
+                                            shouldCollect = true
+                                            CurrentLegsTier = LegTiers[resType] -- Update tier
+                                        end
+                                        
+                                    -- 4. Weapons (Ambil hanya jika belum pernah diambil)
+                                    elseif TargetWeaponsCollect[resType] then
+                                        if not CollectedItems[resType] then
+                                            shouldCollect = true
+                                            CollectedItems[resType] = true -- Tandai sudah diambil
+                                        end
+                                    end
+                                    
+                                    -- Eksekusi Collect
+                                    if shouldCollect then
+                                        SafeRemoteEvent("Collect", "~s" .. uniqueId)
+                                        task.wait(0.1)
+                                    end
                                 end
                             end
                         end
-                        
                     end
                 end
                 task.wait(1) 
