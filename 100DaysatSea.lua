@@ -220,7 +220,7 @@ GrinderToggle = Win:AddToggle("Auto Grinder", false, function(state)
                                 local isMyPastItem = (lastHolder == myName)
                                 
                                 if isCurrentlyMyGrab or isMyPastItem then
-                                    part.CFrame = GrinderCol.CFrame
+                                    part.CFrame = GrinderCol.CFrame + Vector3.new(0, 3, 0)
                                     part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                                 end
                             end
@@ -359,26 +359,30 @@ local CollectedItems = {}
 local CurrentChestTier = 0
 local CurrentLegsTier = 0
 
-local ChestTiers = {
-    ["Wooden Chest"] = 1,
-    ["Bronze Chest"] = 2,
-    ["Warrior Chest"] = 3,
-    ["Gold Chest"] = 4,
-    ["Iron Chest"] = 5,
-    ["Steel Chest"] = 6,
-    ["Diamond Chest"] = 7
-}
+-- Reset data saat respawn / ngulang game
+LocalPlayer.CharacterAdded:Connect(function()
+    CollectedItems = {}
+    CurrentChestTier = 0
+    CurrentLegsTier = 0
+end)
 
-local LegTiers = {
-    ["Wooden Legs"] = 1,
-    ["Bronze Legs"] = 2,
-    ["Iron Legs"] = 3,
-    ["Steel Legs"] = 4
-}
+-- Fungsi untuk membaca level armor dari kata kunci (Bebas dari bug salah ketik nama)
+local function GetArmorTier(itemName)
+    if string.find(itemName, "diamond") then return 7 end
+    if string.find(itemName, "steel") then return 6 end
+    if string.find(itemName, "iron") then return 5 end
+    if string.find(itemName, "gold") then return 4 end
+    if string.find(itemName, "warrior") then return 3 end
+    if string.find(itemName, "bronze") then return 2 end
+    if string.find(itemName, "wood") then return 1 end
+    return 0
+end
 
+-- Daftar senjata yang diperbarui (Termasuk Magma Staff, Squid Laser, dll)
 local TargetWeaponsCollect = {
     ["Machete"] = true, ["Ghost Cutlass"] = true,
-    ["Flintlock"] = true, ["Blunderbuss"] = true, ["Rifle"] = true, ["Boomstick"] = true
+    ["Flintlock"] = true, ["Blunderbuss"] = true, ["Rifle"] = true, ["Boomstick"] = true,
+    ["Magma Staff"] = true, ["Squid Laser"] = true, ["Revolver"] = true, ["Hand Cannon"] = true
 }
 
 Win:AddToggle("Auto Collect (All Items)", false, function(state)
@@ -390,7 +394,15 @@ Win:AddToggle("Auto Collect (All Items)", false, function(state)
                 local DebrisField = workspace:FindFirstChild("DebrisField")
                 
                 local character = LocalPlayer.Character
+                local humanoid = character and character:FindFirstChild("Humanoid")
                 local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso") or character:FindFirstChildWhichIsA("BasePart"))
+                
+                -- Jika darah 0 (Mati / Game Over), paksa reset agar siap main dari awal lagi
+                if humanoid and humanoid.Health <= 0 then
+                    CurrentChestTier = 0
+                    CurrentLegsTier = 0
+                    CollectedItems = {}
+                end
                 
                 if DebrisField and rootPart then
                     for _, folderObj in ipairs(DebrisField:GetChildren()) do
@@ -401,7 +413,7 @@ Win:AddToggle("Auto Collect (All Items)", false, function(state)
                         
                         local isChest = false
                         
-                        -- Cek DoubloonChest (Tetap Global)
+                        -- Cek DoubloonChest (Peti Koin - Tetap Global)
                         if folderObj:GetAttribute("DoubloonChest") or (part and part:GetAttribute("DoubloonChest")) then 
                             isChest = true 
                         end
@@ -422,14 +434,11 @@ Win:AddToggle("Auto Collect (All Items)", false, function(state)
                             continue 
                         end
                         
-                        -- Cek Item dengan batas 5 Studs
+                        -- Cek Item dengan batas 15 Studs
                         if part then
                             local resType = folderObj:GetAttribute("Resource") or folderObj:GetAttribute("Item")
-                            if not resType then 
-                                resType = part:GetAttribute("Resource") or part:GetAttribute("Item") 
-                            end
+                            if not resType then resType = part:GetAttribute("Resource") or part:GetAttribute("Item") end
                             
-                            -- Fallback jika resType masih kosong
                             if not resType then
                                 local pName = string.lower(part.Name)
                                 if string.find(pName, "ammo") then resType = part.Name
@@ -441,26 +450,29 @@ Win:AddToggle("Auto Collect (All Items)", false, function(state)
                                 local distance = (part.Position - rootPart.Position).Magnitude
                                 if distance <= 15 then
                                     local shouldCollect = false
+                                    local lowerRes = string.lower(resType)
                                     
                                     -- 1. Repeatable (Ammo & Bandage)
-                                    if resType == "PistolAmmo" or resType == "ShotgunAmmo" or resType == "RifleAmmo" or string.find(string.lower(resType), "ammo") or string.find(string.lower(resType), "bandage") then
+                                    if resType == "PistolAmmo" or resType == "ShotgunAmmo" or resType == "RifleAmmo" or string.find(lowerRes, "ammo") or string.find(lowerRes, "bandage") then
                                         shouldCollect = true
                                         
-                                    -- 2. Chest Armor Logic (Hanya ambil jika Tier > Tier Saat Ini)
-                                    elseif ChestTiers[resType] then
-                                        if ChestTiers[resType] > CurrentChestTier then
-                                            shouldCollect = true
-                                            CurrentChestTier = ChestTiers[resType] -- Update tier
+                                    -- 2. Sistem Armor Pintar (Fuzzy Logic)
+                                    elseif string.find(lowerRes, "leg") or string.find(lowerRes, "chest") or string.find(lowerRes, "armor") then
+                                        local isLegs = string.find(lowerRes, "leg")
+                                        local isBodyArmor = (string.find(lowerRes, "chest") or string.find(lowerRes, "armor")) and not isLegs
+                                        local itemTier = GetArmorTier(lowerRes)
+                                        
+                                        if itemTier > 0 then
+                                            if isLegs and itemTier > CurrentLegsTier then
+                                                shouldCollect = true
+                                                CurrentLegsTier = itemTier
+                                            elseif isBodyArmor and itemTier > CurrentChestTier then
+                                                shouldCollect = true
+                                                CurrentChestTier = itemTier
+                                            end
                                         end
                                         
-                                    -- 3. Legs Armor Logic (Hanya ambil jika Tier > Tier Saat Ini)
-                                    elseif LegTiers[resType] then
-                                        if LegTiers[resType] > CurrentLegsTier then
-                                            shouldCollect = true
-                                            CurrentLegsTier = LegTiers[resType] -- Update tier
-                                        end
-                                        
-                                    -- 4. Weapons (Ambil hanya jika belum pernah diambil)
+                                    -- 3. Weapons (Ambil hanya jika belum pernah diambil + Senjata Baru Ditambahkan)
                                     elseif TargetWeaponsCollect[resType] then
                                         if not CollectedItems[resType] then
                                             shouldCollect = true
@@ -816,7 +828,7 @@ Win:AddToggle("Auto Fishing", false, function(state)
                     SafeRemoteFunction("ToolReplicator", "~sFishing Rod", "~sFishPoof", vecStr)
                 end
                 
-                task.wait(0.5) 
+                task.wait(0.2) 
             end
         end)
     end
