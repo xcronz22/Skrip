@@ -439,7 +439,7 @@ Win:AddToggle("Auto Collect (All Items)", false, function(state)
                             
                             if resType then
                                 local distance = (part.Position - rootPart.Position).Magnitude
-                                if distance <= 5 then
+                                if distance <= 15 then
                                     local shouldCollect = false
                                     
                                     -- 1. Repeatable (Ammo & Bandage)
