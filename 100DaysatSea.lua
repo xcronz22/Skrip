@@ -297,7 +297,7 @@ CampfireToggle = Win:AddToggle("Auto Campfire", false, function(state)
                                     local isMyPastItem = (lastHolder == myName)
                                     
                                     if isCurrentlyMyGrab or isMyPastItem then
-                                        part.CFrame = dropperPart.CFrame + Vector3.new(0, 3, 0)
+                                        part.CFrame = dropperPart.CFrame + Vector3.new(0, 0, 0)
                                         part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                                     end
                                 end
@@ -710,7 +710,7 @@ Win:AddToggle("Auto Pick Material", false, function(state)
                         end)
                     end
                 end
-                task.wait(0.04) 
+                task.wait(0.1) 
             end
         end)
     end
