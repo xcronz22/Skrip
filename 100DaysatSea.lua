@@ -1,6 +1,6 @@
 -- Memuat Library RZY
 local RZY_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
-local Win = RZY_Library:MakeWindow("100 Days at Sea - V6.3 FIX")
+local Win = RZY_Library:MakeWindow("100 Days at Sea")
 
 -- Tabel Penyimpanan Status Dropdown
 local TargetMaterials = {
@@ -481,7 +481,7 @@ Win:AddDropdown("Mode Auto Attack", {"Nearest (Global)", "Brutal All Target"}, f
     AttackMode = selectedMode
 end)
 
-Win:AddInput("Jarak Brutal Attack", "Masukkan angka (Cth: 150)", function(value)
+Win:AddInput("Brutal Attack Range", "100", function(value)
     local num = tonumber(value)
     if num then
         BrutalAttackRange = num
