@@ -860,62 +860,71 @@ Win:AddToggle("Auto Cook Chowder", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 10]: AUTO STORE (HELD ITEM & HARPOON COMPATIBLE)
+-- [FITUR 10]: AUTO STORE (ONLY HELD ITEMS & CPU OPTIMIZED)
 -- ====================================================================
 local AutoStoreEnabled = false
 Win:AddToggle("Auto Store (Wood & Metal)", false, function(state)
     AutoStoreEnabled = state
     if AutoStoreEnabled then
         task.spawn(function()
+            -- Taruh variabel statis di luar loop agar tidak memakan RAM/CPU berulang kali
+            local myId = tostring(LocalPlayer.UserId)
+            local myName = LocalPlayer.Name
+            
             while AutoStoreEnabled do
-                local character = LocalPlayer.Character
-                local rootPart = character and character:FindFirstChild("HumanoidRootPart")
                 local workspace = game:GetService("Workspace")
                 local DebrisField = workspace:FindFirstChild("DebrisField")
                 
-                if DebrisField and rootPart then
+                if DebrisField then
                     for _, folderObj in ipairs(DebrisField:GetChildren()) do
                         if not AutoStoreEnabled then break end
                         
-                        -- Abaikan barang yang sudah masuk tas / diproses
+                        -- Abaikan barang yang sudah sempat diproses sebelumnya
                         if folderObj:GetAttribute("RZY_Processed") then continue end
                         
-                        -- Cek Ringan 1: Apakah status barang sedang ditarik/dipegang? (Lewati jika menganggur)
+                        -- Cek super ringan 1: Apakah ada yang memegang item ini?
                         local isGrabbed = folderObj:GetAttribute("Grabbed")
-                        local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
-                        
-                        if not isGrabbed and part then 
-                            isGrabbed = part:GetAttribute("Grabbed") 
+                        if not isGrabbed then
+                            -- Jika folder tidak ada atribut, coba cek part-nya
+                            local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
+                            if part then isGrabbed = part:GetAttribute("Grabbed") end
                         end
                         
-                        -- JIKA SEDANG DITARIK, jalankan pengecekan posisi (Support Manual Click & Harpoon)
-                        if isGrabbed and part then
-                            local distance = (part.Position - rootPart.Position).Magnitude
+                        -- JIKA SEDANG DIPEGANG, baru lanjutkan proses (Sangat menghemat CPU)
+                        if isGrabbed then
+                            -- Cek ringan 2: Apakah yang memegang adalah Anda?
+                            local grabber = tostring(folderObj:GetAttribute("Grabber"))
+                            if grabber == "nil" then
+                                local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
+                                if part then grabber = tostring(part:GetAttribute("Grabber")) end
+                            end
                             
-                            -- Cek Ringan 2: Apakah posisinya menempel di tangan kita? (< 15 stud)
-                            -- Ini memastikan skrip tidak mencuri barang yang sedang ditarik Harpoon pemain lain di kejauhan
-                            if distance <= 15 then
+                            if grabber == myId or grabber == myName then
+                                -- Cek ringan 3: Apakah ini Wood atau Metal?
                                 local resType = folderObj:GetAttribute("Resource") or folderObj:GetAttribute("Item")
-                                if not resType then 
+                                local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
+                                
+                                if not resType and part then 
                                     resType = part:GetAttribute("Resource") or part:GetAttribute("Item") 
                                 end
                                 
-                                -- Cek Ringan 3: Apakah item Wood / Metal?
                                 if resType == "Wood" or resType == "Metal" then
-                                    pcall(function()
-                                        -- Langsung kirim perintah masuk tas saat item mendarat di tangan
-                                        SafeRemoteEvent("StoreItem", part)
-                                        
-                                        -- Tandai item agar tidak memberatkan request ke server
-                                        folderObj:SetAttribute("RZY_Processed", true)
-                                    end)
+                                    if part then
+                                        pcall(function()
+                                            -- Langsung kirim perintah masuk tas
+                                            SafeRemoteEvent("StoreItem", part)
+                                            
+                                            -- Tandai item agar tidak dispam request-nya
+                                            folderObj:SetAttribute("RZY_Processed", true)
+                                        end)
+                                    end
                                 end
                             end
                         end
                     end
                 end
                 
-                -- Tetap menggunakan jeda 0.5 detik agar CPU sangat rileks
+                -- HEMAT CPU: Setengah detik sekali sudah lebih dari cukup untuk auto-store manual
                 task.wait(0.5) 
             end
         end)
