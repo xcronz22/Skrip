@@ -481,7 +481,7 @@ Win:AddToggle("Auto Collect", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 5]: AUTO ATTACK (CERDAS: TANPA ICE STAFF)
+-- [FITUR 5]: AUTO ATTACK (BUG FIXED & FULLY OPTIMIZED)
 -- ====================================================================
 local AttackMode = "Brutal All Target" 
 local BrutalAttackRange = 100 
@@ -503,125 +503,126 @@ Win:AddToggle("Auto Attack", false, function(state)
     if AutoAttackEnabled then
         task.spawn(function()
             while AutoAttackEnabled do
-                local workspace = game:GetService("Workspace")
-                local CreatureContainer = workspace:FindFirstChild("CreatureContainer")
-                
-                local character = LocalPlayer.Character
-                local humanoid = character and character:FindFirstChild("Humanoid")
-                local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso") or character:FindFirstChildWhichIsA("BasePart"))
-                local backpack = LocalPlayer:FindFirstChild("Backpack")
-                
-                if CreatureContainer and rootPart and humanoid then
+                -- Menggunakan pcall di loop utama agar jika terjadi error, fitur tidak mati
+                pcall(function()
+                    local workspace = game:GetService("Workspace")
+                    local CreatureContainer = workspace:FindFirstChild("CreatureContainer")
                     
-                    local activeWeaponsCount = 0
-                    for _, isSelected in pairs(TargetWeapons) do
-                        if isSelected then activeWeaponsCount = activeWeaponsCount + 1 end
-                    end
-
-                    local function CheckAndAttackAsync(toolName, attackLogic)
-                        local isEquipped = (character:FindFirstChild(toolName) ~= nil)
-                        local isSelected = TargetWeapons[toolName]
-
-                        if not isSelected and not isEquipped then return end 
+                    local character = LocalPlayer.Character
+                    local humanoid = character and character:FindFirstChild("Humanoid")
+                    local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso") or character:FindFirstChildWhichIsA("BasePart"))
+                    local backpack = LocalPlayer:FindFirstChild("Backpack")
+                    
+                    if CreatureContainer and rootPart and humanoid then
                         
-                        local tool = character:FindFirstChild(toolName)
-                        
-                        if activeWeaponsCount > 1 and isSelected then
-                            if not tool and backpack then
+                        -- Logika Cerdas: Cek apakah dicentang di UI atau sedang dipegang di tangan
+                        local function CheckAndAttackAsync(toolName, attackLogic)
+                            local isSelected = TargetWeapons[toolName] == true
+                            local tool = character:FindFirstChild(toolName)
+                            
+                            -- 1. Jika TIDAK dicentang di UI, DAN TIDAK sedang dipegang di tangan, lewati.
+                            if not isSelected and not tool then return end
+                            
+                            -- 2. Jika dicentang di UI tapi barang ada di tas, ambil dan paksa pakai (Equip)
+                            if not tool and isSelected and backpack then
                                 tool = backpack:FindFirstChild(toolName)
-                                if tool then humanoid:EquipTool(tool) end
-                            end
-                        end
-                        
-                        if tool and tool.Parent == character then 
-                            task.spawn(function() pcall(attackLogic, tool) end)
-                        end
-                    end
-
-                    if AttackMode == "Nearest (Global)" then
-                        local nearestEnemy = nil
-                        local nearestEnemyPart = nil
-                        local shortestDistance = math.huge 
-
-                        for _, enemy in ipairs(CreatureContainer:GetChildren()) do
-                            if enemy.Name == "Wraith" or enemy.Name == "Wraith_CLIENT" then continue end
-                            
-                            local enemyPart = enemy:IsA("BasePart") and enemy or enemy:FindFirstChildWhichIsA("BasePart") or (enemy:IsA("Model") and enemy.PrimaryPart)
-                            
-                            if enemyPart then
-                                local distance = (enemyPart.Position - rootPart.Position).Magnitude
-                                if distance <= shortestDistance then
-                                    shortestDistance = distance
-                                    nearestEnemy = enemy
-                                    nearestEnemyPart = enemyPart
+                                if tool then 
+                                    humanoid:EquipTool(tool) 
                                 end
                             end
+                            
+                            -- 3. Eksekusi serangan! (Berlaku untuk yang dicentang maupun yang manual dipegang)
+                            if tool then 
+                                task.spawn(function() pcall(attackLogic, tool) end)
+                            end
                         end
-                        
-                        if nearestEnemy and nearestEnemyPart then
-                            local enemyPos = nearestEnemy:IsA("Model") and nearestEnemy:GetPivot().Position or nearestEnemyPart.Position
-                            local vecStr = string.format("~v%.4f,%.4f,%.4f", enemyPos.X, enemyPos.Y, enemyPos.Z)
-                            
-                            pcall(function()
-                                for _, wName in ipairs({"Harpoon", "Riptide"}) do
-                                    CheckAndAttackAsync(wName, function(t) SafeRemoteFunction("ToolReplicator", "~s" .. wName, "~sHitEnemy", nearestEnemy) end)
-                                end
-                                CheckAndAttackAsync("Magma Staff", function(t) SafeRemoteFunction("ToolReplicator", "~sMagma Staff", "~sFire", vecStr) end)
-                                CheckAndAttackAsync("Squid Laser", function(t) SafeRemoteFunction("ToolReplicator", "~sLaser", "~sShoot", vecStr) end)
-                                CheckAndAttackAsync("Grenade", function(t) SafeRemoteFunction("ToolReplicator", "~sGrenade", "~sThrow", vecStr, vecStr) end)
+
+                        if AttackMode == "Nearest (Global)" then
+                            local nearestEnemy = nil
+                            local nearestEnemyPart = nil
+                            local shortestDistance = math.huge 
+
+                            for _, enemy in ipairs(CreatureContainer:GetChildren()) do
+                                if enemy.Name == "Wraith" or enemy.Name == "Wraith_CLIENT" then continue end
                                 
-                                local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick", "DualPistols"}
-                                for _, gunName in ipairs(gunTypes) do
-                                    CheckAndAttackAsync(gunName, function(t)
-                                        local firePart = t:FindFirstChild("Handle") or t:FindFirstChildWhichIsA("BasePart") or rootPart
-                                        if firePart then
-                                            local direction = (enemyPos - rootPart.Position).Unit
-                                            local gunFormatStr = string.format("~t{1=~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0}", enemyPos.X, enemyPos.Y, enemyPos.Z, direction.X, direction.Y, direction.Z)
-                                            SafeRemoteFunction("ToolReplicator", "~sGun", "~sShoot", firePart, gunFormatStr)
-                                        end
-                                    end)
-                                end
-                            end)
-                        end
-                        
-                    elseif AttackMode == "Brutal All Target" then
-                        for _, enemy in ipairs(CreatureContainer:GetChildren()) do
-                            if enemy.Name == "Wraith" or enemy.Name == "Wraith_CLIENT" then continue end
-                            
-                            local enemyPart = enemy:IsA("BasePart") and enemy or enemy:FindFirstChildWhichIsA("BasePart") or (enemy:IsA("Model") and enemy.PrimaryPart)
-                            
-                            if enemyPart then
-                                local enemyPos = enemy:IsAModel() and enemy:GetPivot().Position or enemyPart.Position
-                                local distance = (enemyPos - rootPart.Position).Magnitude
+                                local enemyPart = enemy:IsA("BasePart") and enemy or enemy:FindFirstChildWhichIsA("BasePart") or (enemy:IsA("Model") and enemy.PrimaryPart)
                                 
-                                if distance <= BrutalAttackRange then
-                                    local vecStr = string.format("~v%.4f,%.4f,%.4f", enemyPos.X, enemyPos.Y, enemyPos.Z)
+                                if enemyPart then
+                                    local distance = (enemyPart.Position - rootPart.Position).Magnitude
+                                    if distance <= shortestDistance then
+                                        shortestDistance = distance
+                                        nearestEnemy = enemy
+                                        nearestEnemyPart = enemyPart
+                                    end
+                                end
+                            end
+                            
+                            if nearestEnemy and nearestEnemyPart then
+                                local enemyPos = nearestEnemy:IsA("Model") and nearestEnemy:GetPivot().Position or nearestEnemyPart.Position
+                                local vecStr = string.format("~v%.4f,%.4f,%.4f", enemyPos.X, enemyPos.Y, enemyPos.Z)
+                                
+                                pcall(function()
+                                    for _, wName in ipairs({"Harpoon", "Riptide"}) do
+                                        CheckAndAttackAsync(wName, function(t) SafeRemoteFunction("ToolReplicator", "~s" .. wName, "~sHitEnemy", nearestEnemy) end)
+                                    end
+                                    CheckAndAttackAsync("Magma Staff", function(t) SafeRemoteFunction("ToolReplicator", "~sMagma Staff", "~sFire", vecStr) end)
+                                    CheckAndAttackAsync("Squid Laser", function(t) SafeRemoteFunction("ToolReplicator", "~sLaser", "~sShoot", vecStr) end)
+                                    CheckAndAttackAsync("Grenade", function(t) SafeRemoteFunction("ToolReplicator", "~sGrenade", "~sThrow", vecStr, vecStr) end)
                                     
-                                    pcall(function()
-                                        for _, wName in ipairs({"Harpoon", "Riptide"}) do
-                                            CheckAndAttackAsync(wName, function(t) SafeRemoteFunction("ToolReplicator", "~s" .. wName, "~sHitEnemy", enemy) end)
-                                        end
-                                        CheckAndAttackAsync("Magma Staff", function(t) SafeRemoteFunction("ToolReplicator", "~sMagma Staff", "~sFire", vecStr) end)
-                                        CheckAndAttackAsync("Squid Laser", function(t) SafeRemoteFunction("ToolReplicator", "~sLaser", "~sShoot", vecStr) end)
-                                        CheckAndAttackAsync("Grenade", function(t) SafeRemoteFunction("ToolReplicator", "~sGrenade", "~sThrow", vecStr, vecStr) end)
+                                    local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick", "DualPistols"}
+                                    for _, gunName in ipairs(gunTypes) do
+                                        CheckAndAttackAsync(gunName, function(t)
+                                            local firePart = t:FindFirstChild("Handle") or t:FindFirstChildWhichIsA("BasePart") or rootPart
+                                            if firePart then
+                                                local direction = (enemyPos - rootPart.Position).Unit
+                                                local gunFormatStr = string.format("~t{1=~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0}", enemyPos.X, enemyPos.Y, enemyPos.Z, direction.X, direction.Y, direction.Z)
+                                                SafeRemoteFunction("ToolReplicator", "~sGun", "~sShoot", firePart, gunFormatStr)
+                                            end
+                                        end)
+                                    end
+                                end)
+                            end
+                            
+                        elseif AttackMode == "Brutal All Target" then
+                            for _, enemy in ipairs(CreatureContainer:GetChildren()) do
+                                if enemy.Name == "Wraith" or enemy.Name == "Wraith_CLIENT" then continue end
+                                
+                                local enemyPart = enemy:IsA("BasePart") and enemy or enemy:FindFirstChildWhichIsA("BasePart") or (enemy:IsA("Model") and enemy.PrimaryPart)
+                                
+                                if enemyPart then
+                                    -- Typo telah diperbaiki menjadi IsA("Model")
+                                    local enemyPos = enemy:IsA("Model") and enemy:GetPivot().Position or enemyPart.Position
+                                    local distance = (enemyPos - rootPart.Position).Magnitude
+                                    
+                                    if distance <= BrutalAttackRange then
+                                        local vecStr = string.format("~v%.4f,%.4f,%.4f", enemyPos.X, enemyPos.Y, enemyPos.Z)
+                                        
+                                        pcall(function()
+                                            for _, wName in ipairs({"Harpoon", "Riptide"}) do
+                                                CheckAndAttackAsync(wName, function(t) SafeRemoteFunction("ToolReplicator", "~s" .. wName, "~sHitEnemy", enemy) end)
+                                            end
+                                            CheckAndAttackAsync("Magma Staff", function(t) SafeRemoteFunction("ToolReplicator", "~sMagma Staff", "~sFire", vecStr) end)
+                                            CheckAndAttackAsync("Squid Laser", function(t) SafeRemoteFunction("ToolReplicator", "~sLaser", "~sShoot", vecStr) end)
+                                            CheckAndAttackAsync("Grenade", function(t) SafeRemoteFunction("ToolReplicator", "~sGrenade", "~sThrow", vecStr, vecStr) end)
 
-                                        local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick", "DualPistols"}
-                                        for _, gunName in ipairs(gunTypes) do
-                                            CheckAndAttackAsync(gunName, function(t)
-                                                local firePart = t:FindFirstChild("Handle") or t:FindFirstChildWhichIsA("BasePart") or rootPart
-                                                if firePart then
-                                                    local direction = (enemyPos - rootPart.Position).Unit
-                                                    local gunFormatStr = string.format("~t{1=~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0}", enemyPos.X, enemyPos.Y, enemyPos.Z, direction.X, direction.Y, direction.Z)
-                                                    SafeRemoteFunction("ToolReplicator", "~sGun", "~sShoot", firePart, gunFormatStr)
-                                                end
-                                            end)
-                                        end
-                                    end)
+                                            local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick", "DualPistols"}
+                                            for _, gunName in ipairs(gunTypes) do
+                                                CheckAndAttackAsync(gunName, function(t)
+                                                    local firePart = t:FindFirstChild("Handle") or t:FindFirstChildWhichIsA("BasePart") or rootPart
+                                                    if firePart then
+                                                        local direction = (enemyPos - rootPart.Position).Unit
+                                                        local gunFormatStr = string.format("~t{1=~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0}", enemyPos.X, enemyPos.Y, enemyPos.Z, direction.X, direction.Y, direction.Z)
+                                                        SafeRemoteFunction("ToolReplicator", "~sGun", "~sShoot", firePart, gunFormatStr)
+                                                    end
+                                                end)
+                                            end
+                                        end)
+                                    end
                                 end
                             end
                         end
                     end
-                end
+                end)
                 task.wait(0.1) 
             end
         end)
