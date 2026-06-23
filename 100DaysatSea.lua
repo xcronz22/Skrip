@@ -4,9 +4,9 @@ local Win = RZY_Library:MakeWindow("100 Days at Sea - V6.3 FIX")
 
 -- Tabel Penyimpanan Status Dropdown
 local TargetMaterials = {
-    ["Wood"] = false,
-    ["Metal"] = false,
-    ["Goo"] = false,
+    ["Wood"] = true,
+    ["Metal"] = true,
+    ["Goo"] = true,
     ["Small Gas Can"] = false,
     ["Big Gas Can"] = false,
     ["Gas Drum"] = false
@@ -37,11 +37,11 @@ end)
 
 local AutoGrinderEnabled = false
 local AutoCampfireEnabled = false
-local AutoEatEnabled = false
-local AutoDoubloonEnabled = false 
-local AutoAttackEnabled = false 
+local AutoEatEnabled = true
+local AutoDoubloonEnabled = true 
+local AutoAttackEnabled = true 
 local AutoPickEnabled = false
-local AutoChestEnabled = false
+local AutoChestEnabled = true
 
 -- ====================================================================
 -- [FUNGSI BANTUAN]: DETEKSI COOKING POT & CHOWDER/PIZZA (UPDATED)
@@ -314,7 +314,7 @@ end)
 -- ====================================================================
 -- [FITUR 3]: AUTO EAT
 -- ====================================================================
-Win:AddToggle("Auto Eat", false, function(state)
+Win:AddToggle("Auto Eat", true, function(state)
     AutoEatEnabled = state
     if AutoEatEnabled then
         task.spawn(function()
@@ -371,7 +371,7 @@ local TargetWeaponsCollect = {
     ["magma staff"] = true, ["squid laser"] = true, ["revolver"] = true, ["hand cannon"] = true
 }
 
-Win:AddToggle("Auto Collect (All Items)", false, function(state)
+Win:AddToggle("Auto Collect", true, function(state)
     AutoDoubloonEnabled = state
     if AutoDoubloonEnabled then
         task.spawn(function()
@@ -475,7 +475,7 @@ end)
 -- [FITUR 5]: AUTO ATTACK FLEKSIBEL (NEAREST / ALL TARGET) + GRENADE
 -- ====================================================================
 local AttackMode = "Brutal All Target" 
-local BrutalAttackRange = 500 
+local BrutalAttackRange = 100 
 
 Win:AddDropdown("Mode Auto Attack", {"Nearest (Global)", "Brutal All Target"}, function(selectedMode)
     AttackMode = selectedMode
@@ -488,7 +488,7 @@ Win:AddInput("Jarak Brutal Attack", "Masukkan angka (Cth: 150)", function(value)
     end
 end)
 
-Win:AddToggle("Auto Attack", false, function(state)
+Win:AddToggle("Auto Attack", true, function(state)
     AutoAttackEnabled = state
     
     if AutoAttackEnabled then
@@ -719,7 +719,7 @@ end)
 -- ====================================================================
 -- [FITUR 7]: AUTO OPEN CHEST (OPTIMIZED & EXPANDED SEARCH, 15 STUDS)
 -- ====================================================================
-Win:AddToggle("Auto Open Chest", false, function(state)
+Win:AddToggle("Auto Open Chest", true, function(state)
     AutoChestEnabled = state
     if AutoChestEnabled then
         task.spawn(function()
@@ -782,8 +782,8 @@ Win:AddToggle("Auto Open Chest", false, function(state)
 end)
 
 -- [FITUR 8]: AUTO FISHING (OPTIMIZED)
-local AutoFishingEnabled = false
-Win:AddToggle("Auto Fishing", false, function(state)
+local AutoFishingEnabled = true
+Win:AddToggle("Auto Fishing", true, function(state)
     AutoFishingEnabled = state
     if AutoFishingEnabled then
         task.spawn(function()
