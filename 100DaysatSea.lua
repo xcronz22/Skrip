@@ -353,25 +353,22 @@ Win:AddToggle("Auto Eat", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 4]: AUTO COLLECT (ONLY DIAMOND CHEST, STEEL LEGS, AMMO, BANDAGE & WEAPONS)
+-- [FITUR 4]: AUTO COLLECT (ONLY DIAMOND CHEST, AMMO, BANDAGE & WEAPONS)
 -- ====================================================================
 local CollectedItems = {} 
 local HasDiamondChest = false
-local HasSteelLegs = false
 
 -- Reset data saat respawn / ngulang game
 LocalPlayer.CharacterAdded:Connect(function()
     CollectedItems = {}
     HasDiamondChest = false
-    HasSteelLegs = false
 end)
 
 -- Daftar senjata (Huruf kecil untuk pencocokan mutlak)
 local TargetWeaponsCollect = {
-    ["machete"] = true, ["ghost cutlass"] = true,
+    ["machete"] = true, ["poku poku"] = true, ["ghost cutlass"] = true,
     ["flintlock"] = true, ["blunderbuss"] = true, ["rifle"] = true, ["boomstick"] = true,
-    ["magma staff"] = true, ["squid laser"] = true, ["revolver"] = true, ["hand cannon"] = true,
-    ["dualpistols"] = true
+    ["magma staff"] = true, ["squid laser"] = true, ["revolver"] = true, ["hand cannon"] = true
 }
 
 Win:AddToggle("Auto Collect (All Items)", false, function(state)
@@ -389,7 +386,6 @@ Win:AddToggle("Auto Collect (All Items)", false, function(state)
                 -- Detektor Kematian Ekstra
                 if humanoid and humanoid.Health <= 0 then
                     HasDiamondChest = false
-                    HasSteelLegs = false
                     CollectedItems = {}
                 end
                 
@@ -446,14 +442,7 @@ Win:AddToggle("Auto Collect (All Items)", false, function(state)
                                             HasDiamondChest = true
                                         end
                                         
-                                    -- 3. HANYA Steel Legs
-                                    elseif string.find(lowerRes, "steel") and string.find(lowerRes, "leg") then
-                                        if not HasSteelLegs then
-                                            shouldCollect = true
-                                            HasSteelLegs = true
-                                        end
-                                        
-                                    -- 4. Weapons (Collect Once)
+                                    -- 3. Weapons (Collect Once)
                                     else
                                         for wName, _ in pairs(TargetWeaponsCollect) do
                                             if string.find(lowerRes, wName) then
