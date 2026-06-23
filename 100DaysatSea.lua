@@ -786,7 +786,7 @@ Win:AddToggle("Auto Open Chest", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 8]: AUTO FISHING (LANGSUNG BUANG TANGKAPAN KE LANTAI)
+-- [FITUR 8]: AUTO FISHING (FIXED - BUANG FOOD, CRATES, & CHESTS)
 -- ====================================================================
 local AutoFishingEnabled = false
 Win:AddToggle("Auto Fishing", false, function(state)
@@ -830,19 +830,35 @@ Win:AddToggle("Auto Fishing", false, function(state)
                         
                         local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
                         if part then
-                            local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
-                            local grabber = folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber")
+                            -- Deteksi luas: Makanan, Peti, dan Crate (huruf kecil semua agar pasti cocok)
+                            local isFood = folderObj:GetAttribute("Food") or part:GetAttribute("Food")
+                            local folderName = string.lower(folderObj.Name)
+                            local partName = string.lower(part.Name)
+                            local resAttr = string.lower(tostring(folderObj:GetAttribute("Resource") or part:GetAttribute("Resource") or ""))
                             
-                            local myId = tostring(LocalPlayer.UserId)
-                            local myName = LocalPlayer.Name
+                            local isChestOrCrate = string.find(folderName, "chest") or string.find(partName, "chest") or string.find(resAttr, "chest") or
+                                                   string.find(folderName, "crate") or string.find(partName, "crate") or string.find(resAttr, "crate")
                             
-                            local isCurrentlyMyGrab = (isGrabbed == true and (tostring(grabber) == myId or grabber == myName))
-                            
-                            if isCurrentlyMyGrab then
-                                local distance = (part.Position - rootPart.Position).Magnitude
-                                -- Jika barang sudah ditarik dan sampai ke kita (jarak <= 10 stud), langsung lepaskan!
-                                if distance <= 10 then
-                                    pcall(function() SafeRemoteEvent("GiveUpOwnership", part) end)
+                            -- Eksekusi hanya jika itu hasil pancingan yang sah
+                            if isFood ~= nil or isChestOrCrate then
+                                local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
+                                local grabber = folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber")
+                                
+                                local myId = tostring(LocalPlayer.UserId)
+                                local myName = LocalPlayer.Name
+                                
+                                local isCurrentlyMyGrab = (isGrabbed == true and (tostring(grabber) == myId or grabber == myName))
+                                
+                                if isCurrentlyMyGrab then
+                                    local distance = (part.Position - rootPart.Position).Magnitude
+                                    
+                                    -- Jika barang sudah ditarik dan sampai ke kita (jarak <= 10 stud), langsung lepaskan!
+                                    if distance <= 10 then
+                                        pcall(function() 
+                                            -- Argumen ~v0.0000 agar server menerima perintahnya
+                                            SafeRemoteEvent("GiveUpOwnership", part, "~v0.0000,0.0000,0.0000") 
+                                        end)
+                                    end
                                 end
                             end
                         end
