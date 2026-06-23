@@ -172,7 +172,7 @@ local function SafeRemoteFunction(actionName, ...)
 end
 
 -- ====================================================================
--- [FITUR 1]: AUTO GRINDER
+-- [FITUR 1]: AUTO GRINDER (PRESERVED POSITION + DISCONNECT)
 -- ====================================================================
 GrinderToggle = Win:AddToggle("Auto Grinder", false, function(state)
     AutoGrinderEnabled = state
@@ -188,7 +188,8 @@ GrinderToggle = Win:AddToggle("Auto Grinder", false, function(state)
                     for _, folderObj in ipairs(DebrisField:GetChildren()) do
                         if not AutoGrinderEnabled then break end
                         
-                        -- Cek atribut Resource ATAU Item (Fix untuk Gas Can)
+                        if folderObj:GetAttribute("RZY_Processed") then continue end
+                        
                         local resType = folderObj:GetAttribute("Resource") or folderObj:GetAttribute("Item")
                         local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
                         if not resType and part then
@@ -220,8 +221,13 @@ GrinderToggle = Win:AddToggle("Auto Grinder", false, function(state)
                                 local isMyPastItem = (lastHolder == myName)
                                 
                                 if isCurrentlyMyGrab or isMyPastItem then
+                                    -- Posisi pas seperti semula tanpa rx, rz
                                     part.CFrame = GrinderCol.CFrame + Vector3.new(0, 0, 0)
                                     part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                                    
+                                    -- Langsung putus hubungan & tandai agar dilepas skrip
+                                    pcall(function() SafeRemoteEvent("GiveUpOwnership", part) end)
+                                    folderObj:SetAttribute("RZY_Processed", true)
                                 end
                             end
                         end
@@ -234,7 +240,7 @@ GrinderToggle = Win:AddToggle("Auto Grinder", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 2]: AUTO CAMPFIRE
+-- [FITUR 2]: AUTO CAMPFIRE (PRESERVED POSITION + DISCONNECT)
 -- ====================================================================
 CampfireToggle = Win:AddToggle("Auto Campfire", false, function(state)
     AutoCampfireEnabled = state
@@ -258,7 +264,8 @@ CampfireToggle = Win:AddToggle("Auto Campfire", false, function(state)
                         for _, folderObj in ipairs(DebrisField:GetChildren()) do
                             if not AutoCampfireEnabled then break end
                             
-                            -- Cek atribut Resource ATAU Item (Fix untuk Gas Can)
+                            if folderObj:GetAttribute("RZY_Processed") then continue end
+                            
                             local resType = folderObj:GetAttribute("Resource") or folderObj:GetAttribute("Item")
                             local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
                             if not resType and part then
@@ -266,10 +273,7 @@ CampfireToggle = Win:AddToggle("Auto Campfire", false, function(state)
                             end
                             
                             local validFuels = {
-                                ["Wood"] = true, 
-                                ["Small Gas Can"] = true, 
-                                ["Big Gas Can"] = true, 
-                                ["Gas Drum"] = true
+                                ["Wood"] = true, ["Small Gas Can"] = true, ["Big Gas Can"] = true, ["Gas Drum"] = true
                             }
                             
                             if resType and TargetMaterials[resType] and validFuels[resType] and part then
@@ -297,8 +301,13 @@ CampfireToggle = Win:AddToggle("Auto Campfire", false, function(state)
                                     local isMyPastItem = (lastHolder == myName)
                                     
                                     if isCurrentlyMyGrab or isMyPastItem then
+                                        -- Posisi pas seperti semula tanpa rx, rz
                                         part.CFrame = dropperPart.CFrame + Vector3.new(0, 0, 0)
                                         part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                                        
+                                        -- Langsung putus hubungan & tandai agar dilepas skrip
+                                        pcall(function() SafeRemoteEvent("GiveUpOwnership", part) end)
+                                        folderObj:SetAttribute("RZY_Processed", true)
                                     end
                                 end
                             end
@@ -368,7 +377,7 @@ end)
 local TargetWeaponsCollect = {
     ["machete"] = true, ["poku poku"] = true, ["ghost cutlass"] = true,
     ["flintlock"] = true, ["blunderbuss"] = true, ["rifle"] = true, ["boomstick"] = true,
-    ["magma staff"] = true, ["squid laser"] = true, ["revolver"] = true, ["hand cannon"] = true
+    ["magma staff"] = true, ["ice staff"] = true, ["squid laser"] = true, ["revolver"] = true, ["hand cannon"] = true
 }
 
 Win:AddToggle("Auto Collect", false, function(state)
@@ -472,7 +481,7 @@ Win:AddToggle("Auto Collect", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 5]: AUTO ATTACK FLEKSIBEL (NEAREST / ALL TARGET) + GRENADE
+-- [FITUR 5]: AUTO ATTACK (CERDAS: TANPA ICE STAFF)
 -- ====================================================================
 local AttackMode = "Brutal All Target" 
 local BrutalAttackRange = 100 
@@ -504,33 +513,32 @@ Win:AddToggle("Auto Attack", false, function(state)
                 
                 if CreatureContainer and rootPart and humanoid then
                     
-                    -- Menghitung berapa banyak senjata yang sedang dicentang di UI
                     local activeWeaponsCount = 0
                     for _, isSelected in pairs(TargetWeapons) do
                         if isSelected then activeWeaponsCount = activeWeaponsCount + 1 end
                     end
 
                     local function CheckAndAttackAsync(toolName, attackLogic)
-                        if not TargetWeapons[toolName] then return end 
+                        local isEquipped = (character:FindFirstChild(toolName) ~= nil)
+                        local isSelected = TargetWeapons[toolName]
+
+                        if not isSelected and not isEquipped then return end 
                         
                         local tool = character:FindFirstChild(toolName)
                         
-                        -- Logika Fleksibel: Paksa equip HANYA JIKA pilih lebih dari 1 senjata
-                        if activeWeaponsCount > 1 then
+                        if activeWeaponsCount > 1 and isSelected then
                             if not tool and backpack then
                                 tool = backpack:FindFirstChild(toolName)
                                 if tool then humanoid:EquipTool(tool) end
                             end
                         end
                         
-                        -- Hanya eksekusi serangan jika senjata BENAR-BENAR ada di tangan (Character)
                         if tool and tool.Parent == character then 
                             task.spawn(function() pcall(attackLogic, tool) end)
                         end
                     end
 
                     if AttackMode == "Nearest (Global)" then
-                        -- MODE: NEAREST
                         local nearestEnemy = nil
                         local nearestEnemyPart = nil
                         local shortestDistance = math.huge 
@@ -560,11 +568,8 @@ Win:AddToggle("Auto Attack", false, function(state)
                                 end
                                 CheckAndAttackAsync("Magma Staff", function(t) SafeRemoteFunction("ToolReplicator", "~sMagma Staff", "~sFire", vecStr) end)
                                 CheckAndAttackAsync("Squid Laser", function(t) SafeRemoteFunction("ToolReplicator", "~sLaser", "~sShoot", vecStr) end)
-                                
-                                -- Eksekusi Grenade dengan SafeRemoteFunction
                                 CheckAndAttackAsync("Grenade", function(t) SafeRemoteFunction("ToolReplicator", "~sGrenade", "~sThrow", vecStr, vecStr) end)
                                 
-                                -- Menambahkan DualPistols ke dalam array gunTypes
                                 local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick", "DualPistols"}
                                 for _, gunName in ipairs(gunTypes) do
                                     CheckAndAttackAsync(gunName, function(t)
@@ -580,17 +585,15 @@ Win:AddToggle("Auto Attack", false, function(state)
                         end
                         
                     elseif AttackMode == "Brutal All Target" then
-                        -- MODE: BRUTAL ALL TARGET DENGAN LIMIT JARAK
                         for _, enemy in ipairs(CreatureContainer:GetChildren()) do
                             if enemy.Name == "Wraith" or enemy.Name == "Wraith_CLIENT" then continue end
                             
                             local enemyPart = enemy:IsA("BasePart") and enemy or enemy:FindFirstChildWhichIsA("BasePart") or (enemy:IsA("Model") and enemy.PrimaryPart)
                             
                             if enemyPart then
-                                local enemyPos = enemy:IsA("Model") and enemy:GetPivot().Position or enemyPart.Position
+                                local enemyPos = enemy:IsAModel() and enemy:GetPivot().Position or enemyPart.Position
                                 local distance = (enemyPos - rootPart.Position).Magnitude
                                 
-                                -- Hanya serang jika musuh berada dalam jarak yang diatur
                                 if distance <= BrutalAttackRange then
                                     local vecStr = string.format("~v%.4f,%.4f,%.4f", enemyPos.X, enemyPos.Y, enemyPos.Z)
                                     
@@ -600,11 +603,8 @@ Win:AddToggle("Auto Attack", false, function(state)
                                         end
                                         CheckAndAttackAsync("Magma Staff", function(t) SafeRemoteFunction("ToolReplicator", "~sMagma Staff", "~sFire", vecStr) end)
                                         CheckAndAttackAsync("Squid Laser", function(t) SafeRemoteFunction("ToolReplicator", "~sLaser", "~sShoot", vecStr) end)
-
-                                        -- Eksekusi Grenade dengan SafeRemoteFunction
                                         CheckAndAttackAsync("Grenade", function(t) SafeRemoteFunction("ToolReplicator", "~sGrenade", "~sThrow", vecStr, vecStr) end)
 
-                                        -- Menambahkan DualPistols ke dalam array gunTypes
                                         local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick", "DualPistols"}
                                         for _, gunName in ipairs(gunTypes) do
                                             CheckAndAttackAsync(gunName, function(t)
@@ -655,6 +655,9 @@ Win:AddToggle("Auto Pick Material", false, function(state)
                     end
                     
                     for _, folderObj in ipairs(DebrisField:GetChildren()) do
+                        -- Jika barang sudah masuk Grinder/Campfire, langsung LEWATKAN!
+                        if folderObj:GetAttribute("RZY_Processed") then continue end
+                                
                         local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
                         if not part then continue end
                         
