@@ -785,29 +785,46 @@ Win:AddToggle("Auto Open Chest", false, function(state)
     end
 end)
 
--- [FITUR 8]: AUTO FISHING (OPTIMIZED)
+-- ====================================================================
+-- [FITUR 8]: AUTO FISHING (CPU OPTIMIZED & REQUIRE EQUIPPED TOOL)
+-- ====================================================================
 local AutoFishingEnabled = false
 Win:AddToggle("Auto Fishing", false, function(state)
     AutoFishingEnabled = state
     if AutoFishingEnabled then
         task.spawn(function()
             while AutoFishingEnabled do
-                local rootPart = LocalPlayer.Character and (LocalPlayer.Character:FindFirstChild("HumanoidRootPart") or LocalPlayer.Character:FindFirstChildWhichIsA("BasePart"))
+                local character = LocalPlayer.Character
                 
-                if rootPart then
-                    -- Mengambil arah hadap karakter saat ini secara real-time
-                    local pos = rootPart.Position
-                    local dir = rootPart.CFrame.LookVector
+                -- Filter 1: Pastikan karakter sudah termuat
+                if character then
+                    -- Filter 2: Cek apakah "Fishing Rod" sedang digenggam (berada di dalam Character)
+                    local equippedTool = character:FindFirstChild("Fishing Rod")
                     
-                    local vecStr = string.format("~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0", 
-                        pos.X, pos.Y + 1, pos.Z, dir.X, dir.Y, dir.Z)
-                    
-                    SafeRemoteFunction("ToolReplicator", "~sFishing Rod", "~sCast")
-                    
-                    SafeRemoteFunction("ToolReplicator", "~sFishing Rod", "~sFishPoof", vecStr)
+                    if equippedTool then
+                        local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChildWhichIsA("BasePart")
+                        
+                        if rootPart then
+                            -- Kalkulasi matematika ini HANYA akan diproses jika pancingan dipegang
+                            -- Sangat menghemat beban CPU dibanding menghitungnya setiap 0.05 detik
+                            local pos = rootPart.Position
+                            local dir = rootPart.CFrame.LookVector
+                            
+                            local vecStr = string.format("~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0", 
+                                pos.X, pos.Y + 1, pos.Z, dir.X, dir.Y, dir.Z)
+                            
+                            pcall(function()
+                                SafeRemoteFunction("ToolReplicator", "~sFishing Rod", "~sCast")
+                                SafeRemoteFunction("ToolReplicator", "~sFishing Rod", "~sFishPoof", vecStr)
+                            end)
+                        end
+                    end
                 end
                 
-                task.wait(0.05) 
+                -- OPTIMASI FPS: 
+                -- Diubah dari 0.05 (20x per detik) menjadi 0.5 (2x per detik). 
+                -- Angka ini sudah sangat cepat untuk ukuran "Auto Fishing" tanpa membuat game patah-patah atau server curiga.
+                task.wait(0.5) 
             end
         end)
     end
