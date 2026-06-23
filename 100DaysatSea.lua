@@ -785,20 +785,17 @@ Win:AddToggle("Auto Open Chest", false, function(state)
     end
 end)
 
--- ====================================================================
--- [FITUR 8]: AUTO FISHING (FIXED - BUANG FOOD, CRATES, & CHESTS)
--- ====================================================================
+-- [FITUR 8]: AUTO FISHING (OPTIMIZED)
 local AutoFishingEnabled = false
 Win:AddToggle("Auto Fishing", false, function(state)
     AutoFishingEnabled = state
     if AutoFishingEnabled then
-        
-        -- Thread 1: Lempar pancingan (Cast & Poof)
         task.spawn(function()
             while AutoFishingEnabled do
                 local rootPart = LocalPlayer.Character and (LocalPlayer.Character:FindFirstChild("HumanoidRootPart") or LocalPlayer.Character:FindFirstChildWhichIsA("BasePart"))
                 
                 if rootPart then
+                    -- Mengambil arah hadap karakter saat ini secara real-time
                     local pos = rootPart.Position
                     local dir = rootPart.CFrame.LookVector
                     
@@ -806,68 +803,13 @@ Win:AddToggle("Auto Fishing", false, function(state)
                         pos.X, pos.Y + 1, pos.Z, dir.X, dir.Y, dir.Z)
                     
                     SafeRemoteFunction("ToolReplicator", "~sFishing Rod", "~sCast")
+                    
                     SafeRemoteFunction("ToolReplicator", "~sFishing Rod", "~sFishPoof", vecStr)
                 end
                 
-                task.wait(0.2) 
+                task.wait(0.1) 
             end
         end)
-        
-        -- Thread 2: Pelepasan Item (Langsung Buang)
-        task.spawn(function()
-            while AutoFishingEnabled do
-                local workspace = game:GetService("Workspace")
-                local DebrisField = workspace:FindFirstChild("DebrisField")
-                local character = LocalPlayer.Character
-                local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChildWhichIsA("BasePart"))
-                
-                if DebrisField and rootPart then
-                    for _, folderObj in ipairs(DebrisField:GetChildren()) do
-                        if not AutoFishingEnabled then break end
-                        
-                        -- Abaikan jika sudah masuk grinder/campfire
-                        if folderObj:GetAttribute("RZY_Processed") then continue end
-                        
-                        local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
-                        if part then
-                            -- Deteksi luas: Makanan, Peti, dan Crate (huruf kecil semua agar pasti cocok)
-                            local isFood = folderObj:GetAttribute("Food") or part:GetAttribute("Food")
-                            local folderName = string.lower(folderObj.Name)
-                            local partName = string.lower(part.Name)
-                            local resAttr = string.lower(tostring(folderObj:GetAttribute("Resource") or part:GetAttribute("Resource") or ""))
-                            
-                            local isChestOrCrate = string.find(folderName, "chest") or string.find(partName, "chest") or string.find(resAttr, "chest") or
-                                                   string.find(folderName, "crate") or string.find(partName, "crate") or string.find(resAttr, "crate")
-                            
-                            -- Eksekusi hanya jika itu hasil pancingan yang sah
-                            if isFood ~= nil or isChestOrCrate then
-                                local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
-                                local grabber = folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber")
-                                
-                                local myId = tostring(LocalPlayer.UserId)
-                                local myName = LocalPlayer.Name
-                                
-                                local isCurrentlyMyGrab = (isGrabbed == true and (tostring(grabber) == myId or grabber == myName))
-                                
-                                if isCurrentlyMyGrab then
-                                    local distance = (part.Position - rootPart.Position).Magnitude
-                                    
-                                    -- Jika barang sudah ditarik dan sampai ke kita (jarak <= 10 stud), langsung lepaskan!
-                                    if distance <= 10 then
-                                        pcall(function() 
-                                            -- Argumen ~v0.0000 agar server menerima perintahnya
-                                            SafeRemoteEvent("GiveUpOwnership", part, "~v0.0000,0.0000,0.0000") 
-                                        end)
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-                task.wait(0.1)
-            end
-        end)
-        
     end
 end)
 
