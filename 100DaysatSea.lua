@@ -860,15 +860,13 @@ Win:AddToggle("Auto Cook Chowder", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 10]: AUTO STORE (BYPASS DISTANCE)
+-- [FITUR 10]: AUTO STORE (NEAREST ATTEMPT DRAG)
 -- ====================================================================
 local AutoStoreEnabled = false
 Win:AddToggle("Auto Store (Wood & Metal)", false, function(state)
     AutoStoreEnabled = state
     if AutoStoreEnabled then
         task.spawn(function()
-            local storeCooldowns = {} 
-            
             while AutoStoreEnabled do
                 local workspace = game:GetService("Workspace")
                 local DebrisField = workspace:FindFirstChild("DebrisField")
@@ -876,10 +874,17 @@ Win:AddToggle("Auto Store (Wood & Metal)", false, function(state)
                 local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChildWhichIsA("BasePart"))
                 
                 if DebrisField and rootPart then
+                    local nearestFolder = nil
+                    local nearestPart = nil
+                    
+                    -- Batas jarak wajar (studs) agar AttemptDrag tidak ditolak server / disangka exploit
+                    -- Anda bisa membesarkan angka ini hingga math.huge jika game tidak memiliki proteksi jarak AttemptDrag
+                    local shortestDistance = 35 
+                    
                     for _, folderObj in ipairs(DebrisField:GetChildren()) do
                         if not AutoStoreEnabled then break end
                         
-                        -- Abaikan jika barang sedang diproses oleh Auto Grinder/Campfire
+                        -- Abaikan jika barang sedang diproses oleh Auto Grinder/Campfire/Store
                         if folderObj:GetAttribute("RZY_Processed") then continue end
                         
                         local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
@@ -890,34 +895,44 @@ Win:AddToggle("Auto Store (Wood & Metal)", false, function(state)
                             -- Hanya memproses Wood dan Metal
                             if resType == "Wood" or resType == "Metal" then
                                 local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
-                                local grabber = folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber")
                                 
-                                local myId = tostring(LocalPlayer.UserId)
-                                local myName = LocalPlayer.Name
-                                
-                                local isCurrentlyMyGrab = (isGrabbed == true and (tostring(grabber) == myId or grabber == myName))
-                                
-                                -- Jika barang sudah diklaim/diambil oleh Auto Pick kita di belakang layar
-                                if isCurrentlyMyGrab then
-                                    -- Cek cooldown (2 detik) untuk mencegah spam yang bikin lag/kick
-                                    if not storeCooldowns[part] or tick() - storeCooldowns[part] > 2 then
-                                        
-                                        pcall(function()
-                                            -- 1. PAKSA TELEPORTASI: Pindahkan barang ke posisi kita agar server yakin kita dekat
-                                            part.CFrame = rootPart.CFrame
-                                            
-                                            -- 2. EKSEKUSI MASUK TAS: Langsung tembak remote tanpa peduli jarak awal
-                                            SafeRemoteEvent("StoreItem", part) 
-                                        end)
-                                        
-                                        storeCooldowns[part] = tick()
+                                -- Filter: Hanya cari barang yang MENGANGGUR (Belum ditarik siapapun)
+                                if not isGrabbed then
+                                    local distance = (part.Position - rootPart.Position).Magnitude
+                                    if distance < shortestDistance then
+                                        shortestDistance = distance
+                                        nearestFolder = folderObj
+                                        nearestPart = part
                                     end
                                 end
                             end
                         end
                     end
+                    
+                    -- Jika menemukan 1 target terdekat yang valid, langsung eksekusi combo
+                    if nearestFolder and nearestPart then
+                        pcall(function()
+                            -- 1. Klaim kepemilikan item (Sesuai log SimpleSpy)
+                            SafeRemoteFunction("AttemptDrag", nearestFolder)
+                            
+                            -- Jeda sangat singkat (0.05 detik) agar server sempat mencatat bahwa item ini sekarang milik kita
+                            task.wait(0.05)
+                            
+                            -- 2. Pindahkan item menempel ke badan agar server merestujui jarak saat masuk tas
+                            nearestPart.CFrame = rootPart.CFrame
+                            
+                            -- 3. Masukkan item ke Inventory/Store
+                            SafeRemoteEvent("StoreItem", nearestPart)
+                            
+                            -- 4. Lepaskan ownership agar tidak bug menyangkut di tangan jika inventory penuh
+                            SafeRemoteEvent("GiveUpOwnership", nearestPart)
+                            
+                            -- 5. Tandai bahwa item ini sudah diproses agar loop berikutnya tidak mengulang target yang sama
+                            nearestFolder:SetAttribute("RZY_Processed", true)
+                        end)
+                    end
                 end
-                task.wait(0.1)
+                task.wait(0.1) -- Jeda loop untuk menjaga FPS dan mencegah spam remote
             end
         end)
     end
