@@ -375,7 +375,7 @@ LocalPlayer.CharacterAdded:Connect(function()
 end)
 
 local TargetWeaponsCollect = {
-    ["machete"] = true, ["poku poku"] = true, ["ghost cutlass"] = true,
+    ["machete"] = true, ["poku poku"] = true, ["swordfish spear"] = true, ["ghost cutlass"] = true,
     ["flintlock"] = true, ["blunderbuss"] = true, ["rifle"] = true, ["boomstick"] = true,
     ["magma staff"] = true, ["ice staff"] = true, ["squid laser"] = true, ["revolver"] = true, ["hand cannon"] = true, 
     ["angler flare"] = true
@@ -580,7 +580,7 @@ local function RunAutoAttack()
                                 CheckAndAttackAsync("Squid Laser", function(t) SafeRemoteFunction("ToolReplicator", "~sLaser", "~sShoot", vecStr) end)
                                 CheckAndAttackAsync("Grenade", function(t) SafeRemoteFunction("ToolReplicator", "~sGrenade", "~sThrow", vecStr, vecStr) end)
                                 
-                                local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick", "DualPistols"}
+                                local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick", "DualPistols", "Assault Rifle"}
                                 for _, gunName in ipairs(gunTypes) do
                                     CheckAndAttackAsync(gunName, function(t)
                                         local firePart = t:FindFirstChild("Handle") or t:FindFirstChildWhichIsA("BasePart") or rootPart
