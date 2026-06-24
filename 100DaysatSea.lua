@@ -936,10 +936,10 @@ end)
 -- [FITUR 12]: UNIVERSAL FLY (DEFAULT AKTIF - SMART DETECT & FIXCAM)
 -- ====================================================================
 local UniversalFlyEnabled = true -- Default sudah aktif
-local UniversalFlySpeed = 200
+local UniversalFlySpeed = 150
 
 -- Input untuk mengatur kecepatan terbang secara real-time
-Win:AddInput("Fly Speed (Universal)", "200", function(val)
+Win:AddInput("Fly Speed (Universal)", "150", function(val)
     local num = tonumber(val)
     if num then
         UniversalFlySpeed = num
