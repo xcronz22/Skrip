@@ -913,10 +913,10 @@ Win:AddToggle("Auto Discover Island", false, function(state)
                                 
                                 -- AMAN DARI NYANGKUT: Mengambil titik tengah pulau, lalu ditambah ketinggian 200 stud ke atas
                                 local targetCFrame = island:GetPivot()
-                                root.CFrame = targetCFrame * CFrame.new(0, 200, 0)
+                                root.CFrame = targetCFrame * CFrame.new(0, 100, 0)
                                 
                                 -- JEDA: Diam 3 detik (Saya lebihkan sedikit agar ada waktu jatuh dari langit dan server membaca "Discovered")
-                                task.wait(3) 
+                                task.wait(2) 
                                 
                                 -- TANDAI: Masukkan pulau ini ke tabel agar tidak di-TP lagi
                                 DiscoveredIslands[island] = true
@@ -936,10 +936,10 @@ end)
 -- [FITUR 12]: UNIVERSAL FLY (DEFAULT AKTIF - SMART DETECT)
 -- ====================================================================
 local UniversalFlyEnabled = true -- Default sudah aktif
-local UniversalFlySpeed = 50
+local UniversalFlySpeed = 200
 
 -- Input untuk mengatur kecepatan terbang secara real-time
-Win:AddInput("Fly Speed (Universal)", "50", function(val)
+Win:AddInput("Fly Speed (Universal)", "200", function(val)
     local num = tonumber(val)
     if num then
         UniversalFlySpeed = num
