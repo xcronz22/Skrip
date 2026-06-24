@@ -947,3 +947,30 @@ Win:AddToggle("Auto Store (Wood & Metal)", false, function(state)
         end)
     end
 end)
+
+-- ====================================================================
+-- [FITUR: AUTO VISIBLE FEATURES (BACKGROUND WATCHDOG)]
+-- ====================================================================
+task.spawn(function()
+    local FeaturesUI = game:GetService("Players").LocalPlayer.PlayerGui:WaitForChild("HUD"):WaitForChild("Features")
+
+    -- Set awal agar langsung aktif
+    FeaturesUI.Visible = true
+
+    local attempts = 0
+    local connection
+
+    -- Watchdog untuk mendeteksi perubahan Visible secara instan
+    connection = FeaturesUI:GetPropertyChangedSignal("Visible"):Connect(function()
+        -- Jika game memaksa menjadi false dan batas percobaan belum habis
+        if not FeaturesUI.Visible and attempts < 5 then
+            attempts = attempts + 1
+            FeaturesUI.Visible = true
+            
+            -- Jika sudah 5 kali mencoba memperbaiki, hentikan observasi untuk menghemat sumber daya
+            if attempts >= 5 then
+                connection:Disconnect()
+            end
+        end
+    end)
+end)
