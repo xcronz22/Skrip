@@ -24,6 +24,7 @@ local TargetWeapons = {
     ["Revolver"] = false,
     ["Boomstick"] = false,
     ["Grenade"] = false,
+    ["Assault Rifle"] = false,
     ["Riptide"] = false
 }
 
