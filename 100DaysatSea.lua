@@ -466,12 +466,12 @@ end)
 RunAutoCollect() -- EKSEKUSI OTOMATIS
 
 -- ====================================================================
--- [FITUR 5]: AUTO ATTACK (DEFAULT AKTIF + ANGLER FLARE WRAITH LOGIC)
+-- [FITUR 5]: AUTO ATTACK (MELEE, GUNS, & ANGLER FLARE WRAITH LOGIC)
 -- ====================================================================
 local AttackMode = "Brutal All Target" 
 local BrutalAttackRange = 100 
-local AutoAttackEnabled = true -- Default Aktif
-local LastFlareTime = 0 -- Memori cooldown 1 detik untuk Angle Flare
+local AutoAttackEnabled = true 
+local LastFlareTime = 0 
 
 Win:AddDropdown("Mode Auto Attack", {"Nearest (Global)", "Brutal All Target"}, function(selectedMode)
     AttackMode = selectedMode
@@ -520,19 +520,17 @@ local function RunAutoAttack()
                         local targetWraith = nil
                         local targetWraithPart = nil
                         
-                        -- Cari Wraith yang ada di map
                         for _, enemy in ipairs(CreatureContainer:GetChildren()) do
                             if enemy.Name == "Wraith" or enemy.Name == "Wraith_CLIENT" then
                                 local enemyPart = enemy:IsA("BasePart") and enemy or enemy:FindFirstChildWhichIsA("BasePart") or (enemy:IsA("Model") and enemy.PrimaryPart)
                                 if enemyPart then
                                     targetWraith = enemy
                                     targetWraithPart = enemyPart
-                                    break -- Cukup kunci 1 target Wraith
+                                    break 
                                 end
                             end
                         end
                         
-                        -- Jika Wraith ditemukan, eksekusi tembakan Angle Flare
                         if targetWraith and targetWraithPart then
                             local enemyPos = targetWraith:IsA("Model") and targetWraith:GetPivot().Position or targetWraithPart.Position
                             
@@ -545,7 +543,6 @@ local function RunAutoAttack()
                                 end
                             end)
                             
-                            -- Reset cooldown hanya jika berhasil menemukan senjata dan mencoba menembak
                             if fired then
                                 LastFlareTime = tick()
                             end
@@ -557,7 +554,6 @@ local function RunAutoAttack()
                     if AttackMode == "Nearest (Global)" then
                         local nearestEnemy, nearestEnemyPart, shortestDistance = nil, nil, math.huge 
                         for _, enemy in ipairs(CreatureContainer:GetChildren()) do
-                            -- Abaikan Wraith untuk senjata normal
                             if enemy.Name == "Wraith" or enemy.Name == "Wraith_CLIENT" then continue end
                             
                             local enemyPart = enemy:IsA("BasePart") and enemy or enemy:FindFirstChildWhichIsA("BasePart") or (enemy:IsA("Model") and enemy.PrimaryPart)
@@ -574,6 +570,7 @@ local function RunAutoAttack()
                             local vecStr = string.format("~v%.4f,%.4f,%.4f", enemyPos.X, enemyPos.Y, enemyPos.Z)
                             
                             pcall(function()
+                                -- Senjata Remote
                                 for _, wName in ipairs({"Harpoon", "Riptide"}) do
                                     CheckAndAttackAsync(wName, function(t) SafeRemoteFunction("ToolReplicator", "~s" .. wName, "~sHitEnemy", nearestEnemy) end)
                                 end
@@ -592,12 +589,27 @@ local function RunAutoAttack()
                                         end
                                     end)
                                 end
+
+                                -- Senjata Melee (Kill Aura dengan firetouchinterest)
+                                local meleeTypes = {"Machete", "Ghost Cutlass", "Poku Poku", "Swordfish Spear"} 
+                                for _, meleeName in ipairs(meleeTypes) do
+                                    CheckAndAttackAsync(meleeName, function(t)
+                                        local handle = t:FindFirstChild("Handle") or t:FindFirstChildWhichIsA("BasePart")
+                                        if handle and nearestEnemyPart then
+                                            t:Activate()
+                                            if firetouchinterest then
+                                                firetouchinterest(handle, nearestEnemyPart, 0) -- Sentuh
+                                                task.wait(0.01)
+                                                firetouchinterest(handle, nearestEnemyPart, 1) -- Lepas
+                                            end
+                                        end
+                                    end)
+                                end
                             end)
                         end
                         
                     elseif AttackMode == "Brutal All Target" then
                         for _, enemy in ipairs(CreatureContainer:GetChildren()) do
-                            -- Abaikan Wraith untuk senjata normal
                             if enemy.Name == "Wraith" or enemy.Name == "Wraith_CLIENT" then continue end
                             
                             local enemyPart = enemy:IsA("BasePart") and enemy or enemy:FindFirstChildWhichIsA("BasePart") or (enemy:IsA("Model") and enemy.PrimaryPart)
@@ -609,6 +621,7 @@ local function RunAutoAttack()
                                 if distance <= BrutalAttackRange then
                                     local vecStr = string.format("~v%.4f,%.4f,%.4f", enemyPos.X, enemyPos.Y, enemyPos.Z)
                                     pcall(function()
+                                        -- Senjata Remote
                                         for _, wName in ipairs({"Harpoon", "Riptide"}) do
                                             CheckAndAttackAsync(wName, function(t) SafeRemoteFunction("ToolReplicator", "~s" .. wName, "~sHitEnemy", enemy) end)
                                         end
@@ -616,7 +629,7 @@ local function RunAutoAttack()
                                         CheckAndAttackAsync("Squid Laser", function(t) SafeRemoteFunction("ToolReplicator", "~sLaser", "~sShoot", vecStr) end)
                                         CheckAndAttackAsync("Grenade", function(t) SafeRemoteFunction("ToolReplicator", "~sGrenade", "~sThrow", vecStr, vecStr) end)
 
-                                        local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick", "DualPistols"}
+                                        local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick", "DualPistols", "Assault Rifle"}
                                         for _, gunName in ipairs(gunTypes) do
                                             CheckAndAttackAsync(gunName, function(t)
                                                 local firePart = t:FindFirstChild("Handle") or t:FindFirstChildWhichIsA("BasePart") or rootPart
@@ -624,6 +637,22 @@ local function RunAutoAttack()
                                                     local direction = (enemyPos - rootPart.Position).Unit
                                                     local gunFormatStr = string.format("~t{1=~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0}", enemyPos.X, enemyPos.Y, enemyPos.Z, direction.X, direction.Y, direction.Z)
                                                     SafeRemoteFunction("ToolReplicator", "~sGun", "~sShoot", firePart, gunFormatStr)
+                                                end
+                                            end)
+                                        end
+
+                                        -- Senjata Melee (Kill Aura dengan firetouchinterest)
+                                        local meleeTypes = {"Machete", "Ghost Cutlass", "Poku Poku", "Swordfish Spear"} 
+                                        for _, meleeName in ipairs(meleeTypes) do
+                                            CheckAndAttackAsync(meleeName, function(t)
+                                                local handle = t:FindFirstChild("Handle") or t:FindFirstChildWhichIsA("BasePart")
+                                                if handle and enemyPart then
+                                                    t:Activate()
+                                                    if firetouchinterest then
+                                                        firetouchinterest(handle, enemyPart, 0) -- Sentuh
+                                                        task.wait(0.01)
+                                                        firetouchinterest(handle, enemyPart, 1) -- Lepas
+                                                    end
                                                 end
                                             end)
                                         end
@@ -643,7 +672,7 @@ Win:AddToggle("Auto Attack", true, function(state)
     AutoAttackEnabled = state
     if AutoAttackEnabled then RunAutoAttack() end
 end)
-RunAutoAttack() -- EKSEKUSI OTOMATIS
+RunAutoAttack() 
 
 -- ====================================================================
 -- [FITUR 6]: AUTO PICK MATERIAL (NEAREST) + INJEKSI AUTO COOK
