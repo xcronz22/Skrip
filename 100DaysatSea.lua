@@ -988,6 +988,129 @@ Win:AddToggle("Auto Discover Island", false, function(state)
 end)
 
 -- ====================================================================
+-- [FITUR 13]: UNIVERSAL FLY (SMART DETECT: PLAYER & VEHICLE)
+-- ====================================================================
+local UniversalFlyEnabled = false
+local UniversalFlySpeed = 50 -- Kecepatan terbang default
+
+-- Input untuk mengatur kecepatan terbang secara real-time
+Win:AddInput("Fly Speed (Universal)", "50", function(val)
+    local num = tonumber(val)
+    if num then
+        UniversalFlySpeed = num
+    end
+end)
+
+local UFlyConnection
+local currentMoverTarget = nil
+local currentBG = nil
+local currentBV = nil
+
+-- Fungsi untuk membersihkan efek terbang saat berpindah target atau dimatikan
+local function ClearFlyMovers()
+    if currentBG then currentBG:Destroy(); currentBG = nil end
+    if currentBV then currentBV:Destroy(); currentBV = nil end
+    currentMoverTarget = nil
+    
+    pcall(function()
+        local char = game:GetService("Players").LocalPlayer.Character
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        if hum then hum.PlatformStand = false end
+    end)
+end
+
+local function StopUniversalFly()
+    UniversalFlyEnabled = false
+    if UFlyConnection then
+        UFlyConnection:Disconnect()
+        UFlyConnection = nil
+    end
+    ClearFlyMovers()
+end
+
+-- Toggle On/Off Universal Fly
+Win:AddToggle("Universal Fly", false, function(state)
+    UniversalFlyEnabled = state
+    
+    if UniversalFlyEnabled then
+        local runService = game:GetService("RunService")
+        local uis = game:GetService("UserInputService")
+        
+        UFlyConnection = runService.RenderStepped:Connect(function()
+            if not UniversalFlyEnabled then
+                StopUniversalFly()
+                return
+            end
+
+            local player = game:GetService("Players").LocalPlayer
+            local char = player.Character
+            local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+            local rootPart = char and (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChildWhichIsA("BasePart"))
+            local camera = workspace.CurrentCamera
+            
+            if not humanoid or not rootPart then return end
+            
+            -- [SMART DETECT]: Tentukan siapa yang terbang (Kendaraan atau Badan)
+            local expectedTarget = humanoid.SeatPart or rootPart
+            local isVehicle = (expectedTarget == humanoid.SeatPart)
+            
+            -- Jika Anda melompat ke kursi (atau keluar dari kursi), pindahkan penggeraknya secara mulus!
+            if currentMoverTarget ~= expectedTarget then
+                ClearFlyMovers()
+                currentMoverTarget = expectedTarget
+                
+                currentBG = Instance.new("BodyGyro")
+                currentBG.P = 9e4
+                currentBG.maxTorque = Vector3.new(9e9, 9e9, 9e9)
+                currentBG.cframe = expectedTarget.CFrame
+                currentBG.Parent = expectedTarget
+
+                currentBV = Instance.new("BodyVelocity")
+                currentBV.velocity = Vector3.new(0, 0, 0)
+                currentBV.maxForce = Vector3.new(9e9, 9e9, 9e9)
+                currentBV.Parent = expectedTarget
+            end
+            
+            -- Matikan animasi jalan kaki (PlatformStand) HANYA jika terbang dengan badan sendiri
+            humanoid.PlatformStand = not isVehicle
+
+            local moveDir = Vector3.new(0, 0, 0)
+
+            -- [LOGIKA UNIVERSAL (MOBILE & PC)]: Membaca Joystick/Analog layar HP dan tombol WASD
+            if humanoid.MoveDirection.Magnitude > 0 then
+                local localMove = camera.CFrame:VectorToObjectSpace(humanoid.MoveDirection)
+                
+                -- Deteksi arah maju & mundur (Z)
+                if localMove.Z < -0.1 or localMove.Z > 0.1 then
+                    moveDir = moveDir + (camera.CFrame.LookVector * -localMove.Z)
+                end
+                -- Deteksi arah kiri & kanan (X)
+                if localMove.X > 0.1 or localMove.X < -0.1 then
+                    moveDir = moveDir + (camera.CFrame.RightVector * localMove.X)
+                end
+            end
+
+            -- [KONTROL TAMBAHAN PC]: Naik pakai Spasi, Turun pakai Ctrl Kiri
+            if uis:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0, 1, 0) end
+            if uis:IsKeyDown(Enum.KeyCode.LeftControl) then moveDir = moveDir - Vector3.new(0, 1, 0) end
+
+            -- Selaraskan arah hadap dan kecepatan
+            if currentBG and currentBV then
+                currentBG.cframe = camera.CFrame
+                if moveDir.Magnitude > 0 then
+                    currentBV.velocity = moveDir.Unit * UniversalFlySpeed
+                else
+                    -- Melayang diam jika tidak digerakkan
+                    currentBV.velocity = Vector3.new(0, 0, 0)
+                end
+            end
+        end)
+    else
+        StopUniversalFly()
+    end
+end)
+
+-- ====================================================================
 -- [FITUR: BUTTON TELEPORT BACK TO BASE (TAP ONLY)]
 -- ====================================================================
 Win:AddButton("Back to Base", function()
