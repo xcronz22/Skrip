@@ -949,28 +949,39 @@ Win:AddToggle("Auto Store (Wood & Metal)", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR: AUTO VISIBLE FEATURES (BACKGROUND WATCHDOG)]
+-- [FITUR: AUTO VISIBLE HUD COMPONENTS (BACKGROUND WATCHDOG)]
 -- ====================================================================
 task.spawn(function()
-    local FeaturesUI = game:GetService("Players").LocalPlayer.PlayerGui:WaitForChild("HUD"):WaitForChild("Features")
+    local HUD = game:GetService("Players").LocalPlayer.PlayerGui:WaitForChild("HUD")
+    
+    -- Daftar target yang akan dipantau
+    local Targets = {
+        HUD:WaitForChild("Features"),
+        HUD:WaitForChild("Features"):WaitForChild("Map"),
+        HUD:WaitForChild("Features"):WaitForChild("Timer")
+    }
 
-    -- Set awal agar langsung aktif
-    FeaturesUI.Visible = true
-
-    local attempts = 0
-    local connection
-
-    -- Watchdog untuk mendeteksi perubahan Visible secara instan
-    connection = FeaturesUI:GetPropertyChangedSignal("Visible"):Connect(function()
-        -- Jika game memaksa menjadi false dan batas percobaan belum habis
-        if not FeaturesUI.Visible and attempts < 5 then
-            attempts = attempts + 1
-            FeaturesUI.Visible = true
+    for _, target in ipairs(Targets) do
+        task.spawn(function()
+            local attempts = 0
             
-            -- Jika sudah 5 kali mencoba memperbaiki, hentikan observasi untuk menghemat sumber daya
-            if attempts >= 5 then
-                connection:Disconnect()
-            end
-        end
-    end)
+            -- Set awal agar langsung aktif
+            target.Visible = true
+
+            -- Watchdog untuk mendeteksi perubahan Visible secara instan
+            local connection
+            connection = target:GetPropertyChangedSignal("Visible"):Connect(function()
+                -- Jika game memaksa menjadi false dan batas percobaan belum habis
+                if not target.Visible and attempts < 5 then
+                    attempts = attempts + 1
+                    target.Visible = true
+                    
+                    -- Jika sudah 5 kali mencoba memperbaiki, hentikan observasi untuk objek ini
+                    if attempts >= 15 then
+                        connection:Disconnect()
+                    end
+                end
+            end)
+        end)
+    end
 end)
