@@ -1175,6 +1175,48 @@ end)
 StartUniversalFly()
 
 -- ====================================================================
+-- [FITUR TAMBAHAN]: AUTO DISMANTLE ALL (SPAWN ISLAND)
+-- ====================================================================
+local AutoDismantleEnabled = false
+
+local function RunAutoDismantle()
+    task.spawn(function()
+        while AutoDismantleEnabled do
+            pcall(function()
+                local spawnIsland = workspace:FindFirstChild("SpawnIsland")
+                local craftedFolder = spawnIsland and spawnIsland:FindFirstChild("Crafted")
+                
+                if craftedFolder then
+                    -- Looping / periksa semua objek yang ada di dalam folder Crafted
+                    for _, item in ipairs(craftedFolder:GetChildren()) do
+                        -- Berhenti segera jika toggle dimatikan di tengah proses penghancuran
+                        if not AutoDismantleEnabled then break end 
+                        
+                        -- Menggabungkan "~s" dengan nama item (Contoh hasil: "~sWooden Floor:1782335947:6059953714")
+                        local targetString = "~s" .. item.Name
+                        
+                        -- Memanggil fungsi SafeRemoteFunction sesuai dengan remote Wrench Teardown
+                        SafeRemoteFunction("ToolReplicator", "~sWrench", "~sTeardown", targetString)
+                        
+                        -- Memberikan jeda 0.1 detik per objek agar server tidak kick Anda karena Spam / Rate Limit
+                        task.wait(0.1) 
+                    end
+                end
+            end)
+            -- Jeda 1 detik sebelum mengecek ulang isi folder agar CPU / memori device tidak berat
+            task.wait(1) 
+        end
+    end)
+end
+
+Win:AddToggle("Auto Dismantle All", false, function(state)
+    AutoDismantleEnabled = state
+    if AutoDismantleEnabled then
+        RunAutoDismantle()
+    end
+end)
+
+-- ====================================================================
 -- [FITUR: AUTO VISIBLE HUD COMPONENTS (BACKGROUND WATCHDOG)]
 -- ====================================================================
 task.spawn(function()
