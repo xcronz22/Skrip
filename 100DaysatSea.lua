@@ -880,6 +880,31 @@ end)
 RunAutoStore() -- EKSEKUSI OTOMATIS
 
 -- ====================================================================
+-- [FITUR: BUTTON TELEPORT BACK TO BASE (TAP ONLY)]
+-- ====================================================================
+Win:AddButton("Back to Base", function()
+    pcall(function()
+        local player = game:GetService("Players").LocalPlayer
+        local character = player.Character
+        local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChildWhichIsA("BasePart"))
+        
+        -- Pastikan karakter hidup dan part utama ditemukan
+        if not rootPart then 
+            return 
+        end
+        
+        -- Cek jalur path yang diminta
+        local spawnIsland = workspace:FindFirstChild("SpawnIsland")
+        local npcSpawns = spawnIsland and spawnIsland:FindFirstChild("NPCSpawns")
+        
+        if npcSpawns then
+            -- Memindahkan koordinat CFrame karakter langsung ke lokasi base
+            rootPart.CFrame = npcSpawns:GetPivot()
+        end
+    end)
+end)
+
+-- ====================================================================
 -- [FITUR: AUTO VISIBLE HUD COMPONENTS (BACKGROUND WATCHDOG)]
 -- ====================================================================
 task.spawn(function()
