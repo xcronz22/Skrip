@@ -1017,12 +1017,11 @@ Win:AddToggle("Auto Discover Island", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 12]: UNIVERSAL FLY (DEFAULT AKTIF - SMART DETECT & FIXCAM)
+-- [FITUR 12]: UNIVERSAL FLY (UPGRADED: FIX JITTER, STUCK, NOCLIP & FIXCAM)
 -- ====================================================================
-local UniversalFlyEnabled = true -- Default sudah aktif
+local UniversalFlyEnabled = true 
 local UniversalFlySpeed = 150
 
--- Input untuk mengatur kecepatan terbang secara real-time
 Win:AddInput("Fly Speed (Universal)", "150", function(val)
     local num = tonumber(val)
     if num then
@@ -1035,7 +1034,7 @@ local currentMoverTarget = nil
 local currentBG = nil
 local currentBV = nil
 
--- Fungsi untuk membersihkan efek terbang
+-- Fungsi untuk membersihkan efek terbang secara bersih
 local function ClearFlyMovers()
     if currentBG then currentBG:Destroy(); currentBG = nil end
     if currentBV then currentBV:Destroy(); currentBV = nil end
@@ -1044,7 +1043,9 @@ local function ClearFlyMovers()
     pcall(function()
         local char = game:GetService("Players").LocalPlayer.Character
         local hum = char and char:FindFirstChildOfClass("Humanoid")
-        if hum then hum.PlatformStand = false end
+        if hum then 
+            hum.PlatformStand = false 
+        end
     end)
 end
 
@@ -1057,29 +1058,27 @@ local function StopUniversalFly()
     ClearFlyMovers()
 end
 
--- Fungsi FixCam (Ala Infinite Yield)
+-- Fungsi FixCam
 local function ApplyFixCam(humanoid)
     task.spawn(function()
-        -- Jeda sebentar agar sistem game mendaftarkan status "Seated" terlebih dahulu
-        task.wait(0.1) 
+        task.wait(0.15) -- Sedikit lebih lama agar transisi fisika kendaraan selesai
         local camera = workspace.CurrentCamera
         if camera and humanoid then
-            -- Memaksa kamera untuk reset tipe dan fokus kembali ke karakter
             camera.CameraType = Enum.CameraType.Custom
             camera.CameraSubject = humanoid
         end
     end)
 end
 
--- Fungsi Utama Terbang yang bisa dipanggil kapan saja
+-- Fungsi Utama Terbang
 local function StartUniversalFly()
-    -- Mencegah dobel koneksi jika tombol ditekan berulang kali
     if UFlyConnection then return end 
     
     local runService = game:GetService("RunService")
     local uis = game:GetService("UserInputService")
     
-    UFlyConnection = runService.RenderStepped:Connect(function()
+    -- MENGGUNAKAN STEPPED: Berjalan sebelum kalkulasi fisika, ampuh mengatasi GETARAN!
+    UFlyConnection = runService.Stepped:Connect(function()
         if not UniversalFlyEnabled then
             StopUniversalFly()
             return
@@ -1093,24 +1092,41 @@ local function StartUniversalFly()
         
         if not humanoid or not rootPart then return end
         
-        -- [SMART DETECT]: Tentukan siapa yang terbang (Kendaraan atau Badan)
-        local expectedTarget = humanoid.SeatPart or rootPart
-        local isVehicle = (expectedTarget == humanoid.SeatPart)
+        -- [INTEGRASI NOCLIP]: Mengubah semua part tubuh menjadi tembus pandang/tembok
+        for _, part in ipairs(char:GetDescendants()) do
+            if part:IsA("BasePart") and part.CanCollide then
+                part.CanCollide = false
+            end
+        end
         
-        -- Blok ini akan berjalan SEKALI setiap berpindah antara berjalan kaki dan naik kendaraan
+        -- [SMART DETECT]
+        local expectedTarget = humanoid.SeatPart or rootPart
+        local isVehicle = (expectedTarget ~= rootPart)
+        
+        -- Transisi Penggerak
         if currentMoverTarget ~= expectedTarget then
+            local wasVehicle = (currentMoverTarget and (currentMoverTarget:IsA("VehicleSeat") or currentMoverTarget:IsA("Seat")))
+            
             ClearFlyMovers()
             currentMoverTarget = expectedTarget
             
-            -- [PEMANGGILAN FIXCAM]
-            -- Hanya panggil FixCam jika target penggerak yang baru adalah kendaraan
+            -- [ANTI STUCK/NEMPEL BUG]: Jika baru turun dari kendaraan, paksa lepas dan lompatkan sedikit
+            if wasVehicle and not isVehicle then
+                humanoid.Sit = false
+                -- Beri jeda sangat kecil sebelum PlatformStand aktif agar karakter terlepas dari las kendaraan
+                rootPart.CFrame = rootPart.CFrame + Vector3.new(0, 3, 0)
+                task.wait(0.05) 
+            end
+            
             if isVehicle then
                 ApplyFixCam(humanoid)
             end
             
+            -- Pengaturan BodyGyro yang lebih soft untuk Anti-Getar pada kendaraan
             currentBG = Instance.new("BodyGyro")
             currentBG.P = 9e4
-            currentBG.maxTorque = Vector3.new(9e9, 9e9, 9e9)
+            -- Membatasi Torque agar tidak berantem dengan fisika bawaan kendaraan
+            currentBG.maxTorque = isVehicle and Vector3.new(1e5, 1e5, 1e5) or Vector3.new(9e9, 9e9, 9e9) 
             currentBG.cframe = expectedTarget.CFrame
             currentBG.Parent = expectedTarget
 
@@ -1120,13 +1136,14 @@ local function StartUniversalFly()
             currentBV.Parent = expectedTarget
         end
         
-        -- Matikan animasi jalan kaki HANYA jika terbang dengan badan sendiri
         humanoid.PlatformStand = not isVehicle
 
         local moveDir = Vector3.new(0, 0, 0)
 
-        -- [LOGIKA UNIVERSAL (MOBILE & PC)]: Joystick HP dan WASD PC
-        if humanoid.MoveDirection.Magnitude > 0 then
+        -- [LOGIKA UNIVERSAL + DEADZONE ANTI TERBANG SENDIRI]
+        local moveMagnitude = humanoid.MoveDirection.Magnitude
+        -- Deadzone: Abaikan pergerakan joystick yang kurang dari 0.1 (mencegah jalan sendiri)
+        if moveMagnitude > 0.1 then
             local localMove = camera.CFrame:VectorToObjectSpace(humanoid.MoveDirection)
             
             if localMove.Z < -0.1 or localMove.Z > 0.1 then
@@ -1141,9 +1158,11 @@ local function StartUniversalFly()
         if uis:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0, 1, 0) end
         if uis:IsKeyDown(Enum.KeyCode.LeftControl) then moveDir = moveDir - Vector3.new(0, 1, 0) end
 
-        -- Eksekusi Rotasi dan Kecepatan
+        -- Eksekusi
         if currentBG and currentBV then
             currentBG.cframe = camera.CFrame
+            
+            -- Memastikan velocity benar-benar di-Nol-kan jika tidak ada input
             if moveDir.Magnitude > 0 then
                 currentBV.velocity = moveDir.Unit * UniversalFlySpeed
             else
@@ -1153,7 +1172,6 @@ local function StartUniversalFly()
     end)
 end
 
--- Toggle On/Off Universal Fly dengan default "true"
 Win:AddToggle("Universal Fly", true, function(state)
     UniversalFlyEnabled = state
     if UniversalFlyEnabled then
@@ -1163,7 +1181,6 @@ Win:AddToggle("Universal Fly", true, function(state)
     end
 end)
 
--- EKSEKUSI OTOMATIS SAAT SKRIP DIMUAT
 StartUniversalFly()
 
 -- ====================================================================
