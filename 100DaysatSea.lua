@@ -40,48 +40,6 @@ local AutoGrinderEnabled = false
 local AutoCampfireEnabled = false
 local AutoPickEnabled = false
 
--- ====================================================================
--- [FUNGSI BANTUAN]: DETEKSI COOKING POT & CHOWDER/PIZZA (UPDATED)
--- ====================================================================
-local function GetCookingPot()
-    local spawnIsland = workspace:FindFirstChild("SpawnIsland")
-    if spawnIsland then
-        local crafted = spawnIsland:FindFirstChild("Crafted")
-        if crafted then
-            for _, obj in ipairs(crafted:GetChildren()) do
-                -- Pencarian string.lower memastikan 'Cooking Pot', 'cooking pot', dll akan terdeteksi
-                if string.find(string.lower(obj.Name), "cooking pot") then
-                    return obj
-                end
-            end
-        end
-    end
-    return nil
-end
-
-local function PotNeedsFood(pot)
-    local activate = pot:FindFirstChild("ACTIVATE")
-    if not activate then return false end
-    
-    -- Cek dari Bar Enabled
-    local bar = activate:FindFirstChild("Bar")
-    if bar and bar.Enabled == false then return true end
-    
-    -- Cek dari TextLabel
-    local bg = activate:FindFirstChild("BillboardGui")
-    if bg and bg:FindFirstChild("TextLabel") then
-        local txt = bg.TextLabel.Text
-        -- Cek murni angkanya saja
-        if string.find(txt, "0/3") or string.find(txt, "1/3") or string.find(txt, "2/3") then
-            return true
-        end
-    end
-    
-    return false
-end
-
-local AutoCookChowderEnabled = false
-
 local GrinderToggle = nil
 local CampfireToggle = nil
 
@@ -848,53 +806,7 @@ end)
 RunAutoFishing() -- EKSEKUSI OTOMATIS
 
 -- ====================================================================
--- [FITUR 9]: AUTO COOK CHOWDER / PIZZA (VERSI SINKRON GRINDER)
--- ====================================================================
-Win:AddToggle("Auto Cook Chowder", false, function(state)
-    AutoCookChowderEnabled = state
-    if AutoCookChowderEnabled then
-        task.spawn(function()
-            while AutoCookChowderEnabled do
-                local pot = GetCookingPot()
-                
-                -- Hanya eksekusi jika panci terdeteksi dan butuh bahan
-                if pot and PotNeedsFood(pot) then
-                    local storeBlock = pot:FindFirstChild("StoreBlock")
-                    local DebrisField = workspace:FindFirstChild("DebrisField")
-                    
-                    if storeBlock and DebrisField then
-                        for _, folderObj in ipairs(DebrisField:GetChildren()) do
-                            local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
-                            
-                            -- Deteksi Atribut Food (Case-Insensitive)
-                            local isFood = (folderObj:GetAttribute("Food") ~= nil or folderObj:GetAttribute("food") ~= nil)
-                            
-                            if isFood and part then
-                                -- Filter: Hanya ambil jika item sudah jadi "milik" kita
-                                local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
-                                local grabber = tostring(folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber"))
-                                local lastHolder = tostring(folderObj:GetAttribute("LastHolder") or part:GetAttribute("LastHolder"))
-                                local myId = tostring(LocalPlayer.UserId)
-                                
-                                -- Jika item sedang dipegang oleh kita (sama persis dengan logic Auto Grinder)
-                                if isGrabbed and (grabber == myId or lastHolder == myId) then
-                                    pcall(function()
-                                        -- Tweak: Ditambahkan '* CFrame.new(0, 3, 0)' agar TP berada di luar atas StoreBlock
-                                        part.CFrame = storeBlock.CFrame * CFrame.new(0, 5, 0)
-                                    end)
-                                end
-                            end
-                        end
-                    end
-                end
-                task.wait(0.5) -- Kecepatan tinggi agar tidak ada delay saat TP
-            end
-        end)
-    end
-end)
-
--- ====================================================================
--- [FITUR 10]: AUTO STORE (DEFAULT AKTIF)
+-- [FITUR 9]: AUTO STORE (DEFAULT AKTIF)
 -- ====================================================================
 local AutoStoreEnabled = true
 
@@ -955,7 +867,7 @@ end)
 RunAutoStore() -- EKSEKUSI OTOMATIS
 
 -- ====================================================================
--- [FITUR 11]: AUTO DISCOVER ISLANDS (SKY DROP & STAY)
+-- [FITUR 10]: AUTO DISCOVER ISLANDS (SKY DROP & STAY)
 -- ====================================================================
 local AutoDiscoverEnabled = false
 local DiscoveredIslands = {} -- Tabel memori agar pulau yang sudah dikunjungi tidak di-TP lagi
@@ -1008,7 +920,7 @@ Win:AddToggle("Auto Discover Island", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 12]: UNIVERSAL FLY (UPGRADED: FIX JITTER, STUCK, NOCLIP & FIXCAM)
+-- [FITUR 11]: UNIVERSAL FLY (UPGRADED: FIX JITTER, STUCK, NOCLIP & FIXCAM)
 -- ====================================================================
 local UniversalFlyEnabled = true 
 local UniversalFlySpeed = 150
