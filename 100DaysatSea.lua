@@ -37,11 +37,7 @@ end)
 
 local AutoGrinderEnabled = false
 local AutoCampfireEnabled = false
-local AutoEatEnabled = false
-local AutoDoubloonEnabled = false 
-local AutoAttackEnabled = false 
 local AutoPickEnabled = false
-local AutoChestEnabled = false
 
 -- ====================================================================
 -- [FUNGSI BANTUAN]: DETEKSI COOKING POT & CHOWDER/PIZZA (UPDATED)
@@ -321,170 +317,158 @@ CampfireToggle = Win:AddToggle("Auto Campfire", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 3]: AUTO EAT
+-- [FITUR 3]: AUTO EAT (DEFAULT AKTIF)
 -- ====================================================================
-Win:AddToggle("Auto Eat", false, function(state)
-    AutoEatEnabled = state
-    if AutoEatEnabled then
-        task.spawn(function()
-            local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
-            local FillBar = PlayerGui:WaitForChild("HUD"):WaitForChild("Food"):WaitForChild("Bar"):WaitForChild("Fill")
-            
-            while AutoEatEnabled do
-                if FillBar.Size.X.Scale <= 0.7 then
-                    local workspace = game:GetService("Workspace")
-                    local DebrisField = workspace:FindFirstChild("DebrisField")
-                    
-                    if DebrisField then
-                        for _, folderObj in ipairs(DebrisField:GetChildren()) do
-                            if not AutoEatEnabled or FillBar.Size.X.Scale >= 0.99 then break end
+local AutoEatEnabled = true
+
+local function RunAutoEat()
+    task.spawn(function()
+        local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+        local FillBar = PlayerGui:WaitForChild("HUD"):WaitForChild("Food"):WaitForChild("Bar"):WaitForChild("Fill")
+        
+        while AutoEatEnabled do
+            if FillBar.Size.X.Scale <= 0.7 then
+                local workspace = game:GetService("Workspace")
+                local DebrisField = workspace:FindFirstChild("DebrisField")
+                
+                if DebrisField then
+                    for _, folderObj in ipairs(DebrisField:GetChildren()) do
+                        if not AutoEatEnabled or FillBar.Size.X.Scale >= 0.99 then break end
+                        
+                        local isFood = folderObj:GetAttribute("Food")
+                        local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
+                        if not isFood and part then isFood = part:GetAttribute("Food") end
+                        
+                        if isFood and part then
+                            local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
+                            local grabber = folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber")
                             
-                            local isFood = folderObj:GetAttribute("Food")
-                            local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
-                            if not isFood and part then isFood = part:GetAttribute("Food") end
+                            if isGrabbed and tostring(grabber) ~= tostring(LocalPlayer.UserId) and grabber ~= LocalPlayer.Name then continue end
                             
-                            if isFood and part then
-                                local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
-                                local grabber = folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber")
-                                
-                                if isGrabbed and tostring(grabber) ~= tostring(LocalPlayer.UserId) and grabber ~= LocalPlayer.Name then continue end
-                                
-                                SafeRemoteEvent("Eat", "~s" .. folderObj.Name)
-                                task.wait(0.05) 
-                            end
+                            SafeRemoteEvent("Eat", "~s" .. folderObj.Name)
+                            task.wait(0.05) 
                         end
                     end
                 end
-                task.wait(1) 
             end
-        end)
-    end
+            task.wait(1) 
+        end
+    end)
+end
+
+Win:AddToggle("Auto Eat", true, function(state)
+    AutoEatEnabled = state
+    if AutoEatEnabled then RunAutoEat() end
 end)
+RunAutoEat() -- EKSEKUSI OTOMATIS
 
 -- ====================================================================
--- [FITUR 4]: AUTO COLLECT (ONLY DIAMOND CHEST, AMMO, BANDAGE & WEAPONS)
+-- [FITUR 4]: AUTO COLLECT (DEFAULT AKTIF)
 -- ====================================================================
 local CollectedItems = {} 
 local HasDiamondChest = false
+local AutoDoubloonEnabled = true -- Default Aktif
 
--- Reset data saat respawn / ngulang game
 LocalPlayer.CharacterAdded:Connect(function()
     CollectedItems = {}
     HasDiamondChest = false
 end)
 
--- Daftar senjata (Huruf kecil untuk pencocokan mutlak)
 local TargetWeaponsCollect = {
     ["machete"] = true, ["poku poku"] = true, ["ghost cutlass"] = true,
     ["flintlock"] = true, ["blunderbuss"] = true, ["rifle"] = true, ["boomstick"] = true,
     ["magma staff"] = true, ["ice staff"] = true, ["squid laser"] = true, ["revolver"] = true, ["hand cannon"] = true
 }
 
-Win:AddToggle("Auto Collect", false, function(state)
-    AutoDoubloonEnabled = state
-    if AutoDoubloonEnabled then
-        task.spawn(function()
-            while AutoDoubloonEnabled do
-                local workspace = game:GetService("Workspace")
-                local DebrisField = workspace:FindFirstChild("DebrisField")
-                
-                local character = LocalPlayer.Character
-                local humanoid = character and character:FindFirstChild("Humanoid")
-                local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso") or character:FindFirstChildWhichIsA("BasePart"))
-                
-                -- Detektor Kematian Ekstra
-                if humanoid and humanoid.Health <= 0 then
-                    HasDiamondChest = false
-                    CollectedItems = {}
-                end
-                
-                if DebrisField and rootPart then
-                    for _, folderObj in ipairs(DebrisField:GetChildren()) do
-                        if not AutoDoubloonEnabled then break end
-                        
-                        local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
-                        local uniqueId = folderObj.Name 
-                        
-                        local isChest = false
-                        
-                        -- Cek DoubloonChest (Peti Koin)
-                        if folderObj:GetAttribute("DoubloonChest") or (part and part:GetAttribute("DoubloonChest")) then 
-                            isChest = true 
-                        end
-                        if not isChest then
-                            for attrName, attrValue in pairs(folderObj:GetAttributes()) do
-                                local lowerName = string.lower(attrName)
-                                local lowerValue = type(attrValue) == "string" and string.lower(attrValue) or ""
-                                if string.find(lowerName, "doubloonchest") or string.find(lowerValue, "doubloonchest") then
-                                    isChest = true
-                                    break
-                                end
+local function RunAutoCollect()
+    task.spawn(function()
+        while AutoDoubloonEnabled do
+            local workspace = game:GetService("Workspace")
+            local DebrisField = workspace:FindFirstChild("DebrisField")
+            
+            local character = LocalPlayer.Character
+            local humanoid = character and character:FindFirstChild("Humanoid")
+            local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso") or character:FindFirstChildWhichIsA("BasePart"))
+            
+            if humanoid and humanoid.Health <= 0 then
+                HasDiamondChest = false
+                CollectedItems = {}
+            end
+            
+            if DebrisField and rootPart then
+                for _, folderObj in ipairs(DebrisField:GetChildren()) do
+                    if not AutoDoubloonEnabled then break end
+                    
+                    local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
+                    local uniqueId = folderObj.Name 
+                    local isChest = false
+                    
+                    if folderObj:GetAttribute("DoubloonChest") or (part and part:GetAttribute("DoubloonChest")) then isChest = true end
+                    if not isChest then
+                        for attrName, attrValue in pairs(folderObj:GetAttributes()) do
+                            local lowerName, lowerValue = string.lower(attrName), type(attrValue) == "string" and string.lower(attrValue) or ""
+                            if string.find(lowerName, "doubloonchest") or string.find(lowerValue, "doubloonchest") then
+                                isChest = true; break
                             end
                         end
+                    end
+                    
+                    if isChest then
+                        SafeRemoteEvent("Collect", "~s" .. uniqueId)
+                        task.wait(0.3) 
+                        continue 
+                    end
+                    
+                    if part then
+                        local resType = folderObj:GetAttribute("Resource") or folderObj:GetAttribute("Item")
+                        if not resType then resType = part:GetAttribute("Resource") or part:GetAttribute("Item") end
+                        if not resType then resType = part.Name end 
                         
-                        if isChest then
-                            SafeRemoteEvent("Collect", "~s" .. uniqueId)
-                            task.wait(0.3) 
-                            continue 
-                        end
-                        
-                        -- Cek Item dengan batas 15 Studs
-                        if part then
-                            local resType = folderObj:GetAttribute("Resource") or folderObj:GetAttribute("Item")
-                            if not resType then resType = part:GetAttribute("Resource") or part:GetAttribute("Item") end
-                            if not resType then resType = part.Name end 
-                            
-                            if resType then
-                                local distance = (part.Position - rootPart.Position).Magnitude
-                                if distance <= 15 then
-                                    local shouldCollect = false
-                                    local lowerRes = string.lower(resType)
-                                    
-                                    -- 1. Repeatable (Ammo & Bandage)
-                                    if string.find(lowerRes, "ammo") or string.find(lowerRes, "bandage") then
-                                        shouldCollect = true
-                                        
-                                    -- 2. HANYA Diamond Chest / Armor
-                                    elseif string.find(lowerRes, "diamond") and (string.find(lowerRes, "chest") or string.find(lowerRes, "armor")) then
-                                        if not HasDiamondChest then
-                                            shouldCollect = true
-                                            HasDiamondChest = true
-                                        end
-                                        
-                                    -- 3. Weapons (Collect Once)
-                                    else
-                                        for wName, _ in pairs(TargetWeaponsCollect) do
-                                            if string.find(lowerRes, wName) then
-                                                if not CollectedItems[wName] then
-                                                    shouldCollect = true
-                                                    CollectedItems[wName] = true
-                                                end
-                                                break 
-                                            end
+                        if resType then
+                            local distance = (part.Position - rootPart.Position).Magnitude
+                            if distance <= 15 then
+                                local shouldCollect = false
+                                local lowerRes = string.lower(resType)
+                                
+                                if string.find(lowerRes, "ammo") or string.find(lowerRes, "bandage") then
+                                    shouldCollect = true
+                                elseif string.find(lowerRes, "diamond") and (string.find(lowerRes, "chest") or string.find(lowerRes, "armor")) then
+                                    if not HasDiamondChest then shouldCollect = true; HasDiamondChest = true end
+                                else
+                                    for wName, _ in pairs(TargetWeaponsCollect) do
+                                        if string.find(lowerRes, wName) then
+                                            if not CollectedItems[wName] then shouldCollect = true; CollectedItems[wName] = true end
+                                            break 
                                         end
                                     end
-                                    
-                                    -- Eksekusi Collect Utama
-                                    if shouldCollect then
-                                        SafeRemoteEvent("Collect", "~s" .. uniqueId)
-                                        task.wait(0.1)
-                                    end
+                                end
+                                
+                                if shouldCollect then
+                                    SafeRemoteEvent("Collect", "~s" .. uniqueId)
+                                    task.wait(0.1)
                                 end
                             end
                         end
                     end
                 end
-                task.wait(1) 
             end
-        end)
-    end
+            task.wait(1) 
+        end
+    end)
+end
+
+Win:AddToggle("Auto Collect", true, function(state)
+    AutoDoubloonEnabled = state
+    if AutoDoubloonEnabled then RunAutoCollect() end
 end)
+RunAutoCollect() -- EKSEKUSI OTOMATIS
 
 -- ====================================================================
--- [FITUR 5]: AUTO ATTACK (BUG FIXED & FULLY OPTIMIZED)
+-- [FITUR 5]: AUTO ATTACK (DEFAULT AKTIF)
 -- ====================================================================
 local AttackMode = "Brutal All Target" 
 local BrutalAttackRange = 100 
+local AutoAttackEnabled = true -- Default Aktif
 
 Win:AddDropdown("Mode Auto Attack", {"Nearest (Global)", "Brutal All Target"}, function(selectedMode)
     AttackMode = selectedMode
@@ -492,142 +476,119 @@ end)
 
 Win:AddInput("Brutal Attack Range", "100", function(value)
     local num = tonumber(value)
-    if num then
-        BrutalAttackRange = num
-    end
+    if num then BrutalAttackRange = num end
 end)
 
-Win:AddToggle("Auto Attack", false, function(state)
-    AutoAttackEnabled = state
-    
-    if AutoAttackEnabled then
-        task.spawn(function()
-            while AutoAttackEnabled do
-                -- Menggunakan pcall di loop utama agar jika terjadi error, fitur tidak mati
-                pcall(function()
-                    local workspace = game:GetService("Workspace")
-                    local CreatureContainer = workspace:FindFirstChild("CreatureContainer")
-                    
-                    local character = LocalPlayer.Character
-                    local humanoid = character and character:FindFirstChild("Humanoid")
-                    local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso") or character:FindFirstChildWhichIsA("BasePart"))
-                    local backpack = LocalPlayer:FindFirstChild("Backpack")
-                    
-                    if CreatureContainer and rootPart and humanoid then
-                        
-                        -- Logika Cerdas: Cek apakah dicentang di UI atau sedang dipegang di tangan
-                        local function CheckAndAttackAsync(toolName, attackLogic)
-                            local isSelected = TargetWeapons[toolName] == true
-                            local tool = character:FindFirstChild(toolName)
-                            
-                            -- 1. Jika TIDAK dicentang di UI, DAN TIDAK sedang dipegang di tangan, lewati.
-                            if not isSelected and not tool then return end
-                            
-                            -- 2. Jika dicentang di UI tapi barang ada di tas, ambil dan paksa pakai (Equip)
-                            if not tool and isSelected and backpack then
-                                tool = backpack:FindFirstChild(toolName)
-                                if tool then 
-                                    humanoid:EquipTool(tool) 
+local function RunAutoAttack()
+    task.spawn(function()
+        while AutoAttackEnabled do
+            pcall(function()
+                local workspace = game:GetService("Workspace")
+                local CreatureContainer = workspace:FindFirstChild("CreatureContainer")
+                
+                local character = LocalPlayer.Character
+                local humanoid = character and character:FindFirstChild("Humanoid")
+                local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso") or character:FindFirstChildWhichIsA("BasePart"))
+                local backpack = LocalPlayer:FindFirstChild("Backpack")
+                
+                if CreatureContainer and rootPart and humanoid then
+                    local function CheckAndAttackAsync(toolName, attackLogic)
+                        local isSelected = TargetWeapons[toolName] == true
+                        local tool = character:FindFirstChild(toolName)
+                        if not isSelected and not tool then return end
+                        if not tool and isSelected and backpack then
+                            tool = backpack:FindFirstChild(toolName)
+                            if tool then humanoid:EquipTool(tool) end
+                        end
+                        if tool then task.spawn(function() pcall(attackLogic, tool) end) end
+                    end
+
+                    if AttackMode == "Nearest (Global)" then
+                        local nearestEnemy, nearestEnemyPart, shortestDistance = nil, nil, math.huge 
+                        for _, enemy in ipairs(CreatureContainer:GetChildren()) do
+                            if enemy.Name == "Wraith" or enemy.Name == "Wraith_CLIENT" then continue end
+                            local enemyPart = enemy:IsA("BasePart") and enemy or enemy:FindFirstChildWhichIsA("BasePart") or (enemy:IsA("Model") and enemy.PrimaryPart)
+                            if enemyPart then
+                                local distance = (enemyPart.Position - rootPart.Position).Magnitude
+                                if distance <= shortestDistance then
+                                    shortestDistance = distance; nearestEnemy = enemy; nearestEnemyPart = enemyPart
                                 end
-                            end
-                            
-                            -- 3. Eksekusi serangan! (Berlaku untuk yang dicentang maupun yang manual dipegang)
-                            if tool then 
-                                task.spawn(function() pcall(attackLogic, tool) end)
                             end
                         end
-
-                        if AttackMode == "Nearest (Global)" then
-                            local nearestEnemy = nil
-                            local nearestEnemyPart = nil
-                            local shortestDistance = math.huge 
-
-                            for _, enemy in ipairs(CreatureContainer:GetChildren()) do
-                                if enemy.Name == "Wraith" or enemy.Name == "Wraith_CLIENT" then continue end
-                                
-                                local enemyPart = enemy:IsA("BasePart") and enemy or enemy:FindFirstChildWhichIsA("BasePart") or (enemy:IsA("Model") and enemy.PrimaryPart)
-                                
-                                if enemyPart then
-                                    local distance = (enemyPart.Position - rootPart.Position).Magnitude
-                                    if distance <= shortestDistance then
-                                        shortestDistance = distance
-                                        nearestEnemy = enemy
-                                        nearestEnemyPart = enemyPart
-                                    end
+                        
+                        if nearestEnemy and nearestEnemyPart then
+                            local enemyPos = nearestEnemy:IsA("Model") and nearestEnemy:GetPivot().Position or nearestEnemyPart.Position
+                            local vecStr = string.format("~v%.4f,%.4f,%.4f", enemyPos.X, enemyPos.Y, enemyPos.Z)
+                            
+                            pcall(function()
+                                for _, wName in ipairs({"Harpoon", "Riptide"}) do
+                                    CheckAndAttackAsync(wName, function(t) SafeRemoteFunction("ToolReplicator", "~s" .. wName, "~sHitEnemy", nearestEnemy) end)
                                 end
-                            end
+                                CheckAndAttackAsync("Magma Staff", function(t) SafeRemoteFunction("ToolReplicator", "~sMagma Staff", "~sFire", vecStr) end)
+                                CheckAndAttackAsync("Squid Laser", function(t) SafeRemoteFunction("ToolReplicator", "~sLaser", "~sShoot", vecStr) end)
+                                CheckAndAttackAsync("Grenade", function(t) SafeRemoteFunction("ToolReplicator", "~sGrenade", "~sThrow", vecStr, vecStr) end)
+                                
+                                local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick", "DualPistols"}
+                                for _, gunName in ipairs(gunTypes) do
+                                    CheckAndAttackAsync(gunName, function(t)
+                                        local firePart = t:FindFirstChild("Handle") or t:FindFirstChildWhichIsA("BasePart") or rootPart
+                                        if firePart then
+                                            local direction = (enemyPos - rootPart.Position).Unit
+                                            local gunFormatStr = string.format("~t{1=~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0}", enemyPos.X, enemyPos.Y, enemyPos.Z, direction.X, direction.Y, direction.Z)
+                                            SafeRemoteFunction("ToolReplicator", "~sGun", "~sShoot", firePart, gunFormatStr)
+                                        end
+                                    end)
+                                end
+                            end)
+                        end
+                        
+                    elseif AttackMode == "Brutal All Target" then
+                        for _, enemy in ipairs(CreatureContainer:GetChildren()) do
+                            if enemy.Name == "Wraith" or enemy.Name == "Wraith_CLIENT" then continue end
+                            local enemyPart = enemy:IsA("BasePart") and enemy or enemy:FindFirstChildWhichIsA("BasePart") or (enemy:IsA("Model") and enemy.PrimaryPart)
                             
-                            if nearestEnemy and nearestEnemyPart then
-                                local enemyPos = nearestEnemy:IsA("Model") and nearestEnemy:GetPivot().Position or nearestEnemyPart.Position
-                                local vecStr = string.format("~v%.4f,%.4f,%.4f", enemyPos.X, enemyPos.Y, enemyPos.Z)
+                            if enemyPart then
+                                local enemyPos = enemy:IsA("Model") and enemy:GetPivot().Position or enemyPart.Position
+                                local distance = (enemyPos - rootPart.Position).Magnitude
                                 
-                                pcall(function()
-                                    for _, wName in ipairs({"Harpoon", "Riptide"}) do
-                                        CheckAndAttackAsync(wName, function(t) SafeRemoteFunction("ToolReplicator", "~s" .. wName, "~sHitEnemy", nearestEnemy) end)
-                                    end
-                                    CheckAndAttackAsync("Magma Staff", function(t) SafeRemoteFunction("ToolReplicator", "~sMagma Staff", "~sFire", vecStr) end)
-                                    CheckAndAttackAsync("Squid Laser", function(t) SafeRemoteFunction("ToolReplicator", "~sLaser", "~sShoot", vecStr) end)
-                                    CheckAndAttackAsync("Grenade", function(t) SafeRemoteFunction("ToolReplicator", "~sGrenade", "~sThrow", vecStr, vecStr) end)
-                                    
-                                    local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick", "DualPistols"}
-                                    for _, gunName in ipairs(gunTypes) do
-                                        CheckAndAttackAsync(gunName, function(t)
-                                            local firePart = t:FindFirstChild("Handle") or t:FindFirstChildWhichIsA("BasePart") or rootPart
-                                            if firePart then
-                                                local direction = (enemyPos - rootPart.Position).Unit
-                                                local gunFormatStr = string.format("~t{1=~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0}", enemyPos.X, enemyPos.Y, enemyPos.Z, direction.X, direction.Y, direction.Z)
-                                                SafeRemoteFunction("ToolReplicator", "~sGun", "~sShoot", firePart, gunFormatStr)
-                                            end
-                                        end)
-                                    end
-                                end)
-                            end
-                            
-                        elseif AttackMode == "Brutal All Target" then
-                            for _, enemy in ipairs(CreatureContainer:GetChildren()) do
-                                if enemy.Name == "Wraith" or enemy.Name == "Wraith_CLIENT" then continue end
-                                
-                                local enemyPart = enemy:IsA("BasePart") and enemy or enemy:FindFirstChildWhichIsA("BasePart") or (enemy:IsA("Model") and enemy.PrimaryPart)
-                                
-                                if enemyPart then
-                                    -- Typo telah diperbaiki menjadi IsA("Model")
-                                    local enemyPos = enemy:IsA("Model") and enemy:GetPivot().Position or enemyPart.Position
-                                    local distance = (enemyPos - rootPart.Position).Magnitude
-                                    
-                                    if distance <= BrutalAttackRange then
-                                        local vecStr = string.format("~v%.4f,%.4f,%.4f", enemyPos.X, enemyPos.Y, enemyPos.Z)
-                                        
-                                        pcall(function()
-                                            for _, wName in ipairs({"Harpoon", "Riptide"}) do
-                                                CheckAndAttackAsync(wName, function(t) SafeRemoteFunction("ToolReplicator", "~s" .. wName, "~sHitEnemy", enemy) end)
-                                            end
-                                            CheckAndAttackAsync("Magma Staff", function(t) SafeRemoteFunction("ToolReplicator", "~sMagma Staff", "~sFire", vecStr) end)
-                                            CheckAndAttackAsync("Squid Laser", function(t) SafeRemoteFunction("ToolReplicator", "~sLaser", "~sShoot", vecStr) end)
-                                            CheckAndAttackAsync("Grenade", function(t) SafeRemoteFunction("ToolReplicator", "~sGrenade", "~sThrow", vecStr, vecStr) end)
+                                if distance <= BrutalAttackRange then
+                                    local vecStr = string.format("~v%.4f,%.4f,%.4f", enemyPos.X, enemyPos.Y, enemyPos.Z)
+                                    pcall(function()
+                                        for _, wName in ipairs({"Harpoon", "Riptide"}) do
+                                            CheckAndAttackAsync(wName, function(t) SafeRemoteFunction("ToolReplicator", "~s" .. wName, "~sHitEnemy", enemy) end)
+                                        end
+                                        CheckAndAttackAsync("Magma Staff", function(t) SafeRemoteFunction("ToolReplicator", "~sMagma Staff", "~sFire", vecStr) end)
+                                        CheckAndAttackAsync("Squid Laser", function(t) SafeRemoteFunction("ToolReplicator", "~sLaser", "~sShoot", vecStr) end)
+                                        CheckAndAttackAsync("Grenade", function(t) SafeRemoteFunction("ToolReplicator", "~sGrenade", "~sThrow", vecStr, vecStr) end)
 
-                                            local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick", "DualPistols"}
-                                            for _, gunName in ipairs(gunTypes) do
-                                                CheckAndAttackAsync(gunName, function(t)
-                                                    local firePart = t:FindFirstChild("Handle") or t:FindFirstChildWhichIsA("BasePart") or rootPart
-                                                    if firePart then
-                                                        local direction = (enemyPos - rootPart.Position).Unit
-                                                        local gunFormatStr = string.format("~t{1=~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0}", enemyPos.X, enemyPos.Y, enemyPos.Z, direction.X, direction.Y, direction.Z)
-                                                        SafeRemoteFunction("ToolReplicator", "~sGun", "~sShoot", firePart, gunFormatStr)
-                                                    end
-                                                end)
-                                            end
-                                        end)
-                                    end
+                                        local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick", "DualPistols"}
+                                        for _, gunName in ipairs(gunTypes) do
+                                            CheckAndAttackAsync(gunName, function(t)
+                                                local firePart = t:FindFirstChild("Handle") or t:FindFirstChildWhichIsA("BasePart") or rootPart
+                                                if firePart then
+                                                    local direction = (enemyPos - rootPart.Position).Unit
+                                                    local gunFormatStr = string.format("~t{1=~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0}", enemyPos.X, enemyPos.Y, enemyPos.Z, direction.X, direction.Y, direction.Z)
+                                                    SafeRemoteFunction("ToolReplicator", "~sGun", "~sShoot", firePart, gunFormatStr)
+                                                end
+                                            end)
+                                        end
+                                    end)
                                 end
                             end
                         end
                     end
-                end)
-                task.wait(0.1) 
-            end
-        end)
-    end
+                end
+            end)
+            task.wait(0.1) 
+        end
+    end)
+end
+
+Win:AddToggle("Auto Attack", true, function(state)
+    AutoAttackEnabled = state
+    if AutoAttackEnabled then RunAutoAttack() end
 end)
+RunAutoAttack() -- EKSEKUSI OTOMATIS
 
 -- ====================================================================
 -- [FITUR 6]: AUTO PICK MATERIAL (NEAREST) + INJEKSI AUTO COOK
@@ -721,114 +682,95 @@ Win:AddToggle("Auto Pick Material", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 7]: AUTO OPEN CHEST (OPTIMIZED & EXPANDED SEARCH, 15 STUDS)
+-- [FITUR 7]: AUTO OPEN CHEST (DEFAULT AKTIF)
 -- ====================================================================
-Win:AddToggle("Auto Open Chest", false, function(state)
+local AutoChestEnabled = true
+
+local function RunAutoChest()
+    task.spawn(function()
+        while AutoChestEnabled do
+            local workspace = game:GetService("Workspace")
+            local ChestsFolder = workspace:FindFirstChild("Chests")
+            local IslandContainer = workspace:FindFirstChild("IslandContainer")
+            
+            local character = LocalPlayer.Character
+            local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChildWhichIsA("BasePart"))
+            
+            if rootPart then
+                local nearestChest = nil
+                local shortestDistance = 15 
+                local potentialChests = {}
+                
+                if ChestsFolder then
+                    for _, chest in ipairs(ChestsFolder:GetChildren()) do table.insert(potentialChests, chest) end
+                end
+                
+                if IslandContainer then
+                    for _, island in ipairs(IslandContainer:GetChildren()) do
+                        for _, item in ipairs(island:GetChildren()) do
+                            if string.find(string.lower(item.Name), "chest") then table.insert(potentialChests, item) end
+                        end
+                    end
+                end
+                
+                for _, chest in ipairs(potentialChests) do
+                    local part = chest:IsA("BasePart") and chest or chest:FindFirstChildWhichIsA("BasePart")
+                    if part then
+                        local distance = (part.Position - rootPart.Position).Magnitude
+                        if distance < shortestDistance then
+                            shortestDistance = distance; nearestChest = chest
+                        end
+                    end
+                end
+                
+                if nearestChest then pcall(function() SafeRemoteFunction("OpenChest", nearestChest) end) end
+            end
+            task.wait(0.1) 
+        end
+    end)
+end
+
+Win:AddToggle("Auto Open Chest", true, function(state)
     AutoChestEnabled = state
-    if AutoChestEnabled then
-        task.spawn(function()
-            while AutoChestEnabled do
-                local workspace = game:GetService("Workspace")
-                local ChestsFolder = workspace:FindFirstChild("Chests")
-                local IslandContainer = workspace:FindFirstChild("IslandContainer")
-                
-                local character = LocalPlayer.Character
-                local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChildWhichIsA("BasePart"))
-                
-                if rootPart then
-                    local nearestChest = nil
-                    local shortestDistance = 15 -- Dikembalikan ke 15 stud sesuai permintaan
-                    
-                    local potentialChests = {}
-                    
-                    -- 1. Mengumpulkan Chest dari workspace.Chests
-                    if ChestsFolder then
-                        for _, chest in ipairs(ChestsFolder:GetChildren()) do
-                            table.insert(potentialChests, chest)
-                        end
-                    end
-                    
-                    -- 2. Mengumpulkan Chest dari workspace.IslandContainer (Cek semua pulau)
-                    if IslandContainer then
-                        for _, island in ipairs(IslandContainer:GetChildren()) do
-                            for _, item in ipairs(island:GetChildren()) do
-                                if string.find(string.lower(item.Name), "chest") then
-                                    table.insert(potentialChests, item)
-                                end
-                            end
-                        end
-                    end
-                    
-                    -- 3. Mencari 1 Chest terdekat (dalam radius 15 stud)
-                    for _, chest in ipairs(potentialChests) do
-                        local part = chest:IsA("BasePart") and chest or chest:FindFirstChildWhichIsA("BasePart")
-                        if part then
-                            local distance = (part.Position - rootPart.Position).Magnitude
-                            if distance < shortestDistance then
-                                shortestDistance = distance
-                                nearestChest = chest
-                            end
-                        end
-                    end
-                    
-                    -- 4. Mengeksekusi Remote untuk membuka Chest
-                    if nearestChest then
+    if AutoChestEnabled then RunAutoChest() end
+end)
+RunAutoChest() -- EKSEKUSI OTOMATIS
+
+-- ====================================================================
+-- [FITUR 8]: AUTO FISHING (DEFAULT AKTIF)
+-- ====================================================================
+local AutoFishingEnabled = true
+
+local function RunAutoFishing()
+    task.spawn(function()
+        while AutoFishingEnabled do
+            local character = LocalPlayer.Character
+            if character then
+                local equippedTool = character:FindFirstChild("Fishing Rod")
+                if equippedTool then
+                    local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChildWhichIsA("BasePart")
+                    if rootPart then
+                        local pos = rootPart.Position
+                        local dir = rootPart.CFrame.LookVector
+                        local vecStr = string.format("~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0", pos.X, pos.Y + 1, pos.Z, dir.X, dir.Y, dir.Z)
+                        
                         pcall(function()
-                            SafeRemoteFunction("OpenChest", nearestChest)
+                            SafeRemoteFunction("ToolReplicator", "~sFishing Rod", "~sCast")
+                            SafeRemoteFunction("ToolReplicator", "~sFishing Rod", "~sFishPoof", vecStr)
                         end)
                     end
                 end
-                
-                task.wait(0.1) 
             end
-        end)
-    end
-end)
+            task.wait(0.5) 
+        end
+    end)
+end
 
--- ====================================================================
--- [FITUR 8]: AUTO FISHING (CPU OPTIMIZED & REQUIRE EQUIPPED TOOL)
--- ====================================================================
-local AutoFishingEnabled = false
-Win:AddToggle("Auto Fishing", false, function(state)
+Win:AddToggle("Auto Fishing", true, function(state)
     AutoFishingEnabled = state
-    if AutoFishingEnabled then
-        task.spawn(function()
-            while AutoFishingEnabled do
-                local character = LocalPlayer.Character
-                
-                -- Filter 1: Pastikan karakter sudah termuat
-                if character then
-                    -- Filter 2: Cek apakah "Fishing Rod" sedang digenggam (berada di dalam Character)
-                    local equippedTool = character:FindFirstChild("Fishing Rod")
-                    
-                    if equippedTool then
-                        local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChildWhichIsA("BasePart")
-                        
-                        if rootPart then
-                            -- Kalkulasi matematika ini HANYA akan diproses jika pancingan dipegang
-                            -- Sangat menghemat beban CPU dibanding menghitungnya setiap 0.05 detik
-                            local pos = rootPart.Position
-                            local dir = rootPart.CFrame.LookVector
-                            
-                            local vecStr = string.format("~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0", 
-                                pos.X, pos.Y + 1, pos.Z, dir.X, dir.Y, dir.Z)
-                            
-                            pcall(function()
-                                SafeRemoteFunction("ToolReplicator", "~sFishing Rod", "~sCast")
-                                SafeRemoteFunction("ToolReplicator", "~sFishing Rod", "~sFishPoof", vecStr)
-                            end)
-                        end
-                    end
-                end
-                
-                -- OPTIMASI FPS: 
-                -- Diubah dari 0.05 (20x per detik) menjadi 0.5 (2x per detik). 
-                -- Angka ini sudah sangat cepat untuk ukuran "Auto Fishing" tanpa membuat game patah-patah atau server curiga.
-                task.wait(0.5) 
-            end
-        end)
-    end
+    if AutoFishingEnabled then RunAutoFishing() end
 end)
+RunAutoFishing() -- EKSEKUSI OTOMATIS
 
 -- ====================================================================
 -- [FITUR 9]: AUTO COOK CHOWDER / PIZZA (VERSI SINKRON GRINDER)
@@ -877,93 +819,85 @@ Win:AddToggle("Auto Cook Chowder", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 10]: AUTO STORE (ONLY HELD ITEMS & CPU OPTIMIZED)
+-- [FITUR 10]: AUTO STORE (DEFAULT AKTIF)
 -- ====================================================================
-local AutoStoreEnabled = false
-Win:AddToggle("Auto Store (Wood & Metal)", false, function(state)
-    AutoStoreEnabled = state
-    if AutoStoreEnabled then
-        task.spawn(function()
-            -- Taruh variabel statis di luar loop agar tidak memakan RAM/CPU berulang kali
-            local myId = tostring(LocalPlayer.UserId)
-            local myName = LocalPlayer.Name
+local AutoStoreEnabled = true
+
+local function RunAutoStore()
+    task.spawn(function()
+        local myId = tostring(LocalPlayer.UserId)
+        local myName = LocalPlayer.Name
+        
+        while AutoStoreEnabled do
+            local workspace = game:GetService("Workspace")
+            local DebrisField = workspace:FindFirstChild("DebrisField")
             
-            while AutoStoreEnabled do
-                local workspace = game:GetService("Workspace")
-                local DebrisField = workspace:FindFirstChild("DebrisField")
-                
-                if DebrisField then
-                    for _, folderObj in ipairs(DebrisField:GetChildren()) do
-                        if not AutoStoreEnabled then break end
-                        
-                        -- Abaikan barang yang sudah sempat diproses sebelumnya
-                        if folderObj:GetAttribute("RZY_Processed") then continue end
-                        
-                        -- Cek super ringan 1: Apakah ada yang memegang item ini?
-                        local isGrabbed = folderObj:GetAttribute("Grabbed")
-                        if not isGrabbed then
-                            -- Jika folder tidak ada atribut, coba cek part-nya
+            if DebrisField then
+                for _, folderObj in ipairs(DebrisField:GetChildren()) do
+                    if not AutoStoreEnabled then break end
+                    if folderObj:GetAttribute("RZY_Processed") then continue end
+                    
+                    local isGrabbed = folderObj:GetAttribute("Grabbed")
+                    if not isGrabbed then
+                        local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
+                        if part then isGrabbed = part:GetAttribute("Grabbed") end
+                    end
+                    
+                    if isGrabbed then
+                        local grabber = tostring(folderObj:GetAttribute("Grabber"))
+                        if grabber == "nil" then
                             local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
-                            if part then isGrabbed = part:GetAttribute("Grabbed") end
+                            if part then grabber = tostring(part:GetAttribute("Grabber")) end
                         end
                         
-                        -- JIKA SEDANG DIPEGANG, baru lanjutkan proses (Sangat menghemat CPU)
-                        if isGrabbed then
-                            -- Cek ringan 2: Apakah yang memegang adalah Anda?
-                            local grabber = tostring(folderObj:GetAttribute("Grabber"))
-                            if grabber == "nil" then
-                                local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
-                                if part then grabber = tostring(part:GetAttribute("Grabber")) end
-                            end
+                        if grabber == myId or grabber == myName then
+                            local resType = folderObj:GetAttribute("Resource") or folderObj:GetAttribute("Item")
+                            local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
                             
-                            if grabber == myId or grabber == myName then
-                                -- Cek ringan 3: Apakah ini Wood atau Metal?
-                                local resType = folderObj:GetAttribute("Resource") or folderObj:GetAttribute("Item")
-                                local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
-                                
-                                if not resType and part then 
-                                    resType = part:GetAttribute("Resource") or part:GetAttribute("Item") 
-                                end
-                                
-                                if resType == "Wood" or resType == "Metal" then
-                                    if part then
-                                        pcall(function()
-                                            -- Langsung kirim perintah masuk tas
-                                            SafeRemoteEvent("StoreItem", part)
-                                            
-                                            -- Tandai item agar tidak dispam request-nya
-                                            folderObj:SetAttribute("RZY_Processed", true)
-                                        end)
-                                    end
+                            if not resType and part then resType = part:GetAttribute("Resource") or part:GetAttribute("Item") end
+                            
+                            if resType == "Wood" or resType == "Metal" then
+                                if part then
+                                    pcall(function()
+                                        SafeRemoteEvent("StoreItem", part)
+                                        folderObj:SetAttribute("RZY_Processed", true)
+                                    end)
                                 end
                             end
                         end
                     end
                 end
-                
-                -- HEMAT CPU: Setengah detik sekali sudah lebih dari cukup untuk auto-store manual
-                task.wait(0.5) 
             end
-        end)
-    end
+            task.wait(0.5) 
+        end
+    end)
+end
+
+Win:AddToggle("Auto Store (Wood & Metal)", true, function(state)
+    AutoStoreEnabled = state
+    if AutoStoreEnabled then RunAutoStore() end
 end)
+RunAutoStore() -- EKSEKUSI OTOMATIS
 
 -- ====================================================================
 -- [FITUR: AUTO VISIBLE HUD COMPONENTS (BACKGROUND WATCHDOG)]
 -- ====================================================================
 task.spawn(function()
-    local HUD = game:GetService("Players").LocalPlayer.PlayerGui:WaitForChild("HUD")
+    local Player = game:GetService("Players").LocalPlayer
+    local HUD = Player:WaitForChild("PlayerGui"):WaitForChild("HUD")
+    local FeaturesUI = HUD:WaitForChild("Features")
     
-    -- Daftar target yang akan dipantau
+    -- Daftar target yang akan dipantau (Lebih rapi dan terstruktur)
     local Targets = {
-        HUD:WaitForChild("Features"),
-        HUD:WaitForChild("Features"):WaitForChild("Map"),
-        HUD:WaitForChild("Features"):WaitForChild("Timer")
+        FeaturesUI,
+        FeaturesUI:WaitForChild("Map"),
+        FeaturesUI:WaitForChild("Timer")
     }
 
     for _, target in ipairs(Targets) do
         task.spawn(function()
             local attempts = 0
+            local maxAttempts = 15 -- Ubah di sini jika ingin jadi 10 atau 15 kali percobaan
             
             -- Set awal agar langsung aktif
             target.Visible = true
@@ -971,16 +905,20 @@ task.spawn(function()
             -- Watchdog untuk mendeteksi perubahan Visible secara instan
             local connection
             connection = target:GetPropertyChangedSignal("Visible"):Connect(function()
-                -- Jika game memaksa menjadi false dan batas percobaan belum habis
-                if not target.Visible and attempts < 5 then
-                    attempts = attempts + 1
-                    target.Visible = true
-                    
-                    -- Jika sudah 5 kali mencoba memperbaiki, hentikan observasi untuk objek ini
-                    if attempts >= 15 then
-                        connection:Disconnect()
+                
+                -- Jika UI mati (false), lakukan evaluasi
+                if not target.Visible then
+                    if attempts < maxAttempts then
+                        attempts = attempts + 1
+                        target.Visible = true -- Paksa nyala kembali
+                    else
+                        -- Jika percobaan sudah mencapai batas (5x), berhentikan sistem ini untuk menghemat memori
+                        if connection then
+                            connection:Disconnect()
+                        end
                     end
                 end
+                
             end)
         end)
     end
