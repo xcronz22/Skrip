@@ -880,6 +880,114 @@ end)
 RunAutoStore() -- EKSEKUSI OTOMATIS
 
 -- ====================================================================
+-- [FITUR 11]: CUSTOM TELEPORT (DROPDOWN & TAP)
+-- ====================================================================
+local SelectedTeleportTarget = "Key SkullIsland"
+local TeleportOptions = {
+    "Key SkullIsland",
+    "Key ShantyIsland",
+    "Key TempleIsland",
+    "PirateStronghold",
+    "RivalRig1",
+    "RivalRig2",
+    "RivalRig3"
+}
+
+Win:AddDropdown("Select Island TP", TeleportOptions, function(val)
+    SelectedTeleportTarget = val
+end)
+
+Win:AddButton("Teleport Target", function()
+    pcall(function()
+        local char = LocalPlayer.Character
+        local root = char and (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChildWhichIsA("BasePart"))
+        local container = workspace:FindFirstChild("IslandContainer")
+        
+        if not root or not container then return end
+        
+        local targetObj = nil
+        if SelectedTeleportTarget == "Key SkullIsland" then
+            local island = container:FindFirstChild("SkullIsland")
+            if island then targetObj = island:FindFirstChild("Pedestal") end
+        elseif SelectedTeleportTarget == "Key ShantyIsland" then
+            local island = container:FindFirstChild("ShantyIsland")
+            if island then targetObj = island:FindFirstChild("Pedestal") end
+        elseif SelectedTeleportTarget == "Key TempleIsland" then
+            local island = container:FindFirstChild("TempleIsland")
+            if island then targetObj = island:FindFirstChild("Pedestal") end
+        elseif SelectedTeleportTarget == "PirateStronghold" then
+            local island = container:FindFirstChild("PirateStronghold")
+            if island then targetObj = island:FindFirstChild("Model") end
+        elseif SelectedTeleportTarget == "RivalRig1" then
+            targetObj = container:FindFirstChild("RivalRig1")
+        elseif SelectedTeleportTarget == "RivalRig2" then
+            targetObj = container:FindFirstChild("RivalRig2")
+        elseif SelectedTeleportTarget == "RivalRig3" then
+            targetObj = container:FindFirstChild("RivalRig3")
+        end
+        
+        -- Eksekusi Teleportasi menggunakan worldpivot
+        if targetObj then
+            -- Ditambah +5 ketinggian agar tidak nyangkut di tanah/objek
+            root.CFrame = targetObj:GetPivot() * CFrame.new(0, 5, 0)
+        end
+    end)
+end)
+
+-- ====================================================================
+-- [FITUR 12]: AUTO DISCOVER ISLANDS (SKY DROP & STAY)
+-- ====================================================================
+local AutoDiscoverEnabled = false
+local DiscoveredIslands = {} -- Tabel memori agar pulau yang sudah dikunjungi tidak di-TP lagi
+
+Win:AddToggle("Auto Discover Island", false, function(state)
+    AutoDiscoverEnabled = state
+    
+    if AutoDiscoverEnabled then
+        task.spawn(function()
+            while AutoDiscoverEnabled do
+                pcall(function()
+                    local char = LocalPlayer.Character
+                    local root = char and (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChildWhichIsA("BasePart"))
+                    local container = workspace:FindFirstChild("IslandContainer")
+                    
+                    if root and container then
+                        -- 1. Cari semua pulau yang belum pernah kita kunjungi
+                        local pendingIslands = {}
+                        for _, island in ipairs(container:GetChildren()) do
+                            if not DiscoveredIslands[island] then
+                                table.insert(pendingIslands, island)
+                            end
+                        end
+                        
+                        -- 2. Jika ada pulau baru yang belum dikunjungi, eksekusi!
+                        if #pendingIslands > 0 then
+                            for _, island in ipairs(pendingIslands) do
+                                -- Pengaman: Berhenti jika toggle dimatikan di tengah jalan
+                                if not AutoDiscoverEnabled or not root.Parent then return end
+                                
+                                -- AMAN DARI NYANGKUT: Mengambil titik tengah pulau, lalu ditambah ketinggian 200 stud ke atas
+                                local targetCFrame = island:GetPivot()
+                                root.CFrame = targetCFrame * CFrame.new(0, 200, 0)
+                                
+                                -- JEDA: Diam 3 detik (Saya lebihkan sedikit agar ada waktu jatuh dari langit dan server membaca "Discovered")
+                                task.wait(3) 
+                                
+                                -- TANDAI: Masukkan pulau ini ke tabel agar tidak di-TP lagi
+                                DiscoveredIslands[island] = true
+                            end
+                        end
+                    end
+                end)
+                
+                -- Jeda santai mengecek folder IslandContainer setiap 1 detik
+                task.wait(1) 
+            end
+        end)
+    end
+end)
+
+-- ====================================================================
 -- [FITUR: BUTTON TELEPORT BACK TO BASE (TAP ONLY)]
 -- ====================================================================
 Win:AddButton("Back to Base", function()
