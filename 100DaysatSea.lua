@@ -377,7 +377,8 @@ end)
 local TargetWeaponsCollect = {
     ["machete"] = true, ["poku poku"] = true, ["ghost cutlass"] = true,
     ["flintlock"] = true, ["blunderbuss"] = true, ["rifle"] = true, ["boomstick"] = true,
-    ["magma staff"] = true, ["ice staff"] = true, ["squid laser"] = true, ["revolver"] = true, ["hand cannon"] = true
+    ["magma staff"] = true, ["ice staff"] = true, ["squid laser"] = true, ["revolver"] = true, ["hand cannon"] = true, 
+    ["angler flare"] = true
 }
 
 local function RunAutoCollect()
@@ -464,11 +465,12 @@ end)
 RunAutoCollect() -- EKSEKUSI OTOMATIS
 
 -- ====================================================================
--- [FITUR 5]: AUTO ATTACK (DEFAULT AKTIF)
+-- [FITUR 5]: AUTO ATTACK (DEFAULT AKTIF + ANGLER FLARE WRAITH LOGIC)
 -- ====================================================================
 local AttackMode = "Brutal All Target" 
 local BrutalAttackRange = 100 
 local AutoAttackEnabled = true -- Default Aktif
+local LastFlareTime = 0 -- Memori cooldown 1 detik untuk Angle Flare
 
 Win:AddDropdown("Mode Auto Attack", {"Nearest (Global)", "Brutal All Target"}, function(selectedMode)
     AttackMode = selectedMode
@@ -493,20 +495,70 @@ local function RunAutoAttack()
                 
                 if CreatureContainer and rootPart and humanoid then
                     local function CheckAndAttackAsync(toolName, attackLogic)
-                        local isSelected = TargetWeapons[toolName] == true
+                        local isSelected = TargetWeapons and TargetWeapons[toolName] == true
                         local tool = character:FindFirstChild(toolName)
-                        if not isSelected and not tool then return end
+                        
+                        if not isSelected and not tool then return false end
+                        
                         if not tool and isSelected and backpack then
                             tool = backpack:FindFirstChild(toolName)
                             if tool then humanoid:EquipTool(tool) end
                         end
-                        if tool then task.spawn(function() pcall(attackLogic, tool) end) end
+                        
+                        if tool then 
+                            task.spawn(function() pcall(attackLogic, tool) end) 
+                            return true
+                        end
+                        return false
                     end
 
+                    -- ==============================================================
+                    -- [LOGIKA KHUSUS]: ANGLER FLARE VS WRAITH (COOLDOWN 1 DETIK)
+                    -- ==============================================================
+                    if tick() - LastFlareTime >= 1 then
+                        local targetWraith = nil
+                        local targetWraithPart = nil
+                        
+                        -- Cari Wraith yang ada di map
+                        for _, enemy in ipairs(CreatureContainer:GetChildren()) do
+                            if enemy.Name == "Wraith" or enemy.Name == "Wraith_CLIENT" then
+                                local enemyPart = enemy:IsA("BasePart") and enemy or enemy:FindFirstChildWhichIsA("BasePart") or (enemy:IsA("Model") and enemy.PrimaryPart)
+                                if enemyPart then
+                                    targetWraith = enemy
+                                    targetWraithPart = enemyPart
+                                    break -- Cukup kunci 1 target Wraith
+                                end
+                            end
+                        end
+                        
+                        -- Jika Wraith ditemukan, eksekusi tembakan Angle Flare
+                        if targetWraith and targetWraithPart then
+                            local enemyPos = targetWraith:IsA("Model") and targetWraith:GetPivot().Position or targetWraithPart.Position
+                            
+                            local fired = CheckAndAttackAsync("Angler Flare", function(t)
+                                local firePart = t:FindFirstChild("Handle") or t:FindFirstChildWhichIsA("BasePart") or rootPart
+                                if firePart then
+                                    local direction = (enemyPos - rootPart.Position).Unit
+                                    local gunFormatStr = string.format("~t{1=~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0}", enemyPos.X, enemyPos.Y, enemyPos.Z, direction.X, direction.Y, direction.Z)
+                                    SafeRemoteFunction("ToolReplicator", "~sGun", "~sShoot", firePart, gunFormatStr)
+                                end
+                            end)
+                            
+                            -- Reset cooldown hanya jika berhasil menemukan senjata dan mencoba menembak
+                            if fired then
+                                LastFlareTime = tick()
+                            end
+                        end
+                    end
+                    -- ==============================================================
+
+                    -- [LOGIKA NORMAL]: SERANGAN KE MONSTER SELAIN WRAITH
                     if AttackMode == "Nearest (Global)" then
                         local nearestEnemy, nearestEnemyPart, shortestDistance = nil, nil, math.huge 
                         for _, enemy in ipairs(CreatureContainer:GetChildren()) do
+                            -- Abaikan Wraith untuk senjata normal
                             if enemy.Name == "Wraith" or enemy.Name == "Wraith_CLIENT" then continue end
+                            
                             local enemyPart = enemy:IsA("BasePart") and enemy or enemy:FindFirstChildWhichIsA("BasePart") or (enemy:IsA("Model") and enemy.PrimaryPart)
                             if enemyPart then
                                 local distance = (enemyPart.Position - rootPart.Position).Magnitude
@@ -544,7 +596,9 @@ local function RunAutoAttack()
                         
                     elseif AttackMode == "Brutal All Target" then
                         for _, enemy in ipairs(CreatureContainer:GetChildren()) do
+                            -- Abaikan Wraith untuk senjata normal
                             if enemy.Name == "Wraith" or enemy.Name == "Wraith_CLIENT" then continue end
+                            
                             local enemyPart = enemy:IsA("BasePart") and enemy or enemy:FindFirstChildWhichIsA("BasePart") or (enemy:IsA("Model") and enemy.PrimaryPart)
                             
                             if enemyPart then
