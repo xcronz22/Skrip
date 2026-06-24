@@ -1000,7 +1000,7 @@ Win:AddToggle("Auto Discover Island", false, function(state)
                                 root.CFrame = targetCFrame * CFrame.new(0, 100, 0)
                                 
                                 -- JEDA: Diam 3 detik (Saya lebihkan sedikit agar ada waktu jatuh dari langit dan server membaca "Discovered")
-                                task.wait(2) 
+                                task.wait(1) 
                                 
                                 -- TANDAI: Masukkan pulau ini ke tabel agar tidak di-TP lagi
                                 DiscoveredIslands[island] = true
