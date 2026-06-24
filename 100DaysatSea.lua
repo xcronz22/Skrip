@@ -933,7 +933,7 @@ Win:AddToggle("Auto Discover Island", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 12]: UNIVERSAL FLY (DEFAULT AKTIF - SMART DETECT)
+-- [FITUR 12]: UNIVERSAL FLY (DEFAULT AKTIF - SMART DETECT & FIXCAM)
 -- ====================================================================
 local UniversalFlyEnabled = true -- Default sudah aktif
 local UniversalFlySpeed = 200
@@ -973,6 +973,20 @@ local function StopUniversalFly()
     ClearFlyMovers()
 end
 
+-- Fungsi FixCam (Ala Infinite Yield)
+local function ApplyFixCam(humanoid)
+    task.spawn(function()
+        -- Jeda sebentar agar sistem game mendaftarkan status "Seated" terlebih dahulu
+        task.wait(0.1) 
+        local camera = workspace.CurrentCamera
+        if camera and humanoid then
+            -- Memaksa kamera untuk reset tipe dan fokus kembali ke karakter
+            camera.CameraType = Enum.CameraType.Custom
+            camera.CameraSubject = humanoid
+        end
+    end)
+end
+
 -- Fungsi Utama Terbang yang bisa dipanggil kapan saja
 local function StartUniversalFly()
     -- Mencegah dobel koneksi jika tombol ditekan berulang kali
@@ -999,10 +1013,16 @@ local function StartUniversalFly()
         local expectedTarget = humanoid.SeatPart or rootPart
         local isVehicle = (expectedTarget == humanoid.SeatPart)
         
-        -- Berpindah penggerak secara mulus saat masuk/keluar kendaraan
+        -- Blok ini akan berjalan SEKALI setiap berpindah antara berjalan kaki dan naik kendaraan
         if currentMoverTarget ~= expectedTarget then
             ClearFlyMovers()
             currentMoverTarget = expectedTarget
+            
+            -- [PEMANGGILAN FIXCAM]
+            -- Hanya panggil FixCam jika target penggerak yang baru adalah kendaraan
+            if isVehicle then
+                ApplyFixCam(humanoid)
+            end
             
             currentBG = Instance.new("BodyGyro")
             currentBG.P = 9e4
