@@ -867,10 +867,21 @@ end)
 RunAutoStore() -- EKSEKUSI OTOMATIS
 
 -- ====================================================================
--- [FITUR 10]: AUTO DISCOVER ISLANDS (SKY DROP & STAY)
+-- [FITUR 10]: AUTO DISCOVER ISLANDS (SKY DROP & STAY + EXCLUSION)
 -- ====================================================================
 local AutoDiscoverEnabled = false
 local DiscoveredIslands = {} -- Tabel memori agar pulau yang sudah dikunjungi tidak di-TP lagi
+
+-- Daftar kata kunci pulau yang TIDAK BOLEH dikunjungi
+local ExcludedIslandKeywords = {
+    "RivalRig1", 
+    "RivalRig2", 
+    "RivalRig3", 
+    "GhostGalleon", 
+    "SquidIsland", 
+    "MushroomIsland", 
+    "CanonIsland"
+}
 
 Win:AddToggle("Auto Discover Island", false, function(state)
     AutoDiscoverEnabled = state
@@ -887,7 +898,18 @@ Win:AddToggle("Auto Discover Island", false, function(state)
                         -- 1. Cari semua pulau yang belum pernah kita kunjungi
                         local pendingIslands = {}
                         for _, island in ipairs(container:GetChildren()) do
-                            if not DiscoveredIslands[island] then
+                            local isExcluded = false
+                            
+                            -- Pengecekan nama pulau terhadap daftar blacklist
+                            for _, keyword in ipairs(ExcludedIslandKeywords) do
+                                if string.find(island.Name, keyword) then
+                                    isExcluded = true
+                                    break
+                                end
+                            end
+                            
+                            -- Jika pulau belum dikunjungi dan BUKAN pulau yang dilarang
+                            if not DiscoveredIslands[island] and not isExcluded then
                                 table.insert(pendingIslands, island)
                             end
                         end
@@ -898,11 +920,11 @@ Win:AddToggle("Auto Discover Island", false, function(state)
                                 -- Pengaman: Berhenti jika toggle dimatikan di tengah jalan
                                 if not AutoDiscoverEnabled or not root.Parent then return end
                                 
-                                -- AMAN DARI NYANGKUT: Mengambil titik tengah pulau, lalu ditambah ketinggian 200 stud ke atas
+                                -- AMAN DARI NYANGKUT: Mengambil titik tengah pulau, lalu ditambah ketinggian 50 stud ke atas
                                 local targetCFrame = island:GetPivot()
-                                root.CFrame = targetCFrame * CFrame.new(0, 100, 0)
+                                root.CFrame = targetCFrame * CFrame.new(0, 50, 0)
                                 
-                                -- JEDA: Diam 3 detik (Saya lebihkan sedikit agar ada waktu jatuh dari langit dan server membaca "Discovered")
+                                -- JEDA: Diam 1 detik (Ada waktu jatuh dari langit dan server membaca "Discovered")
                                 task.wait(1) 
                                 
                                 -- TANDAI: Masukkan pulau ini ke tabel agar tidak di-TP lagi
@@ -1141,20 +1163,15 @@ end)
 -- ====================================================================
 task.spawn(function()
     local Player = game:GetService("Players").LocalPlayer
-    local HUD = Player:WaitForChild("PlayerGui"):WaitForChild("HUD")
-    local FeaturesUI = HUD:WaitForChild("Features")
+    local PlayerGui = Player:WaitForChild("PlayerGui")
     
-    -- Daftar target yang akan dipantau (Lebih rapi dan terstruktur)
-    local Targets = {
-        FeaturesUI,
-        FeaturesUI:WaitForChild("Map"),
-        FeaturesUI:WaitForChild("Timer")
-    }
-
-    for _, target in ipairs(Targets) do
+    -- Fungsi Watchdog Universal agar mudah dipasang ke elemen UI mana saja
+    local function ApplyWatchdog(target)
+        if not target or not target:IsA("GuiObject") then return end
+        
         task.spawn(function()
             local attempts = 0
-            local maxAttempts = 15 -- Ubah di sini jika ingin jadi 10 atau 15 kali percobaan
+            local maxAttempts = 15 -- Batas 15 kali percobaan
             
             -- Set awal agar langsung aktif
             target.Visible = true
@@ -1162,21 +1179,54 @@ task.spawn(function()
             -- Watchdog untuk mendeteksi perubahan Visible secara instan
             local connection
             connection = target:GetPropertyChangedSignal("Visible"):Connect(function()
-                
-                -- Jika UI mati (false), lakukan evaluasi
                 if not target.Visible then
                     if attempts < maxAttempts then
                         attempts = attempts + 1
                         target.Visible = true -- Paksa nyala kembali
                     else
-                        -- Jika percobaan sudah mencapai batas (5x), berhentikan sistem ini untuk menghemat memori
+                        -- Jika percobaan sudah mencapai batas, putuskan koneksi untuk menghemat memori
                         if connection then
                             connection:Disconnect()
                         end
                     end
                 end
-                
             end)
         end)
     end
+
+    -- [1] EKSEKUSI UNTUK KOMPONEN HUD UTAMA
+    task.spawn(function()
+        pcall(function()
+            local HUD = PlayerGui:WaitForChild("HUD", 10)
+            local FeaturesUI = HUD and HUD:WaitForChild("Features", 10)
+            
+            if FeaturesUI then
+                ApplyWatchdog(FeaturesUI)
+                ApplyWatchdog(FeaturesUI:WaitForChild("Map", 5))
+                ApplyWatchdog(FeaturesUI:WaitForChild("Timer", 5))
+            end
+        end)
+    end)
+
+    -- [2] EKSEKUSI UNTUK FOLDER MAP CONTAINER
+    task.spawn(function()
+        pcall(function()
+            -- Menunggu hirarki Folder Map Container terbentuk
+            local MapUI = PlayerGui:WaitForChild("Map", 10)
+            local Main = MapUI and MapUI:WaitForChild("Main", 10)
+            local Container = Main and Main:WaitForChild("Container", 10)
+            
+            if Container then
+                -- Aplikasikan watchdog ke semua komponen yang SUDAH ADA di dalam container
+                for _, child in ipairs(Container:GetChildren()) do
+                    ApplyWatchdog(child)
+                end
+                
+                -- Aplikasikan watchdog ke komponen yang MUNGKIN BARU MUNCUL nanti
+                Container.ChildAdded:Connect(function(child)
+                    ApplyWatchdog(child)
+                end)
+            end
+        end)
+    end)
 end)
