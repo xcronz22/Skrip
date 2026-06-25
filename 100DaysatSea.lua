@@ -1159,7 +1159,53 @@ Win:AddToggle("Auto Dismantle All", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 13]: SOFT ANTI-LAG (WATER & DEBRIS OPTIMIZER)
+-- [FITUR 13]: AUTO REPAIR ALL (SPAWN ISLAND)
+-- ====================================================================
+local AutoRepairEnabled = false
+
+local function RunAutoRepair()
+    task.spawn(function()
+        while AutoRepairEnabled do
+            pcall(function()
+                local spawnIsland = workspace:FindFirstChild("SpawnIsland")
+                local craftedFolder = spawnIsland and spawnIsland:FindFirstChild("Crafted")
+                
+                if craftedFolder then
+                    for _, item in ipairs(craftedFolder:GetChildren()) do
+                        if not AutoRepairEnabled then break end 
+                        
+                        -- [FILTER PENGECUALIAN]: Sama seperti dismantle, 
+                        -- hanya menargetkan bangunan buatan pemain (mengandung ":")
+                        if string.find(item.Name, ":") then
+                            
+                            local targetString = "~s" .. item.Name
+                            
+                            -- Memanggil fungsi perbaikan
+                            SafeRemoteFunction("ToolReplicator", "~sWrench", "~sRepair", targetString)
+                            
+                            -- Delay agar tidak terdeteksi spam oleh server
+                            task.wait(0.1) 
+                        else
+                            continue
+                        end
+                    end
+                end
+            end)
+            -- Jeda 1 detik sebelum memindai ulang untuk mengurangi beban CPU
+            task.wait(1) 
+        end
+    end)
+end
+
+Win:AddToggle("Auto Repair All", false, function(state)
+    AutoRepairEnabled = state
+    if AutoRepairEnabled then
+        RunAutoRepair()
+    end
+end)
+
+-- ====================================================================
+-- [FITUR 14]: SOFT ANTI-LAG (WATER & DEBRIS OPTIMIZER)
 -- ====================================================================
 local SoftAntiLagEnabled = true
 
