@@ -32,9 +32,9 @@ Win:AddMultiDropdown("Material", {"Wood", "Metal", "Goo", "Small Gas Can", "Big 
     TargetMaterials = selectedTable
 end)
 
-Win:AddMultiDropdown("Weapon", {"Harpoon", "Magma Staff", "Squid Laser", "DualPistols", "Rifle", "Flintlock", "Blunderbuss", "Hand Cannon", "Revolver", "Boomstick", "Grenade", "Riptide"}, function(selectedTable)
-    TargetWeapons = selectedTable
-end)
+--Win:AddMultiDropdown("Weapon", {"Harpoon", "Magma Staff", "Squid Laser", "DualPistols", "Rifle", "Flintlock", "Blunderbuss", "Hand Cannon", "Revolver", "Boomstick", "Grenade", "Riptide"}, function(selectedTable)
+    --TargetWeapons = selectedTable
+--end)
 
 local AutoGrinderEnabled = false
 local AutoCampfireEnabled = false
