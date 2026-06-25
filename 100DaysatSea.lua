@@ -925,7 +925,7 @@ Win:AddToggle("Auto Discover Island", false, function(state)
                                 root.CFrame = targetCFrame * CFrame.new(0, 50, 0)
                                 
                                 -- JEDA: Diam 1 detik (Ada waktu jatuh dari langit dan server membaca "Discovered")
-                                task.wait(1) 
+                                task.wait(2) 
                                 
                                 -- TANDAI: Masukkan pulau ini ke tabel agar tidak di-TP lagi
                                 DiscoveredIslands[island] = true
@@ -1219,75 +1219,27 @@ Win:AddToggle("Soft Anti-Lag (Sea & Debris)", true, function(state)
 end)
 
 -- ====================================================================
--- [FITUR: AUTO VISIBLE HUD COMPONENTS (BACKGROUND WATCHDOG)]
+-- [FITUR: AUTO VISIBLE HUD COMPONENTS (LANGSUNG AKTIF SEKALI JALAN)]
 -- ====================================================================
 task.spawn(function()
     local Player = game:GetService("Players").LocalPlayer
     local PlayerGui = Player:WaitForChild("PlayerGui")
     
-    -- Fungsi Watchdog Universal agar mudah dipasang ke elemen UI mana saja
-    local function ApplyWatchdog(target)
-        if not target or not target:IsA("GuiObject") then return end
+    pcall(function()
+        -- Menunggu HUD utama dan Features UI terbentuk (maksimal 10 detik)
+        local HUD = PlayerGui:WaitForChild("HUD", 10)
+        local FeaturesUI = HUD and HUD:WaitForChild("Features", 10)
         
-        task.spawn(function()
-            local attempts = 0
-            local maxAttempts = 15 -- Batas 15 kali percobaan
+        if FeaturesUI then
+            -- Ubah status visible menjadi true hanya sekali jalan
+            FeaturesUI.Visible = true
             
-            -- Set awal agar langsung aktif
-            target.Visible = true
-
-            -- Watchdog untuk mendeteksi perubahan Visible secara instan
-            local connection
-            connection = target:GetPropertyChangedSignal("Visible"):Connect(function()
-                if not target.Visible then
-                    if attempts < maxAttempts then
-                        attempts = attempts + 1
-                        target.Visible = true -- Paksa nyala kembali
-                    else
-                        -- Jika percobaan sudah mencapai batas, putuskan koneksi untuk menghemat memori
-                        if connection then
-                            connection:Disconnect()
-                        end
-                    end
-                end
-            end)
-        end)
-    end
-
-    -- [1] EKSEKUSI UNTUK KOMPONEN HUD UTAMA
-    task.spawn(function()
-        pcall(function()
-            local HUD = PlayerGui:WaitForChild("HUD", 10)
-            local FeaturesUI = HUD and HUD:WaitForChild("Features", 10)
+            local mapUI = FeaturesUI:WaitForChild("Map", 5)
+            if mapUI then mapUI.Visible = true end
             
-            if FeaturesUI then
-                ApplyWatchdog(FeaturesUI)
-                ApplyWatchdog(FeaturesUI:WaitForChild("Map", 5))
-                ApplyWatchdog(FeaturesUI:WaitForChild("Timer", 5))
-            end
-        end)
-    end)
-
-    -- [2] EKSEKUSI UNTUK FOLDER MAP CONTAINER
-    task.spawn(function()
-        pcall(function()
-            -- Menunggu hirarki Folder Map Container terbentuk
-            local MapUI = PlayerGui:WaitForChild("Map", 10)
-            local Main = MapUI and MapUI:WaitForChild("Main", 10)
-            local Container = Main and Main:WaitForChild("Container", 10)
-            
-            if Container then
-                -- Aplikasikan watchdog ke semua komponen yang SUDAH ADA di dalam container
-                for _, child in ipairs(Container:GetChildren()) do
-                    ApplyWatchdog(child)
-                end
-                
-                -- Aplikasikan watchdog ke komponen yang MUNGKIN BARU MUNCUL nanti
-                Container.ChildAdded:Connect(function(child)
-                    ApplyWatchdog(child)
-                end)
-            end
-        end)
+            local timerUI = FeaturesUI:WaitForChild("Timer", 5)
+            if timerUI then timerUI.Visible = true end
+        end
     end)
 end)
 
