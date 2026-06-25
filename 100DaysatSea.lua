@@ -1109,7 +1109,7 @@ end)
 StartUniversalFly()
 
 -- ====================================================================
--- [FITUR TAMBAHAN]: AUTO DISMANTLE ALL (SPAWN ISLAND) - FIXED
+-- [FITUR 12]: AUTO DISMANTLE ALL (SPAWN ISLAND) - FIXED
 -- ====================================================================
 local AutoDismantleEnabled = false
 
@@ -1155,6 +1155,66 @@ Win:AddToggle("Auto Dismantle All", false, function(state)
     AutoDismantleEnabled = state
     if AutoDismantleEnabled then
         RunAutoDismantle()
+    end
+end)
+
+-- ====================================================================
+-- [FITUR 13]: SOFT ANTI-LAG (WATER & DEBRIS OPTIMIZER)
+-- ====================================================================
+local SoftAntiLagEnabled = true
+
+Win:AddToggle("Soft Anti-Lag (Sea & Debris)", true, function(state)
+    SoftAntiLagEnabled = state
+    
+    if SoftAntiLagEnabled then
+        task.spawn(function()
+            local workspace = game:GetService("Workspace")
+            local terrain = workspace.Terrain
+            local Lighting = game:GetService("Lighting")
+            
+            while SoftAntiLagEnabled do
+                pcall(function()
+                    -- [OPTIMASI LAUT]: Mematikan gelombang dan pantulan cahaya laut
+                    -- Ini adalah sumber lag terbesar di game bertema lautan
+                    if terrain then
+                        terrain.WaterWaveSize = 0
+                        terrain.WaterWaveSpeed = 0
+                        terrain.WaterReflectance = 0
+                    end
+                    
+                    -- [OPTIMASI PENCAHAYAAN GLOBAL]: Kurangi pantulan silau
+                    Lighting.GlobalShadows = false -- Mematikan bayangan global (Sangat ampuh menaikkan FPS)
+                    Lighting.EnvironmentDiffuseScale = 0
+                    Lighting.EnvironmentSpecularScale = 0
+                    
+                    -- [OPTIMASI DEBRIS]: Matikan bayangan pada ratusan barang yang mengapung
+                    local DebrisField = workspace:FindFirstChild("DebrisField")
+                    if DebrisField then
+                        for _, folderObj in ipairs(DebrisField:GetChildren()) do
+                            -- Pengecekan agar tidak membebani CPU, hanya memproses beberapa part
+                            local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
+                            if part and part.CastShadow then
+                                part.CastShadow = false
+                            end
+                        end
+                    end
+                end)
+                
+                -- Jeda 5 detik: Sangat ramah CPU karena tidak perlu di-scan setiap saat
+                task.wait(5)
+            end
+        end)
+    else
+        -- Jika dimatikan, kembalikan ke settingan normal/standar Roblox
+        pcall(function()
+            local terrain = game:GetService("Workspace").Terrain
+            if terrain then
+                terrain.WaterWaveSize = 0.15
+                terrain.WaterWaveSpeed = 10
+                terrain.WaterReflectance = 1
+            end
+            game:GetService("Lighting").GlobalShadows = true
+        end)
     end
 end)
 
@@ -1230,3 +1290,30 @@ task.spawn(function()
         end)
     end)
 end)
+
+-- ====================================================================
+-- [BACKGROUND TASK]: AUTO NO-FOG (SANTAI / LIGHTWEIGHT)
+-- ====================================================================
+task.spawn(function()
+    local Lighting = game:GetService("Lighting")
+    
+    while true do
+        pcall(function()
+            -- 1. Hapus kabut klasik (FogEnd dijauhkan ke ujung dunia)
+            Lighting.FogEnd = 9e9
+            Lighting.FogStart = 9e9
+            
+            -- 2. Hapus kabut modern (Atmosphere) yang biasa dipakai saat event/hujan
+            local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
+            if atmosphere then
+                atmosphere.Density = 0
+                atmosphere.Glare = 0
+                atmosphere.Haze = 0
+            end
+        end)
+        
+        -- Jeda 3 detik: Sangat santai, CPU tidak akan panas sama sekali
+        task.wait(3)
+    end
+end)
+
