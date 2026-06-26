@@ -629,8 +629,57 @@ end)
 RunAutoAttack()
 
 -- ====================================================================
--- [FITUR 6]: AUTO PICK MATERIAL (NEAREST) + INJEKSI AUTO COOK
+-- [FITUR 6]: AUTO PICK MATERIAL (NEAREST & BRUTAL)
 -- ====================================================================
+local PickMode = "Nearest (Global)" 
+local BrutalPickRange = 500 
+local AutoPickEnabled = false 
+
+-- [UI] Dropdown Mode
+Win:AddDropdown("Mode Auto Pick", {"Nearest (Global)", "Brutal All Target"}, function(selectedMode)
+    PickMode = selectedMode
+end)
+
+-- [UI] Input Jarak Brutal
+Win:AddInput("Brutal Pick Range", "500", function(value)
+    local num = tonumber(value)
+    if num then BrutalPickRange = num end
+end)
+
+-- [FUNGSI]: Pengecekan Validasi Barang Khusus Material
+local function IsItemValidToPick(folderObj, part)
+    -- Jika barang sudah masuk Grinder/Mesin lain, langsung LEWATKAN!
+    if folderObj:GetAttribute("RZY_Processed") then return false end
+            
+    local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
+    if isGrabbed then return false end 
+    
+    -- Evaluasi Material
+    local resType = folderObj:GetAttribute("Resource") or folderObj:GetAttribute("Item")
+    if not resType then resType = part:GetAttribute("Resource") or part:GetAttribute("Item") end
+    
+    local isTargetMaterial = false
+    -- Pastikan TargetMaterials sudah didefinisikan sebelumnya di script Anda
+    if resType and TargetMaterials and TargetMaterials[resType] then
+        local isExcluded = false
+        -- Abaikan jika barang tersebut adalah Armor
+        for attrName, attrValue in pairs(folderObj:GetAttributes()) do
+            local lowerName = string.lower(attrName)
+            local lowerValue = type(attrValue) == "string" and string.lower(attrValue) or ""
+            if string.find(lowerName, "armor") or string.find(lowerValue, "armor") or
+               string.find(lowerName, "chest") or string.find(lowerValue, "chest") or
+               string.find(lowerName, "leg") or string.find(lowerValue, "leg") then
+                isExcluded = true
+                break
+            end
+        end
+        if not isExcluded then isTargetMaterial = true end
+    end
+    
+    return isTargetMaterial
+end
+
+-- [UI & LOGIKA] Toggle Auto Pick
 Win:AddToggle("Auto Pick Material", false, function(state)
     AutoPickEnabled = state
     
@@ -645,73 +694,66 @@ Win:AddToggle("Auto Pick Material", false, function(state)
                 local backpack = LocalPlayer:FindFirstChild("Backpack")
                 
                 if DebrisField and rootPart then
-                    local nearestItem = nil
-                    local nearestPart = nil
-                    local shortestDistance = math.huge
-                    
+                    -- Tentukan alat penarik (Harpoon atau Riptide)
                     local pullTool = "Harpoon"
                     if (character and character:FindFirstChild("Riptide")) or (backpack and backpack:FindFirstChild("Riptide")) then
                         pullTool = "Riptide"
                     end
                     
-                    for _, folderObj in ipairs(DebrisField:GetChildren()) do
-                        -- Jika barang sudah masuk Grinder/Campfire, langsung LEWATKAN!
-                        if folderObj:GetAttribute("RZY_Processed") then continue end
-                                
-                        local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
-                        if not part then continue end
+                    -- ==============================================================
+                    -- [LOGIKA 1]: AMBIL SATU BARANG TERDEKAT
+                    -- ==============================================================
+                    if PickMode == "Nearest (Global)" then
+                        local nearestItem, nearestPart = nil, nil
+                        local shortestDistance = math.huge
                         
-                        local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
-                        if isGrabbed then continue end 
-                        
-                        -- 1. Evaluasi Material
-                        local resType = folderObj:GetAttribute("Resource") or folderObj:GetAttribute("Item")
-                        if not resType then resType = part:GetAttribute("Resource") or part:GetAttribute("Item") end
-                        
-                        local isTargetMaterial = false
-                        if resType and TargetMaterials[resType] then
-                            local isExcluded = false
-                            for attrName, attrValue in pairs(folderObj:GetAttributes()) do
-                                local lowerName = string.lower(attrName)
-                                local lowerValue = type(attrValue) == "string" and string.lower(attrValue) or ""
-                                if string.find(lowerName, "armor") or string.find(lowerValue, "armor") or
-                                   string.find(lowerName, "chest") or string.find(lowerValue, "chest") or
-                                   string.find(lowerName, "leg") or string.find(lowerValue, "leg") then
-                                    isExcluded = true
-                                    break
+                        for _, folderObj in ipairs(DebrisField:GetChildren()) do
+                            local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
+                            if part and IsItemValidToPick(folderObj, part) then
+                                local distance = (part.Position - rootPart.Position).Magnitude
+                                if distance < shortestDistance then
+                                    shortestDistance = distance
+                                    nearestItem = folderObj
+                                    nearestPart = part
                                 end
                             end
-                            if not isExcluded then isTargetMaterial = true end
                         end
                         
-                        -- 2. Evaluasi Makanan (Hanya jika Auto Cook Chowder aktif)
-                        local isTargetFood = false
-                        if AutoCookChowderEnabled then
-                            if folderObj:GetAttribute("Food") ~= nil or folderObj:GetAttribute("food") ~= nil then
-                                isTargetFood = true
-                            elseif part and (part:GetAttribute("Food") ~= nil or part:GetAttribute("food") ~= nil) then
-                                isTargetFood = true
-                            end
+                        if nearestItem and nearestPart then
+                            pcall(function()
+                                local pos = nearestPart.Position
+                                local vecStr = string.format("~v%.4f,%.4f,%.4f", pos.X, pos.Y, pos.Z)
+                                SafeRemoteFunction("ToolReplicator", "~s" .. pullTool, "~sGrab", nearestItem, vecStr)
+                            end)
                         end
-                        
-                        -- Eksekusi Jarak
-                        if isTargetMaterial or isTargetFood then
-                            local distance = (part.Position - rootPart.Position).Magnitude
-                            if distance < shortestDistance then
-                                shortestDistance = distance
-                                nearestItem = folderObj
-                                nearestPart = part
+                    
+                    -- ==============================================================
+                    -- [LOGIKA 2]: BRUTAL (AMBIL SEMUA BARANG DALAM RADIUS)
+                    -- ==============================================================
+                    elseif PickMode == "Brutal All Target" then
+                        for _, folderObj in ipairs(DebrisField:GetChildren()) do
+                            local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
+                            if part and IsItemValidToPick(folderObj, part) then
+                                local distance = (part.Position - rootPart.Position).Magnitude
+                                
+                                -- Jika barang masuk dalam jangkauan brutal
+                                if distance <= BrutalPickRange then
+                                    -- Gunakan task.spawn agar penarikan berjalan serentak
+                                    task.spawn(function()
+                                        pcall(function()
+                                            local pos = part.Position
+                                            local vecStr = string.format("~v%.4f,%.4f,%.4f", pos.X, pos.Y, pos.Z)
+                                            SafeRemoteFunction("ToolReplicator", "~s" .. pullTool, "~sGrab", folderObj, vecStr)
+                                        end)
+                                    end)
+                                    
+                                    -- Jeda super kecil agar server tidak mendeteksi spam remote yang berlebihan
+                                    task.wait(0.01) 
+                                end
                             end
                         end
                     end
                     
-                    if nearestItem and nearestPart then
-                        pcall(function()
-                            local pos = nearestPart.Position
-                            local vecStr = string.format("~v%.4f,%.4f,%.4f", pos.X, pos.Y, pos.Z)
-                            SafeRemoteFunction("ToolReplicator", "~s" .. pullTool, "~sGrab", nearestItem, vecStr)
-                        end)
-                    end
                 end
                 task.wait(0.1) 
             end
