@@ -1331,6 +1331,82 @@ Win:AddToggle("Soft Anti-Lag (Sea & Debris)", true, function(state)
 end)
 
 -- ====================================================================
+-- [FITUR TAMBAHAN]: MAP SCANNER (OPTIMIZED FOR FLY + NOCLIP)
+-- ====================================================================
+local MapScanSpeed = 300 -- Kecepatan sesuai permintaan
+local IsScanning = false
+local CurrentScanTween = nil
+
+--Win:AddInput("Scan Speed", "300", function(val)
+    --local num = tonumber(val)
+    --if num then MapScanSpeed = num end
+--end)
+
+Win:AddButton("Scan Entire Map (Tap)", function()
+    local player = game:GetService("Players").LocalPlayer
+    local char = player.Character
+    local root = char and (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChildWhichIsA("BasePart"))
+    local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+    
+    if not root or not humanoid then return end
+
+    if IsScanning then
+        IsScanning = false
+        if CurrentScanTween then CurrentScanTween:Cancel() end
+        return
+    end
+
+    IsScanning = true
+    
+    task.spawn(function()
+        local tweenService = game:GetService("TweenService")
+        local originalCFrame = root.CFrame
+        
+        -- Konfigurasi Scan
+        local mapSize = 10000 -- Ukuran 10k x 10k
+        local step = 1000     -- Jarak sapuan (Bisa diubah 1000-3000)
+        local flyHeight = 30  -- Ketinggian aman untuk Noclip
+        
+        local waypoints = {}
+        local direction = 1
+        
+        -- Membuat jalur zig-zag
+        for x = -mapSize/2, mapSize/2, step do
+            if direction == 1 then
+                for z = -mapSize/2, mapSize/2, step do table.insert(waypoints, Vector3.new(x, flyHeight, z)) end
+            else
+                for z = mapSize/2, -mapSize/2, -step do table.insert(waypoints, Vector3.new(x, flyHeight, z)) end
+            end
+            direction = direction * -1
+        end
+        
+        -- Eksekusi Pergerakan
+        for _, targetPos in ipairs(waypoints) do
+            if not IsScanning or not root.Parent then break end
+            
+            local distance = (root.Position - targetPos).Magnitude
+            local timeToReach = distance / MapScanSpeed
+            
+            -- Menggunakan Tween dengan Linear agar konstan kecepatannya
+            CurrentScanTween = tweenService:Create(root, TweenInfo.new(timeToReach, Enum.EasingStyle.Linear), {CFrame = CFrame.new(targetPos)})
+            CurrentScanTween:Play()
+            CurrentScanTween.Completed:Wait()
+        end
+        
+        -- Kembali ke posisi awal
+        if root.Parent then
+            local returnDist = (root.Position - originalCFrame.Position).Magnitude
+            local returnTween = tweenService:Create(root, TweenInfo.new(returnDist / MapScanSpeed, Enum.EasingStyle.Linear), {CFrame = originalCFrame})
+            CurrentScanTween = returnTween
+            returnTween:Play()
+            returnTween.Completed:Wait()
+        end
+        
+        IsScanning = false
+    end)
+end)
+
+-- ====================================================================
 -- [FITUR: AUTO VISIBLE HUD COMPONENTS (LANGSUNG AKTIF SEKALI JALAN)]
 -- ====================================================================
 task.spawn(function()
