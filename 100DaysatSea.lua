@@ -1339,6 +1339,82 @@ Win:AddToggle("Soft Anti-Lag (Sea & Debris)", true, function(state)
 end)
 
 -- ====================================================================
+-- [FITUR 16]: FORCE EQUIP ALL PETS (RACE CONDITION BYPASS)
+-- ====================================================================
+local ForceEquipPetsEnabled = false
+
+local function RunForceEquipPets()
+    task.spawn(function()
+        local myUserId = tostring(LocalPlayer.UserId)
+        
+        while ForceEquipPetsEnabled do
+            pcall(function()
+                local petIDs = {}
+                
+                -- Fungsi untuk menyaring ID Pet
+                local function checkAndAdd(str)
+                    if type(str) == "string" and string.find(str, myUserId) then
+                        local cleanStr = string.gsub(str, "^~s", "")
+                        petIDs[cleanStr] = true
+                    end
+                end
+
+                -- Scan Inventory
+                for _, obj in ipairs(LocalPlayer:GetDescendants()) do
+                    if obj:IsA("StringValue") then checkAndAdd(obj.Value)
+                    elseif obj:IsA("Configuration") or obj:IsA("Folder") or obj:IsA("TextLabel") then
+                        checkAndAdd(obj.Name)
+                        for attrName, attrValue in pairs(obj:GetAttributes()) do
+                            if type(attrValue) == "string" then checkAndAdd(attrValue) end
+                        end
+                    end
+                end
+
+                local repData = game:GetService("ReplicatedStorage"):FindFirstChild("PlayerData")
+                if repData then
+                    local myData = repData:FindFirstChild(LocalPlayer.Name)
+                    if myData then
+                        for _, obj in ipairs(myData:GetDescendants()) do
+                            if obj:IsA("StringValue") then checkAndAdd(obj.Value) end
+                            checkAndAdd(obj.Name)
+                        end
+                    end
+                end
+
+                -- [PERUBAHAN UTAMA]: TEMBAK SEMUA SECARA BERSAMAAN TANPA JEDA
+                for uniqueID, _ in pairs(petIDs) do
+                    if not ForceEquipPetsEnabled then break end
+                    
+                    -- Menggunakan task.spawn agar dieksekusi di milidetik yang sama
+                    task.spawn(function()
+                        pcall(function()
+                            -- Bypass batas equip dengan menembakkan remote serentak
+                            game:GetService("LocalizationService"):WaitForChild("RemoteFunction"):InvokeServer(
+                                2423282, -- Ganti dengan ID argumen pertama yang Anda temukan (bisa acak di beberapa game)
+                                "PetAction",
+                                "~sEquip",
+                                "~s" .. uniqueID
+                            )
+                        end)
+                    end)
+                end
+            end)
+            
+            -- Matikan toggle otomatis setelah ditembakkan sekali agar tidak lag
+            ForceEquipPetsEnabled = false
+            -- Panggil event ke UI jika Anda menggunakan library UI tertentu untuk mematikan visual toggle-nya
+        end
+    end)
+end
+
+Win:AddToggle("Force Equip All Pets (Bypass)", false, function(state)
+    ForceEquipPetsEnabled = state
+    if ForceEquipPetsEnabled then
+        RunForceEquipPets()
+    end
+end)
+
+-- ====================================================================
 -- [FITUR: AUTO VISIBLE HUD COMPONENTS (LANGSUNG AKTIF SEKALI JALAN)]
 -- ====================================================================
 task.spawn(function()
