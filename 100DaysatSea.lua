@@ -1243,7 +1243,7 @@ RunAutoHeal()
 -- ====================================================================
 -- [FITUR 15]: AUTO BUY MERCHANT (LANGSUNG AKTIF)
 -- ====================================================================
-local AutoBuyEnabled = false
+local AutoBuyEnabled = true
 
 local EssentialItems = {
     "Ghost Sack",
@@ -1283,7 +1283,7 @@ local function StartAutoBuy()
     end)
 end
 
-Win:AddToggle("Auto Buy Essentials", false, function(state)
+Win:AddToggle("Auto Buy Essentials", true, function(state)
     AutoBuyEnabled = state
     if AutoBuyEnabled then StartAutoBuy() end
 end)
