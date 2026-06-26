@@ -424,30 +424,29 @@ end)
 RunAutoCollect() -- EKSEKUSI OTOMATIS
 
 -- ====================================================================
--- [FITUR 5]: AUTO ATTACK (MELEE & GUNS) - CLEANED & FIXED WRAITH
+-- [FITUR 5]: AUTO ATTACK (HANDHELD ONLY + ANGLER FLARE WRAITH)
 -- ====================================================================
 local AttackMode = "Brutal All Target" 
-local BrutalAttackRange = 200 
+local BrutalAttackRange = 500 
 local AutoAttackEnabled = true 
+local LastFlareTime = 0 -- Cooldown memori untuk Angler Flare
 
 Win:AddDropdown("Mode Auto Attack", {"Nearest (Global)", "Brutal All Target"}, function(selectedMode)
     AttackMode = selectedMode
 end)
 
-Win:AddInput("Brutal Attack Range", "200", function(value)
+Win:AddInput("Brutal Attack Range", "500", function(value)
     local num = tonumber(value)
     if num then BrutalAttackRange = num end
 end)
 
--- [FUNGSI]: Pengecekan Nyawa Anti-Bug (Strict Custom Health Check)
+-- [FUNGSI]: Pengecekan Nyawa Anti-Bug
 local function IsEnemyAlive(enemy)
-    -- Cek Custom Health buatan developer (Prioritas)
     local healthVal = enemy:FindFirstChild("Health")
     if healthVal and (healthVal:IsA("IntValue") or healthVal:IsA("NumberValue")) then
         return healthVal.Value > 0 
     end
     
-    -- Cek nyawa Humanoid bawaan Roblox
     local humanoid = enemy:FindFirstChild("Humanoid") or enemy:FindFirstChildOfClass("Humanoid")
     if humanoid then
         return humanoid.Health > 0
@@ -463,40 +462,68 @@ local function RunAutoAttack()
                 local workspace = game:GetService("Workspace")
                 local CreatureContainer = workspace:FindFirstChild("CreatureContainer")
                 
-                local player = game:GetService("Players").LocalPlayer
-                local character = player.Character
+                local character = LocalPlayer.Character
                 local humanoid = character and character:FindFirstChild("Humanoid")
-                local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso") or character:FindFirstChildWhichIsA("BasePart"))
-                local backpack = player:FindFirstChild("Backpack")
+                local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChildWhichIsA("BasePart"))
                 
                 if CreatureContainer and rootPart and humanoid then
+                    
+                    -- [FUNGSI UPGRADE]: DETEKSI OTOMATIS (HANYA SAAT SENJATA DIPEGANG)
                     local function CheckAndAttackAsync(toolName, attackLogic)
-                        local isSelected = TargetWeapons and TargetWeapons[toolName] == true
                         local tool = character:FindFirstChild(toolName)
-                        
-                        if not isSelected and not tool then return false end
-                        
-                        if not tool and isSelected and backpack then
-                            tool = backpack:FindFirstChild(toolName)
-                            if tool then humanoid:EquipTool(tool) end
-                        end
-                        
-                        if tool then 
+                        if tool and tool:IsA("Tool") then 
                             task.spawn(function() pcall(attackLogic, tool) end) 
                             return true
                         end
                         return false
                     end
 
+                    -- ==============================================================
+                    -- [LOGIKA KHUSUS]: ANGLER FLARE VS WRAITH (COOLDOWN 1 DETIK)
+                    -- ==============================================================
+                    if tick() - LastFlareTime >= 1 then
+                        local targetWraith, targetWraithPart = nil, nil
+                        
+                        for _, enemy in ipairs(CreatureContainer:GetChildren()) do
+                            if enemy.Name == "Wraith" or enemy.Name == "Wraith_CLIENT" then
+                                local enemyPart = enemy:IsA("BasePart") and enemy or enemy:FindFirstChildWhichIsA("BasePart") or (enemy:IsA("Model") and enemy.PrimaryPart)
+                                if enemyPart then
+                                    targetWraith = enemy
+                                    targetWraithPart = enemyPart
+                                    break 
+                                end
+                            end
+                        end
+                        
+                        if targetWraith and targetWraithPart then
+                            local enemyPos = targetWraith:IsA("Model") and targetWraith:GetPivot().Position or targetWraithPart.Position
+                            
+                            local fired = CheckAndAttackAsync("Angler Flare", function(t)
+                                local firePart = t:FindFirstChild("Handle") or t:FindFirstChildWhichIsA("BasePart") or rootPart
+                                if firePart then
+                                    local originPos = firePart.Position
+                                    local direction = (enemyPos - originPos).Unit
+                                    
+                                    -- Format Argumen Remote sesuai data yang Anda temukan
+                                    local originDirStr = string.format("~f%.4f,%.4f,%.4f:%.4f,%.4f,%.4fZ0", originPos.X, originPos.Y, originPos.Z, direction.X, direction.Y, direction.Z)
+                                    local targetPosStr = string.format("~v%.4f,%.4f,%.4f", enemyPos.X, enemyPos.Y, enemyPos.Z)
+                                    
+                                    SafeRemoteFunction("ToolReplicator", "~sAngler Flare", "~sFire", originDirStr, targetPosStr)
+                                end
+                            end)
+                            
+                            if fired then LastFlareTime = tick() end
+                        end
+                    end
+                    -- ==============================================================
+
                     -- [LOGIKA 1]: SERANG SATU MUSUH TERDEKAT (NEAREST)
                     if AttackMode == "Nearest (Global)" then
                         local nearestEnemy, nearestEnemyPart, shortestDistance = nil, nil, math.huge 
                         for _, enemy in ipairs(CreatureContainer:GetChildren()) do
                             
-                            -- [PERBAIKAN]: ABAIKAN WRAITH
+                            -- Abaikan Wraith untuk senjata biasa
                             if enemy.Name == "Wraith" or enemy.Name == "Wraith_CLIENT" then continue end
-                            
-                            -- CEK NYAWA: Lewati target mati (bug)
                             if not IsEnemyAlive(enemy) then continue end
                             
                             local enemyPart = enemy:IsA("BasePart") and enemy or enemy:FindFirstChildWhichIsA("BasePart") or (enemy:IsA("Model") and enemy.PrimaryPart)
@@ -513,7 +540,7 @@ local function RunAutoAttack()
                             local vecStr = string.format("~v%.4f,%.4f,%.4f", enemyPos.X, enemyPos.Y, enemyPos.Z)
                             
                             pcall(function()
-                                -- Senjata Remote Jarak Jauh
+                                -- Senjata Remote
                                 for _, wName in ipairs({"Harpoon", "Riptide"}) do
                                     CheckAndAttackAsync(wName, function(t) SafeRemoteFunction("ToolReplicator", "~s" .. wName, "~sHitEnemy", nearestEnemy) end)
                                 end
@@ -555,10 +582,8 @@ local function RunAutoAttack()
                     elseif AttackMode == "Brutal All Target" then
                         for _, enemy in ipairs(CreatureContainer:GetChildren()) do
                             
-                            -- [PERBAIKAN]: ABAIKAN WRAITH
+                            -- Abaikan Wraith untuk senjata biasa
                             if enemy.Name == "Wraith" or enemy.Name == "Wraith_CLIENT" then continue end
-                            
-                            -- CEK NYAWA: Lewati target mati (bug)
                             if not IsEnemyAlive(enemy) then continue end
                             
                             local enemyPart = enemy:IsA("BasePart") and enemy or enemy:FindFirstChildWhichIsA("BasePart") or (enemy:IsA("Model") and enemy.PrimaryPart)
@@ -570,7 +595,7 @@ local function RunAutoAttack()
                                 if distance <= BrutalAttackRange then
                                     local vecStr = string.format("~v%.4f,%.4f,%.4f", enemyPos.X, enemyPos.Y, enemyPos.Z)
                                     pcall(function()
-                                        -- Senjata Remote Jarak Jauh
+                                        -- Senjata Remote
                                         for _, wName in ipairs({"Harpoon", "Riptide"}) do
                                             CheckAndAttackAsync(wName, function(t) SafeRemoteFunction("ToolReplicator", "~s" .. wName, "~sHitEnemy", enemy) end)
                                         end
