@@ -629,21 +629,14 @@ end)
 RunAutoAttack()
 
 -- ====================================================================
--- [FITUR 6]: AUTO PICK MATERIAL (NEAREST & BRUTAL)
+-- [FITUR 6]: AUTO PICK MATERIAL (BRUTAL & NEAREST)
 -- ====================================================================
-local PickMode = "Nearest (Global)" 
-local BrutalPickRange = 500 
+local PickMode = "Brutal All Target" -- Set default ke Brutal
 local AutoPickEnabled = false 
 
--- [UI] Dropdown Mode
-Win:AddDropdown("Mode Auto Pick", {"Nearest (Global)", "Brutal All Target"}, function(selectedMode)
+-- [UI] Dropdown Mode (Input jarak sudah dihapus agar UI lebih bersih)
+Win:AddDropdown("Mode Auto Pick", {"Brutal All Target", "Nearest (Global)"}, function(selectedMode)
     PickMode = selectedMode
-end)
-
--- [UI] Input Jarak Brutal
-Win:AddInput("Brutal Pick Range", "500", function(value)
-    local num = tonumber(value)
-    if num then BrutalPickRange = num end
 end)
 
 -- [FUNGSI]: Pengecekan Validasi Barang Khusus Material
@@ -701,9 +694,30 @@ Win:AddToggle("Auto Pick Material", false, function(state)
                     end
                     
                     -- ==============================================================
-                    -- [LOGIKA 1]: AMBIL SATU BARANG TERDEKAT
+                    -- [LOGIKA 1]: BRUTAL (AMBIL SEMUA BARANG TANPA BATAS JARAK)
                     -- ==============================================================
-                    if PickMode == "Nearest (Global)" then
+                    if PickMode == "Brutal All Target" then
+                        for _, folderObj in ipairs(DebrisField:GetChildren()) do
+                            local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
+                            
+                            -- Langsung sikat jika valid, tanpa perlu kalkulasi jarak!
+                            if part and IsItemValidToPick(folderObj, part) then
+                                task.spawn(function()
+                                    pcall(function()
+                                        local pos = part.Position
+                                        local vecStr = string.format("~v%.4f,%.4f,%.4f", pos.X, pos.Y, pos.Z)
+                                        SafeRemoteFunction("ToolReplicator", "~s" .. pullTool, "~sGrab", folderObj, vecStr)
+                                    end)
+                                end)
+                                
+                                task.wait(0.1) 
+                            end
+                        end
+                        
+                    -- ==============================================================
+                    -- [LOGIKA 2]: NEAREST (AMBIL SATU BARANG TERDEKAT)
+                    -- ==============================================================
+                    elseif PickMode == "Nearest (Global)" then
                         local nearestItem, nearestPart = nil, nil
                         local shortestDistance = math.huge
                         
@@ -725,32 +739,6 @@ Win:AddToggle("Auto Pick Material", false, function(state)
                                 local vecStr = string.format("~v%.4f,%.4f,%.4f", pos.X, pos.Y, pos.Z)
                                 SafeRemoteFunction("ToolReplicator", "~s" .. pullTool, "~sGrab", nearestItem, vecStr)
                             end)
-                        end
-                    
-                    -- ==============================================================
-                    -- [LOGIKA 2]: BRUTAL (AMBIL SEMUA BARANG DALAM RADIUS)
-                    -- ==============================================================
-                    elseif PickMode == "Brutal All Target" then
-                        for _, folderObj in ipairs(DebrisField:GetChildren()) do
-                            local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
-                            if part and IsItemValidToPick(folderObj, part) then
-                                local distance = (part.Position - rootPart.Position).Magnitude
-                                
-                                -- Jika barang masuk dalam jangkauan brutal
-                                if distance <= BrutalPickRange then
-                                    -- Gunakan task.spawn agar penarikan berjalan serentak
-                                    task.spawn(function()
-                                        pcall(function()
-                                            local pos = part.Position
-                                            local vecStr = string.format("~v%.4f,%.4f,%.4f", pos.X, pos.Y, pos.Z)
-                                            SafeRemoteFunction("ToolReplicator", "~s" .. pullTool, "~sGrab", folderObj, vecStr)
-                                        end)
-                                    end)
-                                    
-                                    -- Jeda super kecil agar server tidak mendeteksi spam remote yang berlebihan
-                                    task.wait(0.01) 
-                                end
-                            end
                         end
                     end
                     
