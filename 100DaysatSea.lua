@@ -1241,7 +1241,57 @@ end)
 RunAutoHeal()
 
 -- ====================================================================
--- [FITUR 15]: SOFT ANTI-LAG (WATER & DEBRIS OPTIMIZER)
+-- [FITUR 15]: AUTO BUY MERCHANT (LANGSUNG AKTIF)
+-- ====================================================================
+local AutoBuyEnabled = false
+
+local EssentialItems = {
+    "Ghost Sack",
+    "Medkit",
+    "Bandage",
+    "Angler Flare",
+    "Pearls"
+}
+
+-- Fungsi utama Auto Buy
+local function StartAutoBuy()
+    if AutoBuyEnabled then return end -- Mencegah double loop
+    AutoBuyEnabled = true
+    
+    task.spawn(function()
+        while AutoBuyEnabled do
+            pcall(function()
+                local workspace = game:GetService("Workspace")
+                local merchantBoat = workspace:FindFirstChild("MerchantBoat")
+                local sellPad = merchantBoat and merchantBoat:FindFirstChild("SellPad")
+                
+                if sellPad then
+                    local pos = sellPad.Position
+                    local dynamicMerchantPos = string.format("~v%.4f,%.4f,%.4f", pos.X, pos.Y, pos.Z)
+                    
+                    for _, itemName in ipairs(EssentialItems) do
+                        if not AutoBuyEnabled then break end
+                        SafeRemoteFunction("MerchantShopPurchase", "~s" .. itemName, dynamicMerchantPos)
+                        task.wait(0.5) 
+                    end
+                else
+                    task.wait(1)
+                end
+            end)
+            task.wait(2) 
+        end
+    end)
+end
+
+Win:AddToggle("Auto Buy Essentials", false, function(state)
+    AutoBuyEnabled = state
+    if AutoBuyEnabled then StartAutoBuy() end
+end)
+
+StartAutoBuy()
+
+-- ====================================================================
+-- [FITUR 16]: SOFT ANTI-LAG (WATER & DEBRIS OPTIMIZER)
 -- ====================================================================
 local SoftAntiLagEnabled = true
 
