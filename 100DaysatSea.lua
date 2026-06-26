@@ -12,29 +12,9 @@ local TargetMaterials = {
     ["Gas Drum"] = false
 }
 
-local TargetWeapons = {
-    ["Harpoon"] = false,
-    ["Magma Staff"] = false,
-    ["Squid Laser"] = false,
-    ["DualPistols"] = false,
-    ["Rifle"] = false,
-    ["Flintlock"] = false,
-    ["Blunderbuss"] = false,
-    ["Hand Cannon"] = false,
-    ["Revolver"] = false,
-    ["Boomstick"] = false,
-    ["Grenade"] = false,
-    ["Assault Rifle"] = false,
-    ["Riptide"] = false
-}
-
 Win:AddMultiDropdown("Material", {"Wood", "Metal", "Goo", "Small Gas Can", "Big Gas Can", "Gas Drum"}, function(selectedTable)
     TargetMaterials = selectedTable
 end)
-
---Win:AddMultiDropdown("Weapon", {"Harpoon", "Magma Staff", "Squid Laser", "DualPistols", "Rifle", "Flintlock", "Blunderbuss", "Hand Cannon", "Revolver", "Boomstick", "Grenade", "Riptide"}, function(selectedTable)
-    --TargetWeapons = selectedTable
---end)
 
 local AutoGrinderEnabled = false
 local AutoCampfireEnabled = false
@@ -903,9 +883,7 @@ local ExcludedIslandKeywords = {
     "RivalRig2", 
     "RivalRig3", 
     "GhostGalleon", 
-    "SquidIsland", 
-    "MushroomIsland", 
-    "CanonIsland"
+    "SquidIsland"
 }
 
 Win:AddToggle("Auto Discover Island", false, function(state)
@@ -1184,52 +1162,6 @@ Win:AddToggle("Auto Dismantle All", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 13]: AUTO REPAIR ALL (SPAWN ISLAND)
--- ====================================================================
-local AutoRepairEnabled = false
-
-local function RunAutoRepair()
-    task.spawn(function()
-        while AutoRepairEnabled do
-            pcall(function()
-                local spawnIsland = workspace:FindFirstChild("SpawnIsland")
-                local craftedFolder = spawnIsland and spawnIsland:FindFirstChild("Crafted")
-                
-                if craftedFolder then
-                    for _, item in ipairs(craftedFolder:GetChildren()) do
-                        if not AutoRepairEnabled then break end 
-                        
-                        -- [FILTER PENGECUALIAN]: Sama seperti dismantle, 
-                        -- hanya menargetkan bangunan buatan pemain (mengandung ":")
-                        if string.find(item.Name, ":") then
-                            
-                            local targetString = "~s" .. item.Name
-                            
-                            -- Memanggil fungsi perbaikan
-                            SafeRemoteFunction("ToolReplicator", "~sWrench", "~sRepair", targetString)
-                            
-                            -- Delay agar tidak terdeteksi spam oleh server
-                            task.wait(0.1) 
-                        else
-                            continue
-                        end
-                    end
-                end
-            end)
-            -- Jeda 1 detik sebelum memindai ulang untuk mengurangi beban CPU
-            task.wait(1) 
-        end
-    end)
-end
-
-Win:AddToggle("Auto Repair All", false, function(state)
-    AutoRepairEnabled = state
-    if AutoRepairEnabled then
-        RunAutoRepair()
-    end
-end)
-
--- ====================================================================
 -- [FITUR 14]: AUTO HEAL (BANDAGE)
 -- ====================================================================
 local AutoHealEnabled = true
@@ -1336,26 +1268,6 @@ Win:AddToggle("Soft Anti-Lag (Sea & Debris)", true, function(state)
             game:GetService("Lighting").GlobalShadows = true
         end)
     end
-end)
-
--- ====================================================================
--- [FITUR 16]: DUAL EQUIP PET (PIRATE GUNNER & PARROT)
--- ====================================================================
-
-Win:AddButton("Equip Pirate & Parrot", function()
-    -- Eksekusi Pet 1: Pirate Gunner
-    task.spawn(function()
-        pcall(function()
-            SafeRemoteFunction("PetAction", "~sEquip", "~spirate gunnerr3834912414e62716")
-        end)
-    end)
-
-    -- Eksekusi Pet 2: Parrot
-    task.spawn(function()
-        pcall(function()
-            SafeRemoteFunction("PetAction", "~sEquip", "~sparrott3834912414o11317")
-        end)
-    end)
 end)
 
 -- ====================================================================
