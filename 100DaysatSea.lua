@@ -1230,7 +1230,56 @@ Win:AddToggle("Auto Repair All", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 14]: SOFT ANTI-LAG (WATER & DEBRIS OPTIMIZER)
+-- [FITUR 14]: AUTO HEAL (BANDAGE)
+-- ====================================================================
+local AutoHealEnabled = true
+
+local function RunAutoHeal()
+    task.spawn(function()
+        while AutoHealEnabled do
+            pcall(function()
+                local player = game:GetService("Players").LocalPlayer
+                local character = player.Character
+                local humanoid = character and character:FindFirstChild("Humanoid")
+                
+                -- Pastikan karakter hidup dan humanoid ada
+                if humanoid and humanoid.Health > 0 then
+                    
+                    -- Jika darah 70 atau di bawahnya, mulai proses penyembuhan
+                    if humanoid.Health <= 70 then
+                        
+                        -- Terus gunakan Bandage sampai darah kembali penuh (atau 100)
+                        while AutoHealEnabled and humanoid and humanoid.Health < humanoid.MaxHealth and humanoid.Health > 0 do
+                            
+                            -- Memanggil fungsi remote Bandage
+                            SafeRemoteFunction("ToolReplicator", "~sBandage", "~sHeal")
+                            
+                            -- Cooldown 0.5 detik agar server tidak mendeteksi spam berlebihan
+                            task.wait(0.5) 
+                        end
+                        
+                    end
+                end
+            end)
+            
+            -- Jeda 1 detik sebelum mengecek darah lagi (menghemat CPU)
+            task.wait(1) 
+        end
+    end)
+end
+
+Win:AddToggle("Auto Heal (<= 70 to 100)", true, function(state)
+    AutoHealEnabled = state
+    if AutoHealEnabled then
+        RunAutoHeal()
+    end
+end)
+
+-- Langsung dijalankan karena defaultnya "true"
+RunAutoHeal()
+
+-- ====================================================================
+-- [FITUR 15]: SOFT ANTI-LAG (WATER & DEBRIS OPTIMIZER)
 -- ====================================================================
 local SoftAntiLagEnabled = true
 
