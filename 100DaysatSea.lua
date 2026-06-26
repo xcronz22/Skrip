@@ -1192,7 +1192,7 @@ Win:AddToggle("Auto Dismantle All", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 14]: AUTO HEAL (BANDAGE)
+-- [FITUR 14]: AUTO HEAL (BANDAGE) - AUTO EQUIP & RESTORE TOOL
 -- ====================================================================
 local AutoHealEnabled = true
 
@@ -1203,21 +1203,51 @@ local function RunAutoHeal()
                 local player = game:GetService("Players").LocalPlayer
                 local character = player.Character
                 local humanoid = character and character:FindFirstChild("Humanoid")
+                local backpack = player:FindFirstChild("Backpack")
                 
                 -- Pastikan karakter hidup dan humanoid ada
-                if humanoid and humanoid.Health > 0 then
+                if humanoid and humanoid.Health > 0 and humanoid.Health <= 50 then
                     
-                    -- Jika darah 70 atau di bawahnya, mulai proses penyembuhan
-                    if humanoid.Health <= 70 then
+                    -- [LANGKAH 1]: Mengingat apa yang sedang Anda pegang saat ini
+                    local currentTool = character:FindFirstChildWhichIsA("Tool")
+                    local previousToolName = currentTool and currentTool.Name or nil
+                    
+                    -- [LANGKAH 2]: Mencari Bandage di inventory (Backpack atau Character)
+                    local bandage = (backpack and backpack:FindFirstChild("Bandage")) or character:FindFirstChild("Bandage")
+                    
+                    if bandage then
+                        -- Paksa karakter memegang Bandage
+                        humanoid:EquipTool(bandage)
+                        task.wait(0.1) -- Jeda sangat singkat agar server mendaftarkan pergantian tool
                         
-                        -- Terus gunakan Bandage sampai darah kembali penuh (atau 100)
+                        -- [LANGKAH 3]: Proses Heal sampai penuh
                         while AutoHealEnabled and humanoid and humanoid.Health < humanoid.MaxHealth and humanoid.Health > 0 do
+                            
+                            -- Mencegah bug jika Anda tidak sengaja mengganti senjata di tengah proses healing
+                            if not character:FindFirstChild("Bandage") then
+                                humanoid:EquipTool(bandage)
+                            end
                             
                             -- Memanggil fungsi remote Bandage
                             SafeRemoteFunction("ToolReplicator", "~sBandage", "~sHeal")
                             
-                            -- Cooldown 0.5 detik agar server tidak mendeteksi spam berlebihan
+                            -- Cooldown 0.5 detik agar aman dari deteksi spam
                             task.wait(0.5) 
+                        end
+                        
+                        -- [LANGKAH 4]: Kembalikan ke tool sebelumnya (atau kosongkan tangan)
+                        if previousToolName then
+                            -- Jika sebelumnya memang pegang Bandage, biarkan saja.
+                            -- Tapi jika pegang yang lain (misal: Melee/Pistol), panggil kembali tool tersebut.
+                            if previousToolName ~= "Bandage" then
+                                local toolToEquip = (backpack and backpack:FindFirstChild(previousToolName)) or character:FindFirstChild(previousToolName)
+                                if toolToEquip then
+                                    humanoid:EquipTool(toolToEquip)
+                                end
+                            end
+                        else
+                            -- Jika sebelumnya tangan Anda kosong, maka kosongkan kembali tangannya
+                            humanoid:UnequipTools()
                         end
                         
                     end
@@ -1230,7 +1260,7 @@ local function RunAutoHeal()
     end)
 end
 
-Win:AddToggle("Auto Heal (<= 70 to 100)", true, function(state)
+Win:AddToggle("Auto Heal (<= 50 to 100)", true, function(state)
     AutoHealEnabled = state
     if AutoHealEnabled then
         RunAutoHeal()
@@ -1241,57 +1271,7 @@ end)
 RunAutoHeal()
 
 -- ====================================================================
--- [FITUR 15]: AUTO BUY MERCHANT (LANGSUNG AKTIF)
--- ====================================================================
-local AutoBuyEnabled = true
-
-local EssentialItems = {
-    "Ghost Sack",
-    "Medkit",
-    "Bandage",
-    "Angler Flare",
-    "Pearls"
-}
-
--- Fungsi utama Auto Buy
-local function StartAutoBuy()
-    if AutoBuyEnabled then return end -- Mencegah double loop
-    AutoBuyEnabled = true
-    
-    task.spawn(function()
-        while AutoBuyEnabled do
-            pcall(function()
-                local workspace = game:GetService("Workspace")
-                local merchantBoat = workspace:FindFirstChild("MerchantBoat")
-                local sellPad = merchantBoat and merchantBoat:FindFirstChild("SellPad")
-                
-                if sellPad then
-                    local pos = sellPad.Position
-                    local dynamicMerchantPos = string.format("~v%.4f,%.4f,%.4f", pos.X, pos.Y, pos.Z)
-                    
-                    for _, itemName in ipairs(EssentialItems) do
-                        if not AutoBuyEnabled then break end
-                        SafeRemoteFunction("MerchantShopPurchase", "~s" .. itemName, dynamicMerchantPos)
-                        task.wait(0.5) 
-                    end
-                else
-                    task.wait(1)
-                end
-            end)
-            task.wait(2) 
-        end
-    end)
-end
-
-Win:AddToggle("Auto Buy Essentials", true, function(state)
-    AutoBuyEnabled = state
-    if AutoBuyEnabled then StartAutoBuy() end
-end)
-
-StartAutoBuy()
-
--- ====================================================================
--- [FITUR 16]: SOFT ANTI-LAG (WATER & DEBRIS OPTIMIZER)
+-- [FITUR 15]: SOFT ANTI-LAG (WATER & DEBRIS OPTIMIZER)
 -- ====================================================================
 local SoftAntiLagEnabled = true
 
