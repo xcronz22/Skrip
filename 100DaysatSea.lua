@@ -407,7 +407,7 @@ RunAutoCollect() -- EKSEKUSI OTOMATIS
 -- [FITUR 5]: AUTO ATTACK (HANDHELD ONLY + ANGLER FLARE WRAITH)
 -- ====================================================================
 local AttackMode = "Brutal All Target" 
-local BrutalAttackRange = 500 
+local BrutalAttackRange = 200 
 local AutoAttackEnabled = true 
 local LastFlareTime = 0 -- Cooldown memori untuk Angler Flare
 
@@ -415,7 +415,7 @@ Win:AddDropdown("Mode Auto Attack", {"Nearest (Global)", "Brutal All Target"}, f
     AttackMode = selectedMode
 end)
 
-Win:AddInput("Brutal Attack Range", "500", function(value)
+Win:AddInput("Brutal Attack Range", "200", function(value)
     local num = tonumber(value)
     if num then BrutalAttackRange = num end
 end)
@@ -1206,7 +1206,7 @@ local function RunAutoHeal()
                 local backpack = player:FindFirstChild("Backpack")
                 
                 -- Pastikan karakter hidup dan humanoid ada
-                if humanoid and humanoid.Health > 0 and humanoid.Health <= 50 then
+                if humanoid and humanoid.Health > 0 and humanoid.Health <= 70 then
                     
                     -- [LANGKAH 1]: Mengingat apa yang sedang Anda pegang saat ini
                     local currentTool = character:FindFirstChildWhichIsA("Tool")
@@ -1232,7 +1232,7 @@ local function RunAutoHeal()
                             SafeRemoteFunction("ToolReplicator", "~sBandage", "~sHeal")
                             
                             -- Cooldown 0.5 detik agar aman dari deteksi spam
-                            task.wait(0.5) 
+                            task.wait(0.1) 
                         end
                         
                         -- [LANGKAH 4]: Kembalikan ke tool sebelumnya (atau kosongkan tangan)
@@ -1260,7 +1260,7 @@ local function RunAutoHeal()
     end)
 end
 
-Win:AddToggle("Auto Heal (<= 50 to 100)", true, function(state)
+Win:AddToggle("Auto Heal (<= 70 to 100)", true, function(state)
     AutoHealEnabled = state
     if AutoHealEnabled then
         RunAutoHeal()
@@ -1333,7 +1333,7 @@ end)
 -- ====================================================================
 -- [FITUR TAMBAHAN]: MAP SCANNER (OPTIMIZED FOR FLY + NOCLIP)
 -- ====================================================================
-local MapScanSpeed = 300 -- Kecepatan sesuai permintaan
+local MapScanSpeed = 500 -- Kecepatan sesuai permintaan
 local IsScanning = false
 local CurrentScanTween = nil
 
@@ -1365,7 +1365,7 @@ Win:AddButton("Scan Entire Map (Tap)", function()
         -- Konfigurasi Scan
         local mapSize = 10000 -- Ukuran 10k x 10k
         local step = 1000     -- Jarak sapuan (Bisa diubah 1000-3000)
-        local flyHeight = 30  -- Ketinggian aman untuk Noclip
+        local flyHeight = 100  -- Ketinggian aman untuk Noclip
         
         local waypoints = {}
         local direction = 1
