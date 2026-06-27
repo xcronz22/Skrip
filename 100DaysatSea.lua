@@ -4,15 +4,17 @@ local Win = RZY_Library:MakeWindow("100 Days at Sea")
 
 -- Tabel Penyimpanan Status Dropdown
 local TargetMaterials = {
-    ["Wood"] = false,
-    ["Metal"] = false,
-    ["Goo"] = false,
+    ["Wood"] = true,
+    ["Metal"] = true,
+    ["Goo"] = true,
     ["Small Gas Can"] = false,
     ["Big Gas Can"] = false,
-    ["Gas Drum"] = false
+    ["Gas Drum"] = false,
+    ["Small Crate"] = true,
+    ["Big Crate"] = true
 }
 
-Win:AddMultiDropdown("Material", {"Wood", "Metal", "Goo", "Small Gas Can", "Big Gas Can", "Gas Drum"}, function(selectedTable)
+Win:AddMultiDropdown("Material", {"Wood", "Metal", "Goo", "Small Gas Can", "Big Gas Can", "Gas Drum", "Small Crate", "Big Crate"}, function(selectedTable)
     TargetMaterials = selectedTable
 end)
 
@@ -157,7 +159,7 @@ GrinderToggle = Win:AddToggle("Auto Grinder", false, function(state)
                                 
                                 if isCurrentlyMyGrab or isMyPastItem then
                                     -- Posisi pas seperti semula tanpa rx, rz
-                                    part.CFrame = GrinderCol.CFrame + Vector3.new(0, 0, 0)
+                                    part.CFrame = GrinderCol.CFrame + Vector3.new(0, 1, 0)
                                     part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                                     
                                     -- Langsung putus hubungan & tandai agar dilepas skrip
@@ -360,7 +362,7 @@ local TargetWeaponsCollect = {
     ["machete"] = true, ["poku poku"] = true, ["swordfish spear"] = true, ["ghost cutlass"] = true,
     ["flintlock"] = true, ["blunderbuss"] = true, ["rifle"] = true, ["boomstick"] = true,
     ["magma staff"] = true, ["ice staff"] = true, ["squid laser"] = true, ["revolver"] = true, ["hand cannon"] = true, 
-    ["angler flare"] = true
+    ["angler flare"] = true, ["medkit"] = true
 }
 
 local function RunAutoCollect()
@@ -672,15 +674,9 @@ end)
 RunAutoAttack()
 
 -- ====================================================================
--- [FITUR 6]: AUTO PICK MATERIAL (BRUTAL & NEAREST)
+-- [FITUR 6]: AUTO PICK MATERIAL (BRUTAL ONLY)
 -- ====================================================================
-local PickMode = "Brutal All Target" -- Set default ke Brutal
 local AutoPickEnabled = false 
-
--- [UI] Dropdown Mode (Input jarak sudah dihapus agar UI lebih bersih)
-Win:AddDropdown("Mode Auto Pick", {"Brutal All Target", "Nearest (Global)"}, function(selectedMode)
-    PickMode = selectedMode
-end)
 
 -- [FUNGSI]: Pengecekan Validasi Barang Khusus Material
 local function IsItemValidToPick(folderObj, part)
@@ -737,51 +733,25 @@ Win:AddToggle("Auto Pick Material", false, function(state)
                     end
                     
                     -- ==============================================================
-                    -- [LOGIKA 1]: BRUTAL (AMBIL SEMUA BARANG TANPA BATAS JARAK)
+                    -- [LOGIKA BRUTAL]: AMBIL SEMUA BARANG TANPA BATAS JARAK
                     -- ==============================================================
-                    if PickMode == "Brutal All Target" then
-                        for _, folderObj in ipairs(DebrisField:GetChildren()) do
-                            local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
-                            
-                            -- Langsung sikat jika valid, tanpa perlu kalkulasi jarak!
-                            if part and IsItemValidToPick(folderObj, part) then
-                                task.spawn(function()
-                                    pcall(function()
-                                        local pos = part.Position
-                                        local vecStr = string.format("~v%.4f,%.4f,%.4f", pos.X, pos.Y, pos.Z)
-                                        SafeRemoteFunction("ToolReplicator", "~s" .. pullTool, "~sGrab", folderObj, vecStr)
-                                    end)
+                    for _, folderObj in ipairs(DebrisField:GetChildren()) do
+                        if not AutoPickEnabled then break end -- Berhenti jika toggle dimatikan di tengah jalan
+                        
+                        local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
+                        
+                        -- Langsung sikat jika valid, tanpa perlu kalkulasi jarak!
+                        if part and IsItemValidToPick(folderObj, part) then
+                            task.spawn(function()
+                                pcall(function()
+                                    local pos = part.Position
+                                    local vecStr = string.format("~v%.4f,%.4f,%.4f", pos.X, pos.Y, pos.Z)
+                                    SafeRemoteFunction("ToolReplicator", "~s" .. pullTool, "~sGrab", folderObj, vecStr)
                                 end)
-                                
-                                task.wait(0.1) 
-                            end
-                        end
-                        
-                    -- ==============================================================
-                    -- [LOGIKA 2]: NEAREST (AMBIL SATU BARANG TERDEKAT)
-                    -- ==============================================================
-                    elseif PickMode == "Nearest (Global)" then
-                        local nearestItem, nearestPart = nil, nil
-                        local shortestDistance = math.huge
-                        
-                        for _, folderObj in ipairs(DebrisField:GetChildren()) do
-                            local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
-                            if part and IsItemValidToPick(folderObj, part) then
-                                local distance = (part.Position - rootPart.Position).Magnitude
-                                if distance < shortestDistance then
-                                    shortestDistance = distance
-                                    nearestItem = folderObj
-                                    nearestPart = part
-                                end
-                            end
-                        end
-                        
-                        if nearestItem and nearestPart then
-                            pcall(function()
-                                local pos = nearestPart.Position
-                                local vecStr = string.format("~v%.4f,%.4f,%.4f", pos.X, pos.Y, pos.Z)
-                                SafeRemoteFunction("ToolReplicator", "~s" .. pullTool, "~sGrab", nearestItem, vecStr)
                             end)
+                            
+                            -- Jeda aman
+                            task.wait(0.1) 
                         end
                     end
                     
@@ -872,7 +842,7 @@ local function RunAutoFishing()
                     end
                 end
             end
-            task.wait(0.5) 
+            task.wait(1) 
         end
     end)
 end
@@ -1274,7 +1244,7 @@ local function RunAutoHeal()
                     if bandage then
                         -- Paksa karakter memegang Bandage
                         humanoid:EquipTool(bandage)
-                        task.wait(0.1) -- Jeda sangat singkat agar server mendaftarkan pergantian tool
+                        task.wait(0.05) -- Jeda sangat singkat agar server mendaftarkan pergantian tool
                         
                         -- [LANGKAH 3]: Proses Heal sampai penuh
                         while AutoHealEnabled and humanoid and humanoid.Health < humanoid.MaxHealth and humanoid.Health > 0 do
@@ -1287,8 +1257,7 @@ local function RunAutoHeal()
                             -- Memanggil fungsi remote Bandage
                             SafeRemoteFunction("ToolReplicator", "~sBandage", "~sHeal")
                             
-                            -- Cooldown 0.5 detik agar aman dari deteksi spam
-                            task.wait(0.1) 
+                            task.wait(0.05) 
                         end
                         
                         -- [LANGKAH 4]: Kembalikan ke tool sebelumnya (atau kosongkan tangan)
@@ -1311,7 +1280,7 @@ local function RunAutoHeal()
             end)
             
             -- Jeda 1 detik sebelum mengecek darah lagi (menghemat CPU)
-            task.wait(1) 
+            task.wait(0.5) 
         end
     end)
 end
