@@ -1365,7 +1365,7 @@ Win:AddButton("Scan Entire Map (Tap)", function()
         -- Konfigurasi Scan
         local mapSize = 10000 -- Ukuran 10k x 10k
         local step = 1000     -- Jarak sapuan (Bisa diubah 1000-3000)
-        local flyHeight = 100  -- Ketinggian aman untuk Noclip
+        local flyHeight = 500  -- Ketinggian aman untuk Noclip
         
         local waypoints = {}
         local direction = 1
