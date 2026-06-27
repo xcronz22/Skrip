@@ -256,9 +256,15 @@ CampfireToggle = Win:AddToggle("Auto Campfire", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 3]: AUTO EAT (DEFAULT AKTIF)
+-- [FITUR 3]: AUTO EAT (NORMAL & BRUTAL)
 -- ====================================================================
 local AutoEatEnabled = true
+local EatMode = "Normal (Lapar)" 
+
+-- [UI] Dropdown Mode
+Win:AddDropdown("Mode Auto Eat", {"Normal (Lapar)", "Brutal (Sapu Bersih)"}, function(selectedMode)
+    EatMode = selectedMode
+end)
 
 local function RunAutoEat()
     task.spawn(function()
@@ -266,30 +272,67 @@ local function RunAutoEat()
         local FillBar = PlayerGui:WaitForChild("HUD"):WaitForChild("Food"):WaitForChild("Bar"):WaitForChild("Fill")
         
         while AutoEatEnabled do
-            if FillBar.Size.X.Scale <= 0.7 then
+            pcall(function()
                 local workspace = game:GetService("Workspace")
                 local DebrisField = workspace:FindFirstChild("DebrisField")
                 
                 if DebrisField then
-                    for _, folderObj in ipairs(DebrisField:GetChildren()) do
-                        if not AutoEatEnabled or FillBar.Size.X.Scale >= 0.99 then break end
+                    -- ==============================================================
+                    -- [LOGIKA 1]: NORMAL (Makan hanya jika lapar)
+                    -- ==============================================================
+                    if EatMode == "Normal (Lapar)" then
+                        if FillBar.Size.X.Scale <= 0.7 then
+                            for _, folderObj in ipairs(DebrisField:GetChildren()) do
+                                -- Berhenti jika sudah kenyang atau toggle dimatikan/diganti
+                                if not AutoEatEnabled or FillBar.Size.X.Scale >= 0.99 or EatMode ~= "Normal (Lapar)" then break end
+                                
+                                local isFood = folderObj:GetAttribute("Food")
+                                local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
+                                if not isFood and part then isFood = part:GetAttribute("Food") end
+                                
+                                if isFood and part then
+                                    local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
+                                    local grabber = folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber")
+                                    
+                                    if isGrabbed and tostring(grabber) ~= tostring(LocalPlayer.UserId) and grabber ~= LocalPlayer.Name then continue end
+                                    
+                                    SafeRemoteEvent("Eat", "~s" .. folderObj.Name)
+                                    task.wait(0.05) 
+                                end
+                            end
+                        end
                         
-                        local isFood = folderObj:GetAttribute("Food")
-                        local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
-                        if not isFood and part then isFood = part:GetAttribute("Food") end
-                        
-                        if isFood and part then
-                            local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
-                            local grabber = folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber")
+                    -- ==============================================================
+                    -- [LOGIKA 2]: BRUTAL (Makan SEMUA tanpa peduli lapar untuk membersihkan map)
+                    -- ==============================================================
+                    elseif EatMode == "Brutal (Sapu Bersih)" then
+                        for _, folderObj in ipairs(DebrisField:GetChildren()) do
+                            if not AutoEatEnabled or EatMode ~= "Brutal (Sapu Bersih)" then break end
                             
-                            if isGrabbed and tostring(grabber) ~= tostring(LocalPlayer.UserId) and grabber ~= LocalPlayer.Name then continue end
+                            local isFood = folderObj:GetAttribute("Food")
+                            local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
+                            if not isFood and part then isFood = part:GetAttribute("Food") end
                             
-                            SafeRemoteEvent("Eat", "~s" .. folderObj.Name)
-                            task.wait(0.05) 
+                            if isFood and part then
+                                local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
+                                local grabber = folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber")
+                                
+                                if isGrabbed and tostring(grabber) ~= tostring(LocalPlayer.UserId) and grabber ~= LocalPlayer.Name then continue end
+                                
+                                -- [BRUTAL MODE]: Lahap serentak dalam milidetik
+                                task.spawn(function()
+                                    pcall(function()
+                                        SafeRemoteEvent("Eat", "~s" .. folderObj.Name)
+                                    end)
+                                end)
+                                
+                                task.wait(0.01) -- Jeda super cepat anti-kick
+                            end
                         end
                     end
                 end
-            end
+            end)
+            
             task.wait(1) 
         end
     end)
@@ -1142,9 +1185,17 @@ end)
 StartUniversalFly()
 
 -- ====================================================================
--- [FITUR 12]: AUTO DISMANTLE ALL (SPAWN ISLAND) - FIXED
+-- [FITUR 12]: AUTO DISMANTLE ALL (BRUTAL + EXCEPTIONS)
 -- ====================================================================
 local AutoDismantleEnabled = false
+
+-- Daftar bangunan yang tidak boleh dihancurkan
+local DismantleExceptions = {
+    ["Small Shelter"] = true,
+    ["Container Shelter"] = true,
+    ["Makeshift Building"] = true,
+    ["Outpost"] = true
+}
 
 local function RunAutoDismantle()
     task.spawn(function()
@@ -1157,28 +1208,33 @@ local function RunAutoDismantle()
                     for _, item in ipairs(craftedFolder:GetChildren()) do
                         if not AutoDismantleEnabled then break end 
                         
-                        -- [FILTER PENGECUALIAN]: 
-                        -- Kita hanya akan menghancurkan jika nama item mengandung karakter ":" 
-                        -- yang artinya lantai tersebut memiliki ID (lantai buatan pemain).
-                        -- Jika namanya HANYA "WoodenFloor", kita akan melewatinya (continue).
-                        if string.find(item.Name, ":") then
-                            
+                        -- Pengecekan Pengecualian: Cek apakah nama bangunan ada di daftar aman
+                        local isExcluded = false
+                        for exName, _ in pairs(DismantleExceptions) do
+                            if string.find(item.Name, exName) then
+                                isExcluded = true
+                                break
+                            end
+                        end
+                        
+                        -- Hanya hancurkan jika punya ":" (buatan pemain) dan BUKAN termasuk pengecualian
+                        if string.find(item.Name, ":") and not isExcluded then
                             local targetString = "~s" .. item.Name
                             
-                            -- Memanggil fungsi penghancur
-                            SafeRemoteFunction("ToolReplicator", "~sWrench", "~sTeardown", targetString)
+                            -- [BRUTAL MODE]: Eksekusi serentak menggunakan task.spawn
+                            task.spawn(function()
+                                pcall(function()
+                                    SafeRemoteFunction("ToolReplicator", "~sWrench", "~sTeardown", targetString)
+                                end)
+                            end)
                             
-                            -- Delay agar tidak terdeteksi spam oleh server
-                            task.wait(0.1) 
-                            
-                        else
-                            -- Ini adalah lantai "WoodenFloor" bawaan (base awal)
-                            -- Kita tidak melakukan apa-apa di sini (skip)
-                            continue
+                            -- Delay sangat kecil agar tidak terdeteksi spam berlebih (Anti-Kick)
+                            task.wait(0.01) 
                         end
                     end
                 end
             end)
+            
             task.wait(1) 
         end
     end)
