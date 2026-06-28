@@ -847,10 +847,10 @@ local function RunAutoFishing()
     end)
 end
 
-Win:AddToggle("Auto Fishing", true, function(state)
-    AutoFishingEnabled = state
-    if AutoFishingEnabled then RunAutoFishing() end
-end)
+--Win:AddToggle("Auto Fishing", true, function(state)
+    --AutoFishingEnabled = state
+    --if AutoFishingEnabled then RunAutoFishing() end
+--end)
 RunAutoFishing() -- EKSEKUSI OTOMATIS
 
 -- ====================================================================
@@ -1425,8 +1425,8 @@ StartIslandScanner()
 -- ====================================================================
 local SoftAntiLagEnabled = true
 
---Win:AddToggle("Soft Anti-Lag (Sea & Debris)", true, function(state)
-    --SoftAntiLagEnabled = state
+Win:AddToggle("Soft Anti-Lag (Sea & Debris)", true, function(state)
+    SoftAntiLagEnabled = state
     
     if SoftAntiLagEnabled then
         task.spawn(function()
