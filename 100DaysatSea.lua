@@ -340,10 +340,10 @@ local function RunAutoEat()
     end)
 end
 
---Win:AddToggle("Auto Eat", true, function(state)
-    --AutoEatEnabled = state
-    --if AutoEatEnabled then RunAutoEat() end
---end)
+Win:AddToggle("Auto Eat", true, function(state)
+    AutoEatEnabled = state
+    if AutoEatEnabled then RunAutoEat() end
+end)
 RunAutoEat() -- EKSEKUSI OTOMATIS
 
 -- ====================================================================
@@ -667,10 +667,10 @@ local function RunAutoAttack()
     end)
 end
 
---Win:AddToggle("Auto Attack", true, function(state)
-    --AutoAttackEnabled = state
-    --if AutoAttackEnabled then RunAutoAttack() end
---end)
+Win:AddToggle("Auto Attack", true, function(state)
+    AutoAttackEnabled = state
+    if AutoAttackEnabled then RunAutoAttack() end
+end)
 RunAutoAttack()
 
 -- ====================================================================
@@ -847,10 +847,10 @@ local function RunAutoFishing()
     end)
 end
 
---Win:AddToggle("Auto Fishing", true, function(state)
-    --AutoFishingEnabled = state
-    --if AutoFishingEnabled then RunAutoFishing() end
---end)
+Win:AddToggle("Auto Fishing", true, function(state)
+    AutoFishingEnabled = state
+    if AutoFishingEnabled then RunAutoFishing() end
+end)
 RunAutoFishing() -- EKSEKUSI OTOMATIS
 
 -- ====================================================================
@@ -1285,12 +1285,12 @@ local function RunAutoHeal()
     end)
 end
 
---Win:AddToggle("Auto Heal (<= 70 to 100)", true, function(state)
-    --AutoHealEnabled = state
-    --if AutoHealEnabled then
-        --RunAutoHeal()
-    --end
---end)
+Win:AddToggle("Auto Heal (<= 70 to 100)", true, function(state)
+    AutoHealEnabled = state
+    if AutoHealEnabled then
+        RunAutoHeal()
+    end
+end)
 
 -- Langsung dijalankan karena defaultnya "true"
 RunAutoHeal()
