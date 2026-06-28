@@ -1531,3 +1531,46 @@ task.spawn(function()
     end
 end)
 
+-- ====================================================================
+-- [FITUR: AUTO FIX & CLAIM BUGGED ITEMS (TANPA UI)]
+-- ====================================================================
+task.spawn(function()
+    while true do
+        pcall(function()
+            local effectsFolder = workspace:FindFirstChild("Effects")
+            
+            if effectsFolder then
+                -- Memeriksa seluruh folder acak (seperti "1782646192", dll) di dalam Effects
+                for _, effectNode in ipairs(effectsFolder:GetChildren()) do
+                    
+                    -- Mencari susunan path: Container -> PP
+                    local container = effectNode:FindFirstChild("Container")
+                    local ppFolder = container and container:FindFirstChild("PP")
+                    
+                    if ppFolder then
+                        -- Mencari objek ProximityPrompt
+                        local prompt = ppFolder:FindFirstChildWhichIsA("ProximityPrompt") or ppFolder:FindFirstChild("ProximityPrompt")
+                        
+                        -- Eksekusi perbaikan jika ngebug (Enabled = false)
+                        if prompt and prompt.Enabled == false then
+                            -- 1. Paksa aktifkan prompt-nya
+                            prompt.Enabled = true 
+                            
+                            -- 2. Otomatis klik (klaim item) lewat script
+                            if fireproximityprompt then
+                                task.spawn(function()
+                                    task.wait(0.1) -- Jeda milidetik agar server mencatat perubahan menjadi 'true'
+                                    fireproximityprompt(prompt)
+                                end)
+                            end
+                        end
+                    end
+                    
+                end
+            end
+        end)
+        
+        -- Jeda 1 detik agar tidak membuat game lag/berat (sangat aman untuk CPU)
+        task.wait(1) 
+    end
+end)
