@@ -11,10 +11,11 @@ local TargetMaterials = {
     ["Big Gas Can"] = false,
     ["Gas Drum"] = false,
     ["Small Crate"] = false,
-    ["Big Crate"] = false
+    ["Big Crate"] = false,
+    ["Puzzle Crate"] = false
 }
 
-Win:AddMultiDropdown("Material", {"Wood", "Metal", "Goo", "Small Gas Can", "Big Gas Can", "Gas Drum", "Small Crate", "Big Crate"}, function(selectedTable)
+Win:AddMultiDropdown("Material", {"Wood", "Metal", "Goo", "Small Gas Can", "Big Gas Can", "Gas Drum", "Small Crate", "Big Crate", "Puzzle Crate"}, function(selectedTable)
     TargetMaterials = selectedTable
 end)
 
@@ -1563,5 +1564,75 @@ task.spawn(function()
         
         -- Jeda 1 detik agar skrip bernapas dan tidak membuat game/HP Anda lag
         task.wait(1) 
+    end
+end)
+
+-- ====================================================================
+-- [FITUR: AUTO PUZZLE GALLEON (BACKGROUND - SELALU AKTIF, TANPA UI)]
+-- ====================================================================
+task.spawn(function()
+    while true do
+        pcall(function()
+            local workspace = game:GetService("Workspace")
+            local DebrisField = workspace:FindFirstChild("DebrisField")
+            local GhostGalleon = workspace:FindFirstChild("GhostGalleonInterior")
+            local ColorPuzzle = GhostGalleon and GhostGalleon:FindFirstChild("ColorPuzzle")
+            
+            -- Pastikan map Galleon dan tempat puzzle sudah di-load
+            if DebrisField and ColorPuzzle then
+                for _, folderObj in ipairs(DebrisField:GetChildren()) do
+                    
+                    local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
+                    if part then
+                        -- Identifikasi apakah item ini adalah Puzzle Crate
+                        local itemAttr = tostring(folderObj:GetAttribute("Item") or part:GetAttribute("Item") or folderObj.Name)
+                        local lowerItem = string.lower(itemAttr)
+                        
+                        if string.find(lowerItem, "puzzle") then
+                            
+                            -- Mengambil atribut warna asli dari game (Red, Green, Blue)
+                            local crateColor = folderObj:GetAttribute("Color") or part:GetAttribute("Color")
+                            
+                            if crateColor and type(crateColor) == "string" then
+                                -- Mencari part alas (pad) di ColorPuzzle yang namanya sama dengan warna Crate
+                                local targetSlot = ColorPuzzle:FindFirstChild(crateColor)
+                                
+                                if targetSlot then
+                                    -- Cek apakah Crate ini sedang dipegang/ditarik oleh Anda
+                                    local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
+                                    local grabber = folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber")
+                                    local lastHolder = folderObj:GetAttribute("LastHolder") or part:GetAttribute("LastHolder")
+                                    
+                                    local myId = tostring(LocalPlayer.UserId)
+                                    local myName = LocalPlayer.Name
+                                    
+                                    local isCurrentlyMyGrab = (isGrabbed == true and (tostring(grabber) == myId or grabber == myName))
+                                    local isMyPastItem = (lastHolder == myName)
+                                    
+                                    -- [EKSEKUSI TP]: Jika item tertarik ke tangan Anda, langsung bajak posisinya!
+                                    if isCurrentlyMyGrab or isMyPastItem then
+                                        
+                                        -- TP instan ke koordinat warna yang benar (+1.5 agar tidak tembus ke bawah lantai)
+                                        part.CFrame = targetSlot.CFrame + Vector3.new(0, 1.5, 0)
+                                        part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                                        
+                                        -- Paksa putuskan kepemilikan agar item jatuh pas di titiknya
+                                        pcall(function() 
+                                            if SafeRemoteEvent then
+                                                SafeRemoteEvent("GiveUpOwnership", part)
+                                            end
+                                        end)
+                                        
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+        
+        -- Loop super cepat (50 milidetik) agar perpindahannya terlihat instan di mata pemain
+        task.wait(0.05) 
     end
 end)
