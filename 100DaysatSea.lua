@@ -1296,100 +1296,24 @@ end)
 RunAutoHeal()
 
 -- ====================================================================
--- [FITUR 15]: ALL ISLAND & RIG ESP + SMART AUTO HUD (RADAR STATE DETECT)
+-- [FITUR 15]: ALL ISLAND & RIG ESP (ULTRA LIGHTWEIGHT - NO UPDATES)
 -- ====================================================================
-local IslandESPEnabled = true -- Dibuat langsung aktif (true)
-local HUDUnlocked = false
+local IslandESPEnabled = true 
 
 local IslandConfig = {
     ["RivalRig1"] = {Text = "Rival Rig 1", Color = Color3.fromRGB(255, 65, 65)},
     ["RivalRig2"] = {Text = "Rival Rig 2", Color = Color3.fromRGB(255, 65, 65)},
     ["RivalRig3"] = {Text = "Rival Rig 3", Color = Color3.fromRGB(255, 65, 65)},
-    
-    ["SmallRadarIsland"] = {Text = "Radar Island (Radio)", Color = Color3.fromRGB(0, 220, 255)},
-    
-    ["CageIsland"] = {Text = "Cage Island (Survivor)", Color = Color3.fromRGB(50, 255, 50)},
-    ["TrappedIsland"] = {Text = "Trapped Island (Survivor)", Color = Color3.fromRGB(50, 255, 50)},
-    ["PirateChallengeIsland"] = {Text = "Pirate Challenge Island", Color = Color3.fromRGB(50, 255, 50)},
-    
-    ["SkullIsland"] = {Text = "Skull Island (Green Key)", Color = Color3.fromRGB(255, 255, 0)},
+    ["CageIsland"] = {Text = "Cage Island", Color = Color3.fromRGB(50, 255, 50)},
+    ["TrappedIsland"] = {Text = "Trapped Island", Color = Color3.fromRGB(50, 255, 50)},
+    ["PirateChallengeIsland"] = {Text = "Pirate Challenge", Color = Color3.fromRGB(50, 255, 50)},
+    ["SkullIsland"] = {Text = "Skull Island", Color = Color3.fromRGB(255, 255, 0)},
     ["ShantyIsland"] = {Text = "Shanty Island", Color = Color3.fromRGB(255, 200, 0)},
     ["TempleIsland"] = {Text = "Temple Island", Color = Color3.fromRGB(255, 200, 0)},
     ["PirateStronghold"] = {Text = "Pirate Stronghold", Color = Color3.fromRGB(255, 30, 30)},
-    
     ["SquidIslandMain"] = {Text = "Squid Island Main", Color = Color3.fromRGB(200, 50, 255)}
 }
 
--- [FUNGSI]: Memunculkan UI Map & Timer
-local function ShowMapAndTimerHUD()
-    task.spawn(function()
-        pcall(function()
-            local LocalPlayer = game:GetService("Players").LocalPlayer
-            local PlayerGui = LocalPlayer:WaitForChild("PlayerGui", 5)
-            local HUD = PlayerGui and PlayerGui:WaitForChild("HUD", 5)
-            local FeaturesUI = HUD and HUD:WaitForChild("Features", 5)
-            
-            if FeaturesUI then
-                FeaturesUI.Visible = true
-                local mapUI = FeaturesUI:WaitForChild("Map", 3)
-                if mapUI then mapUI.Visible = true end
-                
-                local timerUI = FeaturesUI:WaitForChild("Timer", 3)
-                if timerUI then timerUI.Visible = true end
-            end
-        end)
-    end)
-end
-
--- [FUNGSI]: Membuat Tampilan ESP
-local function CreateIslandESP(object, titleText, color)
-    if object:FindFirstChild("IslandESP_Gui") then return end
-    
-    local targetPart = object:IsA("BasePart") and object or object:FindFirstChildWhichIsA("BasePart")
-    if not targetPart and object:IsA("Model") and object.PrimaryPart then
-        targetPart = object.PrimaryPart
-    end
-    if not targetPart then
-        targetPart = object:FindFirstChildWhichIsA("BasePart", true)
-    end
-    
-    if not targetPart then return end
-    
-    local bbGui = Instance.new("BillboardGui")
-    bbGui.Name = "IslandESP_Gui"
-    bbGui.AlwaysOnTop = true
-    bbGui.Size = UDim2.new(0, 200, 0, 40)
-    bbGui.StudsOffset = Vector3.new(0, 20, 0) 
-    bbGui.Adornee = targetPart
-    bbGui.Parent = targetPart
-    
-    local textLabel = Instance.new("TextLabel")
-    textLabel.Size = UDim2.new(1, 0, 1, 0)
-    textLabel.BackgroundTransparency = 1
-    textLabel.TextColor3 = color
-    textLabel.TextSize = 13 
-    textLabel.Font = Enum.Font.SourceSans 
-    textLabel.TextStrokeTransparency = 0.3 
-    textLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-    textLabel.Text = titleText
-    textLabel.Parent = bbGui
-    
-    task.spawn(function()
-        local LocalPlayer = game:GetService("Players").LocalPlayer
-        while IslandESPEnabled and object:IsDescendantOf(workspace) and targetPart:IsDescendantOf(workspace) do
-            local character = LocalPlayer.Character
-            local root = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso"))
-            if root then
-                local distance = (targetPart.Position - root.Position).Magnitude
-                textLabel.Text = string.format("%s [%dm]", titleText, math.floor(distance))
-            end
-            task.wait(0.5) 
-        end
-        bbGui:Destroy()
-    end)
-end
-
--- [FUNGSI]: Pembersih Total saat toggle mati
 local function CleanAllIslandESP()
     local islandContainer = workspace:FindFirstChild("IslandContainer")
     if islandContainer then
@@ -1399,65 +1323,48 @@ local function CleanAllIslandESP()
     end
 end
 
--- [FUNGSI UTAMA]: Scanner Pulau & Rig
 local function StartIslandScanner()
-    task.spawn(function()
-        while IslandESPEnabled do
-            pcall(function()
-                local islandContainer = workspace:FindFirstChild("IslandContainer")
-                
-                if islandContainer then
-                    local completedRadarCount = 0 -- Menghitung Radar yang sudah diselesaikan
-                    
-                    for _, child in ipairs(islandContainer:GetChildren()) do
-                        if not IslandESPEnabled then break end
-                        
-                        local config = IslandConfig[child.Name]
-                        local displayName, displayColor = nil, nil
-                        
-                        if config then
-                            displayName = config.Text
-                            displayColor = config.Color
-                            
-                            -- [LOGIKA DETEKSI PINTAR: HANYA MEMANTAU HILANGNYA RADIO/PROMPT]
-                            if child.Name == "SmallRadarIsland" then
-                                local radio = child:FindFirstChild("Radio")
-                                local prompt = radio and radio:FindFirstChildWhichIsA("ProximityPrompt", true)
-                                
-                                -- Jika radio atau prompt sudah tidak ada (diklik manual oleh Anda atau pemain lain)
-                                if not radio or not prompt then
-                                    completedRadarCount = completedRadarCount + 1
-                                end
-                                -- Logika pemaksaan interaksi (fireproximityprompt) telah dihapus sepenuhnya.
-                            end
-                            
-                        -- [LOGIKA SQUID ISLAND DINAMIS]
-                        elseif string.find(child.Name, "^SquidIsland") and child.Name ~= "SquidIslandMain" then
-                            local islandNum = string.match(child.Name, "%d+") or ""
-                            displayName = "Squid Island " .. islandNum
-                            displayColor = Color3.fromRGB(230, 130, 255) 
-                        end
-                        
-                        -- Eksekusi pasang ESP
-                        if displayName and displayColor then
-                            CreateIslandESP(child, displayName, displayColor)
-                        end
-                    end
-                    
-                    -- [PEMBUKAAN HUD OTOMATIS]: Jika terdeteksi minimal 3 radar yang kehilangan Radio/Prompt
-                    if not HUDUnlocked and completedRadarCount >= 3 then
-                        HUDUnlocked = true
-                        ShowMapAndTimerHUD()
-                    end
-                end
-            end)
-            task.wait(1) 
+    local islandContainer = workspace:FindFirstChild("IslandContainer")
+    if not islandContainer then return end
+    
+    for _, child in ipairs(islandContainer:GetChildren()) do
+        local displayName, displayColor = nil, nil
+        
+        if IslandConfig[child.Name] then
+            displayName = IslandConfig[child.Name].Text
+            displayColor = IslandConfig[child.Name].Color
+        elseif string.find(child.Name, "^SquidIsland") and child.Name ~= "SquidIslandMain" then
+            displayName = "Squid Island " .. string.match(child.Name, "%d+")
+            displayColor = Color3.fromRGB(230, 130, 255)
         end
-    end)
+        
+        if displayName then
+            local targetPart = child:FindFirstChildWhichIsA("BasePart", true)
+            if targetPart and not targetPart:FindFirstChild("IslandESP_Gui") then
+                -- Buat ESP Sekali saja, tidak di-update
+                local bbGui = Instance.new("BillboardGui")
+                bbGui.Name = "IslandESP_Gui"
+                bbGui.AlwaysOnTop = true
+                bbGui.Size = UDim2.new(0, 200, 0, 40)
+                bbGui.StudsOffset = Vector3.new(0, 20, 0)
+                bbGui.Adornee = targetPart
+                bbGui.Parent = targetPart
+                
+                local textLabel = Instance.new("TextLabel")
+                textLabel.Size = UDim2.new(1, 0, 1, 0)
+                textLabel.BackgroundTransparency = 1
+                textLabel.TextColor3 = displayColor
+                textLabel.TextSize = 14
+                textLabel.Font = Enum.Font.SourceSansBold
+                textLabel.TextStrokeTransparency = 0.3
+                textLabel.Text = displayName
+                textLabel.Parent = bbGui
+            end
+        end
+    end
 end
 
--- [UI TOGGLE]
-Win:AddToggle("Island & Rig ESP", true, function(state)
+Win:AddToggle("Island ESP (Static)", true, function(state)
     IslandESPEnabled = state
     if IslandESPEnabled then
         StartIslandScanner()
@@ -1466,7 +1373,6 @@ Win:AddToggle("Island & Rig ESP", true, function(state)
     end
 end)
 
--- LANGSUNG EKSEKUSI KARENA DEFAULT AKTIF
 StartIslandScanner()
 
 -- ====================================================================
@@ -1602,6 +1508,31 @@ Win:AddButton("Scan Entire Map (Tap)", function()
         end
         
         IsScanning = false
+    end)
+end)
+
+-- ====================================================================
+-- [FITUR: AUTO VISIBLE HUD COMPONENTS (LANGSUNG AKTIF SEKALI JALAN)]
+-- ====================================================================
+task.spawn(function()
+    local Player = game:GetService("Players").LocalPlayer
+    local PlayerGui = Player:WaitForChild("PlayerGui")
+    
+    pcall(function()
+        -- Menunggu HUD utama dan Features UI terbentuk (maksimal 10 detik)
+        local HUD = PlayerGui:WaitForChild("HUD", 10)
+        local FeaturesUI = HUD and HUD:WaitForChild("Features", 10)
+        
+        if FeaturesUI then
+            -- Ubah status visible menjadi true hanya sekali jalan
+            FeaturesUI.Visible = true
+            
+            local mapUI = FeaturesUI:WaitForChild("Map", 5)
+            if mapUI then mapUI.Visible = true end
+            
+            local timerUI = FeaturesUI:WaitForChild("Timer", 5)
+            if timerUI then timerUI.Visible = true end
+        end
     end)
 end)
 
