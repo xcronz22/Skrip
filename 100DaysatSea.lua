@@ -15,7 +15,7 @@ local TargetMaterials = {
     ["Big Crate"] = false,
 }
 
-Win:AddMultiDropdown("Material", {"Wood", "Metal", "Goo", "Small Gas Can", "Big Gas Can", "Gas Drum", "Small Crate", "Big Crate", "Penguin"}, function(selectedTable)
+Win:AddMultiDropdown("Material", {"Plank", "Wood", "Metal", "Goo", "Small Gas Can", "Big Gas Can", "Gas Drum", "Small Crate", "Big Crate", "Penguin"}, function(selectedTable)
     TargetMaterials = selectedTable
 end)
 
