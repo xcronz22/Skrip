@@ -1567,8 +1567,10 @@ task.spawn(function()
 end)
 
 -- ====================================================================
--- [FITUR: AUTO PUZZLE GALLEON (BACKGROUND - SELALU AKTIF, TANPA UI)]
+-- [FITUR: AUTO PUZZLE GALLEON (VERSI STABIL - TANPA HAPUS TALI)]
 -- ====================================================================
+local LocalPlayer = game:GetService("Players").LocalPlayer
+
 task.spawn(function()
     while true do
         pcall(function()
@@ -1577,52 +1579,35 @@ task.spawn(function()
             local GhostGalleon = workspace:FindFirstChild("GhostGalleonInterior")
             local ColorPuzzle = GhostGalleon and GhostGalleon:FindFirstChild("ColorPuzzle")
             
-            -- Pastikan map Galleon dan tempat puzzle sudah di-load
             if DebrisField and ColorPuzzle then
                 for _, folderObj in ipairs(DebrisField:GetChildren()) do
-                    
                     local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
                     if part then
-                        -- Identifikasi apakah item ini adalah Puzzle Crate
                         local itemAttr = tostring(folderObj:GetAttribute("Item") or part:GetAttribute("Item") or folderObj.Name)
-                        local lowerItem = string.lower(itemAttr)
                         
-                        if string.find(lowerItem, "puzzle") then
-                            
-                            -- Mengambil atribut warna asli dari game (Red, Green, Blue)
+                        -- Deteksi item "Puzzle"
+                        if string.find(string.lower(itemAttr), "puzzle") then
                             local crateColor = folderObj:GetAttribute("Color") or part:GetAttribute("Color")
+                            local targetSlot = ColorPuzzle:FindFirstChild(tostring(crateColor))
                             
-                            if crateColor and type(crateColor) == "string" then
-                                -- Mencari part alas (pad) di ColorPuzzle yang namanya sama dengan warna Crate
-                                local targetSlot = ColorPuzzle:FindFirstChild(crateColor)
+                            if targetSlot then
+                                local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
+                                local grabber = folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber")
                                 
-                                if targetSlot then
-                                    -- Cek apakah Crate ini sedang dipegang/ditarik oleh Anda
-                                    local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
-                                    local grabber = folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber")
-                                    local lastHolder = folderObj:GetAttribute("LastHolder") or part:GetAttribute("LastHolder")
+                                -- Cek apakah sedang dipegang oleh Anda
+                                if isGrabbed == true and (tostring(grabber) == tostring(LocalPlayer.UserId) or grabber == LocalPlayer.Name) then
                                     
-                                    local myId = tostring(LocalPlayer.UserId)
-                                    local myName = LocalPlayer.Name
+                                    -- 1. TP ke posisi puzzle
+                                    part.CFrame = targetSlot.CFrame + Vector3.new(0, 1, 0)
+                                    part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                                     
-                                    local isCurrentlyMyGrab = (isGrabbed == true and (tostring(grabber) == myId or grabber == myName))
-                                    local isMyPastItem = (lastHolder == myName)
-                                    
-                                    -- [EKSEKUSI TP]: Jika item tertarik ke tangan Anda, langsung bajak posisinya!
-                                    if isCurrentlyMyGrab or isMyPastItem then
-                                        
-                                        -- TP instan ke koordinat warna yang benar (+1.5 agar tidak tembus ke bawah lantai)
-                                        part.CFrame = targetSlot.CFrame + Vector3.new(0, 0, 0)
-                                        part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                                        
-                                        -- Paksa putuskan kepemilikan agar item jatuh pas di titiknya
-                                        pcall(function() 
-                                            if SafeRemoteEvent then
-                                                SafeRemoteEvent("GiveUpOwnership", part)
-                                            end
-                                        end)
-                                        
+                                    -- 2. Lepas paksa secara logis (tanpa merusak tali/constraint)
+                                    if SafeRemoteEvent then
+                                        SafeRemoteEvent("GiveUpOwnership", part)
                                     end
+                                    
+                                    -- Memberi jeda sedikit agar tidak spam request ke server
+                                    task.wait(0.2)
                                 end
                             end
                         end
@@ -1631,52 +1616,59 @@ task.spawn(function()
             end
         end)
         
-        -- Loop super cepat (50 milidetik) agar perpindahannya terlihat instan di mata pemain
-        task.wait(0.05) 
+        task.wait(0.1) 
     end
 end)
 
 -- ====================================================================
--- [FITUR: AUTO INTERACT ISLAND CONTAINER (BACKGROUND - TANPA TOGGLE)]
+-- [FITUR: AUTO INTERACT ISLAND SPESIFIK (OPTIMIZED - NO LAG)]
 -- ====================================================================
 task.spawn(function()
+    -- Daftar pulau target (menggunakan format ini agar pengecekan super cepat)
+    local targetIslands = {
+        ["CageIsland"] = true,
+        ["TrappedIsland"] = true,
+        ["PirateChallengeIsland"] = true,
+        ["SkullIsland"] = true,
+        ["TempleIsland"] = true,
+        ["ShantyIsland"] = true,
+        ["SmallRadarIsland"] = true
+    }
+
     while true do
         pcall(function()
             local workspace = game:GetService("Workspace")
             local IslandContainer = workspace:FindFirstChild("IslandContainer")
             
-            -- Pastikan IslandContainer sudah ada di dalam game
             if IslandContainer then
-                -- Memindai seluruh anak dan cucu objek di dalam IslandContainer
-                for _, obj in ipairs(IslandContainer:GetDescendants()) do
+                -- Langkah 1: Hanya melihat folder yang ada di permukaan IslandContainer
+                for _, island in ipairs(IslandContainer:GetChildren()) do
                     
-                    -- Mengecek apakah objek tersebut adalah ProximityPrompt
-                    if obj:IsA("ProximityPrompt") then
+                    -- Langkah 2: Cek apakah folder ini ada di daftar target kita
+                    if targetIslands[island.Name] then
                         
-                        -- Pastikan prompt tersebut sedang dalam keadaan aktif/bisa ditekan
-                        if obj.Enabled then
-                            
-                            -- Mengeksekusi/menembakkan ProximityPrompt secara instan
-                            -- Menggunakan fungsi bawaan executor standar
-                            if fireproximityprompt then
-                                -- Angka 1 = jarak bypass, Angka 0 = waktu tunggu (instan)
-                                fireproximityprompt(obj, 1, 0)
-                            else
-                                -- Alternatif kasar jika executor tidak mendukung fireproximityprompt
-                                obj.HoldDuration = 0
-                                obj:InputHoldBegin()
-                                task.wait()
-                                obj:InputHoldEnd()
+                        -- Langkah 3: Hanya jika cocok, kita cari ProximityPrompt di dalamnya
+                        for _, obj in ipairs(island:GetDescendants()) do
+                            if obj:IsA("ProximityPrompt") and obj.Enabled then
+                                
+                                -- Eksekusi ProximityPrompt
+                                if fireproximityprompt then
+                                    fireproximityprompt(obj, 1, 0)
+                                else
+                                    obj.HoldDuration = 0
+                                    obj:InputHoldBegin()
+                                    task.wait()
+                                    obj:InputHoldEnd()
+                                end
+                                
                             end
-                            
                         end
                     end
                 end
             end
         end)
         
-        -- Jeda 0.5 detik. Jangan dibuat terlalu cepat (misal 0.01) karena 
-        -- GetDescendants() cukup berat jika dijalankan terlalu cepat dan bisa membuat drop FPS.
-        task.wait(0.5)
+        -- Jeda 0.5 detik sudah sangat optimal untuk script yang sudah dipersempit ini
+        task.wait(0.5) 
     end
 end)
