@@ -1634,7 +1634,8 @@ task.spawn(function()
         ["TempleIsland"] = true,
         ["ShantyIsland"] = true,
         ["SmallRadarIsland"] = true,
-        ["TutorialIsland"] = false
+        ["TutorialIsland"] = true,
+        ["SquidIslandMain"] = true
     }
 
     while true do
