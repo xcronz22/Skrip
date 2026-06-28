@@ -4,14 +4,14 @@ local Win = RZY_Library:MakeWindow("100 Days at Sea")
 
 -- Tabel Penyimpanan Status Dropdown
 local TargetMaterials = {
-    ["Wood"] = true,
-    ["Metal"] = true,
-    ["Goo"] = true,
+    ["Wood"] = false,
+    ["Metal"] = false,
+    ["Goo"] = false,
     ["Small Gas Can"] = false,
     ["Big Gas Can"] = false,
     ["Gas Drum"] = false,
-    ["Small Crate"] = true,
-    ["Big Crate"] = true
+    ["Small Crate"] = false,
+    ["Big Crate"] = false
 }
 
 Win:AddMultiDropdown("Material", {"Wood", "Metal", "Goo", "Small Gas Can", "Big Gas Can", "Gas Drum", "Small Crate", "Big Crate"}, function(selectedTable)
@@ -1285,35 +1285,41 @@ local function RunAutoHeal()
     end)
 end
 
-Win:AddToggle("Auto Heal (<= 70 to 100)", true, function(state)
-    AutoHealEnabled = state
-    if AutoHealEnabled then
-        RunAutoHeal()
-    end
-end)
+--Win:AddToggle("Auto Heal (<= 70 to 100)", true, function(state)
+    --AutoHealEnabled = state
+    --if AutoHealEnabled then
+        --RunAutoHeal()
+    --end
+--end)
 
 -- Langsung dijalankan karena defaultnya "true"
 RunAutoHeal()
 
 -- ====================================================================
--- [FITUR 15]: ALL ISLAND & RIG ESP (ULTRA LIGHTWEIGHT - NO UPDATES)
+-- [FITUR 15]: ALL ISLAND & RIG ESP (SUPER LIGHTWEIGHT / ANTI-LAG)
 -- ====================================================================
 local IslandESPEnabled = true 
+local LocalPlayer = game:GetService("Players").LocalPlayer
 
+-- Konfigurasi ESP (Radar Island sudah dihapus)
 local IslandConfig = {
     ["RivalRig1"] = {Text = "Rival Rig 1", Color = Color3.fromRGB(255, 65, 65)},
     ["RivalRig2"] = {Text = "Rival Rig 2", Color = Color3.fromRGB(255, 65, 65)},
     ["RivalRig3"] = {Text = "Rival Rig 3", Color = Color3.fromRGB(255, 65, 65)},
-    ["CageIsland"] = {Text = "Cage Island", Color = Color3.fromRGB(50, 255, 50)},
-    ["TrappedIsland"] = {Text = "Trapped Island", Color = Color3.fromRGB(50, 255, 50)},
-    ["PirateChallengeIsland"] = {Text = "Pirate Challenge", Color = Color3.fromRGB(50, 255, 50)},
-    ["SkullIsland"] = {Text = "Skull Island", Color = Color3.fromRGB(255, 255, 0)},
+    
+    ["CageIsland"] = {Text = "Cage Island (Survivor)", Color = Color3.fromRGB(50, 255, 50)},
+    ["TrappedIsland"] = {Text = "Trapped Island (Survivor)", Color = Color3.fromRGB(50, 255, 50)},
+    ["PirateChallengeIsland"] = {Text = "Pirate Challenge Island", Color = Color3.fromRGB(50, 255, 50)},
+    
+    ["SkullIsland"] = {Text = "Skull Island (Green Key)", Color = Color3.fromRGB(255, 255, 0)},
     ["ShantyIsland"] = {Text = "Shanty Island", Color = Color3.fromRGB(255, 200, 0)},
     ["TempleIsland"] = {Text = "Temple Island", Color = Color3.fromRGB(255, 200, 0)},
     ["PirateStronghold"] = {Text = "Pirate Stronghold", Color = Color3.fromRGB(255, 30, 30)},
+    
     ["SquidIslandMain"] = {Text = "Squid Island Main", Color = Color3.fromRGB(200, 50, 255)}
 }
 
+-- [FUNGSI]: Pembersih Total saat toggle mati
 local function CleanAllIslandESP()
     local islandContainer = workspace:FindFirstChild("IslandContainer")
     if islandContainer then
@@ -1323,48 +1329,86 @@ local function CleanAllIslandESP()
     end
 end
 
+-- [FUNGSI UTAMA]: Scanner Pulau & Rig Terpusat (Anti-Lag)
 local function StartIslandScanner()
-    local islandContainer = workspace:FindFirstChild("IslandContainer")
-    if not islandContainer then return end
-    
-    for _, child in ipairs(islandContainer:GetChildren()) do
-        local displayName, displayColor = nil, nil
-        
-        if IslandConfig[child.Name] then
-            displayName = IslandConfig[child.Name].Text
-            displayColor = IslandConfig[child.Name].Color
-        elseif string.find(child.Name, "^SquidIsland") and child.Name ~= "SquidIslandMain" then
-            displayName = "Squid Island " .. string.match(child.Name, "%d+")
-            displayColor = Color3.fromRGB(230, 130, 255)
-        end
-        
-        if displayName then
-            local targetPart = child:FindFirstChildWhichIsA("BasePart", true)
-            if targetPart and not targetPart:FindFirstChild("IslandESP_Gui") then
-                -- Buat ESP Sekali saja, tidak di-update
-                local bbGui = Instance.new("BillboardGui")
-                bbGui.Name = "IslandESP_Gui"
-                bbGui.AlwaysOnTop = true
-                bbGui.Size = UDim2.new(0, 200, 0, 40)
-                bbGui.StudsOffset = Vector3.new(0, 20, 0)
-                bbGui.Adornee = targetPart
-                bbGui.Parent = targetPart
+    task.spawn(function()
+        while IslandESPEnabled do
+            pcall(function()
+                local islandContainer = workspace:FindFirstChild("IslandContainer")
+                local character = LocalPlayer.Character
+                local root = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso"))
                 
-                local textLabel = Instance.new("TextLabel")
-                textLabel.Size = UDim2.new(1, 0, 1, 0)
-                textLabel.BackgroundTransparency = 1
-                textLabel.TextColor3 = displayColor
-                textLabel.TextSize = 14
-                textLabel.Font = Enum.Font.SourceSansBold
-                textLabel.TextStrokeTransparency = 0.3
-                textLabel.Text = displayName
-                textLabel.Parent = bbGui
-            end
+                if islandContainer then
+                    for _, child in ipairs(islandContainer:GetChildren()) do
+                        if not IslandESPEnabled then break end
+                        
+                        local config = IslandConfig[child.Name]
+                        local displayName, displayColor = nil, nil
+                        
+                        -- Cek daftar pulau statis
+                        if config then
+                            displayName = config.Text
+                            displayColor = config.Color
+                            
+                        -- Cek Squid Island Dinamis
+                        elseif string.find(child.Name, "^SquidIsland") and child.Name ~= "SquidIslandMain" then
+                            local islandNum = string.match(child.Name, "%d+") or ""
+                            displayName = "Squid Island " .. islandNum
+                            displayColor = Color3.fromRGB(230, 130, 255) 
+                        end
+                        
+                        -- Jika masuk daftar, pasang atau perbarui ESP
+                        if displayName and displayColor then
+                            -- Cari titik tumpu (part) pulau
+                            local targetPart = child:IsA("BasePart") and child or child:FindFirstChildWhichIsA("BasePart")
+                            if not targetPart and child:IsA("Model") and child.PrimaryPart then targetPart = child.PrimaryPart end
+                            if not targetPart then targetPart = child:FindFirstChildWhichIsA("BasePart", true) end
+                            
+                            if targetPart then
+                                -- Periksa apakah GUI sudah dibuat sebelumnya
+                                local espGui = targetPart:FindFirstChild("IslandESP_Gui")
+                                
+                                -- Buat GUI baru jika belum ada
+                                if not espGui then
+                                    espGui = Instance.new("BillboardGui")
+                                    espGui.Name = "IslandESP_Gui"
+                                    espGui.AlwaysOnTop = true
+                                    espGui.Size = UDim2.new(0, 200, 0, 40)
+                                    espGui.StudsOffset = Vector3.new(0, 20, 0) 
+                                    espGui.Adornee = targetPart
+                                    espGui.Parent = targetPart
+                                    
+                                    local textLabel = Instance.new("TextLabel")
+                                    textLabel.Name = "DistanceText" -- Dinamai agar mudah di-update
+                                    textLabel.Size = UDim2.new(1, 0, 1, 0)
+                                    textLabel.BackgroundTransparency = 1
+                                    textLabel.TextColor3 = displayColor
+                                    textLabel.TextSize = 13 
+                                    textLabel.Font = Enum.Font.SourceSans 
+                                    textLabel.TextStrokeTransparency = 0.3 
+                                    textLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+                                    textLabel.Parent = espGui
+                                end
+                                
+                                -- UPDATE JARAK (Eksekusi 1 pintu)
+                                local textLabel = espGui:FindFirstChild("DistanceText")
+                                if textLabel and root then
+                                    local distance = (targetPart.Position - root.Position).Magnitude
+                                    textLabel.Text = string.format("%s [%dm]", displayName, math.floor(distance))
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+            -- Jeda 1 detik. Semua kalkulasi puluhan pulau selesai dalam sekejap tanpa memberatkan memori
+            task.wait(1) 
         end
-    end
+    end)
 end
 
-Win:AddToggle("Island ESP (Static)", true, function(state)
+-- [UI TOGGLE]
+Win:AddToggle("Island & Rig ESP", true, function(state)
     IslandESPEnabled = state
     if IslandESPEnabled then
         StartIslandScanner()
@@ -1373,6 +1417,7 @@ Win:AddToggle("Island ESP (Static)", true, function(state)
     end
 end)
 
+-- LANGSUNG EKSEKUSI KARENA DEFAULT AKTIF
 StartIslandScanner()
 
 -- ====================================================================
@@ -1380,8 +1425,8 @@ StartIslandScanner()
 -- ====================================================================
 local SoftAntiLagEnabled = true
 
-Win:AddToggle("Soft Anti-Lag (Sea & Debris)", true, function(state)
-    SoftAntiLagEnabled = state
+--Win:AddToggle("Soft Anti-Lag (Sea & Debris)", true, function(state)
+    --SoftAntiLagEnabled = state
     
     if SoftAntiLagEnabled then
         task.spawn(function()
@@ -1433,82 +1478,6 @@ Win:AddToggle("Soft Anti-Lag (Sea & Debris)", true, function(state)
             game:GetService("Lighting").GlobalShadows = true
         end)
     end
-end)
-
--- ====================================================================
--- [FITUR TAMBAHAN]: MAP SCANNER (OPTIMIZED FOR FLY + NOCLIP)
--- ====================================================================
-local MapScanSpeed = 500 -- Kecepatan sesuai permintaan
-local IsScanning = false
-local CurrentScanTween = nil
-
---Win:AddInput("Scan Speed", "300", function(val)
-    --local num = tonumber(val)
-    --if num then MapScanSpeed = num end
---end)
-
-Win:AddButton("Scan Entire Map (Tap)", function()
-    local player = game:GetService("Players").LocalPlayer
-    local char = player.Character
-    local root = char and (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChildWhichIsA("BasePart"))
-    local humanoid = char and char:FindFirstChildOfClass("Humanoid")
-    
-    if not root or not humanoid then return end
-
-    if IsScanning then
-        IsScanning = false
-        if CurrentScanTween then CurrentScanTween:Cancel() end
-        return
-    end
-
-    IsScanning = true
-    
-    task.spawn(function()
-        local tweenService = game:GetService("TweenService")
-        local originalCFrame = root.CFrame
-        
-        -- Konfigurasi Scan
-        local mapSize = 10000 -- Ukuran 10k x 10k
-        local step = 1000     -- Jarak sapuan (Bisa diubah 1000-3000)
-        local flyHeight = 500  -- Ketinggian aman untuk Noclip
-        
-        local waypoints = {}
-        local direction = 1
-        
-        -- Membuat jalur zig-zag
-        for x = -mapSize/2, mapSize/2, step do
-            if direction == 1 then
-                for z = -mapSize/2, mapSize/2, step do table.insert(waypoints, Vector3.new(x, flyHeight, z)) end
-            else
-                for z = mapSize/2, -mapSize/2, -step do table.insert(waypoints, Vector3.new(x, flyHeight, z)) end
-            end
-            direction = direction * -1
-        end
-        
-        -- Eksekusi Pergerakan
-        for _, targetPos in ipairs(waypoints) do
-            if not IsScanning or not root.Parent then break end
-            
-            local distance = (root.Position - targetPos).Magnitude
-            local timeToReach = distance / MapScanSpeed
-            
-            -- Menggunakan Tween dengan Linear agar konstan kecepatannya
-            CurrentScanTween = tweenService:Create(root, TweenInfo.new(timeToReach, Enum.EasingStyle.Linear), {CFrame = CFrame.new(targetPos)})
-            CurrentScanTween:Play()
-            CurrentScanTween.Completed:Wait()
-        end
-        
-        -- Kembali ke posisi awal
-        if root.Parent then
-            local returnDist = (root.Position - originalCFrame.Position).Magnitude
-            local returnTween = tweenService:Create(root, TweenInfo.new(returnDist / MapScanSpeed, Enum.EasingStyle.Linear), {CFrame = originalCFrame})
-            CurrentScanTween = returnTween
-            returnTween:Play()
-            returnTween.Completed:Wait()
-        end
-        
-        IsScanning = false
-    end)
 end)
 
 -- ====================================================================
