@@ -340,10 +340,10 @@ local function RunAutoEat()
     end)
 end
 
-Win:AddToggle("Auto Eat", true, function(state)
-    AutoEatEnabled = state
-    if AutoEatEnabled then RunAutoEat() end
-end)
+--Win:AddToggle("Auto Eat", true, function(state)
+    --AutoEatEnabled = state
+    --if AutoEatEnabled then RunAutoEat() end
+--end)
 RunAutoEat() -- EKSEKUSI OTOMATIS
 
 -- ====================================================================
@@ -667,10 +667,10 @@ local function RunAutoAttack()
     end)
 end
 
-Win:AddToggle("Auto Attack", true, function(state)
-    AutoAttackEnabled = state
-    if AutoAttackEnabled then RunAutoAttack() end
-end)
+--Win:AddToggle("Auto Attack", true, function(state)
+    --AutoAttackEnabled = state
+    --if AutoAttackEnabled then RunAutoAttack() end
+--end)
 RunAutoAttack()
 
 -- ====================================================================
