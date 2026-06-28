@@ -1635,3 +1635,48 @@ task.spawn(function()
         task.wait(0.05) 
     end
 end)
+
+-- ====================================================================
+-- [FITUR: AUTO INTERACT ISLAND CONTAINER (BACKGROUND - TANPA TOGGLE)]
+-- ====================================================================
+task.spawn(function()
+    while true do
+        pcall(function()
+            local workspace = game:GetService("Workspace")
+            local IslandContainer = workspace:FindFirstChild("IslandContainer")
+            
+            -- Pastikan IslandContainer sudah ada di dalam game
+            if IslandContainer then
+                -- Memindai seluruh anak dan cucu objek di dalam IslandContainer
+                for _, obj in ipairs(IslandContainer:GetDescendants()) do
+                    
+                    -- Mengecek apakah objek tersebut adalah ProximityPrompt
+                    if obj:IsA("ProximityPrompt") then
+                        
+                        -- Pastikan prompt tersebut sedang dalam keadaan aktif/bisa ditekan
+                        if obj.Enabled then
+                            
+                            -- Mengeksekusi/menembakkan ProximityPrompt secara instan
+                            -- Menggunakan fungsi bawaan executor standar
+                            if fireproximityprompt then
+                                -- Angka 1 = jarak bypass, Angka 0 = waktu tunggu (instan)
+                                fireproximityprompt(obj, 1, 0)
+                            else
+                                -- Alternatif kasar jika executor tidak mendukung fireproximityprompt
+                                obj.HoldDuration = 0
+                                obj:InputHoldBegin()
+                                task.wait()
+                                obj:InputHoldEnd()
+                            end
+                            
+                        end
+                    end
+                end
+            end
+        end)
+        
+        -- Jeda 0.5 detik. Jangan dibuat terlalu cepat (misal 0.01) karena 
+        -- GetDescendants() cukup berat jika dijalankan terlalu cepat dan bisa membuat drop FPS.
+        task.wait(0.5)
+    end
+end)
