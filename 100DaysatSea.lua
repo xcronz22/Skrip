@@ -11,11 +11,10 @@ local TargetMaterials = {
     ["Big Gas Can"] = false,
     ["Gas Drum"] = false,
     ["Small Crate"] = false,
-    ["Big Crate"] = false,
-    ["Puzzle Crate"] = false
+    ["Big Crate"] = false
 }
 
-Win:AddMultiDropdown("Material", {"Wood", "Metal", "Goo", "Small Gas Can", "Big Gas Can", "Gas Drum", "Small Crate", "Big Crate", "Puzzle Crate"}, function(selectedTable)
+Win:AddMultiDropdown("Material", {"Wood", "Metal", "Goo", "Small Gas Can", "Big Gas Can", "Gas Drum", "Small Crate", "Big Crate"}, function(selectedTable)
     TargetMaterials = selectedTable
 end)
 
@@ -992,9 +991,9 @@ end)
 -- [FITUR 11]: UNIVERSAL FLY (UPGRADED: FIX JITTER, STUCK, NOCLIP & FIXCAM)
 -- ====================================================================
 local UniversalFlyEnabled = true 
-local UniversalFlySpeed = 150
+local UniversalFlySpeed = 200
 
-Win:AddInput("Fly Speed (Universal)", "150", function(val)
+Win:AddInput("Fly Speed (Universal)", "200", function(val)
     local num = tonumber(val)
     if num then
         UniversalFlySpeed = num
@@ -1613,7 +1612,7 @@ task.spawn(function()
                                     if isCurrentlyMyGrab or isMyPastItem then
                                         
                                         -- TP instan ke koordinat warna yang benar (+1.5 agar tidak tembus ke bawah lantai)
-                                        part.CFrame = targetSlot.CFrame + Vector3.new(0, 1.5, 0)
+                                        part.CFrame = targetSlot.CFrame + Vector3.new(0, 0, 0)
                                         part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                                         
                                         -- Paksa putuskan kepemilikan agar item jatuh pas di titiknya
