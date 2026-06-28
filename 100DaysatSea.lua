@@ -4,6 +4,7 @@ local Win = RZY_Library:MakeWindow("100 Days at Sea")
 
 -- Tabel Penyimpanan Status Dropdown
 local TargetMaterials = {
+    ["Wood Plank"] = false,
     ["Wood"] = false,
     ["Metal"] = false,
     ["Goo"] = false,
@@ -12,7 +13,6 @@ local TargetMaterials = {
     ["Gas Drum"] = false,
     ["Small Crate"] = false,
     ["Big Crate"] = false,
-    ["Penguin"] = false
 }
 
 Win:AddMultiDropdown("Material", {"Wood", "Metal", "Goo", "Small Gas Can", "Big Gas Can", "Gas Drum", "Small Crate", "Big Crate", "Penguin"}, function(selectedTable)
@@ -1633,7 +1633,8 @@ task.spawn(function()
         ["SkullIsland"] = true,
         ["TempleIsland"] = true,
         ["ShantyIsland"] = true,
-        ["SmallRadarIsland"] = true
+        ["SmallRadarIsland"] = true,
+        ["TutorialIsland"] = false
     }
 
     while true do
