@@ -11,10 +11,11 @@ local TargetMaterials = {
     ["Big Gas Can"] = false,
     ["Gas Drum"] = false,
     ["Small Crate"] = false,
-    ["Big Crate"] = false
+    ["Big Crate"] = false,
+    ["Penguin"] = false
 }
 
-Win:AddMultiDropdown("Material", {"Wood", "Metal", "Goo", "Small Gas Can", "Big Gas Can", "Gas Drum", "Small Crate", "Big Crate"}, function(selectedTable)
+Win:AddMultiDropdown("Material", {"Wood", "Metal", "Goo", "Small Gas Can", "Big Gas Can", "Gas Drum", "Small Crate", "Big Crate", "Penguin"}, function(selectedTable)
     TargetMaterials = selectedTable
 end)
 
@@ -1670,5 +1671,55 @@ task.spawn(function()
         
         -- Jeda 0.5 detik sudah sangat optimal untuk script yang sudah dipersempit ini
         task.wait(0.5) 
+    end
+end)
+
+-- ====================================================================
+-- [FITUR: AUTO PENGUIN MISSION]
+-- ====================================================================
+task.spawn(function()
+    while true do
+        pcall(function()
+            local workspace = game:GetService("Workspace")
+            local DebrisField = workspace:FindFirstChild("DebrisField")
+            local DropPoint = workspace:FindFirstChild("IslandContainer") 
+                              and workspace.IslandContainer:FindFirstChild("Penguin Village")
+                              and workspace.IslandContainer["Penguin Village"]:FindFirstChild("Mission")
+                              and workspace.IslandContainer["Penguin Village"].Mission:FindFirstChild("DropPoint")
+            
+            if DebrisField and DropPoint then
+                for _, folderObj in ipairs(DebrisField:GetChildren()) do
+                    -- Mencari part di dalam folder objek
+                    local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
+                    
+                    if part then
+                        -- Cek apakah nama objek atau atributnya adalah Penguin
+                        local itemName = tostring(folderObj:GetAttribute("Item") or part:GetAttribute("Item") or folderObj.Name)
+                        
+                        if string.find(string.lower(itemName), "penguin") then
+                            local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
+                            local grabber = folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber")
+                            
+                            -- Jika item sedang dipegang oleh LocalPlayer
+                            if isGrabbed == true and (tostring(grabber) == tostring(LocalPlayer.UserId) or grabber == LocalPlayer.Name) then
+                                
+                                -- 1. Teleport ke DropPoint
+                                part.CFrame = DropPoint.CFrame
+                                part.AssemblyLinearVelocity = Vector3.new(0, 1, 0)
+                                
+                                -- 2. Lepas kepemilikan agar item terhitung masuk ke misi
+                                if SafeRemoteEvent then
+                                    SafeRemoteEvent("GiveUpOwnership", part)
+                                end
+                                
+                                task.wait(0.2)
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+        
+        task.wait(0.2) -- Interval agar tidak membebani sistem
     end
 end)
