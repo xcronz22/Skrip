@@ -4,7 +4,6 @@ local Win = RZY_Library:MakeWindow("100 Days at Sea")
 
 -- Tabel Penyimpanan Status Dropdown
 local TargetMaterials = {
-    ["Wood Plank"] = false,
     ["Wood"] = false,
     ["Metal"] = false,
     ["Goo"] = false,
@@ -15,7 +14,7 @@ local TargetMaterials = {
     ["Big Crate"] = false,
 }
 
-Win:AddMultiDropdown("Material", {"Wood Plank", "Wood", "Metal", "Goo", "Small Gas Can", "Big Gas Can", "Gas Drum", "Small Crate", "Big Crate", "Penguin"}, function(selectedTable)
+Win:AddMultiDropdown("Material", {"Wood", "Metal", "Goo", "Small Gas Can", "Big Gas Can", "Gas Drum", "Small Crate", "Big Crate", "Penguin"}, function(selectedTable)
     TargetMaterials = selectedTable
 end)
 
