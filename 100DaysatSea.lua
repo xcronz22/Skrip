@@ -1621,10 +1621,10 @@ task.spawn(function()
 end)
 
 -- ====================================================================
--- [FITUR: AUTO INTERACT ISLAND SPESIFIK (OPTIMIZED - NO LAG)]
+-- [FITUR: AUTO INTERACT ISLAND SPESIFIK (SUPER SANTAI - SAFE DC)]
 -- ====================================================================
 task.spawn(function()
-    -- Daftar pulau target (menggunakan format ini agar pengecekan super cepat)
+    -- Daftar pulau target 
     local targetIslands = {
         ["CageIsland"] = true,
         ["TrappedIsland"] = true,
@@ -1643,13 +1643,9 @@ task.spawn(function()
             local IslandContainer = workspace:FindFirstChild("IslandContainer")
             
             if IslandContainer then
-                -- Langkah 1: Hanya melihat folder yang ada di permukaan IslandContainer
                 for _, island in ipairs(IslandContainer:GetChildren()) do
-                    
-                    -- Langkah 2: Cek apakah folder ini ada di daftar target kita
                     if targetIslands[island.Name] then
                         
-                        -- Langkah 3: Hanya jika cocok, kita cari ProximityPrompt di dalamnya
                         for _, obj in ipairs(island:GetDescendants()) do
                             if obj:IsA("ProximityPrompt") and obj.Enabled then
                                 
@@ -1663,6 +1659,12 @@ task.spawn(function()
                                     obj:InputHoldEnd()
                                 end
                                 
+                                -- =====================================================
+                                -- [JEDA SUPER SANTAI]: 1.5 Detik per item
+                                -- Benar-benar aman dari deteksi spam server
+                                -- =====================================================
+                                task.wait(1.5) 
+                                
                             end
                         end
                     end
@@ -1670,8 +1672,8 @@ task.spawn(function()
             end
         end)
         
-        -- Jeda 0.5 detik sudah sangat optimal untuk script yang sudah dipersempit ini
-        task.wait(0.5) 
+        -- Jeda istirahat script mencari item diubah jadi 2 detik agar sangat ringan
+        task.wait(2) 
     end
 end)
 
