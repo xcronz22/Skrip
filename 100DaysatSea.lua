@@ -1532,28 +1532,50 @@ task.spawn(function()
 end)
 
 -- ====================================================================
--- [FITUR: AUTO CLAIM SEMUA ITEM DI FOLDER EFFECTS (BRUTAL - TANPA UI)]
+-- [FITUR: AUTO CLAIM ITEM DI FOLDER EFFECTS (OPTIMIZED & SAFE CUTSCENE)]
 -- ====================================================================
+local LocalPlayer = game:GetService("Players").LocalPlayer
+
 task.spawn(function()
     while true do
         pcall(function()
+            local workspace = game:GetService("Workspace")
             local effectsFolder = workspace:FindFirstChild("Effects")
+            local character = LocalPlayer.Character
+            local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso"))
             
-            if effectsFolder then
-                -- GetDescendants() akan memeriksa semua isi folder tanpa peduli susunan path-nya
-                for _, obj in ipairs(effectsFolder:GetDescendants()) do
+            if effectsFolder and rootPart then
+                -- 1. Hanya mengecek anak folder di permukaan (tidak langsung GetDescendants)
+                for _, folderObj in ipairs(effectsFolder:GetChildren()) do
                     
-                    -- Jika objek yang ditemukan adalah ProximityPrompt
-                    if obj:IsA("ProximityPrompt") then
+                    -- 2. Memeriksa apakah nama folder tersebut HANYA terdiri dari angka (ID acak)
+                    -- tonumber() akan menghasilkan nilai valid jika stringnya berupa angka murni
+                    if tonumber(folderObj.Name) ~= nil then
                         
-                        -- Jaga-jaga: Paksa nyala jika kebetulan sedang ngebug (false)
-                        if not obj.Enabled then
-                            obj.Enabled = true
-                        end
-                        
-                        -- SIKAT! Langsung tembak otomatis
-                        if fireproximityprompt then
-                            fireproximityprompt(obj)
+                        -- 3. Baru kita cari ProximityPrompt di dalam folder angka tersebut
+                        for _, obj in ipairs(folderObj:GetDescendants()) do
+                            if obj:IsA("ProximityPrompt") and obj.Enabled then
+                                
+                                -- Mencari lokasi part dari prompt tersebut
+                                local promptPart = obj.Parent
+                                if promptPart and promptPart:IsA("BasePart") then
+                                    
+                                    -- 4. [PENCEGAH KICK 260 SAAT CUTSCENE]: Cek Jarak!
+                                    -- Jangan paksa ambil jika jaraknya lebih dari 25 studs (terlalu jauh)
+                                    local distance = (promptPart.Position - rootPart.Position).Magnitude
+                                    
+                                    if distance <= 25 then
+                                        -- Eksekusi aman
+                                        if fireproximityprompt then
+                                            fireproximityprompt(obj, 1, 0)
+                                        end
+                                        
+                                        -- Jeda santai agar server tidak kaget
+                                        task.wait(1.5)
+                                    end
+                                    
+                                end
+                            end
                         end
                         
                     end
@@ -1561,8 +1583,8 @@ task.spawn(function()
             end
         end)
         
-        -- Jeda 1 detik agar skrip bernapas dan tidak membuat game/HP Anda lag
-        task.wait(1) 
+        -- Jeda istirahat pencarian setiap 2 detik (Sangat ringan)
+        task.wait(2) 
     end
 end)
 
