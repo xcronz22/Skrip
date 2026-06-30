@@ -1511,193 +1511,113 @@ task.spawn(function()
 end)
 
 -- ====================================================================
--- [BACKGROUND TASK]: AUTO NO-FOG (SANTAI / LIGHTWEIGHT)
--- ====================================================================
-task.spawn(function()
-    local Lighting = game:GetService("Lighting")
-    
-    while true do
-        pcall(function()
-            -- 1. Hapus kabut klasik (FogEnd dijauhkan ke ujung dunia)
-            Lighting.FogEnd = 9e9
-            Lighting.FogStart = 9e9
-            
-            -- 2. Hapus kabut modern (Atmosphere) yang biasa dipakai saat event/hujan
-            local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
-            if atmosphere then
-                atmosphere.Density = 0
-                atmosphere.Glare = 0
-                atmosphere.Haze = 0
-            end
-        end)
-        
-        -- Jeda 3 detik: Sangat santai, CPU tidak akan panas sama sekali
-        task.wait(3)
-    end
-end)
-
--- ====================================================================
 -- [FITUR: AUTO CLAIM ITEM DI FOLDER EFFECTS (OPTIMIZED & SAFE CUTSCENE)]
 -- ====================================================================
+local AutoClaimEffectsEnabled = false
 local LocalPlayer = game:GetService("Players").LocalPlayer
 
-task.spawn(function()
-    while true do
-        pcall(function()
-            local workspace = game:GetService("Workspace")
-            local effectsFolder = workspace:FindFirstChild("Effects")
-            local character = LocalPlayer.Character
-            local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso"))
-            
-            if effectsFolder and rootPart then
-                -- 1. Hanya mengecek anak folder di permukaan (tidak langsung GetDescendants)
-                for _, folderObj in ipairs(effectsFolder:GetChildren()) do
-                    
-                    -- 2. Memeriksa apakah nama folder tersebut HANYA terdiri dari angka (ID acak)
-                    -- tonumber() akan menghasilkan nilai valid jika stringnya berupa angka murni
-                    if tonumber(folderObj.Name) ~= nil then
+local function RunAutoClaimEffects()
+    task.spawn(function()
+        while AutoClaimEffectsEnabled do
+            pcall(function()
+                local workspace = game:GetService("Workspace")
+                local effectsFolder = workspace:FindFirstChild("Effects")
+                local character = LocalPlayer.Character
+                local rootPart = character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("UpperTorso"))
+                
+                if effectsFolder and rootPart then
+                    -- 1. Hanya mengecek anak folder di permukaan
+                    for _, folderObj in ipairs(effectsFolder:GetChildren()) do
                         
-                        -- 3. Baru kita cari ProximityPrompt di dalam folder angka tersebut
-                        for _, obj in ipairs(folderObj:GetDescendants()) do
-                            if obj:IsA("ProximityPrompt") and obj.Enabled then
+                        -- Berhenti jika toggle dimatikan di tengah jalan
+                        if not AutoClaimEffectsEnabled then break end 
+                        
+                        -- 2. Memeriksa apakah nama folder HANYA terdiri dari angka (ID acak)
+                        if tonumber(folderObj.Name) ~= nil then
+                            
+                            -- 3. Baru kita cari ProximityPrompt di dalam folder angka tersebut
+                            for _, obj in ipairs(folderObj:GetDescendants()) do
                                 
-                                -- Mencari lokasi part dari prompt tersebut
-                                local promptPart = obj.Parent
-                                if promptPart and promptPart:IsA("BasePart") then
+                                -- Pengaman tambahan jika toggle dimatikan
+                                if not AutoClaimEffectsEnabled then break end
+                                
+                                if obj:IsA("ProximityPrompt") and obj.Enabled then
                                     
-                                    -- 4. [PENCEGAH KICK 260 SAAT CUTSCENE]: Cek Jarak!
-                                    -- Jangan paksa ambil jika jaraknya lebih dari 25 studs (terlalu jauh)
-                                    local distance = (promptPart.Position - rootPart.Position).Magnitude
-                                    
-                                    if distance <= 25 then
-                                        -- Eksekusi aman
-                                        if fireproximityprompt then
-                                            fireproximityprompt(obj, 1, 0)
+                                    -- Mencari lokasi part dari prompt tersebut
+                                    local promptPart = obj.Parent
+                                    if promptPart and promptPart:IsA("BasePart") then
+                                        
+                                        -- 4. [PENCEGAH KICK 260 SAAT CUTSCENE]: Cek Jarak!
+                                        -- Jangan paksa ambil jika jaraknya lebih dari 25 studs (terlalu jauh)
+                                        local distance = (promptPart.Position - rootPart.Position).Magnitude
+                                        
+                                        if distance <= 25 then
+                                            -- Eksekusi aman
+                                            if fireproximityprompt then
+                                                fireproximityprompt(obj, 1, 0)
+                                            end
+                                            
+                                            -- Jeda santai agar server tidak kaget
+                                            task.wait(1.5)
                                         end
                                         
-                                        -- Jeda santai agar server tidak kaget
-                                        task.wait(1.5)
                                     end
-                                    
                                 end
                             end
-                        end
-                        
-                    end
-                end
-            end
-        end)
-        
-        -- Jeda istirahat pencarian setiap 2 detik (Sangat ringan)
-        task.wait(2) 
-    end
-end)
-
--- ====================================================================
--- [FITUR: AUTO PUZZLE GALLEON (VERSI STABIL - TANPA HAPUS TALI)]
--- ====================================================================
-local LocalPlayer = game:GetService("Players").LocalPlayer
-
-task.spawn(function()
-    while true do
-        pcall(function()
-            local workspace = game:GetService("Workspace")
-            local DebrisField = workspace:FindFirstChild("DebrisField")
-            local GhostGalleon = workspace:FindFirstChild("GhostGalleonInterior")
-            local ColorPuzzle = GhostGalleon and GhostGalleon:FindFirstChild("ColorPuzzle")
-            
-            if DebrisField and ColorPuzzle then
-                for _, folderObj in ipairs(DebrisField:GetChildren()) do
-                    local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
-                    if part then
-                        local itemAttr = tostring(folderObj:GetAttribute("Item") or part:GetAttribute("Item") or folderObj.Name)
-                        
-                        -- Deteksi item "Puzzle"
-                        if string.find(string.lower(itemAttr), "puzzle") then
-                            local crateColor = folderObj:GetAttribute("Color") or part:GetAttribute("Color")
-                            local targetSlot = ColorPuzzle:FindFirstChild(tostring(crateColor))
                             
-                            if targetSlot then
-                                local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
-                                local grabber = folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber")
-                                
-                                -- Cek apakah sedang dipegang oleh Anda
-                                if isGrabbed == true and (tostring(grabber) == tostring(LocalPlayer.UserId) or grabber == LocalPlayer.Name) then
-                                    
-                                    -- 1. TP ke posisi puzzle
-                                    part.CFrame = targetSlot.CFrame + Vector3.new(0, 1, 0)
-                                    part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                                    
-                                    -- 2. Lepas paksa secara logis (tanpa merusak tali/constraint)
-                                    if SafeRemoteEvent then
-                                        SafeRemoteEvent("GiveUpOwnership", part)
-                                    end
-                                    
-                                    -- Memberi jeda sedikit agar tidak spam request ke server
-                                    task.wait(0.2)
-                                end
-                            end
                         end
                     end
                 end
-            end
-        end)
-        
-        task.wait(0.1) 
+            end)
+            
+            -- Jeda istirahat pencarian setiap 2 detik (Sangat ringan)
+            task.wait(2) 
+        end
+    end)
+end
+
+-- [UI] Toggle Auto Claim Effects
+Win:AddToggle("Auto Claim Effects", false, function(state)
+    AutoClaimEffectsEnabled = state
+    if AutoClaimEffectsEnabled then
+        RunAutoClaimEffects()
     end
 end)
 
 -- ====================================================================
--- [FITUR: AUTO INTERACT ISLAND SPESIFIK (OPTIMIZED - NO LAG)]
+-- [FITUR]: AUTO NO-FOG (SANTAI / LIGHTWEIGHT)
 -- ====================================================================
-task.spawn(function()
-    -- Daftar pulau target (menggunakan format ini agar pengecekan super cepat)
-    local targetIslands = {
-        ["CageIsland"] = true,
-        ["TrappedIsland"] = true,
-        ["PirateChallengeIsland"] = true,
-        ["SkullIsland"] = true,
-        ["TempleIsland"] = true,
-        ["ShantyIsland"] = true,
-        ["SmallRadarIsland"] = true,
-        ["TutorialIsland"] = true,
-        ["SquidIslandMain"] = true
-    }
+local AutoNoFogEnabled = false
 
-    while true do
-        pcall(function()
-            local workspace = game:GetService("Workspace")
-            local IslandContainer = workspace:FindFirstChild("IslandContainer")
-            
-            if IslandContainer then
-                -- Langkah 1: Hanya melihat folder yang ada di permukaan IslandContainer
-                for _, island in ipairs(IslandContainer:GetChildren()) do
-                    
-                    -- Langkah 2: Cek apakah folder ini ada di daftar target kita
-                    if targetIslands[island.Name] then
-                        
-                        -- Langkah 3: Hanya jika cocok, kita cari ProximityPrompt di dalamnya
-                        for _, obj in ipairs(island:GetDescendants()) do
-                            if obj:IsA("ProximityPrompt") and obj.Enabled then
-                                
-                                -- Eksekusi ProximityPrompt
-                                if fireproximityprompt then
-                                    fireproximityprompt(obj, 1, 0)
-                                else
-                                    obj.HoldDuration = 0
-                                    obj:InputHoldBegin()
-                                    task.wait()
-                                    obj:InputHoldEnd()
-                                end
-                                
-                            end
-                        end
-                    end
-                end
-            end
-        end)
+local function RunAutoNoFog()
+    task.spawn(function()
+        local Lighting = game:GetService("Lighting")
         
-        -- Jeda 0.5 detik sudah sangat optimal untuk script yang sudah dipersempit ini
-        task.wait(0.5) 
+        while AutoNoFogEnabled do
+            pcall(function()
+                -- 1. Hapus kabut klasik (FogEnd dijauhkan ke ujung dunia)
+                Lighting.FogEnd = 9e9
+                Lighting.FogStart = 9e9
+                
+                -- 2. Hapus kabut modern (Atmosphere) yang biasa dipakai saat event/hujan
+                local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
+                if atmosphere then
+                    atmosphere.Density = 0
+                    atmosphere.Glare = 0
+                    atmosphere.Haze = 0
+                end
+            end)
+            
+            -- Jeda 3 detik: Sangat santai, CPU tidak akan panas sama sekali
+            task.wait(3)
+        end
+    end)
+end
+
+-- [UI] Toggle Auto No-Fog
+Win:AddToggle("Auto No-Fog", false, function(state)
+    AutoNoFogEnabled = state
+    if AutoNoFogEnabled then
+        RunAutoNoFog()
     end
 end)
