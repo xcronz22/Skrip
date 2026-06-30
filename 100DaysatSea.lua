@@ -988,7 +988,7 @@ Win:AddToggle("Auto Discover Island", false, function(state)
 end)
 
 -- ====================================================================
--- [FITUR 11]: UNIVERSAL FLY (UPGRADED: FIX JITTER, STUCK, NOCLIP & FIXCAM)
+-- [FITUR 11]: UNIVERSAL FLY (UPGRADED: SAFE CUTSCENE, NOCLIP & FIXCAM)
 -- ====================================================================
 local UniversalFlyEnabled = true 
 local UniversalFlySpeed = 200
@@ -1032,7 +1032,7 @@ end
 -- Fungsi FixCam
 local function ApplyFixCam(humanoid)
     task.spawn(function()
-        task.wait(0.15) -- Sedikit lebih lama agar transisi fisika kendaraan selesai
+        task.wait(0.15) 
         local camera = workspace.CurrentCamera
         if camera and humanoid then
             camera.CameraType = Enum.CameraType.Custom
@@ -1048,7 +1048,6 @@ local function StartUniversalFly()
     local runService = game:GetService("RunService")
     local uis = game:GetService("UserInputService")
     
-    -- MENGGUNAKAN STEPPED: Berjalan sebelum kalkulasi fisika, ampuh mengatasi GETARAN!
     UFlyConnection = runService.Stepped:Connect(function()
         if not UniversalFlyEnabled then
             StopUniversalFly()
@@ -1061,7 +1060,18 @@ local function StartUniversalFly()
         local rootPart = char and (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChildWhichIsA("BasePart"))
         local camera = workspace.CurrentCamera
         
-        if not humanoid or not rootPart then return end
+        -- Hentikan jika karakter tidak valid atau mati
+        if not humanoid or not rootPart or humanoid.Health <= 0 then return end
+        
+        -- =========================================================
+        -- [ANTI-KICK 260 CUTSCENE DETECTOR]
+        -- Jika server mengunci (Anchor) karakter untuk memutar video, 
+        -- hentikan paksaan fisika agar server tidak mengira kita eksploitasi.
+        -- =========================================================
+        if rootPart.Anchored then
+            if currentBV then currentBV.velocity = Vector3.new(0, 0, 0) end
+            return -- Abaikan baris di bawahnya sampai cutscene selesai
+        end
         
         -- [INTEGRASI NOCLIP]: Mengubah semua part tubuh menjadi tembus pandang/tembok
         for _, part in ipairs(char:GetDescendants()) do
@@ -1081,10 +1091,9 @@ local function StartUniversalFly()
             ClearFlyMovers()
             currentMoverTarget = expectedTarget
             
-            -- [ANTI STUCK/NEMPEL BUG]: Jika baru turun dari kendaraan, paksa lepas dan lompatkan sedikit
+            -- [ANTI STUCK/NEMPEL BUG]
             if wasVehicle and not isVehicle then
                 humanoid.Sit = false
-                -- Beri jeda sangat kecil sebelum PlatformStand aktif agar karakter terlepas dari las kendaraan
                 rootPart.CFrame = rootPart.CFrame + Vector3.new(0, 3, 0)
                 task.wait(0.05) 
             end
@@ -1093,10 +1102,8 @@ local function StartUniversalFly()
                 ApplyFixCam(humanoid)
             end
             
-            -- Pengaturan BodyGyro yang lebih soft untuk Anti-Getar pada kendaraan
             currentBG = Instance.new("BodyGyro")
             currentBG.P = 9e4
-            -- Membatasi Torque agar tidak berantem dengan fisika bawaan kendaraan
             currentBG.maxTorque = isVehicle and Vector3.new(1e5, 1e5, 1e5) or Vector3.new(9e9, 9e9, 9e9) 
             currentBG.cframe = expectedTarget.CFrame
             currentBG.Parent = expectedTarget
@@ -1111,9 +1118,8 @@ local function StartUniversalFly()
 
         local moveDir = Vector3.new(0, 0, 0)
 
-        -- [LOGIKA UNIVERSAL + DEADZONE ANTI TERBANG SENDIRI]
+        -- [LOGIKA UNIVERSAL + DEADZONE]
         local moveMagnitude = humanoid.MoveDirection.Magnitude
-        -- Deadzone: Abaikan pergerakan joystick yang kurang dari 0.1 (mencegah jalan sendiri)
         if moveMagnitude > 0.1 then
             local localMove = camera.CFrame:VectorToObjectSpace(humanoid.MoveDirection)
             
@@ -1133,7 +1139,6 @@ local function StartUniversalFly()
         if currentBG and currentBV then
             currentBG.cframe = camera.CFrame
             
-            -- Memastikan velocity benar-benar di-Nol-kan jika tidak ada input
             if moveDir.Magnitude > 0 then
                 currentBV.velocity = moveDir.Unit * UniversalFlySpeed
             else
