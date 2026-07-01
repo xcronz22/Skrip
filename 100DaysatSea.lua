@@ -1676,3 +1676,57 @@ task.spawn(function()
         task.wait(0.5) 
     end
 end)
+
+-- ====================================================================
+-- [FITUR: AUTO PUZZLE GALLEON (VERSI STABIL - TANPA HAPUS TALI)]
+-- ====================================================================
+local LocalPlayer = game:GetService("Players").LocalPlayer
+
+task.spawn(function()
+    while true do
+        pcall(function()
+            local workspace = game:GetService("Workspace")
+            local DebrisField = workspace:FindFirstChild("DebrisField")
+            local GhostGalleon = workspace:FindFirstChild("GhostGalleonInterior")
+            local ColorPuzzle = GhostGalleon and GhostGalleon:FindFirstChild("ColorPuzzle")
+            
+            if DebrisField and ColorPuzzle then
+                for _, folderObj in ipairs(DebrisField:GetChildren()) do
+                    local part = folderObj:FindFirstChildWhichIsA("BasePart") or folderObj:FindFirstChildWhichIsA("MeshPart")
+                    if part then
+                        local itemAttr = tostring(folderObj:GetAttribute("Item") or part:GetAttribute("Item") or folderObj.Name)
+                        
+                        -- Deteksi item "Puzzle"
+                        if string.find(string.lower(itemAttr), "puzzle") then
+                            local crateColor = folderObj:GetAttribute("Color") or part:GetAttribute("Color")
+                            local targetSlot = ColorPuzzle:FindFirstChild(tostring(crateColor))
+                            
+                            if targetSlot then
+                                local isGrabbed = folderObj:GetAttribute("Grabbed") or part:GetAttribute("Grabbed")
+                                local grabber = folderObj:GetAttribute("Grabber") or part:GetAttribute("Grabber")
+                                
+                                -- Cek apakah sedang dipegang oleh Anda
+                                if isGrabbed == true and (tostring(grabber) == tostring(LocalPlayer.UserId) or grabber == LocalPlayer.Name) then
+                                    
+                                    -- 1. TP ke posisi puzzle
+                                    part.CFrame = targetSlot.CFrame + Vector3.new(0, 1, 0)
+                                    part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                                    
+                                    -- 2. Lepas paksa secara logis (tanpa merusak tali/constraint)
+                                    if SafeRemoteEvent then
+                                        SafeRemoteEvent("GiveUpOwnership", part)
+                                    end
+                                    
+                                    -- Memberi jeda sedikit agar tidak spam request ke server
+                                    task.wait(0.2)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+        
+        task.wait(0.1) 
+    end
+end)
