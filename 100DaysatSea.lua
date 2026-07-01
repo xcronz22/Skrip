@@ -1621,3 +1621,58 @@ Win:AddToggle("Auto No-Fog", false, function(state)
         RunAutoNoFog()
     end
 end)
+
+-- ====================================================================
+-- [FITUR: AUTO INTERACT ISLAND SPESIFIK (OPTIMIZED - NO LAG)]
+-- ====================================================================
+task.spawn(function()
+    -- Daftar pulau target (menggunakan format ini agar pengecekan super cepat)
+    local targetIslands = {
+        ["CageIsland"] = true,
+        ["TrappedIsland"] = true,
+        ["PirateChallengeIsland"] = true,
+        ["SkullIsland"] = true,
+        ["TempleIsland"] = true,
+        ["ShantyIsland"] = true,
+        ["SmallRadarIsland"] = true,
+        ["TutorialIsland"] = true,
+        ["SquidIslandMain"] = true
+    }
+
+    while true do
+        pcall(function()
+            local workspace = game:GetService("Workspace")
+            local IslandContainer = workspace:FindFirstChild("IslandContainer")
+            
+            if IslandContainer then
+                -- Langkah 1: Hanya melihat folder yang ada di permukaan IslandContainer
+                for _, island in ipairs(IslandContainer:GetChildren()) do
+                    
+                    -- Langkah 2: Cek apakah folder ini ada di daftar target kita
+                    if targetIslands[island.Name] then
+                        
+                        -- Langkah 3: Hanya jika cocok, kita cari ProximityPrompt di dalamnya
+                        for _, obj in ipairs(island:GetDescendants()) do
+                            if obj:IsA("ProximityPrompt") and obj.Enabled then
+                                
+                                -- Eksekusi ProximityPrompt
+                                if fireproximityprompt then
+                                    fireproximityprompt(obj, 1, 0)
+                                else
+                                    obj.HoldDuration = 0
+                                    obj:InputHoldBegin()
+                                    task.wait()
+                                    obj:InputHoldEnd()
+                                end
+                                
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+        
+        -- Jeda 0.5 detik sudah sangat optimal untuk script yang sudah dipersempit ini
+        task.wait(0.5) 
+    end
+end)
