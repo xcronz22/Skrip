@@ -21,7 +21,7 @@ getgenv().AutoChest = false
 task.spawn(function()
     while task.wait(0.1) do
         
-        -- 1. Cek Status Bucket (untuk Auto Drain)
+        -- 1. Cek Status Bucket untuk logika Auto Drain
         local isFull = false
         pcall(function()
             if LocalPlayer.PlayerGui.Interface.Holder.BucketFill.Bar.Progress.Text == "100% Full" then
@@ -29,47 +29,53 @@ task.spawn(function()
             end
         end)
 
-        -- 2. AUTO DRAIN (Tetap menggunakan FireServer)
+        -- 2. AUTO DRAIN (Tetap FireServer)
         if getgenv().AutoDrain and not isFull then
             useBucket:FireServer()
         end
 
-        -- 3. AUTO CHEST (Universal Search)
-        if getgenv().AutoChest then
-            for _, obj in ipairs(Workspace:GetDescendants()) do
-                if obj.Name == "Chests" and obj:IsA("Folder") then
-                    for _, prompt in ipairs(obj:GetDescendants()) do
-                        if prompt:IsA("ProximityPrompt") and prompt.Enabled then
-                            pcall(function() fireproximityprompt(prompt) end)
+        local scriptedFolder = Workspace:FindFirstChild("Scripted")
+        if scriptedFolder then
+            
+            -- 3. AUTO CHEST (Menggunakan fireproximityprompt)
+            if getgenv().AutoChest then
+                local chestsFolder = scriptedFolder:FindFirstChild("Chests")
+                if chestsFolder then
+                    for _, obj in ipairs(chestsFolder:GetDescendants()) do
+                        if obj:IsA("ProximityPrompt") and obj.Enabled then
+                            pcall(function() fireproximityprompt(obj) end)
                         end
                     end
                 end
             end
-        end
 
-        -- 4. AUTO STOR & AUTO TOKEN (Universal Search semua folder bernama "Drain")
-        -- Tidak lagi membedakan lokasi folder, semua "Drain" di Workspace akan diurus
-        for _, drainFolder in ipairs(Workspace:GetDescendants()) do
-            if drainFolder.Name == "Drain" and drainFolder:IsA("Folder") then
-                local scripted = drainFolder:FindFirstChild("Scripted")
+            -- Mengumpulkan target spesifik folder "Drain"
+            local targetDrains = {}
+            
+            -- Drain di luar
+            for _, obj in ipairs(scriptedFolder:GetChildren()) do
+                if obj.Name == "Drain" then table.insert(targetDrains, obj) end
+            end
+            
+            -- 4 & 5. AUTO STOR & AUTO TOKEN (Menggunakan fireproximityprompt)
+            for _, drainObj in ipairs(targetDrains) do
+                local scripted = drainObj:FindFirstChild("Scripted")
                 if scripted then
                     
-                    -- Auto Stor (ProximityPosition)
-                    if getgenv().AutoStor and isFull then
-                        local storPrompt = scripted:FindFirstChild("ProximityPosition") and scripted.ProximityPosition:FindFirstChild("ProximityPrompt")
-                        if storPrompt and storPrompt.Enabled then
-                            pcall(function() fireproximityprompt(storPrompt) end)
-                        end
+                    local storPrompt = scripted:FindFirstChild("ProximityPosition") 
+                        and scripted.ProximityPosition:FindFirstChild("ProximityPrompt")
+                    local tokenPrompt = scripted:FindFirstChild("TakeTokens") 
+                        and scripted.TakeTokens:FindFirstChild("ProximityPrompt")
+                    
+                    -- AUTO STOR (Trigger prompt)
+                    if getgenv().AutoStor and isFull and storPrompt and storPrompt.Enabled then
+                        pcall(function() fireproximityprompt(storPrompt) end)
                     end
                     
-                    -- Auto Token (TakeTokens)
-                    if getgenv().AutoToken then
-                        local tokenPrompt = scripted:FindFirstChild("TakeTokens") and scripted.TakeTokens:FindFirstChild("ProximityPrompt")
-                        if tokenPrompt and tokenPrompt.Enabled then
-                            pcall(function() fireproximityprompt(tokenPrompt) end)
-                        end
+                    -- AUTO TOKEN (Trigger prompt)
+                    if getgenv().AutoToken and tokenPrompt and tokenPrompt.Enabled then
+                        pcall(function() fireproximityprompt(tokenPrompt) end)
                     end
-                    
                 end
             end
         end
@@ -77,7 +83,7 @@ task.spawn(function()
 end)
 
 ------------------------------------------
--- UI SETUP (RZY LIBRARY)
+-- UI SETUP
 ------------------------------------------
 local success, Library = pcall(function()
     return loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
@@ -89,6 +95,4 @@ if success and Library then
     Window:AddToggle("Auto Stor", false, function(v) getgenv().AutoStor = v end)
     Window:AddToggle("Auto Token", false, function(v) getgenv().AutoToken = v end)
     Window:AddToggle("Auto Chest", false, function(v) getgenv().AutoChest = v end)
-else
-    warn("UI Gagal Dimuat!")
 end
