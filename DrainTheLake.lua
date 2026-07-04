@@ -35,7 +35,7 @@ task.spawn(function()
             pourBucket:FireServer(unpack(args))
             
             -- 3. Ambil Token (Ditembak bersamaan)
-            takeToken:FireServer(unpack(args))
+            --takeToken:FireServer(unpack(args))
         end
     end
 end)
