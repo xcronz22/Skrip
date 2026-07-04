@@ -24,20 +24,17 @@ local args = { targetPrompt }
 -- Global Toggle Status
 getgenv().AutoFarm = false
 
--- LOOP 1: BRUTAL DRAIN (Spam secepat mungkin / setiap frame)
+-- MAIN LOOP: SEMUA 0.1 DETIK
 task.spawn(function()
-    while task.wait() do
+    while task.wait(0.1) do
         if getgenv().AutoFarm then
+            -- 1. Drain (Tembak Use Bucket)
             useBucket:FireServer()
-        end
-    end
-end)
-
--- LOOP 2: SETOR & AMBIL TOKEN (Ditembak otomatis tanpa tunggu full, delay 0.5 detik)
-task.spawn(function()
-    while task.wait(0.5) do
-        if getgenv().AutoFarm then
+            
+            -- 2. Setor Bucket (Ditembak bersamaan)
             pourBucket:FireServer(unpack(args))
+            
+            -- 3. Ambil Token (Ditembak bersamaan)
             takeToken:FireServer(unpack(args))
         end
     end
