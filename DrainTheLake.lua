@@ -7,11 +7,9 @@ local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
--- Define Remotes (Hanya untuk Bucket/Drain)
+-- Define Remotes (Hanya untuk Auto Drain)
 local verdantRemotes = RS:WaitForChild("VerdantRemotes")
 local useBucket = verdantRemotes:WaitForChild("VDT_Bucket.Used")
-local pourBucket = verdantRemotes:WaitForChild("VDT_Bucket.Poured")
-local takeToken = verdantRemotes:WaitForChild("VDT_Tokens.Take")
 
 -- Global Toggle Status
 getgenv().AutoDrain = false
@@ -23,7 +21,7 @@ getgenv().AutoChest = false
 task.spawn(function()
     while task.wait(0.1) do
         
-        -- 1. Cek Status Bucket (Mencegah error jika UI reset)
+        -- 1. Cek Status Bucket untuk logika Auto Drain
         local isFull = false
         pcall(function()
             if LocalPlayer.PlayerGui.Interface.Holder.BucketFill.Bar.Progress.Text == "100% Full" then
@@ -31,7 +29,7 @@ task.spawn(function()
             end
         end)
 
-        -- 2. AUTO DRAIN (Hanya berjalan jika BUKAN 100%)
+        -- 2. AUTO DRAIN (Tetap FireServer)
         if getgenv().AutoDrain and not isFull then
             useBucket:FireServer()
         end
@@ -39,83 +37,70 @@ task.spawn(function()
         local scriptedFolder = Workspace:FindFirstChild("Scripted")
         if scriptedFolder then
             
-            -- 3. AUTO CHEST (Loop semua chest & cek Enabled == true)
+            -- 3. AUTO CHEST (Menggunakan fireproximityprompt)
             if getgenv().AutoChest then
                 local chestsFolder = scriptedFolder:FindFirstChild("Chests")
                 if chestsFolder then
-                    for _, prompt in ipairs(chestsFolder:GetDescendants()) do
-                        -- Pastikan objeknya adalah ProximityPrompt dan sedang aktif
-                        if prompt:IsA("ProximityPrompt") and prompt.Enabled then
-                            pcall(function()
-                                fireproximityprompt(prompt)
-                            end)
+                    for _, obj in ipairs(chestsFolder:GetDescendants()) do
+                        if obj:IsA("ProximityPrompt") and obj.Enabled then
+                            pcall(function() fireproximityprompt(obj) end)
                         end
                     end
                 end
             end
 
-            -- 4 & 5. AUTO STOR & AUTO TOKEN (Loop semua folder Drain)
+            -- Mengumpulkan target spesifik folder "Drain"
+            local targetDrains = {}
+            
+            -- Drain di luar
             for _, obj in ipairs(scriptedFolder:GetChildren()) do
-                if obj.Name == "Drain" then
-                    
-                    -- AUTO STOR (Berjalan jika status bucket isFull)
-                    if getgenv().AutoStor and isFull then
-                        -- Sesuai screenshot: Drain -> Scripted -> ProximityPosition -> ProximityPrompt
-                        local storPrompt = obj:FindFirstChild("Scripted") 
-                            and obj.Scripted:FindFirstChild("ProximityPosition") 
-                            and obj.Scripted.ProximityPosition:FindFirstChild("ProximityPrompt")
-                            
-                        if storPrompt then
-                            pourBucket:FireServer(storPrompt)
-                        end
-                    end
-                    
-                    -- AUTO TOKEN (Berjalan terus untuk klaim)
-                    if getgenv().AutoToken then
-                        -- Sesuai screenshot: Drain -> Scripted -> TakeTokens -> ProximityPrompt
-                        local tokenPrompt = obj:FindFirstChild("Scripted") 
-                            and obj.Scripted:FindFirstChild("TakeTokens") 
-                            and obj.Scripted.TakeTokens:FindFirstChild("ProximityPrompt")
-                            
-                        if tokenPrompt then
-                            takeToken:FireServer(tokenPrompt)
-                        end
-                    end
-                    
-                end
+                if obj.Name == "Drain" then table.insert(targetDrains, obj) end
             end
             
+            -- Drain di dalam CheckpointParts["1"]
+            local checkpointParts = scriptedFolder:FindFirstChild("CheckpointParts")
+            if checkpointParts and checkpointParts:FindFirstChild("1") then
+                for _, obj in ipairs(checkpointParts["1"]:GetChildren()) do
+                    if obj.Name == "Drain" then table.insert(targetDrains, obj) end
+                end
+            end
+
+            -- 4 & 5. AUTO STOR & AUTO TOKEN (Menggunakan fireproximityprompt)
+            for _, drainObj in ipairs(targetDrains) do
+                local scripted = drainObj:FindFirstChild("Scripted")
+                if scripted then
+                    
+                    local storPrompt = scripted:FindFirstChild("ProximityPosition") 
+                        and scripted.ProximityPosition:FindFirstChild("ProximityPrompt")
+                    local tokenPrompt = scripted:FindFirstChild("TakeTokens") 
+                        and scripted.TakeTokens:FindFirstChild("ProximityPrompt")
+                    
+                    -- AUTO STOR (Trigger prompt)
+                    if getgenv().AutoStor and isFull and storPrompt and storPrompt.Enabled then
+                        pcall(function() fireproximityprompt(storPrompt) end)
+                    end
+                    
+                    -- AUTO TOKEN (Trigger prompt)
+                    if getgenv().AutoToken and tokenPrompt and tokenPrompt.Enabled then
+                        pcall(function() fireproximityprompt(tokenPrompt) end)
+                    end
+                end
+            end
         end
     end
 end)
 
 ------------------------------------------
--- UI SETUP MENGGUNAKAN RZY LIBRARY
+-- UI SETUP
 ------------------------------------------
 local success, Library = pcall(function()
     return loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
 end)
 
 if success and Library then
-    -- Inisialisasi Window
     local Window = Library:MakeWindow("Drain The Lake")
-    
-    -- Toggles
-    Window:AddToggle("Auto Drain", false, function(Value)
-        getgenv().AutoDrain = Value
-    end)
-
-    Window:AddToggle("Auto Stor", false, function(Value)
-        getgenv().AutoStor = Value
-    end)
-
-    Window:AddToggle("Auto Token", false, function(Value)
-        getgenv().AutoToken = Value
-    end)
-    
-    Window:AddToggle("Auto Chest", false, function(Value)
-        getgenv().AutoChest = Value
-    end)
-else
-    warn("UI Gagal Dimuat! Pastikan link github RZY_Library valid.")
+    Window:AddToggle("Auto Drain", false, function(v) getgenv().AutoDrain = v end)
+    Window:AddToggle("Auto Stor", false, function(v) getgenv().AutoStor = v end)
+    Window:AddToggle("Auto Token", false, function(v) getgenv().AutoToken = v end)
+    Window:AddToggle("Auto Chest", false, function(v) getgenv().AutoChest = v end)
 end
