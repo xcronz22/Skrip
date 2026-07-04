@@ -57,15 +57,12 @@ task.spawn(function()
 
             -- Mengumpulkan target spesifik folder "Drain" sesuai screenshot
             local targetDrains = {}
-            
-            -- Ambil Drain yang ada di luar (workspace.Scripted.Drain)
             for _, obj in ipairs(scriptedFolder:GetChildren()) do
                 if obj.Name == "Drain" then
                     table.insert(targetDrains, obj)
                 end
             end
             
-            -- Ambil Drain yang ada di dalam CheckpointParts["1"]
             local checkpointParts = scriptedFolder:FindFirstChild("CheckpointParts")
             if checkpointParts then
                 local cp1 = checkpointParts:FindFirstChild("1")
@@ -82,66 +79,71 @@ task.spawn(function()
             for _, drainObj in ipairs(targetDrains) do
                 local scripted = drainObj:FindFirstChild("Scripted")
                 if scripted then
-                    
-                    -- Prompt utama untuk argumen remote (Diambil dari ProximityPosition)
                     local mainPrompt = scripted:FindFirstChild("ProximityPosition")
                         and scripted.ProximityPosition:FindFirstChild("ProximityPrompt")
                         
-                    -- Prompt visual untuk pencairan manual (Diambil dari TakeTokens)
                     local visualTokenPrompt = scripted:FindFirstChild("TakeTokens")
                         and scripted.TakeTokens:FindFirstChild("ProximityPrompt")
 
-                    -- AUTO STOR
                     if getgenv().AutoStor and isFull and mainPrompt then
                         pourBucket:FireServer(mainPrompt)
                     end
                     
-                    -- AUTO TOKEN
                     if getgenv().AutoToken then
-                        -- Tembak Remote menggunakan mainPrompt (Sesuai script asli Anda)
                         if mainPrompt then
                             takeToken:FireServer(mainPrompt)
                         end
-                        
-                        -- Backup: Tembak prompt visual TakeTokens secara paksa
                         if visualTokenPrompt and visualTokenPrompt.Enabled then
                             pcall(function()
                                 fireproximityprompt(visualTokenPrompt)
                             end)
                         end
                     end
-                    
                 end
             end
-            
         end
     end
 end)
 
--- AUTO UPGRADE LOOP (Terpisah dari loop utama)
+-- AUTO UPGRADE LOOP (Penyebaran dari Tengah 0,0 ke Luar)
 task.spawn(function()
-    -- Kategori berdasarkan remote yang kamu berikan
     local upgradeCategories = {"buckets", "root", "diamonds"} 
     
-    while task.wait(2) do -- Berjalan setiap 2 detik agar tidak membuat ping tinggi
+    -- 1. Membuat daftar semua kemungkinan koordinat dari -10 sampai 10
+    local coords = {}
+    for x = -10, 10 do
+        for y = -10, 10 do
+            table.insert(coords, {x, y})
+        end
+    end
+    
+    -- 2. MENGURUTKAN DAFTAR: Memastikan dimulai dari (0,0) menyebar ke luar
+    table.sort(coords, function(a, b)
+        -- Menghitung jarak dari (0,0)
+        local distA = math.abs(a[1]) + math.abs(a[2])
+        local distB = math.abs(b[1]) + math.abs(b[2])
+        return distA < distB -- Yang paling dekat dengan 0,0 akan dieksekusi pertama
+    end)
+
+    while task.wait(2) do
         if getgenv().AutoUpgrade then
             for _, category in ipairs(upgradeCategories) do
                 if not getgenv().AutoUpgrade then break end
                 
-                -- Brute-force angka (Diubah: mencoba ID dari -10 sampai 20)
-                for nodeId = -10, 10 do
+                -- Mengeksekusi dari (0,0) menyebar berurutan berkat fungsi sort di atas
+                for _, coord in ipairs(coords) do
                     if not getgenv().AutoUpgrade then break end
+                    
+                    local x, y = coord[1], coord[2]
                     
                     task.spawn(function()
                         pcall(function()
-                            -- Coba dengan angka argumen -1 dan 1
-                            skillTreePurchase:InvokeServer(category, nodeId, -1)
-                            skillTreePurchase:InvokeServer(category, nodeId, 1)
+                            skillTreePurchase:InvokeServer(category, x, y)
                         end)
                     end)
                     
-                    -- Jeda per-request agar tidak terkena limit atau kick dari server karena spam
-                    task.wait(0.05) 
+                    -- Jeda super singkat 0.01 detik agar tidak menyebabkan game lag
+                    task.wait(0.01) 
                 end
             end
         end
@@ -156,10 +158,8 @@ local success, Library = pcall(function()
 end)
 
 if success and Library then
-    -- Inisialisasi Window
     local Window = Library:MakeWindow("Drain The Lake")
     
-    -- Toggles
     Window:AddToggle("Auto Drain", false, function(Value)
         getgenv().AutoDrain = Value
     end)
