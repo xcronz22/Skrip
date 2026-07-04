@@ -12,14 +12,15 @@ local verdantRemotes = RS:WaitForChild("VerdantRemotes")
 local useBucket = verdantRemotes:WaitForChild("VDT_Bucket.Used")
 local pourBucket = verdantRemotes:WaitForChild("VDT_Bucket.Poured")
 local takeToken = verdantRemotes:WaitForChild("VDT_Tokens.Take")
-local skillTreePurchase = verdantRemotes:WaitForChild("VDT_SkillTree.Purchase") -- Remote Upgrade
+local skillTreePurchase = verdantRemotes:WaitForChild("VDT_SkillTree.Purchase")
 
 -- Global Toggle Status
+getgenv().AutoFarm  = false -- MASTER TOGGLE
 getgenv().AutoDrain = false
 getgenv().AutoStor  = false
 getgenv().AutoToken = false
 getgenv().AutoChest = false
-getgenv().AutoUpgrade = false -- Toggle untuk Auto Upgrade
+getgenv().AutoUpgrade = false
 
 -- MAIN LOOP: 0.1 Detik (Untuk Farming)
 task.spawn(function()
@@ -33,8 +34,8 @@ task.spawn(function()
             end
         end)
 
-        -- 2. AUTO DRAIN
-        if getgenv().AutoDrain and not isFull then
+        -- 2. AUTO DRAIN (Mengikuti AutoFarm ATAU AutoDrain)
+        if (getgenv().AutoDrain or getgenv().AutoFarm) and not isFull then
             useBucket:FireServer()
         end
 
@@ -42,7 +43,7 @@ task.spawn(function()
         if scriptedFolder then
             
             -- 3. AUTO CHEST
-            if getgenv().AutoChest then
+            if (getgenv().AutoChest or getgenv().AutoFarm) then
                 local chestsFolder = scriptedFolder:FindFirstChild("Chests")
                 if chestsFolder then
                     for _, prompt in ipairs(chestsFolder:GetDescendants()) do
@@ -55,7 +56,7 @@ task.spawn(function()
                 end
             end
 
-            -- Mengumpulkan target spesifik folder "Drain" sesuai screenshot
+            -- Mengumpulkan target spesifik folder "Drain"
             local targetDrains = {}
             for _, obj in ipairs(scriptedFolder:GetChildren()) do
                 if obj.Name == "Drain" then
@@ -85,11 +86,13 @@ task.spawn(function()
                     local visualTokenPrompt = scripted:FindFirstChild("TakeTokens")
                         and scripted.TakeTokens:FindFirstChild("ProximityPrompt")
 
-                    if getgenv().AutoStor and isFull and mainPrompt then
+                    -- AUTO STOR
+                    if (getgenv().AutoStor or getgenv().AutoFarm) and isFull and mainPrompt then
                         pourBucket:FireServer(mainPrompt)
                     end
                     
-                    if getgenv().AutoToken then
+                    -- AUTO TOKEN
+                    if (getgenv().AutoToken or getgenv().AutoFarm) then
                         if mainPrompt then
                             takeToken:FireServer(mainPrompt)
                         end
@@ -107,9 +110,8 @@ end)
 
 -- AUTO UPGRADE LOOP (Penyebaran dari Tengah 0,0 ke Luar)
 task.spawn(function()
-    local upgradeCategories = {"buckets", "root", "diamonds"} 
+    local upgradeCategories = {"buckets", "root", "diamonds", "character"} 
     
-    -- 1. Membuat daftar semua kemungkinan koordinat dari -10 sampai 10
     local coords = {}
     for x = -10, 10 do
         for y = -10, 10 do
@@ -117,22 +119,20 @@ task.spawn(function()
         end
     end
     
-    -- 2. MENGURUTKAN DAFTAR: Memastikan dimulai dari (0,0) menyebar ke luar
     table.sort(coords, function(a, b)
-        -- Menghitung jarak dari (0,0)
         local distA = math.abs(a[1]) + math.abs(a[2])
         local distB = math.abs(b[1]) + math.abs(b[2])
-        return distA < distB -- Yang paling dekat dengan 0,0 akan dieksekusi pertama
+        return distA < distB
     end)
 
     while task.wait(2) do
-        if getgenv().AutoUpgrade then
+        -- Cek Master Toggle atau Toggle Individual
+        if (getgenv().AutoUpgrade or getgenv().AutoFarm) then
             for _, category in ipairs(upgradeCategories) do
-                if not getgenv().AutoUpgrade then break end
+                if not (getgenv().AutoUpgrade or getgenv().AutoFarm) then break end
                 
-                -- Mengeksekusi dari (0,0) menyebar berurutan berkat fungsi sort di atas
                 for _, coord in ipairs(coords) do
-                    if not getgenv().AutoUpgrade then break end
+                    if not (getgenv().AutoUpgrade or getgenv().AutoFarm) then break end
                     
                     local x, y = coord[1], coord[2]
                     
@@ -142,7 +142,6 @@ task.spawn(function()
                         end)
                     end)
                     
-                    -- Jeda super singkat 0.01 detik agar tidak menyebabkan game lag
                     task.wait(0.01) 
                 end
             end
@@ -160,6 +159,12 @@ end)
 if success and Library then
     local Window = Library:MakeWindow("Drain The Lake")
     
+    -- TOMBOL MASTER
+    Window:AddToggle("Auto Farm (All-In-One)", false, function(Value)
+        getgenv().AutoFarm = Value
+    end)
+
+    -- TOMBOL INDIVIDUAL (Sebagai Backup/Kustomisasi)
     Window:AddToggle("Auto Drain", false, function(Value)
         getgenv().AutoDrain = Value
     end)
