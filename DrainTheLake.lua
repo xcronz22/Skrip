@@ -12,7 +12,7 @@ local verdantRemotes = RS:WaitForChild("VerdantRemotes")
 local useBucket = verdantRemotes:WaitForChild("VDT_Bucket.Used")
 local pourBucket = verdantRemotes:WaitForChild("VDT_Bucket.Poured")
 local takeToken = verdantRemotes:WaitForChild("VDT_Tokens.Take")
-local openChest = verdantRemotes:WaitForChild("VDT_Chest.Open") -- Menambahkan remote Chest
+local openChest = verdantRemotes:WaitForChild("VDT_Chest.Open") 
 local skillTreePurchase = verdantRemotes:WaitForChild("VDT_SkillTree.Purchase")
 
 -- Global Toggle Status
@@ -21,6 +21,7 @@ getgenv().AutoDrain = false
 getgenv().AutoStor  = false
 getgenv().AutoToken = false
 getgenv().AutoChest = false
+getgenv().AutoPhone = false -- TOGGLE UNTUK PHONE
 getgenv().AutoUpgrade = false
 
 -- MAIN LOOP: 0.1 Detik (Untuk Farming)
@@ -40,14 +41,26 @@ task.spawn(function()
             useBucket:FireServer()
         end
 
+        -- 3. AUTO PHONE (Menggunakan fireproximityprompt karena tidak ada remote)
+        if (getgenv().AutoPhone or getgenv().AutoFarm) then
+            local phonePrompt = Workspace:FindFirstChild("Phone")
+                and Workspace.Phone:FindFirstChild("PhoneHandle")
+                and Workspace.Phone.PhoneHandle:FindFirstChild("ProximityPrompt")
+                
+            if phonePrompt and phonePrompt.Enabled then
+                pcall(function()
+                    fireproximityprompt(phonePrompt)
+                end)
+            end
+        end
+
         local scriptedFolder = Workspace:FindFirstChild("Scripted")
         if scriptedFolder then
             
-            -- 3. AUTO CHEST (Diperbarui menggunakan Remote Server & Pencarian Dinamis)
+            -- 4. AUTO CHEST 
             if (getgenv().AutoChest or getgenv().AutoFarm) then
                 local chestsFolder = scriptedFolder:FindFirstChild("Chests")
                 if chestsFolder then
-                    -- Looping ke semua Chest yang ada di dalam folder Chests
                     for _, chestObj in ipairs(chestsFolder:GetChildren()) do
                         local chestPart = chestObj:FindFirstChild("Part")
                         if chestPart then
@@ -59,17 +72,15 @@ task.spawn(function()
                 end
             end
 
-            -- 4. PENCARIAN DRAIN DINAMIS (Fleksibel untuk semua Checkpoint)
+            -- 5. PENCARIAN DRAIN DINAMIS
             local targetPrompts = {}
             
-            -- A. Mengambil Prompt dari Drain yang ada di area awal (workspace.Scripted.Drain)
             local mainDrain = scriptedFolder:FindFirstChild("Drain")
             if mainDrain and mainDrain:FindFirstChild("Scripted") and mainDrain.Scripted:FindFirstChild("ProximityPosition") then
                 local prompt = mainDrain.Scripted.ProximityPosition:FindFirstChild("ProximityPrompt")
                 if prompt then table.insert(targetPrompts, prompt) end
             end
             
-            -- B. Mengambil Prompt dari SEMUA Checkpoint yang terbuka (1, 2, 3, dst.)
             local checkpointParts = scriptedFolder:FindFirstChild("CheckpointParts")
             if checkpointParts then
                 for _, cp in ipairs(checkpointParts:GetChildren()) do
@@ -81,7 +92,7 @@ task.spawn(function()
                 end
             end
 
-            -- 5. AUTO STOR & AUTO TOKEN (Mengeksekusi semua target yang ditemukan)
+            -- 6. AUTO STOR & AUTO TOKEN 
             for _, prompt in ipairs(targetPrompts) do
                 -- AUTO STOR
                 if (getgenv().AutoStor or getgenv().AutoFarm) and isFull then
@@ -171,6 +182,10 @@ if success and Library then
     
     Window:AddToggle("Auto Chest", false, function(Value)
         getgenv().AutoChest = Value
+    end)
+    
+    Window:AddToggle("Auto Phone", false, function(Value)
+        getgenv().AutoPhone = Value
     end)
 
     Window:AddToggle("Auto Upgrade", false, function(Value)
