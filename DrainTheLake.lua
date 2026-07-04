@@ -12,6 +12,7 @@ local verdantRemotes = RS:WaitForChild("VerdantRemotes")
 local useBucket = verdantRemotes:WaitForChild("VDT_Bucket.Used")
 local pourBucket = verdantRemotes:WaitForChild("VDT_Bucket.Poured")
 local takeToken = verdantRemotes:WaitForChild("VDT_Tokens.Take")
+local openChest = verdantRemotes:WaitForChild("VDT_Chest.Open") -- Menambahkan remote Chest
 local skillTreePurchase = verdantRemotes:WaitForChild("VDT_SkillTree.Purchase")
 
 -- Global Toggle Status
@@ -34,7 +35,7 @@ task.spawn(function()
             end
         end)
 
-        -- 2. AUTO DRAIN (Mengikuti AutoFarm ATAU AutoDrain)
+        -- 2. AUTO DRAIN
         if (getgenv().AutoDrain or getgenv().AutoFarm) and not isFull then
             useBucket:FireServer()
         end
@@ -42,66 +43,58 @@ task.spawn(function()
         local scriptedFolder = Workspace:FindFirstChild("Scripted")
         if scriptedFolder then
             
-            -- 3. AUTO CHEST
+            -- 3. AUTO CHEST (Diperbarui menggunakan Remote Server & Pencarian Dinamis)
             if (getgenv().AutoChest or getgenv().AutoFarm) then
                 local chestsFolder = scriptedFolder:FindFirstChild("Chests")
                 if chestsFolder then
-                    for _, prompt in ipairs(chestsFolder:GetDescendants()) do
-                        if prompt:IsA("ProximityPrompt") and prompt.Enabled then
+                    -- Looping ke semua Chest yang ada di dalam folder Chests
+                    for _, chestObj in ipairs(chestsFolder:GetChildren()) do
+                        local chestPart = chestObj:FindFirstChild("Part")
+                        if chestPart then
                             pcall(function()
-                                fireproximityprompt(prompt)
+                                openChest:FireServer(chestPart)
                             end)
                         end
                     end
                 end
             end
 
-            -- Mengumpulkan target spesifik folder "Drain"
-            local targetDrains = {}
-            for _, obj in ipairs(scriptedFolder:GetChildren()) do
-                if obj.Name == "Drain" then
-                    table.insert(targetDrains, obj)
-                end
+            -- 4. PENCARIAN DRAIN DINAMIS (Fleksibel untuk semua Checkpoint)
+            local targetPrompts = {}
+            
+            -- A. Mengambil Prompt dari Drain yang ada di area awal (workspace.Scripted.Drain)
+            local mainDrain = scriptedFolder:FindFirstChild("Drain")
+            if mainDrain and mainDrain:FindFirstChild("Scripted") and mainDrain.Scripted:FindFirstChild("ProximityPosition") then
+                local prompt = mainDrain.Scripted.ProximityPosition:FindFirstChild("ProximityPrompt")
+                if prompt then table.insert(targetPrompts, prompt) end
             end
             
+            -- B. Mengambil Prompt dari SEMUA Checkpoint yang terbuka (1, 2, 3, dst.)
             local checkpointParts = scriptedFolder:FindFirstChild("CheckpointParts")
             if checkpointParts then
-                local cp1 = checkpointParts:FindFirstChild("1")
-                if cp1 then
-                    for _, obj in ipairs(cp1:GetChildren()) do
-                        if obj.Name == "Drain" then
-                            table.insert(targetDrains, obj)
-                        end
+                for _, cp in ipairs(checkpointParts:GetChildren()) do
+                    local cpDrain = cp:FindFirstChild("Drain")
+                    if cpDrain and cpDrain:FindFirstChild("Scripted") and cpDrain.Scripted:FindFirstChild("ProximityPosition") then
+                        local prompt = cpDrain.Scripted.ProximityPosition:FindFirstChild("ProximityPrompt")
+                        if prompt then table.insert(targetPrompts, prompt) end
                     end
                 end
             end
 
-            -- 4 & 5. AUTO STOR & AUTO TOKEN
-            for _, drainObj in ipairs(targetDrains) do
-                local scripted = drainObj:FindFirstChild("Scripted")
-                if scripted then
-                    local mainPrompt = scripted:FindFirstChild("ProximityPosition")
-                        and scripted.ProximityPosition:FindFirstChild("ProximityPrompt")
-                        
-                    local visualTokenPrompt = scripted:FindFirstChild("TakeTokens")
-                        and scripted.TakeTokens:FindFirstChild("ProximityPrompt")
-
-                    -- AUTO STOR
-                    if (getgenv().AutoStor or getgenv().AutoFarm) and isFull and mainPrompt then
-                        pourBucket:FireServer(mainPrompt)
-                    end
-                    
-                    -- AUTO TOKEN
-                    if (getgenv().AutoToken or getgenv().AutoFarm) then
-                        if mainPrompt then
-                            takeToken:FireServer(mainPrompt)
-                        end
-                        if visualTokenPrompt and visualTokenPrompt.Enabled then
-                            pcall(function()
-                                fireproximityprompt(visualTokenPrompt)
-                            end)
-                        end
-                    end
+            -- 5. AUTO STOR & AUTO TOKEN (Mengeksekusi semua target yang ditemukan)
+            for _, prompt in ipairs(targetPrompts) do
+                -- AUTO STOR
+                if (getgenv().AutoStor or getgenv().AutoFarm) and isFull then
+                    pcall(function()
+                        pourBucket:FireServer(prompt)
+                    end)
+                end
+                
+                -- AUTO TOKEN
+                if (getgenv().AutoToken or getgenv().AutoFarm) then
+                    pcall(function()
+                        takeToken:FireServer(prompt)
+                    end)
                 end
             end
         end
@@ -126,7 +119,6 @@ task.spawn(function()
     end)
 
     while task.wait(2) do
-        -- Cek Master Toggle atau Toggle Individual
         if (getgenv().AutoUpgrade or getgenv().AutoFarm) then
             for _, category in ipairs(upgradeCategories) do
                 if not (getgenv().AutoUpgrade or getgenv().AutoFarm) then break end
@@ -164,7 +156,7 @@ if success and Library then
         getgenv().AutoFarm = Value
     end)
 
-    -- TOMBOL INDIVIDUAL (Sebagai Backup/Kustomisasi)
+    -- TOMBOL INDIVIDUAL
     Window:AddToggle("Auto Drain", false, function(Value)
         getgenv().AutoDrain = Value
     end)
