@@ -12,7 +12,6 @@ local verdantRemotes = RS:WaitForChild("VerdantRemotes")
 local useBucket = verdantRemotes:WaitForChild("VDT_Bucket.Used")
 local pourBucket = verdantRemotes:WaitForChild("VDT_Bucket.Poured")
 local takeToken = verdantRemotes:WaitForChild("VDT_Tokens.Take")
-local openChest = verdantRemotes:WaitForChild("VDT_Chest.Open") 
 local skillTreePurchase = verdantRemotes:WaitForChild("VDT_SkillTree.Purchase")
 
 -- Global Toggle Status
@@ -21,7 +20,7 @@ getgenv().AutoDrain = false
 getgenv().AutoStor  = false
 getgenv().AutoToken = false
 getgenv().AutoChest = false
-getgenv().AutoPhone = false -- TOGGLE UNTUK PHONE
+getgenv().AutoPhone = false -- Auto Phone Toggle
 getgenv().AutoUpgrade = false
 
 -- MAIN LOOP: 0.1 Detik (Untuk Farming)
@@ -41,71 +40,82 @@ task.spawn(function()
             useBucket:FireServer()
         end
 
-        -- 3. AUTO PHONE (Menggunakan fireproximityprompt karena tidak ada remote)
+        -- 3. AUTO PHONE
         if (getgenv().AutoPhone or getgenv().AutoFarm) then
-            local phonePrompt = Workspace:FindFirstChild("Phone")
-                and Workspace.Phone:FindFirstChild("PhoneHandle")
-                and Workspace.Phone.PhoneHandle:FindFirstChild("ProximityPrompt")
-                
-            if phonePrompt and phonePrompt.Enabled then
-                pcall(function()
-                    fireproximityprompt(phonePrompt)
-                end)
-            end
+            pcall(function()
+                local phone = Workspace:FindFirstChild("Phone")
+                if phone then
+                    local prompt = phone:FindFirstChild("PhoneHandle") and phone.PhoneHandle:FindFirstChild("ProximityPrompt")
+                    if prompt and prompt.Enabled then
+                        fireproximityprompt(prompt)
+                    end
+                end
+            end)
         end
 
         local scriptedFolder = Workspace:FindFirstChild("Scripted")
         if scriptedFolder then
             
-            -- 4. AUTO CHEST 
+            -- 4. AUTO CHEST
             if (getgenv().AutoChest or getgenv().AutoFarm) then
                 local chestsFolder = scriptedFolder:FindFirstChild("Chests")
                 if chestsFolder then
-                    for _, chestObj in ipairs(chestsFolder:GetChildren()) do
-                        local chestPart = chestObj:FindFirstChild("Part")
-                        if chestPart then
+                    for _, prompt in ipairs(chestsFolder:GetDescendants()) do
+                        if prompt:IsA("ProximityPrompt") and prompt.Enabled then
                             pcall(function()
-                                openChest:FireServer(chestPart)
+                                fireproximityprompt(prompt)
                             end)
                         end
                     end
                 end
             end
 
-            -- 5. PENCARIAN DRAIN DINAMIS
-            local targetPrompts = {}
-            
-            local mainDrain = scriptedFolder:FindFirstChild("Drain")
-            if mainDrain and mainDrain:FindFirstChild("Scripted") and mainDrain.Scripted:FindFirstChild("ProximityPosition") then
-                local prompt = mainDrain.Scripted.ProximityPosition:FindFirstChild("ProximityPrompt")
-                if prompt then table.insert(targetPrompts, prompt) end
+            -- Mengumpulkan target spesifik folder "Drain"
+            local targetDrains = {}
+            for _, obj in ipairs(scriptedFolder:GetChildren()) do
+                if obj.Name == "Drain" then
+                    table.insert(targetDrains, obj)
+                end
             end
             
             local checkpointParts = scriptedFolder:FindFirstChild("CheckpointParts")
             if checkpointParts then
-                for _, cp in ipairs(checkpointParts:GetChildren()) do
-                    local cpDrain = cp:FindFirstChild("Drain")
-                    if cpDrain and cpDrain:FindFirstChild("Scripted") and cpDrain.Scripted:FindFirstChild("ProximityPosition") then
-                        local prompt = cpDrain.Scripted.ProximityPosition:FindFirstChild("ProximityPrompt")
-                        if prompt then table.insert(targetPrompts, prompt) end
+                local cp1 = checkpointParts:FindFirstChild("1")
+                if cp1 then
+                    for _, obj in ipairs(cp1:GetChildren()) do
+                        if obj.Name == "Drain" then
+                            table.insert(targetDrains, obj)
+                        end
                     end
                 end
             end
 
-            -- 6. AUTO STOR & AUTO TOKEN 
-            for _, prompt in ipairs(targetPrompts) do
-                -- AUTO STOR
-                if (getgenv().AutoStor or getgenv().AutoFarm) and isFull then
-                    pcall(function()
-                        pourBucket:FireServer(prompt)
-                    end)
-                end
-                
-                -- AUTO TOKEN
-                if (getgenv().AutoToken or getgenv().AutoFarm) then
-                    pcall(function()
-                        takeToken:FireServer(prompt)
-                    end)
+            -- 5 & 6. AUTO STOR & AUTO TOKEN
+            for _, drainObj in ipairs(targetDrains) do
+                local scripted = drainObj:FindFirstChild("Scripted")
+                if scripted then
+                    local mainPrompt = scripted:FindFirstChild("ProximityPosition")
+                        and scripted.ProximityPosition:FindFirstChild("ProximityPrompt")
+                        
+                    local visualTokenPrompt = scripted:FindFirstChild("TakeTokens")
+                        and scripted.TakeTokens:FindFirstChild("ProximityPrompt")
+
+                    -- AUTO STOR
+                    if (getgenv().AutoStor or getgenv().AutoFarm) and isFull and mainPrompt then
+                        pourBucket:FireServer(mainPrompt)
+                    end
+                    
+                    -- AUTO TOKEN
+                    if (getgenv().AutoToken or getgenv().AutoFarm) then
+                        if mainPrompt then
+                            takeToken:FireServer(mainPrompt)
+                        end
+                        if visualTokenPrompt and visualTokenPrompt.Enabled then
+                            pcall(function()
+                                fireproximityprompt(visualTokenPrompt)
+                            end)
+                        end
+                    end
                 end
             end
         end
@@ -183,7 +193,7 @@ if success and Library then
     Window:AddToggle("Auto Chest", false, function(Value)
         getgenv().AutoChest = Value
     end)
-    
+
     Window:AddToggle("Auto Phone", false, function(Value)
         getgenv().AutoPhone = Value
     end)
