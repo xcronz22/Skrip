@@ -4,6 +4,8 @@ repeat task.wait() until game:IsLoaded()
 -- Variables Setup
 local RS = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 
 -- Define Remotes & Target Path
 local verdantRemotes = RS:WaitForChild("VerdantRemotes")
@@ -22,20 +24,34 @@ local targetPrompt = Workspace:WaitForChild("Scripted")
 local args = { targetPrompt }
 
 -- Global Toggle Status
-getgenv().AutoFarm = false
+getgenv().AutoDrain = false
+getgenv().AutoStor = false
+getgenv().AutoToken = false
 
--- MAIN LOOP: SEMUA 0.1 DETIK
+-- MAIN LOOP: 0.1 Detik
 task.spawn(function()
     while task.wait(0.1) do
-        if getgenv().AutoFarm then
-            -- 1. Drain (Tembak Use Bucket)
+        -- 1. Cek Status Bucket dengan pcall (Mencegah error jika UI reset/belum loading)
+        local isFull = false
+        pcall(function()
+            if LocalPlayer.PlayerGui.Interface.Holder.BucketFill.Bar.Progress.Text == "100% Full" then
+                isFull = true
+            end
+        end)
+
+        -- 2. Eksekusi Auto Drain (Hanya berjalan jika BUKAN 100%)
+        if getgenv().AutoDrain and not isFull then
             useBucket:FireServer()
-            
-            -- 2. Setor Bucket (Ditembak bersamaan)
+        end
+        
+        -- 3. Eksekusi Auto Stor (Hanya berjalan jika SUDAH 100%)
+        if getgenv().AutoStor and isFull then
             pourBucket:FireServer(unpack(args))
-            
-            -- 3. Ambil Token (Ditembak bersamaan)
-            --takeToken:FireServer(unpack(args))
+        end
+        
+        -- 4. Eksekusi Auto Token (Bisa dicairkan terus-menerus)
+        if getgenv().AutoToken then
+            takeToken:FireServer(unpack(args))
         end
     end
 end)
@@ -48,14 +64,23 @@ local success, Library = pcall(function()
 end)
 
 if success and Library then
-    -- Inisialisasi Window UI sesuai dengan struktur library RZY
+    -- Inisialisasi Window
     local Window = Library:MakeWindow("Drain The Lake")
     
-    -- Tambahkan Toggle Auto Farm
-    Window:AddToggle("Auto Farm", false, function(Value)
-        getgenv().AutoFarm = Value
+    -- Toggle 1: Auto Drain
+    Window:AddToggle("Auto Drain", false, function(Value)
+        getgenv().AutoDrain = Value
+    end)
+
+    -- Toggle 2: Auto Stor
+    Window:AddToggle("Auto Stor", false, function(Value)
+        getgenv().AutoStor = Value
+    end)
+
+    -- Toggle 3: Auto Token
+    Window:AddToggle("Auto Token", false, function(Value)
+        getgenv().AutoToken = Value
     end)
 else
-    -- Jika UI gagal muncul, peringatan ini akan keluar di Console (F9)
-    warn("UI Gagal Dimuat! Pastikan link raw github RZY_Library masih aktif dan bisa diakses.")
+    warn("UI Gagal Dimuat! Pastikan link github RZY_Library valid.")
 end
