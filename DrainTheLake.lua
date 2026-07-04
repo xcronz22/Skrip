@@ -12,14 +12,16 @@ local verdantRemotes = RS:WaitForChild("VerdantRemotes")
 local useBucket = verdantRemotes:WaitForChild("VDT_Bucket.Used")
 local pourBucket = verdantRemotes:WaitForChild("VDT_Bucket.Poured")
 local takeToken = verdantRemotes:WaitForChild("VDT_Tokens.Take")
+local skillTreePurchase = verdantRemotes:WaitForChild("VDT_SkillTree.Purchase") -- Remote Upgrade
 
 -- Global Toggle Status
 getgenv().AutoDrain = false
 getgenv().AutoStor  = false
 getgenv().AutoToken = false
 getgenv().AutoChest = false
+getgenv().AutoUpgrade = false -- Toggle untuk Auto Upgrade
 
--- MAIN LOOP: 0.1 Detik
+-- MAIN LOOP: 0.1 Detik (Untuk Farming)
 task.spawn(function()
     while task.wait(0.1) do
         
@@ -116,6 +118,36 @@ task.spawn(function()
     end
 end)
 
+-- AUTO UPGRADE LOOP (Terpisah dari loop utama)
+task.spawn(function()
+    -- Kategori berdasarkan remote yang kamu berikan
+    local upgradeCategories = {"buckets", "root", "diamonds"} 
+    
+    while task.wait(2) do -- Berjalan setiap 2 detik agar tidak membuat ping tinggi
+        if getgenv().AutoUpgrade then
+            for _, category in ipairs(upgradeCategories) do
+                if not getgenv().AutoUpgrade then break end
+                
+                -- Brute-force angka (Diubah: mencoba ID dari -10 sampai 20)
+                for nodeId = -10, 10 do
+                    if not getgenv().AutoUpgrade then break end
+                    
+                    task.spawn(function()
+                        pcall(function()
+                            -- Coba dengan angka argumen -1 dan 1
+                            skillTreePurchase:InvokeServer(category, nodeId, -1)
+                            skillTreePurchase:InvokeServer(category, nodeId, 1)
+                        end)
+                    end)
+                    
+                    -- Jeda per-request agar tidak terkena limit atau kick dari server karena spam
+                    task.wait(0.05) 
+                end
+            end
+        end
+    end
+end)
+
 ------------------------------------------
 -- UI SETUP MENGGUNAKAN RZY LIBRARY
 ------------------------------------------
@@ -142,6 +174,10 @@ if success and Library then
     
     Window:AddToggle("Auto Chest", false, function(Value)
         getgenv().AutoChest = Value
+    end)
+
+    Window:AddToggle("Auto Upgrade", false, function(Value)
+        getgenv().AutoUpgrade = Value
     end)
 else
     warn("UI Gagal Dimuat! Pastikan link github RZY_Library valid.")
