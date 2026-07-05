@@ -173,24 +173,36 @@ local function firePromptIn(instance)
     if prompt then fireproximityprompt(prompt) end
 end
 
--- UTILITY: Cari Pasien Aktif (Check-In)
-local function getActivePatient()
-    local checkIn = workspace.Misc:FindFirstChild("CheckIn")
-    local bell = checkIn and checkIn:FindFirstChild("Bell")
-    if not bell then return nil end
-
-    local bellPos = bell:IsA("BasePart") and bell.Position or (bell:FindFirstChildOfClass("BasePart") and bell:FindFirstChildOfClass("BasePart").Position)
-    if not bellPos then return nil end
-
-    for _, npc in ipairs(workspace.NPCs:GetChildren()) do
-        if npc:GetAttribute("IsPatient") == true then
-            local root = npc:FindFirstChild("HumanoidRootPart") or npc.PrimaryPart
-            if root and (root.Position - bellPos).Magnitude <= 15 then
-                return npc
+-- UTILITY: Cari Pasien Aktif (Mendukung CheckIn 1 & CheckIn 2)
+local function getActivePatientInfo()
+    local misc = workspace:FindFirstChild("Misc")
+    if not misc then return nil, nil end
+    
+    -- Mencari di kedua meja Check-In
+    local checkIns = {
+        misc:FindFirstChild("CheckIn"),
+        misc:FindFirstChild("CheckIn2")
+    }
+    
+    for _, desk in ipairs(checkIns) do
+        if desk then
+            local bell = desk:FindFirstChild("Bell")
+            if bell then
+                local bellPos = bell:IsA("BasePart") and bell.Position or (bell:FindFirstChildOfClass("BasePart") and bell:FindFirstChildOfClass("BasePart").Position)
+                if bellPos then
+                    for _, npc in ipairs(workspace.NPCs:GetChildren()) do
+                        if npc:GetAttribute("IsPatient") == true then
+                            local root = npc:FindFirstChild("HumanoidRootPart") or npc.PrimaryPart
+                            if root and (root.Position - bellPos).Magnitude <= 15 then
+                                return npc, desk -- Mengembalikan NPC dan Meja (Desk) tempat dia berada
+                            end
+                        end
+                    end
+                end
             end
         end
     end
-    return nil
+    return nil, nil
 end
 
 -- ================================================================
@@ -259,7 +271,7 @@ task.spawn(function()
 end)
 
 -- ================================================================
--- FITUR: AUTO CHECK-IN
+-- FITUR: AUTO CHECK-IN (Diperbarui untuk 2 Meja)
 -- ================================================================
 Window:AddToggle("Auto Check-In (Normal Only)", false, function(state)
     AutoCheckInEnabled = state
@@ -268,19 +280,34 @@ end)
 task.spawn(function()
     while task.wait(1) do
         if AutoCheckInEnabled then
-            local activeNPC = getActivePatient()
-            if activeNPC and not ProcessedNPCs[activeNPC] then
+            local activeNPC, activeDesk = getActivePatientInfo()
+            
+            if activeNPC and activeDesk and not ProcessedNPCs[activeNPC] then
                 ProcessedNPCs[activeNPC] = true 
                 if activeNPC:GetAttribute("Skinwalker") ~= true then
                     task.spawn(function()
-                        local checkIn = workspace.Misc:FindFirstChild("CheckIn")
-                        while activeNPC and activeNPC.Parent and AutoCheckInEnabled and checkIn do
+                        -- mainCheckIn adalah meja pertama untuk tempat komputer & printer yang dishare
+                        local mainCheckIn = workspace.Misc:FindFirstChild("CheckIn") 
+                        
+                        while activeNPC and activeNPC.Parent and AutoCheckInEnabled do
                             pcall(function()
-                                firePromptIn(checkIn:FindFirstChild("Form")); task.wait(0.7)
-                                firePromptIn(checkIn:FindFirstChild("Camera")); task.wait(0.7)
-                                firePromptIn(checkIn:FindFirstChild("Computer")); task.wait(0.7)
-                                firePromptIn(checkIn:FindFirstChild("Printer")); task.wait(3.0) 
-                                firePromptIn(checkIn:FindFirstChild("PrintedBadge")); task.wait(0.7)
+                                -- Form & Camera prioritas dari meja pasien berdiri, jika tidak ada cari di meja utama
+                                local form = activeDesk:FindFirstChild("Form") or (mainCheckIn and mainCheckIn:FindFirstChild("Form"))
+                                firePromptIn(form); task.wait(0.7)
+                                
+                                local camera = activeDesk:FindFirstChild("Camera") or (mainCheckIn and mainCheckIn:FindFirstChild("Camera"))
+                                firePromptIn(camera); task.wait(0.7)
+                                
+                                -- Komputer & Printer selalu mengambil dari meja utama karena dishare
+                                local computer = mainCheckIn and mainCheckIn:FindFirstChild("Computer")
+                                firePromptIn(computer); task.wait(0.7)
+                                
+                                local printer = mainCheckIn and mainCheckIn:FindFirstChild("Printer")
+                                firePromptIn(printer); task.wait(3.0) 
+                                
+                                local badge = mainCheckIn and mainCheckIn:FindFirstChild("PrintedBadge")
+                                firePromptIn(badge); task.wait(0.7)
+                                
                                 firePromptIn(activeNPC)
                             end)
                             task.wait(1.5)
@@ -294,7 +321,7 @@ end)
 workspace.NPCs.ChildRemoved:Connect(function(child) if ProcessedNPCs[child] then ProcessedNPCs[child] = nil end end)
 
 -- ================================================================
--- FITUR: AUTO AMBIL OBAT (Room 8 - Fixed with recursive search)
+-- FITUR: AUTO AMBIL OBAT (Room 8)
 -- ================================================================
 Window:AddToggle("Auto Ambil Obat (Room 8)", false, function(state)
     AutoMedicineEnabled = state
@@ -319,7 +346,6 @@ task.spawn(function()
                         local hasInHand = char and char:FindFirstChild(itemName)
                         
                         if not hasInBackpack and not hasInHand then
-                            -- Recursive search: menembus ke dalam 'Model' berdasarkan nama item
                             local itemPart = medicineFolder:FindFirstChild(itemName, true)
                             if itemPart then
                                 local prompt = itemPart:FindFirstChild("PP") or itemPart:FindFirstChildOfClass("ProximityPrompt")
@@ -366,7 +392,6 @@ task.spawn(function()
     while task.wait(1) do
         if AutoFireEnabled then
             pcall(function()
-                -- Memeriksa di dalam Medical dan Emergency
                 local foldersToCheck = {
                     workspace.Rooms:FindFirstChild("Medical"),
                     workspace.Rooms:FindFirstChild("Emergency")
@@ -377,7 +402,6 @@ task.spawn(function()
                         for _, room in ipairs(folder:GetChildren()) do
                             local fire = room:FindFirstChild("Fire")
                             if fire then
-                                -- Mencari semua ProximityPrompt di dalam model Fire
                                 for _, desc in ipairs(fire:GetDescendants()) do
                                     if desc:IsA("ProximityPrompt") then
                                         fireproximityprompt(desc)
@@ -404,11 +428,8 @@ task.spawn(function()
             pcall(function()
                 for _, npc in ipairs(workspace.NPCs:GetChildren()) do
                     if npc:GetAttribute("Skinwalker") == true then
-                        -- Gunakan remote event untuk menembak taser ke NPC tersebut
                         local args = { npc }
                         game:GetService("ReplicatedStorage"):WaitForChild("Util"):WaitForChild("Net"):WaitForChild("RE/TaserFired"):FireServer(unpack(args))
-                        
-                        -- Jeda sebentar setelah menembak satu anomaly agar tidak spam server
                         task.wait(1)
                     end
                 end
