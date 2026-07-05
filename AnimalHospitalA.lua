@@ -192,7 +192,7 @@ local function getActivePatient()
             local root = npc:FindFirstChild("HumanoidRootPart") or npc.PrimaryPart
             if root then
                 local distance = (root.Position - bellPos).Magnitude
-                if distance <= 15 then
+                if distance <= 5 then
                     return npc
                 end
             end
