@@ -325,7 +325,7 @@ task.spawn(function()
                                     firePromptIn(checkIn:FindFirstChild("Printer"))
                                     
                                     -- JEDA EKSTRA 2.5 DETIK AGAR BADGE SELESAI PRINTING
-                                    task.wait(2.5) 
+                                    task.wait(3) 
                                     
                                     firePromptIn(checkIn:FindFirstChild("PrintedBadge"))
                                     task.wait(0.7)
