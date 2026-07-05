@@ -155,11 +155,13 @@ end
 -- ================================================================
 
 local Window = RZY_Library:MakeWindow("Animal Hospital (Anomaly)")
+local LocalPlayer = game:GetService("Players").LocalPlayer
 
 -- State Variables
 local AutoCoffeeEnabled = false
 local AutoCheckInEnabled = false
 local EspEnabled = false
+local AutoMedicineEnabled = false
 local ProcessedNPCs = {}
 
 -- UTILITY: Sistem Aman Tekan Prompt
@@ -286,7 +288,7 @@ task.spawn(function()
     end
 end)
 
--- FITUR: Auto Check-In (Normal Only, Infinite Loop)
+-- FITUR: Auto Check-In (Normal Only)
 Window:AddToggle("Auto Check-In (Normal Only)", false, function(state)
     AutoCheckInEnabled = state
     if not state then table.clear(ProcessedNPCs) end
@@ -297,7 +299,6 @@ task.spawn(function()
         if AutoCheckInEnabled then
             local activeNPC = getActivePatient()
             
-            -- Memastikan hanya memproses pasien normal yang belum pernah diproses
             if activeNPC and not ProcessedNPCs[activeNPC] then
                 local isSkinwalker = activeNPC:GetAttribute("Skinwalker")
                 
@@ -307,7 +308,6 @@ task.spawn(function()
                     task.spawn(function()
                         local checkIn = workspace.Misc:FindFirstChild("CheckIn")
                         if checkIn then
-                            -- Loop terus-menerus selama NPC masih ada dan fitur aktif
                             while activeNPC and activeNPC.Parent and AutoCheckInEnabled do
                                 pcall(function()
                                     firePromptIn(checkIn:FindFirstChild("Form"))
@@ -318,23 +318,19 @@ task.spawn(function()
                                     task.wait(0.7)
                                     firePromptIn(checkIn:FindFirstChild("Printer"))
                                     
-                                    -- Jeda 3 detik agar badge benar-benar keluar
                                     task.wait(3.0) 
                                     
                                     firePromptIn(checkIn:FindFirstChild("PrintedBadge"))
                                     task.wait(0.7)
                                     
-                                    -- Konfirmasi akhir ke pasien
                                     firePromptIn(activeNPC)
                                 end)
                                 
-                                -- Jeda antar pengulangan agar tidak membuat server lag
                                 task.wait(1.5)
                             end
                         end
                     end)
                 else
-                    -- Jika terdeteksi Anomali, tandai agar diabaikan selamanya
                     ProcessedNPCs[activeNPC] = true
                 end
             end
@@ -345,4 +341,61 @@ end)
 -- Mencegah Memory Leak saat NPC dihapus
 workspace.NPCs.ChildRemoved:Connect(function(child)
     if ProcessedNPCs[child] then ProcessedNPCs[child] = nil end
+end)
+
+-- FITUR: Auto Bedah Prep / Ambil Obat (Room 8)
+Window:AddToggle("Auto Ambil Obat (Room 8)", false, function(state)
+    AutoMedicineEnabled = state
+end)
+
+task.spawn(function()
+    while task.wait(0.5) do
+        if AutoMedicineEnabled then
+            pcall(function()
+                local room8 = workspace.Rooms.Emergency:FindFirstChild("Room8")
+                if not room8 then return end
+
+                local inv = room8.Minigame.TV.Screen.UI.Report:FindFirstChild("inv")
+                if not inv then return end
+
+                -- Cek monitor untuk melihat apa yang sedang dibutuhkan pasien
+                for _, uiItem in ipairs(inv:GetChildren()) do
+                    -- Mengabaikan UI layout, hanya memproses elemen item
+                    if not uiItem:IsA("UIListLayout") and not uiItem:IsA("UIPadding") and not uiItem:IsA("UICorner") then
+                        -- Jika UI item tersebut sedang ditayangkan/ditampilkan (berarti dibutuhkan)
+                        if uiItem.Visible then
+                            local itemName = uiItem.Name
+                            
+                            -- Pengecekan tas dan karakter untuk melihat apakah kita sudah membawa item ini
+                            local character = LocalPlayer.Character
+                            local hasInBackpack = LocalPlayer.Backpack:FindFirstChild(itemName)
+                            local hasInHand = character and character:FindFirstChild(itemName)
+                            
+                            -- Jika belum ada di tangan maupun di tas, cari di area Medicine
+                            if not hasInBackpack and not hasInHand then
+                                local medicineArea = room8.Minigame:FindFirstChild("Medicine")
+                                if medicineArea then
+                                    -- Menggunakan GetDescendants agar mencari di seluruh penjuru Medicine tanpa memaku struktur folder tertentu
+                                    for _, desc in ipairs(medicineArea:GetDescendants()) do
+                                        if desc:IsA("ProximityPrompt") then
+                                            local parentName = desc.Parent and desc.Parent.Name or ""
+                                            local actionText = desc.ActionText or ""
+                                            local objectText = desc.ObjectText or ""
+
+                                            -- Cek kecocokan nama part/prompt dengan nama item di TV
+                                            if parentName == itemName or string.find(actionText, itemName) or string.find(objectText, itemName) then
+                                                fireproximityprompt(desc)
+                                                task.wait(1) -- Beri sedikit jeda server agar terambil sempurna
+                                                break -- Berhenti mencari prompt ini, lanjut cek TV berikutnya
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end
 end)
