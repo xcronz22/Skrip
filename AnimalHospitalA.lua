@@ -4,7 +4,6 @@
 local RZY_Library = {}
 
 function RZY_Library:MakeWindow(TitleText)
-    -- Perbaikan: Mencari GUI parent yang aman untuk semua executor
     local TargetGui
     pcall(function()
         TargetGui = (gethui and gethui()) or game:GetService("CoreGui")
@@ -166,18 +165,16 @@ local ProcessedNPCs = {}
 -- UTILITY: Sistem Aman Tekan Prompt
 local function firePromptIn(instance)
     if not instance then return end
-    -- Coba cari nama "PP" dahulu, jika tidak ada cari Class bawaannya
     local prompt = instance:FindFirstChild("PP") or instance:FindFirstChildOfClass("ProximityPrompt")
     if prompt then fireproximityprompt(prompt) end
 end
 
--- UTILITY: Cari Pasien Aktif Berdasarkan Jarak & Status
+-- UTILITY: Cari Pasien Aktif
 local function getActivePatient()
     local checkIn = workspace.Misc:FindFirstChild("CheckIn")
     local bell = checkIn and checkIn:FindFirstChild("Bell")
     if not bell then return nil end
 
-    -- Deteksi letak koordinat Bell secara dinamis (Aman jika bentuknya Model atau Part)
     local bellPos
     if bell:IsA("BasePart") then
         bellPos = bell.Position
@@ -189,11 +186,9 @@ local function getActivePatient()
     if not bellPos then return nil end
 
     for _, npc in ipairs(workspace.NPCs:GetChildren()) do
-        -- Pastikan NPC ini memang pasien yang sedang datang
         if npc:GetAttribute("IsPatient") == true then
             local root = npc:FindFirstChild("HumanoidRootPart") or npc.PrimaryPart
             if root then
-                -- Jarak diperbesar dari 12 ke 25 stud agar lebih fleksibel mendeteksi antrean
                 local distance = (root.Position - bellPos).Magnitude
                 if distance <= 25 then
                     return npc
@@ -291,7 +286,7 @@ task.spawn(function()
     end
 end)
 
--- FITUR: Auto Check-In (Anti-Spam & Normal Only)
+-- FITUR: Auto Check-In (Anti-Spam, Normal Only, Multi-Retry)
 Window:AddToggle("Auto Check-In (Normal Only)", false, function(state)
     AutoCheckInEnabled = state
     if not state then table.clear(ProcessedNPCs) end
@@ -304,30 +299,49 @@ task.spawn(function()
             
             if activeNPC and not ProcessedNPCs[activeNPC] then
                 local isSkinwalker = activeNPC:GetAttribute("Skinwalker")
-                ProcessedNPCs[activeNPC] = true 
                 
+                -- Jika ia pasien normal
                 if isSkinwalker ~= true then
-                    local checkIn = workspace.Misc:FindFirstChild("CheckIn")
-                    if checkIn then
-                        pcall(function()
-                            -- Jeda 1 detik saat terdeteksi agar server siap menerima interaksi
-                            task.wait(1) 
-                            
-                            firePromptIn(checkIn:FindFirstChild("Form"))
-                            task.wait(0.7)
-                            firePromptIn(checkIn:FindFirstChild("Camera"))
-                            task.wait(0.7)
-                            firePromptIn(checkIn:FindFirstChild("Computer"))
-                            task.wait(0.7)
-                            firePromptIn(checkIn:FindFirstChild("Printer"))
-                            task.wait(0.7)
-                            firePromptIn(checkIn:FindFirstChild("PrintedBadge"))
-                            task.wait(0.7)
-                            
-                            -- Langkah terakhir, konfirmasi ke pasiennya sendiri
-                            firePromptIn(activeNPC)
-                        end)
-                    end
+                    ProcessedNPCs[activeNPC] = true 
+                    
+                    -- Dijalankan di thread terpisah agar tidak membekukan pencarian utama
+                    task.spawn(function()
+                        local checkIn = workspace.Misc:FindFirstChild("CheckIn")
+                        if checkIn then
+                            -- Loop sebanyak 3x putaran untuk lebih pasti
+                            for i = 1, 3 do
+                                -- Hentikan loop pengulangan jika pasien sudah pergi / hilang
+                                if not activeNPC or not activeNPC.Parent then break end
+                                
+                                pcall(function()
+                                    if i == 1 then task.wait(1) end -- Jeda saat pasien baru muncul
+                                    
+                                    firePromptIn(checkIn:FindFirstChild("Form"))
+                                    task.wait(0.7)
+                                    firePromptIn(checkIn:FindFirstChild("Camera"))
+                                    task.wait(0.7)
+                                    firePromptIn(checkIn:FindFirstChild("Computer"))
+                                    task.wait(0.7)
+                                    firePromptIn(checkIn:FindFirstChild("Printer"))
+                                    
+                                    -- JEDA EKSTRA 2.5 DETIK AGAR BADGE SELESAI PRINTING
+                                    task.wait(2.5) 
+                                    
+                                    firePromptIn(checkIn:FindFirstChild("PrintedBadge"))
+                                    task.wait(0.7)
+                                    
+                                    -- Konfirmasi akhir ke pasien
+                                    firePromptIn(activeNPC)
+                                end)
+                                
+                                -- Jeda antar pengulangan eksekusi
+                                task.wait(1.5)
+                            end
+                        end
+                    end)
+                else
+                    -- Jika dia Skinwalker, langsung tandai agar diabaikan sepenuhnya
+                    ProcessedNPCs[activeNPC] = true
                 end
             end
         end
