@@ -286,7 +286,7 @@ task.spawn(function()
     end
 end)
 
--- FITUR: Auto Check-In (Anti-Spam, Normal Only, Multi-Retry)
+-- FITUR: Auto Check-In (Normal Only, Infinite Loop)
 Window:AddToggle("Auto Check-In (Normal Only)", false, function(state)
     AutoCheckInEnabled = state
     if not state then table.clear(ProcessedNPCs) end
@@ -297,25 +297,19 @@ task.spawn(function()
         if AutoCheckInEnabled then
             local activeNPC = getActivePatient()
             
+            -- Memastikan hanya memproses pasien normal yang belum pernah diproses
             if activeNPC and not ProcessedNPCs[activeNPC] then
                 local isSkinwalker = activeNPC:GetAttribute("Skinwalker")
                 
-                -- Jika ia pasien normal
                 if isSkinwalker ~= true then
                     ProcessedNPCs[activeNPC] = true 
                     
-                    -- Dijalankan di thread terpisah agar tidak membekukan pencarian utama
                     task.spawn(function()
                         local checkIn = workspace.Misc:FindFirstChild("CheckIn")
                         if checkIn then
-                            -- Loop sebanyak 3x putaran untuk lebih pasti
-                            for i = 1, 3 do
-                                -- Hentikan loop pengulangan jika pasien sudah pergi / hilang
-                                if not activeNPC or not activeNPC.Parent then break end
-                                
+                            -- Loop terus-menerus selama NPC masih ada dan fitur aktif
+                            while activeNPC and activeNPC.Parent and AutoCheckInEnabled do
                                 pcall(function()
-                                    if i == 1 then task.wait(1) end -- Jeda saat pasien baru muncul
-                                    
                                     firePromptIn(checkIn:FindFirstChild("Form"))
                                     task.wait(0.7)
                                     firePromptIn(checkIn:FindFirstChild("Camera"))
@@ -324,8 +318,8 @@ task.spawn(function()
                                     task.wait(0.7)
                                     firePromptIn(checkIn:FindFirstChild("Printer"))
                                     
-                                    -- JEDA EKSTRA 2.5 DETIK AGAR BADGE SELESAI PRINTING
-                                    task.wait(3) 
+                                    -- Jeda 3 detik agar badge benar-benar keluar
+                                    task.wait(3.0) 
                                     
                                     firePromptIn(checkIn:FindFirstChild("PrintedBadge"))
                                     task.wait(0.7)
@@ -334,13 +328,13 @@ task.spawn(function()
                                     firePromptIn(activeNPC)
                                 end)
                                 
-                                -- Jeda antar pengulangan eksekusi
+                                -- Jeda antar pengulangan agar tidak membuat server lag
                                 task.wait(1.5)
                             end
                         end
                     end)
                 else
-                    -- Jika dia Skinwalker, langsung tandai agar diabaikan sepenuhnya
+                    -- Jika terdeteksi Anomali, tandai agar diabaikan selamanya
                     ProcessedNPCs[activeNPC] = true
                 end
             end
