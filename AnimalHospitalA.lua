@@ -1,38 +1,211 @@
--- Memuat UI Library milik Anda
-local RZY_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
-[span_1](start_span)local Window = RZY_Library:MakeWindow("Animal Hospital (Anomaly)")[span_1](end_span)
+-- ================================================================
+-- 1. RZY UI LIBRARY (Bypass Executor Mobile)
+-- ================================================================
+local RZY_Library = {}
+
+function RZY_Library:MakeWindow(TitleText)
+    -- Perbaikan: Mencari GUI parent yang aman untuk semua executor
+    local TargetGui
+    pcall(function()
+        TargetGui = (gethui and gethui()) or game:GetService("CoreGui")
+    end)
+    if not TargetGui then
+        TargetGui = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+    end
+    
+    if TargetGui:FindFirstChild("RZY_Hub") then
+        TargetGui.RZY_Hub:Destroy()
+    end
+
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "RZY_Hub"
+    ScreenGui.Parent = TargetGui
+
+    local RZYIcon = Instance.new("TextButton")
+    RZYIcon.Size = UDim2.new(0, 50, 0, 50)
+    RZYIcon.Position = UDim2.new(0.5, -25, 0, 20)
+    RZYIcon.BackgroundColor3 = Color3.fromRGB(15, 15, 15) 
+    RZYIcon.Text = "R Z Y" 
+    RZYIcon.TextColor3 = Color3.fromRGB(0, 170, 255) 
+    RZYIcon.TextSize = 13 
+    RZYIcon.Font = Enum.Font.Gotham 
+    RZYIcon.Visible = false 
+    RZYIcon.Active = true
+    RZYIcon.Draggable = true 
+    RZYIcon.Parent = ScreenGui
+
+    Instance.new("UICorner", RZYIcon).CornerRadius = UDim.new(1, 0) 
+    local IconStroke = Instance.new("UIStroke", RZYIcon)
+    IconStroke.Color = Color3.fromRGB(0, 170, 255)
+    IconStroke.Thickness = 1.5
+
+    local MainFrame = Instance.new("Frame")
+    MainFrame.Size = UDim2.new(0, 300, 0, 450)
+    MainFrame.Position = UDim2.new(0.5, -150, 0.5, -225)
+    MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20) 
+    MainFrame.BorderSizePixel = 0
+    MainFrame.Active = true
+    MainFrame.Draggable = true 
+    MainFrame.Parent = ScreenGui
+
+    Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
+    local MainStroke = Instance.new("UIStroke", MainFrame)
+    MainStroke.Color = Color3.fromRGB(0, 170, 255) 
+    MainStroke.Thickness = 1.5
+
+    local TopBar = Instance.new("Frame")
+    TopBar.Size = UDim2.new(1, 0, 0, 40)
+    TopBar.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+    TopBar.Parent = MainFrame
+    Instance.new("UICorner", TopBar).CornerRadius = UDim.new(0, 8)
+
+    local TopCover = Instance.new("Frame")
+    TopCover.Size = UDim2.new(1, 0, 0, 10)
+    TopCover.Position = UDim2.new(0, 0, 1, -10)
+    TopCover.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+    TopCover.BorderSizePixel = 0
+    TopCover.Parent = TopBar
+
+    local Title = Instance.new("TextLabel")
+    Title.Size = UDim2.new(1, -90, 1, 0)
+    Title.Position = UDim2.new(0, 15, 0, 0)
+    Title.BackgroundTransparency = 1
+    Title.Text = TitleText 
+    Title.TextColor3 = Color3.fromRGB(0, 170, 255) 
+    Title.Font = Enum.Font.GothamBold
+    Title.TextSize = 16
+    Title.TextXAlignment = Enum.TextXAlignment.Left
+    Title.Parent = TopBar
+
+    local CloseBtn = Instance.new("TextButton")
+    CloseBtn.Size = UDim2.new(0, 30, 0, 30)
+    CloseBtn.Position = UDim2.new(1, -35, 0, 5)
+    CloseBtn.BackgroundTransparency = 1
+    CloseBtn.Text = "X"
+    CloseBtn.TextColor3 = Color3.fromRGB(255, 50, 50)
+    CloseBtn.Font = Enum.Font.GothamBold
+    CloseBtn.TextSize = 16
+    CloseBtn.Parent = TopBar
+
+    local MinBtn = Instance.new("TextButton")
+    MinBtn.Size = UDim2.new(0, 30, 0, 30)
+    MinBtn.Position = UDim2.new(1, -70, 0, 5)
+    MinBtn.BackgroundTransparency = 1
+    MinBtn.Text = "-"
+    MinBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    MinBtn.Font = Enum.Font.GothamBold
+    MinBtn.TextSize = 24
+    MinBtn.Parent = TopBar
+
+    local Container = Instance.new("ScrollingFrame")
+    Container.Size = UDim2.new(1, -20, 1, -55)
+    Container.Position = UDim2.new(0, 10, 0, 45)
+    Container.BackgroundTransparency = 1
+    Container.ScrollBarThickness = 2
+    Container.ScrollBarImageColor3 = Color3.fromRGB(0, 170, 255)
+    Container.Parent = MainFrame
+
+    local UIListLayout = Instance.new("UIListLayout")
+    UIListLayout.Padding = UDim.new(0, 8)
+    UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    UIListLayout.Parent = Container
+
+    UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        Container.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 20)
+    end)
+
+    CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
+    MinBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false RZYIcon.Visible = true end)
+    RZYIcon.MouseButton1Click:Connect(function() MainFrame.Visible = true RZYIcon.Visible = false end)
+
+    local WindowElements = {}
+
+    function WindowElements:AddToggle(Text, DefaultState, Callback)
+        local state = DefaultState or false
+        local ToggleBtn = Instance.new("TextButton")
+        ToggleBtn.Size = UDim2.new(1, -10, 0, 35)
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+        ToggleBtn.Font = Enum.Font.GothamBold
+        ToggleBtn.TextSize = 13
+        ToggleBtn.Parent = Container
+
+        local function UpdateVisuals()
+            ToggleBtn.Text = Text .. (state and " [ON]" or " [OFF]")
+            ToggleBtn.TextColor3 = state and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(255, 100, 100)
+        end
+        UpdateVisuals()
+
+        Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 5)
+        local ToggleStroke = Instance.new("UIStroke", ToggleBtn)
+        ToggleStroke.Color = Color3.fromRGB(0, 100, 150)
+        ToggleStroke.Thickness = 1
+
+        ToggleBtn.MouseButton1Click:Connect(function()
+            state = not state
+            UpdateVisuals()
+            pcall(Callback, state)
+        end)
+    end
+
+    return WindowElements
+end
+
+
+-- ================================================================
+-- 2. ANIMAL HOSPITAL ANOMALY LOGIC
+-- ================================================================
+
+local Window = RZY_Library:MakeWindow("Animal Hospital (Anomaly)")
 
 -- State Variables
 local AutoCoffeeEnabled = false
 local AutoCheckInEnabled = false
 local EspEnabled = false
+local ProcessedNPCs = {}
 
-----------------------------------------------------------------
--- UTILITY FUNCTIONS
-----------------------------------------------------------------
+-- UTILITY: Sistem Aman Tekan Prompt
+local function firePromptIn(instance)
+    if not instance then return end
+    -- Coba cari nama "PP" dahulu, jika tidak ada cari Class bawaannya
+    local prompt = instance:FindFirstChild("PP") or instance:FindFirstChildOfClass("ProximityPrompt")
+    if prompt then fireproximityprompt(prompt) end
+end
 
--- Fungsi untuk mencari NPC yang sedang berada di meja kasir/dekat Bell
+-- UTILITY: Cari Pasien Aktif Berdasarkan Jarak & Status
 local function getActivePatient()
-    local bell = workspace.Misc:FindFirstChild("CheckIn") and workspace.Misc.CheckIn:FindFirstChild("Bell")
+    local checkIn = workspace.Misc:FindFirstChild("CheckIn")
+    local bell = checkIn and checkIn:FindFirstChild("Bell")
     if not bell then return nil end
 
+    -- Deteksi letak koordinat Bell secara dinamis (Aman jika bentuknya Model atau Part)
+    local bellPos
+    if bell:IsA("BasePart") then
+        bellPos = bell.Position
+    else
+        local actualPart = bell:FindFirstChildOfClass("BasePart") or (bell:IsA("Model") and bell.PrimaryPart)
+        if actualPart then bellPos = actualPart.Position end
+    end
+    
+    if not bellPos then return nil end
+
     for _, npc in ipairs(workspace.NPCs:GetChildren()) do
-        local root = npc:FindFirstChild("HumanoidRootPart") or npc.PrimaryPart
-        if root then
-            -- Mengecek jarak antara NPC dan Bell (estimasi ~12 studs sesuai screenshot)
-            local distance = (root.Position - bell.Position).Magnitude
-            if distance <= 12 then
-                return npc
+        -- Pastikan NPC ini memang pasien yang sedang datang
+        if npc:GetAttribute("IsPatient") == true then
+            local root = npc:FindFirstChild("HumanoidRootPart") or npc.PrimaryPart
+            if root then
+                -- Jarak diperbesar dari 12 ke 25 stud agar lebih fleksibel mendeteksi antrean
+                local distance = (root.Position - bellPos).Magnitude
+                if distance <= 25 then
+                    return npc
+                end
             end
         end
     end
     return nil
 end
 
-----------------------------------------------------------------
--- FEATURE: AUTO COFFEE (Menggunakan Filter Status)
-----------------------------------------------------------------
-[span_2](start_span)Window:AddToggle("Auto Coffee Machine", false, function(state)[span_2](end_span)
+-- FITUR: Auto Coffee
+Window:AddToggle("Auto Coffee Machine", false, function(state)
     AutoCoffeeEnabled = state
 end)
 
@@ -45,12 +218,8 @@ task.spawn(function()
                     local statusUI = coffeeMachine:FindFirstChild("Attachment") and coffeeMachine.Attachment:FindFirstChild("UI")
                     local statusLabel = statusUI and statusUI:FindFirstChild("status")
                     
-                    -- Membaca text filter agar tidak terjadi spam saat cooldown
                     if statusLabel and string.find(statusLabel.Text:lower(), "ready") then
-                        local prompt = coffeeMachine:FindFirstChild("Coffee") and coffeeMachine.Coffee:FindFirstChild("PP")
-                        if prompt then
-                            fireproximityprompt(prompt)
-                        end
+                        firePromptIn(coffeeMachine:FindFirstChild("Coffee"))
                     end
                 end
             end)
@@ -58,13 +227,10 @@ task.spawn(function()
     end
 end)
 
-----------------------------------------------------------------
--- FEATURE: NPC ESP & ANOMALY DETECTOR
-----------------------------------------------------------------
-[span_3](start_span)Window:AddToggle("NPC Anomaly ESP", false, function(state)[span_3](end_span)
+-- FITUR: NPC ESP & Anomaly Detector
+Window:AddToggle("NPC Anomaly ESP", false, function(state)
     EspEnabled = state
     if not state then
-        -- Menghapus ESP visual jika dinonaktifkan
         for _, npc in ipairs(workspace.NPCs:GetChildren()) do
             if npc:FindFirstChild("AnomalyHighlight") then npc.AnomalyHighlight:Destroy() end
             if npc:FindFirstChild("AnomalyTag") then npc.AnomalyTag:Destroy() end
@@ -79,7 +245,6 @@ local function applyESP(npc)
     local color = isSkinwalker == true and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(0, 255, 0)
     local tagText = isSkinwalker == true and "[ANOMALY]" or "[NORMAL]"
 
-    -- 1. Buat Bounding/Chams Highlight
     local highlight = npc:FindFirstChild("AnomalyHighlight")
     if not highlight then
         highlight = Instance.new("Highlight")
@@ -92,7 +257,6 @@ local function applyESP(npc)
     highlight.OutlineTransparency = 0
     highlight.Enabled = true
 
-    -- 2. Buat Teks Informasi di atas Kepala NPC
     local root = npc:FindFirstChild("HumanoidRootPart")
     if root then
         local tag = npc:FindFirstChild("AnomalyTag")
@@ -117,7 +281,6 @@ local function applyESP(npc)
     end
 end
 
--- Loop update ESP secara berkala
 task.spawn(function()
     while task.wait(1) do
         if EspEnabled then
@@ -128,18 +291,10 @@ task.spawn(function()
     end
 end)
 
-----------------------------------------------------------------
--- FEATURE: AUTO CHECK-IN PATIENTS (Anti-Spam & Normal Only)
-----------------------------------------------------------------
--- Tabel untuk mencatat NPC yang sudah diproses
-local ProcessedNPCs = {}
-
+-- FITUR: Auto Check-In (Anti-Spam & Normal Only)
 Window:AddToggle("Auto Check-In (Normal Only)", false, function(state)
     AutoCheckInEnabled = state
-    -- Bersihkan riwayat jika fitur dimatikan agar bisa mulai dari awal saat dinyalakan lagi
-    if not state then
-        table.clear(ProcessedNPCs)
-    end
+    if not state then table.clear(ProcessedNPCs) end
 end)
 
 task.spawn(function()
@@ -147,61 +302,39 @@ task.spawn(function()
         if AutoCheckInEnabled then
             local activeNPC = getActivePatient()
             
-            -- Pastikan ada pasien di dekat bel DAN belum pernah diproses
             if activeNPC and not ProcessedNPCs[activeNPC] then
                 local isSkinwalker = activeNPC:GetAttribute("Skinwalker")
-                
-                -- Langsung tandai NPC ini sudah dipegang oleh skrip
-                -- Ini mencegah loop berikutnya melakukan spam prompt
-                ProcessedNPCs[activeNPC] = true
+                ProcessedNPCs[activeNPC] = true 
                 
                 if isSkinwalker ~= true then
                     local checkIn = workspace.Misc:FindFirstChild("CheckIn")
                     if checkIn then
                         pcall(function()
-                            -- Langkah 1: Form
-                            if checkIn:FindFirstChild("Form") and checkIn.Form:FindFirstChild("PP") then
-                                fireproximityprompt(checkIn.Form.PP)
-                                task.wait(0.7)
-                            end
-                            -- Langkah 2: Camera
-                            if checkIn:FindFirstChild("Camera") and checkIn.Camera:FindFirstChild("PP") then
-                                fireproximityprompt(checkIn.Camera.PP)
-                                task.wait(0.7)
-                            end
-                            -- Langkah 3: Computer
-                            if checkIn:FindFirstChild("Computer") and checkIn.Computer:FindFirstChild("PP") then
-                                fireproximityprompt(checkIn.Computer.PP)
-                                task.wait(0.7)
-                            end
-                            -- Langkah 4: Printer
-                            if checkIn:FindFirstChild("Printer") and checkIn.Printer:FindFirstChild("PP") then
-                                fireproximityprompt(checkIn.Printer.PP)
-                                task.wait(0.7)
-                            end
-                            -- Langkah 5: PrintedBadge
-                            if checkIn:FindFirstChild("PrintedBadge") and checkIn.PrintedBadge:FindFirstChild("PP") then
-                                fireproximityprompt(checkIn.PrintedBadge.PP)
-                                task.wait(0.7)
-                            end
-                            -- Langkah 6: Klik NPC
-                            if activeNPC:FindFirstChild("PP") then
-                                fireproximityprompt(activeNPC.PP)
-                            end
+                            -- Jeda 1 detik saat terdeteksi agar server siap menerima interaksi
+                            task.wait(1) 
+                            
+                            firePromptIn(checkIn:FindFirstChild("Form"))
+                            task.wait(0.7)
+                            firePromptIn(checkIn:FindFirstChild("Camera"))
+                            task.wait(0.7)
+                            firePromptIn(checkIn:FindFirstChild("Computer"))
+                            task.wait(0.7)
+                            firePromptIn(checkIn:FindFirstChild("Printer"))
+                            task.wait(0.7)
+                            firePromptIn(checkIn:FindFirstChild("PrintedBadge"))
+                            task.wait(0.7)
+                            
+                            -- Langkah terakhir, konfirmasi ke pasiennya sendiri
+                            firePromptIn(activeNPC)
                         end)
                     end
-                else
-                    -- Jika dia Anomaly, kita biarkan saja (jangan di-check-in), 
-                    -- tapi tetap ditandai 'Processed' supaya loop tidak mengecek atributnya berkali-kali (hemat CPU).
                 end
             end
         end
     end
 end)
 
--- Membersihkan data NPC yang sudah hancur/hilang dari map agar tidak memenuhi RAM (Memory Leak)
+-- Mencegah Memory Leak saat NPC dihapus
 workspace.NPCs.ChildRemoved:Connect(function(child)
-    if ProcessedNPCs[child] then
-        ProcessedNPCs[child] = nil
-    end
+    if ProcessedNPCs[child] then ProcessedNPCs[child] = nil end
 end)
