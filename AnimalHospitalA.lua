@@ -174,6 +174,12 @@ local function firePromptIn(instance)
     if prompt then fireproximityprompt(prompt) end
 end
 
+-- UTILITY: Normalisasi Teks (Hapus spasi dan jadikan huruf kecil untuk pencocokan)
+local function normalizeString(str)
+    if not str then return "" end
+    return string.gsub(string.lower(str), "%s+", "")
+end
+
 -- UTILITY: Cari Pasien Aktif & Meja (CheckIn 1 dan 2)
 local function getActivePatientInfo()
     local misc = workspace:FindFirstChild("Misc")
@@ -185,23 +191,13 @@ local function getActivePatientInfo()
         if desk then
             local bell = desk:FindFirstChild("Bell")
             if bell then
-                local bellPos
-                if bell:IsA("BasePart") then
-                    bellPos = bell.Position
-                else
-                    local actualPart = bell:FindFirstChildOfClass("BasePart") or (bell:IsA("Model") and bell.PrimaryPart)
-                    if actualPart then bellPos = actualPart.Position end
-                end
-
+                local bellPos = bell:IsA("BasePart") and bell.Position or (bell:FindFirstChildOfClass("BasePart") and bell:FindFirstChildOfClass("BasePart").Position)
                 if bellPos then
                     for _, npc in ipairs(workspace.NPCs:GetChildren()) do
                         if npc:GetAttribute("IsPatient") == true then
                             local root = npc:FindFirstChild("HumanoidRootPart") or npc.PrimaryPart
-                            if root then
-                                local distance = (root.Position - bellPos).Magnitude
-                                if distance <= 5 then
-                                    return npc, desk, bellPos
-                                end
+                            if root and (root.Position - bellPos).Magnitude <= 5 then
+                                return npc, desk, bellPos
                             end
                         end
                     end
@@ -215,9 +211,7 @@ end
 -- ================================================================
 -- FITUR: AUTO COFFEE
 -- ================================================================
-Window:AddToggle("Auto Coffee Machine", false, function(state)
-    AutoCoffeeEnabled = state
-end)
+Window:AddToggle("Auto Coffee Machine", false, function(state) AutoCoffeeEnabled = state end)
 task.spawn(function()
     while task.wait(0.5) do
         if AutoCoffeeEnabled then
@@ -226,7 +220,6 @@ task.spawn(function()
                 if coffeeMachine then
                     local statusUI = coffeeMachine:FindFirstChild("Attachment") and coffeeMachine.Attachment:FindFirstChild("UI")
                     local statusLabel = statusUI and statusUI:FindFirstChild("status")
-                    
                     if statusLabel and string.find(statusLabel.Text:lower(), "ready") then
                         firePromptIn(coffeeMachine:FindFirstChild("Coffee"))
                     end
@@ -248,116 +241,66 @@ Window:AddToggle("NPC Anomaly ESP", false, function(state)
         end
     end
 end)
-
 local function applyESP(npc)
     if not EspEnabled then return end
-    
     local isSkinwalker = npc:GetAttribute("Skinwalker")
     local color = isSkinwalker == true and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(0, 255, 0)
-    local tagText = isSkinwalker == true and "[ANOMALY]" or "[NORMAL]"
-
-    local highlight = npc:FindFirstChild("AnomalyHighlight")
-    if not highlight then
-        highlight = Instance.new("Highlight")
-        highlight.Name = "AnomalyHighlight"
-        highlight.Parent = npc
-    end
-    highlight.FillColor = color
-    highlight.FillTransparency = 0.5
-    highlight.OutlineColor = color
-    highlight.OutlineTransparency = 0
-    highlight.Enabled = true
+    
+    local highlight = npc:FindFirstChild("AnomalyHighlight") or Instance.new("Highlight", npc)
+    highlight.Name, highlight.FillColor, highlight.FillTransparency, highlight.OutlineColor, highlight.OutlineTransparency, highlight.Enabled = "AnomalyHighlight", color, 0.5, color, 0, true
 
     local root = npc:FindFirstChild("HumanoidRootPart")
     if root then
-        local tag = npc:FindFirstChild("AnomalyTag")
-        if not tag then
-            tag = Instance.new("BillboardGui")
-            tag.Name = "AnomalyTag"
-            tag.Size = UDim2.new(0, 200, 0, 50)
-            tag.AlwaysOnTop = true
-            tag.StudsOffset = Vector3.new(0, 3, 0)
-            tag.Parent = npc
-
-            local label = Instance.new("TextLabel")
-            label.Size = UDim2.new(1, 0, 1, 0)
-            label.BackgroundTransparency = 1
-            label.Font = Enum.Font.GothamBold
-            label.TextSize = 14
-            label.Parent = tag
-        end
+        local tag = npc:FindFirstChild("AnomalyTag") or Instance.new("BillboardGui", npc)
+        tag.Name, tag.Size, tag.AlwaysOnTop, tag.StudsOffset = "AnomalyTag", UDim2.new(0, 200, 0, 50), true, Vector3.new(0, 3, 0)
+        local label = tag:FindFirstChildOfClass("TextLabel") or Instance.new("TextLabel", tag)
+        label.Size, label.BackgroundTransparency, label.Font, label.TextSize = UDim2.new(1, 0, 1, 0), 1, Enum.Font.GothamBold, 14
+        
         tag.Enabled = true
-        tag.TextLabel.Text = npc.Name .. "\n" .. tagText
-        tag.TextLabel.TextColor3 = color
+        label.Text = npc.Name .. "\n" .. (isSkinwalker == true and "[ANOMALY]" or "[NORMAL]")
+        label.TextColor3 = color
     end
 end
-
 task.spawn(function()
     while task.wait(1) do
         if EspEnabled then
-            for _, npc in ipairs(workspace.NPCs:GetChildren()) do
-                pcall(applyESP, npc)
-            end
+            for _, npc in ipairs(workspace.NPCs:GetChildren()) do pcall(applyESP, npc) end
         end
     end
 end)
 
 -- ================================================================
--- FITUR: AUTO CHECK-IN 
+-- FITUR: AUTO CHECK-IN (Tetap sama karena sudah aman)
 -- ================================================================
 Window:AddToggle("Auto Check-In (Normal Only)", false, function(state)
     AutoCheckInEnabled = state
     if not state then table.clear(ProcessedNPCs) end
 end)
-
 task.spawn(function()
     while task.wait(1) do
         if AutoCheckInEnabled then
             local activeNPC, activeDesk, bellPos = getActivePatientInfo()
-            
             if activeNPC and activeDesk and bellPos and not ProcessedNPCs[activeNPC] then
-                local isSkinwalker = activeNPC:GetAttribute("Skinwalker")
-                
-                if isSkinwalker == true then
+                if activeNPC:GetAttribute("Skinwalker") == true then
                     ProcessedNPCs[activeNPC] = true
                 else
                     ProcessedNPCs[activeNPC] = true 
-                    
                     task.spawn(function()
                         local mainCheckIn = workspace.Misc:FindFirstChild("CheckIn")
-                        
                         if mainCheckIn then
                             while activeNPC and activeNPC.Parent and AutoCheckInEnabled do
                                 local root = activeNPC:FindFirstChild("HumanoidRootPart") or activeNPC.PrimaryPart
-                                if not root or (root.Position - bellPos).Magnitude > 5 then
-                                    break 
-                                end
+                                if not root or (root.Position - bellPos).Magnitude > 5 then break end
 
                                 pcall(function()
-                                    local form = activeDesk:FindFirstChild("Form")
-                                    firePromptIn(form)
-                                    task.wait(0.1)
-                                    
-                                    local camera = activeDesk:FindFirstChild("Camera")
-                                    firePromptIn(camera)
-                                    task.wait(0.1)
-                                    
-                                    local computer = mainCheckIn:FindFirstChild("Computer")
-                                    firePromptIn(computer)
-                                    task.wait(0.1)
-                                    
-                                    local printer = mainCheckIn:FindFirstChild("Printer")
-                                    firePromptIn(printer)
-                                    task.wait(0.1) 
-                                    
-                                    local printedBadge = activeDesk:FindFirstChild("PrintedBadge")
-                                    firePromptIn(printedBadge)
-                                    task.wait(0.1)
-                                    
+                                    firePromptIn(activeDesk:FindFirstChild("Form")); task.wait(0.1)
+                                    firePromptIn(activeDesk:FindFirstChild("Camera")); task.wait(0.1)
+                                    firePromptIn(mainCheckIn:FindFirstChild("Computer")); task.wait(0.1)
+                                    firePromptIn(mainCheckIn:FindFirstChild("Printer")); task.wait(0.1) 
+                                    firePromptIn(activeDesk:FindFirstChild("PrintedBadge")); task.wait(0.1)
                                     firePromptIn(activeNPC)
                                 end)
-                                
-                                task.wait(0.1)
+                                task.wait(1)
                             end
                         end
                     end)
@@ -366,22 +309,16 @@ task.spawn(function()
         end
     end
 end)
-
-workspace.NPCs.ChildRemoved:Connect(function(child)
-    if ProcessedNPCs[child] then ProcessedNPCs[child] = nil end
-end)
+workspace.NPCs.ChildRemoved:Connect(function(child) if ProcessedNPCs[child] then ProcessedNPCs[child] = nil end end)
 
 -- ================================================================
--- FITUR: AUTO AMBIL OBAT (Room 8 - Fixed Deep Search)
+-- FITUR: AUTO AMBIL OBAT (Room 8) - DIPERBARUI BERDASARKAN VIDEO!
 -- ================================================================
-Window:AddToggle("Auto Ambil Obat (Room 8)", false, function(state)
-    AutoMedicineEnabled = state
-end)
+Window:AddToggle("Auto Ambil Obat (Room 8)", false, function(state) AutoMedicineEnabled = state end)
 task.spawn(function()
     while task.wait(0.5) do
         if AutoMedicineEnabled then
             pcall(function()
-                -- Mengatasi bug Folder Ganda (Room8.Room8)
                 local room8Folder = workspace.Rooms.Emergency:FindFirstChild("Room8")
                 if not room8Folder then return end
                 
@@ -393,27 +330,57 @@ task.spawn(function()
                 local medicineFolder = minigame:FindFirstChild("Medicine")
                 if not tv or not medicineFolder then return end
 
-                -- Menggunakan FindFirstChild(..., true) agar bisa menembus path monitor TV yg panjang & berantakan
-                local inv = tv:FindFirstChild("inv", true)
-                if not inv then return end
+                -- Langkah 1: Kumpulkan semua obat yang sedang diminta oleh layar TV
+                local itemsNeeded = {}
+                -- Mencari menembus semua struktur folder TV karena kadang letaknya di treatment.inv atau Report.inv
+                for _, desc in ipairs(tv:GetDescendants()) do
+                    if desc.Name == "inv" then
+                        for _, uiItem in ipairs(desc:GetChildren()) do
+                            -- Hindari elemen UI bawaan, pastikan ini adalah frame item
+                            if not uiItem:IsA("UIListLayout") and not uiItem:IsA("UIPadding") and not uiItem:IsA("UICorner") then
+                                if uiItem.Visible then
+                                    itemsNeeded[uiItem.Name] = true
+                                end
+                            end
+                        end
+                    end
+                end
 
-                for _, uiItem in ipairs(inv:GetChildren()) do
-                    if not uiItem:IsA("UIListLayout") and not uiItem:IsA("UIPadding") and uiItem.Visible then
-                        local itemName = uiItem.Name
-                        local char = LocalPlayer.Character
-                        local hasInBackpack = LocalPlayer.Backpack:FindFirstChild(itemName)
-                        local hasInHand = char and char:FindFirstChild(itemName)
-                        
-                        if not hasInBackpack and not hasInHand then
-                            -- Cari ProximityPrompt di seluruh folder Medicine
-                            for _, desc in ipairs(medicineFolder:GetDescendants()) do
-                                if desc:IsA("ProximityPrompt") then
-                                    -- Memastikan Part/Model-nya punya nama yg sama dengan item (misal "IV Drops")
-                                    if desc.Parent and (desc.Parent.Name == itemName or desc.ObjectText == itemName) then
-                                        fireproximityprompt(desc)
-                                        task.wait(1) 
-                                        break
-                                    end
+                -- Langkah 2: Proses setiap obat yang dibutuhkan
+                for itemName, _ in pairs(itemsNeeded) do
+                    -- Gunakan normalize (hapus spasi, huruf kecil semua) untuk menghindari error nama "IV Drops" vs "IVDrops"
+                    local normItemName = normalizeString(itemName)
+                    local hasInBackpack = false
+                    
+                    -- Cek isi tas (Backpack)
+                    for _, item in ipairs(LocalPlayer.Backpack:GetChildren()) do
+                        if normalizeString(item.Name) == normItemName then
+                            hasInBackpack = true
+                            break
+                        end
+                    end
+                    
+                    -- Cek tangan karakter (jika sedang dipegang)
+                    local char = LocalPlayer.Character
+                    if char and not hasInBackpack then
+                        for _, item in ipairs(char:GetChildren()) do
+                            if item:IsA("Tool") and normalizeString(item.Name) == normItemName then
+                                hasInBackpack = true
+                                break
+                            end
+                        end
+                    end
+                    
+                    -- Langkah 3: Jika belum punya, cari promptnya di meja Medicine dan ambil
+                    if not hasInBackpack then
+                        for _, desc in ipairs(medicineFolder:GetDescendants()) do
+                            if desc:IsA("ProximityPrompt") then
+                                local parentName = desc.Parent and desc.Parent.Name or ""
+                                -- Cek apakah part induk atau objek promptnya memiliki nama obat yang kita cari
+                                if normalizeString(parentName) == normItemName or normalizeString(desc.ObjectText) == normItemName then
+                                    fireproximityprompt(desc)
+                                    task.wait(1.5) -- Beri jeda 1.5 detik setelah ambil satu obat, agar tidak tersendat servernya
+                                    break
                                 end
                             end
                         end
@@ -425,49 +392,35 @@ task.spawn(function()
 end)
 
 -- ================================================================
--- FITUR: AUTO CLEAN SLIME
+-- FITUR: AUTO CLEAN SLIME (Tetap sama)
 -- ================================================================
-Window:AddToggle("Auto Clean Slime", false, function(state)
-    AutoSlimeEnabled = state
-end)
+Window:AddToggle("Auto Clean Slime", false, function(state) AutoSlimeEnabled = state end)
 task.spawn(function()
     while task.wait(1) do
         if AutoSlimeEnabled then
             pcall(function()
                 local slime = workspace.Misc:FindFirstChild("Slime")
-                if slime then
-                    local pp = slime:FindFirstChild("PP")
-                    if pp then fireproximityprompt(pp) end
-                end
+                if slime then firePromptIn(slime) end
             end)
         end
     end
 end)
 
 -- ================================================================
--- FITUR: AUTO EXTINGUISH FIRE (Fixed Deep Search)
+-- FITUR: AUTO EXTINGUISH FIRE (Tetap sama karena sudah aman)
 -- ================================================================
-Window:AddToggle("Auto Extinguish Fire", false, function(state)
-    AutoFireEnabled = state
-end)
+Window:AddToggle("Auto Extinguish Fire", false, function(state) AutoFireEnabled = state end)
 task.spawn(function()
     while task.wait(1) do
         if AutoFireEnabled then
             pcall(function()
-                local foldersToCheck = {
-                    workspace.Rooms:FindFirstChild("Medical"),
-                    workspace.Rooms:FindFirstChild("Emergency")
-                }
-                
-                for _, folder in ipairs(foldersToCheck) do
-                    if folder then
-                        -- Menggunakan GetDescendants untuk langsung mencari semua ProximityPrompt
-                        -- tanpa peduli seberapa dalam foldernya (mengatasi isu Room5.Room5.Fire.Fire.PP)
-                        for _, desc in ipairs(folder:GetDescendants()) do
-                            if desc:IsA("ProximityPrompt") then
-                                -- Mengecek apakah tombol ini milik api
-                                if desc.ActionText == "Put out fire" or (desc.Parent and desc.Parent.Name == "Fire") then
-                                    fireproximityprompt(desc)
+                local rooms = workspace:FindFirstChild("Rooms")
+                if rooms then
+                    for _, desc in ipairs(rooms:GetDescendants()) do
+                        if desc.Name == "Fire" then
+                            for _, pp in ipairs(desc:GetDescendants()) do
+                                if pp.Name == "PP" or pp:IsA("ProximityPrompt") then
+                                    fireproximityprompt(pp)
                                 end
                             end
                         end
@@ -479,11 +432,9 @@ task.spawn(function()
 end)
 
 -- ================================================================
--- FITUR: AUTO TASER ANOMALY
+-- FITUR: AUTO TASER ANOMALY (Tetap sama)
 -- ================================================================
-Window:AddToggle("Auto Taser Anomaly", false, function(state)
-    AutoTaserEnabled = state
-end)
+Window:AddToggle("Auto Taser Anomaly", false, function(state) AutoTaserEnabled = state end)
 task.spawn(function()
     while task.wait(1) do
         if AutoTaserEnabled then
