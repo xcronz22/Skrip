@@ -329,21 +329,21 @@ task.spawn(function()
                                     -- Memprioritaskan Form dan Kamera dari Meja yang aktif (CheckIn atau CheckIn2)
                                     local form = activeDesk:FindFirstChild("Form") or mainCheckIn:FindFirstChild("Form")
                                     firePromptIn(form)
-                                    task.wait(0.7)
+                                    task.wait(1)
                                     
                                     local camera = activeDesk:FindFirstChild("Camera") or mainCheckIn:FindFirstChild("Camera")
                                     firePromptIn(camera)
-                                    task.wait(0.7)
+                                    task.wait(1)
                                     
                                     -- Komputer, Printer, dan Lencana selalu terhubung ke CheckIn 1 (mainCheckIn)
                                     firePromptIn(mainCheckIn:FindFirstChild("Computer"))
-                                    task.wait(0.7)
+                                    task.wait(1)
                                     
                                     firePromptIn(mainCheckIn:FindFirstChild("Printer"))
                                     task.wait(3.0) 
                                     
                                     firePromptIn(mainCheckIn:FindFirstChild("PrintedBadge"))
-                                    task.wait(0.7)
+                                    task.wait(1)
                                     
                                     firePromptIn(activeNPC)
                                 end)
