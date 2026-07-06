@@ -199,8 +199,8 @@ local function getActivePatientInfo()
                             local root = npc:FindFirstChild("HumanoidRootPart") or npc.PrimaryPart
                             if root then
                                 local distance = (root.Position - bellPos).Magnitude
-                                if distance <= 5 then
-                                    return npc, desk -- Mengembalikan NPC dan meja spesifik
+                                if distance <= 15 then
+                                    return npc, desk
                                 end
                             end
                         end
@@ -303,7 +303,7 @@ task.spawn(function()
 end)
 
 -- ================================================================
--- FITUR: AUTO CHECK-IN (Mendukung 2 Meja)
+-- FITUR: AUTO CHECK-IN (Fixed: Anti-Spam & Anti-Ghosting)
 -- ================================================================
 Window:AddToggle("Auto Check-In (Normal Only)", false, function(state)
     AutoCheckInEnabled = state
@@ -318,32 +318,44 @@ task.spawn(function()
             if activeNPC and activeDesk and not ProcessedNPCs[activeNPC] then
                 local isSkinwalker = activeNPC:GetAttribute("Skinwalker")
                 
-                if isSkinwalker ~= true then
+                if isSkinwalker == true then
+                    -- LANGSUNG ABAIKAN ANOMALI, JANGAN DIPROSES
+                    ProcessedNPCs[activeNPC] = true
+                else
+                    -- Jika Normal, mulai proses check-in
                     ProcessedNPCs[activeNPC] = true 
                     
                     task.spawn(function()
                         local mainCheckIn = workspace.Misc:FindFirstChild("CheckIn")
-                        if mainCheckIn then
+                        local bell = activeDesk:FindFirstChild("Bell")
+                        local bellPos = bell and (bell:IsA("BasePart") and bell.Position or (bell:FindFirstChildOfClass("BasePart") and bell:FindFirstChildOfClass("BasePart").Position))
+                        
+                        if mainCheckIn and bellPos then
                             while activeNPC and activeNPC.Parent and AutoCheckInEnabled do
+                                -- FIX: Cek jarak pasien di dalam loop
+                                -- Jika pasien sudah berjalan pergi lebih dari 15 studs, BREAK loop agar tidak spam!
+                                local root = activeNPC:FindFirstChild("HumanoidRootPart") or activeNPC.PrimaryPart
+                                if not root or (root.Position - bellPos).Magnitude > 15 then
+                                    break 
+                                end
+
                                 pcall(function()
-                                    -- Memprioritaskan Form dan Kamera dari Meja yang aktif (CheckIn atau CheckIn2)
                                     local form = activeDesk:FindFirstChild("Form") or mainCheckIn:FindFirstChild("Form")
                                     firePromptIn(form)
-                                    task.wait(1)
+                                    task.wait(0.7)
                                     
                                     local camera = activeDesk:FindFirstChild("Camera") or mainCheckIn:FindFirstChild("Camera")
                                     firePromptIn(camera)
-                                    task.wait(1)
+                                    task.wait(0.7)
                                     
-                                    -- Komputer, Printer, dan Lencana selalu terhubung ke CheckIn 1 (mainCheckIn)
                                     firePromptIn(mainCheckIn:FindFirstChild("Computer"))
-                                    task.wait(1)
+                                    task.wait(0.7)
                                     
                                     firePromptIn(mainCheckIn:FindFirstChild("Printer"))
                                     task.wait(3.0) 
                                     
                                     firePromptIn(mainCheckIn:FindFirstChild("PrintedBadge"))
-                                    task.wait(1)
+                                    task.wait(0.7)
                                     
                                     firePromptIn(activeNPC)
                                 end)
@@ -352,8 +364,6 @@ task.spawn(function()
                             end
                         end
                     end)
-                else
-                    ProcessedNPCs[activeNPC] = true
                 end
             end
         end
