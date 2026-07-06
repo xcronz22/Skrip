@@ -351,7 +351,7 @@ task.spawn(function()
                                     task.wait(0.7)
                                     
                                     firePromptIn(mainCheckIn:FindFirstChild("Printer"))
-                                    task.wait(3.0) 
+                                    task.wait(0.7) 
                                     
                                     firePromptIn(mainCheckIn:FindFirstChild("PrintedBadge"))
                                     task.wait(0.7)
@@ -359,7 +359,7 @@ task.spawn(function()
                                     firePromptIn(activeNPC)
                                 end)
                                 
-                                task.wait(1.5)
+                                task.wait(0.5)
                             end
                         end
                     end)
