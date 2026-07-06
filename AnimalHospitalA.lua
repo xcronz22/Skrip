@@ -324,7 +324,7 @@ task.spawn(function()
                                     
                                     local printer = mainCheckIn:FindFirstChild("Printer")
                                     firePromptIn(printer)
-                                    task.wait(1) 
+                                    task.wait(0.7) 
                                     
                                     local printedBadge = activeDesk:FindFirstChild("PrintedBadge")
                                     firePromptIn(printedBadge)
@@ -428,7 +428,7 @@ task.spawn(function()
 
                 if grabbedSomething then
                     -- Setelah mengambil semua obat yang dibutuhkan, baru tunggu 5 detik
-                    task.wait(5) 
+                    task.wait(3) 
                 end
             end)
         end
