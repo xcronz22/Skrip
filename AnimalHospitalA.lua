@@ -324,7 +324,7 @@ task.spawn(function()
                                     
                                     local printer = mainCheckIn:FindFirstChild("Printer")
                                     firePromptIn(printer)
-                                    task.wait(3.0) 
+                                    task.wait(0.7) 
                                     
                                     local printedBadge = activeDesk:FindFirstChild("PrintedBadge")
                                     firePromptIn(printedBadge)
@@ -333,7 +333,7 @@ task.spawn(function()
                                     firePromptIn(activeNPC)
                                 end)
                                 
-                                task.wait(1.5)
+                                task.wait(0.1)
                             end
                         end
                     end)
