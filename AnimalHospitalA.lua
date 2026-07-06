@@ -177,7 +177,7 @@ end
 -- UTILITY: Cari Pasien Aktif & Meja (CheckIn 1 dan 2)
 local function getActivePatientInfo()
     local misc = workspace:FindFirstChild("Misc")
-    if not misc then return nil, nil end
+    if not misc then return nil, nil, nil end
 
     local deskNames = {"CheckIn", "CheckIn2"}
     for _, deskName in ipairs(deskNames) do
@@ -199,8 +199,9 @@ local function getActivePatientInfo()
                             local root = npc:FindFirstChild("HumanoidRootPart") or npc.PrimaryPart
                             if root then
                                 local distance = (root.Position - bellPos).Magnitude
-                                if distance <= 15 then
-                                    return npc, desk
+                                -- MENGGUNAKAN JARAK 5 STUDS SESUAI PERMINTAAN
+                                if distance <= 5 then
+                                    return npc, desk, bellPos -- Lempar langsung posisi bel supaya tidak terjadi error macet
                                 end
                             end
                         end
@@ -209,7 +210,7 @@ local function getActivePatientInfo()
             end
         end
     end
-    return nil, nil
+    return nil, nil, nil
 end
 
 -- ================================================================
@@ -303,7 +304,7 @@ task.spawn(function()
 end)
 
 -- ================================================================
--- FITUR: AUTO CHECK-IN (Fixed: Anti-Spam & Anti-Ghosting)
+-- FITUR: AUTO CHECK-IN (Fixed: Anti-Spam & Jarak 5 Studs)
 -- ================================================================
 Window:AddToggle("Auto Check-In (Normal Only)", false, function(state)
     AutoCheckInEnabled = state
@@ -313,9 +314,9 @@ end)
 task.spawn(function()
     while task.wait(1) do
         if AutoCheckInEnabled then
-            local activeNPC, activeDesk = getActivePatientInfo()
+            local activeNPC, activeDesk, bellPos = getActivePatientInfo()
             
-            if activeNPC and activeDesk and not ProcessedNPCs[activeNPC] then
+            if activeNPC and activeDesk and bellPos and not ProcessedNPCs[activeNPC] then
                 local isSkinwalker = activeNPC:GetAttribute("Skinwalker")
                 
                 if isSkinwalker == true then
@@ -327,15 +328,13 @@ task.spawn(function()
                     
                     task.spawn(function()
                         local mainCheckIn = workspace.Misc:FindFirstChild("CheckIn")
-                        local bell = activeDesk:FindFirstChild("Bell")
-                        local bellPos = bell and (bell:IsA("BasePart") and bell.Position or (bell:FindFirstChildOfClass("BasePart") and bell:FindFirstChildOfClass("BasePart").Position))
                         
-                        if mainCheckIn and bellPos then
+                        if mainCheckIn then
                             while activeNPC and activeNPC.Parent and AutoCheckInEnabled do
-                                -- FIX: Cek jarak pasien di dalam loop
-                                -- Jika pasien sudah berjalan pergi lebih dari 15 studs, BREAK loop agar tidak spam!
+                                -- FIX: Pastikan posisi pasien tidak lebih dari 5 studs dari meja
+                                -- Jika lebih dari 5, artinya pasien sudah pergi, jadi hentikan spam
                                 local root = activeNPC:FindFirstChild("HumanoidRootPart") or activeNPC.PrimaryPart
-                                if not root or (root.Position - bellPos).Magnitude > 15 then
+                                if not root or (root.Position - bellPos).Magnitude > 5 then
                                     break 
                                 end
 
