@@ -324,7 +324,7 @@ task.spawn(function()
                                     
                                     local printer = mainCheckIn:FindFirstChild("Printer")
                                     firePromptIn(printer)
-                                    task.wait(0.7) 
+                                    task.wait(1) 
                                     
                                     local printedBadge = activeDesk:FindFirstChild("PrintedBadge")
                                     firePromptIn(printedBadge)
@@ -348,7 +348,7 @@ workspace.NPCs.ChildRemoved:Connect(function(child)
 end)
 
 -- ================================================================
--- FITUR: AUTO AMBIL OBAT (Room 8) - DENGAN JEDA ANTI SPAM
+-- FITUR: AUTO AMBIL OBAT (Room 8) - MULTIPLE GRAB & 5 SEC WAIT
 -- ================================================================
 local function hasTool(parentFolder, itemName)
     if not parentFolder then return false end
@@ -390,7 +390,7 @@ task.spawn(function()
                     end
                 end
 
-                local grabbedSomething = false -- Indikator untuk mengaktifkan jeda
+                local grabbedSomething = false
 
                 for itemName, _ in pairs(itemsNeeded) do
                     local normItemName = normalizeString(itemName)
@@ -417,17 +417,17 @@ task.spawn(function()
                                     end)
                                     
                                     grabbedSomething = true
-                                    break -- Berhenti mencari obat ini jika sudah ditekan
+                                    -- Jeda sangat singkat agar bisa langsung mengambil obat berikutnya
+                                    task.wait(0.3) 
+                                    break -- Berhenti mencari obat INI, lanjut cek obat BERIKUTNYA di daftar itemsNeeded
                                 end
                             end
                         end
                     end
-                    if grabbedSomething then break end -- Berhenti mengecek obat lain jika sudah ada yang diambil
                 end
 
                 if grabbedSomething then
-                    -- JEDA PENTING: Menunggu 7 detik agar pemain bisa memberikan obat secara manual
-                    -- dan TV selesai loading menampilkan gambar obat selanjutnya.
+                    -- Setelah mengambil semua obat yang dibutuhkan, baru tunggu 5 detik
                     task.wait(5) 
                 end
             end)
