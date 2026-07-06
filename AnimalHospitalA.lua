@@ -428,7 +428,7 @@ task.spawn(function()
 
                 if grabbedSomething then
                     -- Setelah mengambil semua obat yang dibutuhkan, baru tunggu 5 detik
-                    task.wait(3) 
+                    task.wait(5) 
                 end
             end)
         end
