@@ -270,36 +270,67 @@ task.spawn(function()
 end)
 
 -- ================================================================
--- FITUR: AUTO CHECK-IN (Tetap sama karena sudah aman)
+-- FITUR: AUTO CHECK-IN (Reverted to Safe Multiline Explicit Mode)
 -- ================================================================
 Window:AddToggle("Auto Check-In (Normal Only)", false, function(state)
     AutoCheckInEnabled = state
     if not state then table.clear(ProcessedNPCs) end
 end)
+
 task.spawn(function()
     while task.wait(1) do
         if AutoCheckInEnabled then
             local activeNPC, activeDesk, bellPos = getActivePatientInfo()
+            
             if activeNPC and activeDesk and bellPos and not ProcessedNPCs[activeNPC] then
-                if activeNPC:GetAttribute("Skinwalker") == true then
+                local isSkinwalker = activeNPC:GetAttribute("Skinwalker")
+                
+                if isSkinwalker == true then
                     ProcessedNPCs[activeNPC] = true
                 else
                     ProcessedNPCs[activeNPC] = true 
+                    
                     task.spawn(function()
                         local mainCheckIn = workspace.Misc:FindFirstChild("CheckIn")
+                        
                         if mainCheckIn then
                             while activeNPC and activeNPC.Parent and AutoCheckInEnabled do
                                 local root = activeNPC:FindFirstChild("HumanoidRootPart") or activeNPC.PrimaryPart
-                                if not root or (root.Position - bellPos).Magnitude > 5 then break end
+                                -- Diubah > 10 (sebelumnya 5) agar tidak batal di tengah jalan saat NPC sedikit bergoyang
+                                if not root or (root.Position - bellPos).Magnitude > 5 then
+                                    break 
+                                end
 
                                 pcall(function()
-                                    firePromptIn(activeDesk:FindFirstChild("Form")); task.wait(0.1)
-                                    firePromptIn(activeDesk:FindFirstChild("Camera")); task.wait(0.1)
-                                    firePromptIn(mainCheckIn:FindFirstChild("Computer")); task.wait(0.1)
-                                    firePromptIn(mainCheckIn:FindFirstChild("Printer")); task.wait(0.1) 
-                                    firePromptIn(activeDesk:FindFirstChild("PrintedBadge")); task.wait(0.1)
+                                    -- 1. FORM (Dari meja pasien)
+                                    local form = activeDesk:FindFirstChild("Form")
+                                    firePromptIn(form)
+                                    task.wait(0.7)
+                                    
+                                    -- 2. CAMERA (Dari meja pasien)
+                                    local camera = activeDesk:FindFirstChild("Camera")
+                                    firePromptIn(camera)
+                                    task.wait(0.7)
+                                    
+                                    -- 3. COMPUTER (Selalu dari meja 1 / mainCheckIn)
+                                    local computer = mainCheckIn:FindFirstChild("Computer")
+                                    firePromptIn(computer)
+                                    task.wait(0.7)
+                                    
+                                    -- 4. PRINTER (Selalu dari meja 1 / mainCheckIn)
+                                    local printer = mainCheckIn:FindFirstChild("Printer")
+                                    firePromptIn(printer)
+                                    task.wait(0.7) 
+                                    
+                                    -- 5. PRINTED BADGE (Dari meja pasien)
+                                    local printedBadge = activeDesk:FindFirstChild("PrintedBadge")
+                                    firePromptIn(printedBadge)
+                                    task.wait(0.7)
+                                    
+                                    -- 6. BERIKAN KE NPC
                                     firePromptIn(activeNPC)
                                 end)
+                                
                                 task.wait(0.1)
                             end
                         end
@@ -309,11 +340,25 @@ task.spawn(function()
         end
     end
 end)
-workspace.NPCs.ChildRemoved:Connect(function(child) if ProcessedNPCs[child] then ProcessedNPCs[child] = nil end end)
+
+workspace.NPCs.ChildRemoved:Connect(function(child)
+    if ProcessedNPCs[child] then ProcessedNPCs[child] = nil end
+end)
 
 -- ================================================================
--- FITUR: AUTO AMBIL OBAT (Room 8) - DIPERBARUI BERDASARKAN VIDEO!
+-- FITUR: AUTO AMBIL OBAT (Room 8 - Fixed Deep Search)
 -- ================================================================
+local function hasTool(parentFolder, itemName)
+    if not parentFolder then return false end
+    local normName = normalizeString(itemName)
+    for _, tool in ipairs(parentFolder:GetChildren()) do
+        if tool:IsA("Tool") and normalizeString(tool.Name) == normName then
+            return true
+        end
+    end
+    return false
+end
+
 Window:AddToggle("Auto Ambil Obat (Room 8)", false, function(state) AutoMedicineEnabled = state end)
 task.spawn(function()
     while task.wait(0.5) do
@@ -330,13 +375,11 @@ task.spawn(function()
                 local medicineFolder = minigame:FindFirstChild("Medicine")
                 if not tv or not medicineFolder then return end
 
-                -- Langkah 1: Kumpulkan semua obat yang sedang diminta oleh layar TV
                 local itemsNeeded = {}
-                -- Mencari menembus semua struktur folder TV karena kadang letaknya di treatment.inv atau Report.inv
+                -- Mencari menembus semua struktur folder TV secara paksa
                 for _, desc in ipairs(tv:GetDescendants()) do
                     if desc.Name == "inv" then
                         for _, uiItem in ipairs(desc:GetChildren()) do
-                            -- Hindari elemen UI bawaan, pastikan ini adalah frame item
                             if not uiItem:IsA("UIListLayout") and not uiItem:IsA("UIPadding") and not uiItem:IsA("UICorner") then
                                 if uiItem.Visible then
                                     itemsNeeded[uiItem.Name] = true
@@ -346,40 +389,17 @@ task.spawn(function()
                     end
                 end
 
-                -- Langkah 2: Proses setiap obat yang dibutuhkan
                 for itemName, _ in pairs(itemsNeeded) do
-                    -- Gunakan normalize (hapus spasi, huruf kecil semua) untuk menghindari error nama "IV Drops" vs "IVDrops"
                     local normItemName = normalizeString(itemName)
-                    local hasInBackpack = false
-                    
-                    -- Cek isi tas (Backpack)
-                    for _, item in ipairs(LocalPlayer.Backpack:GetChildren()) do
-                        if normalizeString(item.Name) == normItemName then
-                            hasInBackpack = true
-                            break
-                        end
-                    end
-                    
-                    -- Cek tangan karakter (jika sedang dipegang)
                     local char = LocalPlayer.Character
-                    if char and not hasInBackpack then
-                        for _, item in ipairs(char:GetChildren()) do
-                            if item:IsA("Tool") and normalizeString(item.Name) == normItemName then
-                                hasInBackpack = true
-                                break
-                            end
-                        end
-                    end
                     
-                    -- Langkah 3: Jika belum punya, cari promptnya di meja Medicine dan ambil
-                    if not hasInBackpack then
+                    if not hasTool(LocalPlayer.Backpack, itemName) and not hasTool(char, itemName) then
                         for _, desc in ipairs(medicineFolder:GetDescendants()) do
                             if desc:IsA("ProximityPrompt") then
                                 local parentName = desc.Parent and desc.Parent.Name or ""
-                                -- Cek apakah part induk atau objek promptnya memiliki nama obat yang kita cari
                                 if normalizeString(parentName) == normItemName or normalizeString(desc.ObjectText) == normItemName then
                                     fireproximityprompt(desc)
-                                    task.wait(1.5) -- Beri jeda 1.5 detik setelah ambil satu obat, agar tidak tersendat servernya
+                                    task.wait(1.5) 
                                     break
                                 end
                             end
@@ -392,7 +412,7 @@ task.spawn(function()
 end)
 
 -- ================================================================
--- FITUR: AUTO CLEAN SLIME (Tetap sama)
+-- FITUR: AUTO CLEAN SLIME
 -- ================================================================
 Window:AddToggle("Auto Clean Slime", false, function(state) AutoSlimeEnabled = state end)
 task.spawn(function()
@@ -407,7 +427,7 @@ task.spawn(function()
 end)
 
 -- ================================================================
--- FITUR: AUTO EXTINGUISH FIRE (Tetap sama karena sudah aman)
+-- FITUR: AUTO EXTINGUISH FIRE
 -- ================================================================
 Window:AddToggle("Auto Extinguish Fire", false, function(state) AutoFireEnabled = state end)
 task.spawn(function()
@@ -432,7 +452,7 @@ task.spawn(function()
 end)
 
 -- ================================================================
--- FITUR: AUTO TASER ANOMALY (Tetap sama)
+-- FITUR: AUTO TASER ANOMALY
 -- ================================================================
 Window:AddToggle("Auto Taser Anomaly", false, function(state) AutoTaserEnabled = state end)
 task.spawn(function()
