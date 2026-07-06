@@ -193,7 +193,7 @@ local function getActivePatientInfo()
                     for _, npc in ipairs(workspace.NPCs:GetChildren()) do
                         if npc:GetAttribute("IsPatient") == true then
                             local root = npc:FindFirstChild("HumanoidRootPart") or npc.PrimaryPart
-                            if root and (root.Position - bellPos).Magnitude <= 15 then
+                            if root and (root.Position - bellPos).Magnitude <= 25 then
                                 return npc, desk -- Mengembalikan NPC dan Meja (Desk) tempat dia berada
                             end
                         end
