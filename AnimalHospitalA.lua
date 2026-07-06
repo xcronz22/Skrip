@@ -174,7 +174,7 @@ local function firePromptIn(instance)
     if prompt then fireproximityprompt(prompt) end
 end
 
--- UTILITY: Normalisasi Teks (Hapus spasi dan jadikan huruf kecil untuk pencocokan)
+-- UTILITY: Normalisasi Teks (Hapus spasi dan jadikan huruf kecil untuk pencocokan Obat)
 local function normalizeString(str)
     if not str then return "" end
     return string.gsub(string.lower(str), "%s+", "")
@@ -196,8 +196,12 @@ local function getActivePatientInfo()
                     for _, npc in ipairs(workspace.NPCs:GetChildren()) do
                         if npc:GetAttribute("IsPatient") == true then
                             local root = npc:FindFirstChild("HumanoidRootPart") or npc.PrimaryPart
-                            if root and (root.Position - bellPos).Magnitude <= 5 then
-                                return npc, desk, bellPos
+                            if root then
+                                local distance = (root.Position - bellPos).Magnitude
+                                -- Jarak 5 stud (Sesuai Permintaan)
+                                if distance <= 5 then
+                                    return npc, desk, bellPos
+                                end
                             end
                         end
                     end
@@ -270,22 +274,19 @@ task.spawn(function()
 end)
 
 -- ================================================================
--- FITUR: AUTO CHECK-IN (Reverted to Safe Multiline Explicit Mode)
+-- FITUR: AUTO CHECK-IN (Jarak 5 Stud & Jeda 0.1 Detik)
 -- ================================================================
 Window:AddToggle("Auto Check-In (Normal Only)", false, function(state)
     AutoCheckInEnabled = state
     if not state then table.clear(ProcessedNPCs) end
 end)
-
 task.spawn(function()
     while task.wait(1) do
         if AutoCheckInEnabled then
             local activeNPC, activeDesk, bellPos = getActivePatientInfo()
             
             if activeNPC and activeDesk and bellPos and not ProcessedNPCs[activeNPC] then
-                local isSkinwalker = activeNPC:GetAttribute("Skinwalker")
-                
-                if isSkinwalker == true then
+                if activeNPC:GetAttribute("Skinwalker") == true then
                     ProcessedNPCs[activeNPC] = true
                 else
                     ProcessedNPCs[activeNPC] = true 
@@ -296,42 +297,42 @@ task.spawn(function()
                         if mainCheckIn then
                             while activeNPC and activeNPC.Parent and AutoCheckInEnabled do
                                 local root = activeNPC:FindFirstChild("HumanoidRootPart") or activeNPC.PrimaryPart
-                                -- Diubah > 10 (sebelumnya 5) agar tidak batal di tengah jalan saat NPC sedikit bergoyang
+                                -- Pembatalan dikembalikan ke > 5 stud
                                 if not root or (root.Position - bellPos).Magnitude > 5 then
                                     break 
                                 end
 
                                 pcall(function()
-                                    -- 1. FORM (Dari meja pasien)
+                                    -- 1. FORM 
                                     local form = activeDesk:FindFirstChild("Form")
                                     firePromptIn(form)
-                                    task.wait(0.7)
+                                    task.wait(0.1) -- Jeda 0.1 detik
                                     
-                                    -- 2. CAMERA (Dari meja pasien)
+                                    -- 2. CAMERA 
                                     local camera = activeDesk:FindFirstChild("Camera")
                                     firePromptIn(camera)
-                                    task.wait(0.7)
+                                    task.wait(0.1) -- Jeda 0.1 detik
                                     
-                                    -- 3. COMPUTER (Selalu dari meja 1 / mainCheckIn)
+                                    -- 3. COMPUTER 
                                     local computer = mainCheckIn:FindFirstChild("Computer")
                                     firePromptIn(computer)
-                                    task.wait(0.7)
+                                    task.wait(0.1) -- Jeda 0.1 detik
                                     
-                                    -- 4. PRINTER (Selalu dari meja 1 / mainCheckIn)
+                                    -- 4. PRINTER
                                     local printer = mainCheckIn:FindFirstChild("Printer")
                                     firePromptIn(printer)
-                                    task.wait(0.7) 
+                                    task.wait(0.1) -- Jeda 0.1 detik
                                     
-                                    -- 5. PRINTED BADGE (Dari meja pasien)
+                                    -- 5. PRINTED BADGE 
                                     local printedBadge = activeDesk:FindFirstChild("PrintedBadge")
                                     firePromptIn(printedBadge)
-                                    task.wait(0.7)
+                                    task.wait(0.1) -- Jeda 0.1 detik
                                     
                                     -- 6. BERIKAN KE NPC
                                     firePromptIn(activeNPC)
                                 end)
                                 
-                                task.wait(0.1)
+                                task.wait(0.1) -- Jeda antar perulangan 0.1 detik
                             end
                         end
                     end)
@@ -340,13 +341,12 @@ task.spawn(function()
         end
     end
 end)
-
 workspace.NPCs.ChildRemoved:Connect(function(child)
     if ProcessedNPCs[child] then ProcessedNPCs[child] = nil end
 end)
 
 -- ================================================================
--- FITUR: AUTO AMBIL OBAT (Room 8 - Fixed Deep Search)
+-- FITUR: AUTO AMBIL OBAT (Room 8) - DEEP SEARCH VERSION
 -- ================================================================
 local function hasTool(parentFolder, itemName)
     if not parentFolder then return false end
@@ -376,7 +376,6 @@ task.spawn(function()
                 if not tv or not medicineFolder then return end
 
                 local itemsNeeded = {}
-                -- Mencari menembus semua struktur folder TV secara paksa
                 for _, desc in ipairs(tv:GetDescendants()) do
                     if desc.Name == "inv" then
                         for _, uiItem in ipairs(desc:GetChildren()) do
