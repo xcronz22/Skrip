@@ -199,7 +199,7 @@ local function getActivePatientInfo()
                             if root then
                                 local distance = (root.Position - bellPos).Magnitude
                                 -- Jarak 5 stud (Sesuai Permintaan)
-                                if distance <= 5 then
+                                if distance <= 10 then
                                     return npc, desk, bellPos
                                 end
                             end
@@ -298,7 +298,7 @@ task.spawn(function()
                             while activeNPC and activeNPC.Parent and AutoCheckInEnabled do
                                 local root = activeNPC:FindFirstChild("HumanoidRootPart") or activeNPC.PrimaryPart
                                 -- Pembatalan dikembalikan ke > 5 stud
-                                if not root or (root.Position - bellPos).Magnitude > 5 then
+                                if not root or (root.Position - bellPos).Magnitude > 10 then
                                     break 
                                 end
 
