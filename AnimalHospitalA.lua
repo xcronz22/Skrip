@@ -150,7 +150,7 @@ function RZY_Library:MakeWindow(TitleText)
 end
 
 -- ================================================================
--- 2. ANIMAL HOSPITAL ANOMALY LOGIC (MERGED VERSION)
+-- 2. ANIMAL HOSPITAL ANOMALY LOGIC
 -- ================================================================
 
 local Window = RZY_Library:MakeWindow("Animal Hospital (Anomaly)")
@@ -173,13 +173,13 @@ local function firePromptIn(instance)
     if prompt then fireproximityprompt(prompt) end
 end
 
--- UTILITY: Normalisasi Teks (Untuk Auto Ambil Obat)
+-- UTILITY: Normalisasi Teks
 local function normalizeString(str)
     if not str then return "" end
     return string.gsub(string.lower(str), "%s+", "")
 end
 
--- UTILITY: Cari Pasien Aktif & Meja (Dari Skrip Atas yang Bekerja Baik)
+-- UTILITY: Cari Pasien Aktif & Meja
 local function getActivePatientInfo()
     local misc = workspace:FindFirstChild("Misc")
     if not misc then return nil, nil, nil end
@@ -279,7 +279,7 @@ task.spawn(function()
 end)
 
 -- ================================================================
--- FITUR: AUTO CHECK-IN (Dari Skrip Atas yang Bekerja Baik)
+-- FITUR: AUTO CHECK-IN 
 -- ================================================================
 Window:AddToggle("Auto Check-In (Normal Only)", false, function(state)
     AutoCheckInEnabled = state
@@ -310,36 +310,30 @@ task.spawn(function()
                                 end
 
                                 pcall(function()
-                                    -- 1. FORM 
                                     local form = activeDesk:FindFirstChild("Form")
                                     firePromptIn(form)
                                     task.wait(0.7)
                                     
-                                    -- 2. CAMERA 
                                     local camera = activeDesk:FindFirstChild("Camera")
                                     firePromptIn(camera)
                                     task.wait(0.7)
                                     
-                                    -- 3. COMPUTER 
                                     local computer = mainCheckIn:FindFirstChild("Computer")
                                     firePromptIn(computer)
                                     task.wait(0.7)
                                     
-                                    -- 4. PRINTER 
                                     local printer = mainCheckIn:FindFirstChild("Printer")
                                     firePromptIn(printer)
-                                    task.wait(0.7) -- Jeda 3 detik
+                                    task.wait(3.0) 
                                     
-                                    -- 5. PRINTED BADGE 
                                     local printedBadge = activeDesk:FindFirstChild("PrintedBadge")
                                     firePromptIn(printedBadge)
                                     task.wait(0.7)
                                     
-                                    -- 6. BERIKAN KE NPC
                                     firePromptIn(activeNPC)
                                 end)
                                 
-                                task.wait(0.1)
+                                task.wait(1.5)
                             end
                         end
                     end)
@@ -354,7 +348,7 @@ workspace.NPCs.ChildRemoved:Connect(function(child)
 end)
 
 -- ================================================================
--- FITUR: AUTO AMBIL OBAT (Room 8)
+-- FITUR: AUTO AMBIL OBAT (Room 8) - DENGAN JEDA ANTI SPAM
 -- ================================================================
 local function hasTool(parentFolder, itemName)
     if not parentFolder then return false end
@@ -372,10 +366,12 @@ task.spawn(function()
     while task.wait(0.5) do
         if AutoMedicineEnabled then
             pcall(function()
-                local room8Folder = workspace.Rooms.Emergency:FindFirstChild("Room8")
-                if not room8Folder then return end
-                
-                local room8 = room8Folder:FindFirstChild("Room8") or room8Folder
+                local rooms = workspace:FindFirstChild("Rooms")
+                if not rooms then return end
+                local emergency = rooms:FindFirstChild("Emergency")
+                if not emergency then return end
+                local room8 = emergency:FindFirstChild("Room8")
+                if not room8 then return end
                 local minigame = room8:FindFirstChild("Minigame")
                 if not minigame then return end
                 
@@ -387,14 +383,14 @@ task.spawn(function()
                 for _, desc in ipairs(tv:GetDescendants()) do
                     if desc.Name == "inv" then
                         for _, uiItem in ipairs(desc:GetChildren()) do
-                            if not uiItem:IsA("UIListLayout") and not uiItem:IsA("UIPadding") and not uiItem:IsA("UICorner") then
-                                if uiItem.Visible then
-                                    itemsNeeded[uiItem.Name] = true
-                                end
+                            if uiItem:IsA("GuiObject") and not uiItem:IsA("UIListLayout") and not uiItem:IsA("UIPadding") and not uiItem:IsA("UICorner") then
+                                itemsNeeded[uiItem.Name] = true
                             end
                         end
                     end
                 end
+
+                local grabbedSomething = false -- Indikator untuk mengaktifkan jeda
 
                 for itemName, _ in pairs(itemsNeeded) do
                     local normItemName = normalizeString(itemName)
@@ -405,13 +401,34 @@ task.spawn(function()
                             if desc:IsA("ProximityPrompt") then
                                 local parentName = desc.Parent and desc.Parent.Name or ""
                                 if normalizeString(parentName) == normItemName or normalizeString(desc.ObjectText) == normItemName then
+                                    
+                                    local oldDist = desc.MaxActivationDistance
+                                    local oldLOS = desc.RequiresLineOfSight
+                                    
+                                    desc.MaxActivationDistance = 9e9
+                                    desc.RequiresLineOfSight = false
+                                    
                                     fireproximityprompt(desc)
-                                    task.wait(1.5) 
-                                    break
+                                    
+                                    task.spawn(function()
+                                        task.wait(0.5)
+                                        desc.MaxActivationDistance = oldDist
+                                        desc.RequiresLineOfSight = oldLOS
+                                    end)
+                                    
+                                    grabbedSomething = true
+                                    break -- Berhenti mencari obat ini jika sudah ditekan
                                 end
                             end
                         end
                     end
+                    if grabbedSomething then break end -- Berhenti mengecek obat lain jika sudah ada yang diambil
+                end
+
+                if grabbedSomething then
+                    -- JEDA PENTING: Menunggu 7 detik agar pemain bisa memberikan obat secara manual
+                    -- dan TV selesai loading menampilkan gambar obat selanjutnya.
+                    task.wait(5) 
                 end
             end)
         end
@@ -459,7 +476,7 @@ task.spawn(function()
 end)
 
 -- ================================================================
--- FITUR: AUTO TASER ANOMALY (Ditambahkan & Diperbaiki dari Skrip Atas)
+-- FITUR: AUTO TASER ANOMALY
 -- ================================================================
 Window:AddToggle("Auto Taser Anomaly", false, function(state) AutoTaserEnabled = state end)
 task.spawn(function()
