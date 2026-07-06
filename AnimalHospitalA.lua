@@ -290,7 +290,7 @@ task.spawn(function()
                         if mainCheckIn then
                             while activeNPC and activeNPC.Parent and AutoCheckInEnabled do
                                 local root = activeNPC:FindFirstChild("HumanoidRootPart") or activeNPC.PrimaryPart
-                                if not root or (root.Position - bellPos).Magnitude > 5 then break end
+                                if not root or (root.Position - bellPos).Magnitude > 3 then break end
 
                                 pcall(function()
                                     firePromptIn(activeDesk:FindFirstChild("Form")); task.wait(0.1)
@@ -300,7 +300,7 @@ task.spawn(function()
                                     firePromptIn(activeDesk:FindFirstChild("PrintedBadge")); task.wait(0.1)
                                     firePromptIn(activeNPC)
                                 end)
-                                task.wait(1)
+                                task.wait(0.1)
                             end
                         end
                     end)
