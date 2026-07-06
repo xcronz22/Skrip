@@ -149,6 +149,7 @@ function RZY_Library:MakeWindow(TitleText)
     return WindowElements
 end
 
+
 -- ================================================================
 -- 2. ANIMAL HOSPITAL ANOMALY LOGIC
 -- ================================================================
@@ -173,28 +174,34 @@ local function firePromptIn(instance)
     if prompt then fireproximityprompt(prompt) end
 end
 
--- UTILITY: Cari Pasien Aktif (Mendukung CheckIn 1 & CheckIn 2)
+-- UTILITY: Cari Pasien Aktif & Meja (CheckIn 1 dan 2)
 local function getActivePatientInfo()
     local misc = workspace:FindFirstChild("Misc")
     if not misc then return nil, nil end
-    
-    -- Mencari di kedua meja Check-In
-    local checkIns = {
-        misc:FindFirstChild("CheckIn"),
-        misc:FindFirstChild("CheckIn2")
-    }
-    
-    for _, desk in ipairs(checkIns) do
+
+    local deskNames = {"CheckIn", "CheckIn2"}
+    for _, deskName in ipairs(deskNames) do
+        local desk = misc:FindFirstChild(deskName)
         if desk then
             local bell = desk:FindFirstChild("Bell")
             if bell then
-                local bellPos = bell:IsA("BasePart") and bell.Position or (bell:FindFirstChildOfClass("BasePart") and bell:FindFirstChildOfClass("BasePart").Position)
+                local bellPos
+                if bell:IsA("BasePart") then
+                    bellPos = bell.Position
+                else
+                    local actualPart = bell:FindFirstChildOfClass("BasePart") or (bell:IsA("Model") and bell.PrimaryPart)
+                    if actualPart then bellPos = actualPart.Position end
+                end
+
                 if bellPos then
                     for _, npc in ipairs(workspace.NPCs:GetChildren()) do
                         if npc:GetAttribute("IsPatient") == true then
                             local root = npc:FindFirstChild("HumanoidRootPart") or npc.PrimaryPart
-                            if root and (root.Position - bellPos).Magnitude <= 25 then
-                                return npc, desk -- Mengembalikan NPC dan Meja (Desk) tempat dia berada
+                            if root then
+                                local distance = (root.Position - bellPos).Magnitude
+                                if distance <= 15 then
+                                    return npc, desk -- Mengembalikan NPC dan meja spesifik
+                                end
                             end
                         end
                     end
@@ -217,7 +224,9 @@ task.spawn(function()
             pcall(function()
                 local coffeeMachine = workspace.Misc:FindFirstChild("CoffeeMachine")
                 if coffeeMachine then
-                    local statusLabel = coffeeMachine:FindFirstChild("Attachment") and coffeeMachine.Attachment:FindFirstChild("UI") and coffeeMachine.Attachment.UI:FindFirstChild("status")
+                    local statusUI = coffeeMachine:FindFirstChild("Attachment") and coffeeMachine.Attachment:FindFirstChild("UI")
+                    local statusLabel = statusUI and statusUI:FindFirstChild("status")
+                    
                     if statusLabel and string.find(statusLabel.Text:lower(), "ready") then
                         firePromptIn(coffeeMachine:FindFirstChild("Coffee"))
                     end
@@ -239,86 +248,121 @@ Window:AddToggle("NPC Anomaly ESP", false, function(state)
         end
     end
 end)
+
 local function applyESP(npc)
     if not EspEnabled then return end
+    
     local isSkinwalker = npc:GetAttribute("Skinwalker")
     local color = isSkinwalker == true and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(0, 255, 0)
-    
-    local highlight = npc:FindFirstChild("AnomalyHighlight") or Instance.new("Highlight", npc)
-    highlight.Name = "AnomalyHighlight"
-    highlight.FillColor, highlight.FillTransparency, highlight.OutlineColor, highlight.OutlineTransparency, highlight.Enabled = color, 0.5, color, 0, true
+    local tagText = isSkinwalker == true and "[ANOMALY]" or "[NORMAL]"
+
+    local highlight = npc:FindFirstChild("AnomalyHighlight")
+    if not highlight then
+        highlight = Instance.new("Highlight")
+        highlight.Name = "AnomalyHighlight"
+        highlight.Parent = npc
+    end
+    highlight.FillColor = color
+    highlight.FillTransparency = 0.5
+    highlight.OutlineColor = color
+    highlight.OutlineTransparency = 0
+    highlight.Enabled = true
 
     local root = npc:FindFirstChild("HumanoidRootPart")
     if root then
         local tag = npc:FindFirstChild("AnomalyTag")
         if not tag then
-            tag = Instance.new("BillboardGui", npc)
-            tag.Name, tag.Size, tag.AlwaysOnTop, tag.StudsOffset = "AnomalyTag", UDim2.new(0, 200, 0, 50), true, Vector3.new(0, 3, 0)
-            local label = Instance.new("TextLabel", tag)
-            label.Size, label.BackgroundTransparency, label.Font, label.TextSize = UDim2.new(1, 0, 1, 0), 1, Enum.Font.GothamBold, 14
+            tag = Instance.new("BillboardGui")
+            tag.Name = "AnomalyTag"
+            tag.Size = UDim2.new(0, 200, 0, 50)
+            tag.AlwaysOnTop = true
+            tag.StudsOffset = Vector3.new(0, 3, 0)
+            tag.Parent = npc
+
+            local label = Instance.new("TextLabel")
+            label.Size = UDim2.new(1, 0, 1, 0)
+            label.BackgroundTransparency = 1
+            label.Font = Enum.Font.GothamBold
+            label.TextSize = 14
+            label.Parent = tag
         end
         tag.Enabled = true
-        tag.TextLabel.Text = npc.Name .. "\n" .. (isSkinwalker == true and "[ANOMALY]" or "[NORMAL]")
+        tag.TextLabel.Text = npc.Name .. "\n" .. tagText
         tag.TextLabel.TextColor3 = color
     end
 end
+
 task.spawn(function()
     while task.wait(1) do
         if EspEnabled then
-            for _, npc in ipairs(workspace.NPCs:GetChildren()) do pcall(applyESP, npc) end
+            for _, npc in ipairs(workspace.NPCs:GetChildren()) do
+                pcall(applyESP, npc)
+            end
         end
     end
 end)
 
 -- ================================================================
--- FITUR: AUTO CHECK-IN (Diperbarui untuk 2 Meja)
+-- FITUR: AUTO CHECK-IN (Mendukung 2 Meja)
 -- ================================================================
 Window:AddToggle("Auto Check-In (Normal Only)", false, function(state)
     AutoCheckInEnabled = state
     if not state then table.clear(ProcessedNPCs) end
 end)
+
 task.spawn(function()
     while task.wait(1) do
         if AutoCheckInEnabled then
             local activeNPC, activeDesk = getActivePatientInfo()
             
             if activeNPC and activeDesk and not ProcessedNPCs[activeNPC] then
-                ProcessedNPCs[activeNPC] = true 
-                if activeNPC:GetAttribute("Skinwalker") ~= true then
+                local isSkinwalker = activeNPC:GetAttribute("Skinwalker")
+                
+                if isSkinwalker ~= true then
+                    ProcessedNPCs[activeNPC] = true 
+                    
                     task.spawn(function()
-                        -- mainCheckIn adalah meja pertama untuk tempat komputer & printer yang dishare
-                        local mainCheckIn = workspace.Misc:FindFirstChild("CheckIn") 
-                        
-                        while activeNPC and activeNPC.Parent and AutoCheckInEnabled do
-                            pcall(function()
-                                -- Form & Camera prioritas dari meja pasien berdiri, jika tidak ada cari di meja utama
-                                local form = activeDesk:FindFirstChild("Form") or (mainCheckIn and mainCheckIn:FindFirstChild("Form"))
-                                firePromptIn(form); task.wait(0.7)
+                        local mainCheckIn = workspace.Misc:FindFirstChild("CheckIn")
+                        if mainCheckIn then
+                            while activeNPC and activeNPC.Parent and AutoCheckInEnabled do
+                                pcall(function()
+                                    -- Memprioritaskan Form dan Kamera dari Meja yang aktif (CheckIn atau CheckIn2)
+                                    local form = activeDesk:FindFirstChild("Form") or mainCheckIn:FindFirstChild("Form")
+                                    firePromptIn(form)
+                                    task.wait(0.7)
+                                    
+                                    local camera = activeDesk:FindFirstChild("Camera") or mainCheckIn:FindFirstChild("Camera")
+                                    firePromptIn(camera)
+                                    task.wait(0.7)
+                                    
+                                    -- Komputer, Printer, dan Lencana selalu terhubung ke CheckIn 1 (mainCheckIn)
+                                    firePromptIn(mainCheckIn:FindFirstChild("Computer"))
+                                    task.wait(0.7)
+                                    
+                                    firePromptIn(mainCheckIn:FindFirstChild("Printer"))
+                                    task.wait(3.0) 
+                                    
+                                    firePromptIn(mainCheckIn:FindFirstChild("PrintedBadge"))
+                                    task.wait(0.7)
+                                    
+                                    firePromptIn(activeNPC)
+                                end)
                                 
-                                local camera = activeDesk:FindFirstChild("Camera") or (mainCheckIn and mainCheckIn:FindFirstChild("Camera"))
-                                firePromptIn(camera); task.wait(0.7)
-                                
-                                -- Komputer & Printer selalu mengambil dari meja utama karena dishare
-                                local computer = mainCheckIn and mainCheckIn:FindFirstChild("Computer")
-                                firePromptIn(computer); task.wait(0.7)
-                                
-                                local printer = mainCheckIn and mainCheckIn:FindFirstChild("Printer")
-                                firePromptIn(printer); task.wait(3.0) 
-                                
-                                local badge = mainCheckIn and mainCheckIn:FindFirstChild("PrintedBadge")
-                                firePromptIn(badge); task.wait(0.7)
-                                
-                                firePromptIn(activeNPC)
-                            end)
-                            task.wait(1.5)
+                                task.wait(1.5)
+                            end
                         end
                     end)
+                else
+                    ProcessedNPCs[activeNPC] = true
                 end
             end
         end
     end
 end)
-workspace.NPCs.ChildRemoved:Connect(function(child) if ProcessedNPCs[child] then ProcessedNPCs[child] = nil end end)
+
+workspace.NPCs.ChildRemoved:Connect(function(child)
+    if ProcessedNPCs[child] then ProcessedNPCs[child] = nil end
+end)
 
 -- ================================================================
 -- FITUR: AUTO AMBIL OBAT (Room 8)
