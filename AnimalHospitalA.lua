@@ -303,7 +303,7 @@ task.spawn(function()
 end)
 
 -- ================================================================
--- FITUR: AUTO CHECK-IN (Fixed: Explicit Path Division)
+-- FITUR: AUTO CHECK-IN 
 -- ================================================================
 Window:AddToggle("Auto Check-In (Normal Only)", false, function(state)
     AutoCheckInEnabled = state
@@ -334,36 +334,30 @@ task.spawn(function()
                                 end
 
                                 pcall(function()
-                                    -- 1. FORM (Dari meja pasien)
                                     local form = activeDesk:FindFirstChild("Form")
                                     firePromptIn(form)
-                                    task.wait(0.7)
+                                    task.wait(0.1)
                                     
-                                    -- 2. CAMERA (Dari meja pasien)
                                     local camera = activeDesk:FindFirstChild("Camera")
                                     firePromptIn(camera)
-                                    task.wait(0.7)
+                                    task.wait(0.1)
                                     
-                                    -- 3. COMPUTER (Selalu dari meja 1 / mainCheckIn)
                                     local computer = mainCheckIn:FindFirstChild("Computer")
                                     firePromptIn(computer)
-                                    task.wait(0.7)
+                                    task.wait(0.1)
                                     
-                                    -- 4. PRINTER (Selalu dari meja 1 / mainCheckIn)
                                     local printer = mainCheckIn:FindFirstChild("Printer")
                                     firePromptIn(printer)
-                                    task.wait(3.0) 
+                                    task.wait(0.1) 
                                     
-                                    -- 5. PRINTED BADGE (Dari meja pasien - sesuai path workspace.Misc.CheckIn2.PrintedBadge)
                                     local printedBadge = activeDesk:FindFirstChild("PrintedBadge")
                                     firePromptIn(printedBadge)
-                                    task.wait(0.7)
+                                    task.wait(0.1)
                                     
-                                    -- 6. BERIKAN KE NPC
                                     firePromptIn(activeNPC)
                                 end)
                                 
-                                task.wait(1.5)
+                                task.wait(0.1)
                             end
                         end
                     end)
@@ -378,7 +372,7 @@ workspace.NPCs.ChildRemoved:Connect(function(child)
 end)
 
 -- ================================================================
--- FITUR: AUTO AMBIL OBAT (Room 8)
+-- FITUR: AUTO AMBIL OBAT (Room 8 - Fixed Deep Search)
 -- ================================================================
 Window:AddToggle("Auto Ambil Obat (Room 8)", false, function(state)
     AutoMedicineEnabled = state
@@ -387,28 +381,39 @@ task.spawn(function()
     while task.wait(0.5) do
         if AutoMedicineEnabled then
             pcall(function()
-                local room8 = workspace.Rooms.Emergency:FindFirstChild("Room8")
-                if not room8 then return end
-
-                local inv = room8.Minigame.TV.Screen.UI.Report:FindFirstChild("inv")
-                local medicineFolder = room8.Minigame:FindFirstChild("Medicine")
+                -- Mengatasi bug Folder Ganda (Room8.Room8)
+                local room8Folder = workspace.Rooms.Emergency:FindFirstChild("Room8")
+                if not room8Folder then return end
                 
-                if not inv or not medicineFolder then return end
+                local room8 = room8Folder:FindFirstChild("Room8") or room8Folder
+                local minigame = room8:FindFirstChild("Minigame")
+                if not minigame then return end
+                
+                local tv = minigame:FindFirstChild("TV")
+                local medicineFolder = minigame:FindFirstChild("Medicine")
+                if not tv or not medicineFolder then return end
+
+                -- Menggunakan FindFirstChild(..., true) agar bisa menembus path monitor TV yg panjang & berantakan
+                local inv = tv:FindFirstChild("inv", true)
+                if not inv then return end
 
                 for _, uiItem in ipairs(inv:GetChildren()) do
-                    if not uiItem:IsA("UIListLayout") and not uiItem:IsA("UIPadding") and not uiItem:IsA("UICorner") and uiItem.Visible then
+                    if not uiItem:IsA("UIListLayout") and not uiItem:IsA("UIPadding") and uiItem.Visible then
                         local itemName = uiItem.Name
                         local char = LocalPlayer.Character
                         local hasInBackpack = LocalPlayer.Backpack:FindFirstChild(itemName)
                         local hasInHand = char and char:FindFirstChild(itemName)
                         
                         if not hasInBackpack and not hasInHand then
-                            local itemPart = medicineFolder:FindFirstChild(itemName, true)
-                            if itemPart then
-                                local prompt = itemPart:FindFirstChild("PP") or itemPart:FindFirstChildOfClass("ProximityPrompt")
-                                if prompt then
-                                    fireproximityprompt(prompt)
-                                    task.wait(1) 
+                            -- Cari ProximityPrompt di seluruh folder Medicine
+                            for _, desc in ipairs(medicineFolder:GetDescendants()) do
+                                if desc:IsA("ProximityPrompt") then
+                                    -- Memastikan Part/Model-nya punya nama yg sama dengan item (misal "IV Drops")
+                                    if desc.Parent and (desc.Parent.Name == itemName or desc.ObjectText == itemName) then
+                                        fireproximityprompt(desc)
+                                        task.wait(1) 
+                                        break
+                                    end
                                 end
                             end
                         end
@@ -440,7 +445,7 @@ task.spawn(function()
 end)
 
 -- ================================================================
--- FITUR: AUTO EXTINGUISH FIRE
+-- FITUR: AUTO EXTINGUISH FIRE (Fixed Deep Search)
 -- ================================================================
 Window:AddToggle("Auto Extinguish Fire", false, function(state)
     AutoFireEnabled = state
@@ -456,13 +461,13 @@ task.spawn(function()
                 
                 for _, folder in ipairs(foldersToCheck) do
                     if folder then
-                        for _, room in ipairs(folder:GetChildren()) do
-                            local fire = room:FindFirstChild("Fire")
-                            if fire then
-                                for _, desc in ipairs(fire:GetDescendants()) do
-                                    if desc:IsA("ProximityPrompt") then
-                                        fireproximityprompt(desc)
-                                    end
+                        -- Menggunakan GetDescendants untuk langsung mencari semua ProximityPrompt
+                        -- tanpa peduli seberapa dalam foldernya (mengatasi isu Room5.Room5.Fire.Fire.PP)
+                        for _, desc in ipairs(folder:GetDescendants()) do
+                            if desc:IsA("ProximityPrompt") then
+                                -- Mengecek apakah tombol ini milik api
+                                if desc.ActionText == "Put out fire" or (desc.Parent and desc.Parent.Name == "Fire") then
+                                    fireproximityprompt(desc)
                                 end
                             end
                         end
