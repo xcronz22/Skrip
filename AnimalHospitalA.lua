@@ -174,34 +174,54 @@ local function firePromptIn(instance)
     if prompt then fireproximityprompt(prompt) end
 end
 
--- UTILITY: Normalisasi Teks (Hapus spasi dan jadikan huruf kecil untuk pencocokan Obat)
+-- UTILITY: Normalisasi Teks
 local function normalizeString(str)
     if not str then return "" end
     return string.gsub(string.lower(str), "%s+", "")
 end
 
--- UTILITY: Cari Pasien Aktif & Meja (CheckIn 1 dan 2)
-local function getActivePatientInfo()
-    local misc = workspace:FindFirstChild("Misc")
-    if not misc then return nil, nil, nil end
+-- UTILITY: Cari Meja Secara Dinamis (Menangani Perubahan Path Game)
+local function getCheckInDesks()
+    local mainDesk, desk2
+    
+    -- Mencari meja 1 (Bisa CheckIn atau Checkin)
+    local names1 = {"CheckIn", "Checkin"}
+    for _, name in ipairs(names1) do
+        if workspace:FindFirstChild(name) then mainDesk = workspace:FindFirstChild(name); break end
+        if workspace:FindFirstChild("Misc") and workspace.Misc:FindFirstChild(name) then mainDesk = workspace.Misc:FindFirstChild(name); break end
+    end
+    
+    -- Mencari meja 2 (Bisa CheckIn2 atau Checkin2)
+    local names2 = {"CheckIn2", "Checkin2"}
+    for _, name in ipairs(names2) do
+        if workspace:FindFirstChild(name) then desk2 = workspace:FindFirstChild(name); break end
+        if workspace:FindFirstChild("Misc") and workspace.Misc:FindFirstChild(name) then desk2 = workspace.Misc:FindFirstChild(name); break end
+    end
+    
+    return mainDesk, desk2
+end
 
-    local deskNames = {"CheckIn", "CheckIn2"}
-    for _, deskName in ipairs(deskNames) do
-        local desk = misc:FindFirstChild(deskName)
-        if desk then
-            local bell = desk:FindFirstChild("Bell")
-            if bell then
-                local bellPos = bell:IsA("BasePart") and bell.Position or (bell:FindFirstChildOfClass("BasePart") and bell:FindFirstChildOfClass("BasePart").Position)
-                if bellPos then
-                    for _, npc in ipairs(workspace.NPCs:GetChildren()) do
-                        if npc:GetAttribute("IsPatient") == true then
-                            local root = npc:FindFirstChild("HumanoidRootPart") or npc.PrimaryPart
-                            if root then
-                                local distance = (root.Position - bellPos).Magnitude
-                                -- Jarak 5 stud (Sesuai Permintaan)
-                                if distance <= 10 then
-                                    return npc, desk, bellPos
-                                end
+-- UTILITY: Cari Pasien Aktif & Meja
+local function getActivePatientInfo()
+    local mainDesk, desk2 = getCheckInDesks()
+    local desksToCheck = {}
+    
+    if mainDesk then table.insert(desksToCheck, mainDesk) end
+    if desk2 then table.insert(desksToCheck, desk2) end
+
+    for _, desk in ipairs(desksToCheck) do
+        local bell = desk:FindFirstChild("Bell")
+        if bell then
+            local bellPos = bell:IsA("BasePart") and bell.Position or (bell:FindFirstChildOfClass("BasePart") and bell:FindFirstChildOfClass("BasePart").Position)
+            if bellPos then
+                for _, npc in ipairs(workspace.NPCs:GetChildren()) do
+                    if npc:GetAttribute("IsPatient") == true then
+                        local root = npc:FindFirstChild("HumanoidRootPart") or npc.PrimaryPart
+                        if root then
+                            local distance = (root.Position - bellPos).Magnitude
+                            -- Jarak diatur ketat 7 stud
+                            if distance <= 7 then
+                                return npc, desk, bellPos, mainDesk
                             end
                         end
                     end
@@ -209,7 +229,7 @@ local function getActivePatientInfo()
             end
         end
     end
-    return nil, nil, nil
+    return nil, nil, nil, nil
 end
 
 -- ================================================================
@@ -220,7 +240,7 @@ task.spawn(function()
     while task.wait(0.5) do
         if AutoCoffeeEnabled then
             pcall(function()
-                local coffeeMachine = workspace.Misc:FindFirstChild("CoffeeMachine")
+                local coffeeMachine = workspace:FindFirstChild("CoffeeMachine") or (workspace:FindFirstChild("Misc") and workspace.Misc:FindFirstChild("CoffeeMachine"))
                 if coffeeMachine then
                     local statusUI = coffeeMachine:FindFirstChild("Attachment") and coffeeMachine.Attachment:FindFirstChild("UI")
                     local statusLabel = statusUI and statusUI:FindFirstChild("status")
@@ -274,66 +294,58 @@ task.spawn(function()
 end)
 
 -- ================================================================
--- FITUR: AUTO CHECK-IN (Jarak 5 Stud & Jeda 0.1 Detik)
+-- FITUR: AUTO CHECK-IN (Fixed Path, Sped up to 0.1s)
 -- ================================================================
 Window:AddToggle("Auto Check-In (Normal Only)", false, function(state)
     AutoCheckInEnabled = state
     if not state then table.clear(ProcessedNPCs) end
 end)
 task.spawn(function()
-    while task.wait(1) do
+    while task.wait(0.2) do -- Pengecekan pasien baru dipercepat
         if AutoCheckInEnabled then
-            local activeNPC, activeDesk, bellPos = getActivePatientInfo()
+            local activeNPC, activeDesk, bellPos, mainCheckIn = getActivePatientInfo()
             
-            if activeNPC and activeDesk and bellPos and not ProcessedNPCs[activeNPC] then
+            if activeNPC and activeDesk and bellPos and mainCheckIn and not ProcessedNPCs[activeNPC] then
                 if activeNPC:GetAttribute("Skinwalker") == true then
                     ProcessedNPCs[activeNPC] = true
                 else
                     ProcessedNPCs[activeNPC] = true 
                     
                     task.spawn(function()
-                        local mainCheckIn = workspace.Misc:FindFirstChild("CheckIn")
-                        
-                        if mainCheckIn then
-                            while activeNPC and activeNPC.Parent and AutoCheckInEnabled do
-                                local root = activeNPC:FindFirstChild("HumanoidRootPart") or activeNPC.PrimaryPart
-                                -- Pembatalan dikembalikan ke > 5 stud
-                                if not root or (root.Position - bellPos).Magnitude > 10 then
-                                    break 
-                                end
-
-                                pcall(function()
-                                    -- 1. FORM 
-                                    local form = activeDesk:FindFirstChild("Form")
-                                    firePromptIn(form)
-                                    task.wait(0.1) -- Jeda 0.1 detik
-                                    
-                                    -- 2. CAMERA 
-                                    local camera = activeDesk:FindFirstChild("Camera")
-                                    firePromptIn(camera)
-                                    task.wait(0.1) -- Jeda 0.1 detik
-                                    
-                                    -- 3. COMPUTER 
-                                    local computer = mainCheckIn:FindFirstChild("Computer")
-                                    firePromptIn(computer)
-                                    task.wait(0.1) -- Jeda 0.1 detik
-                                    
-                                    -- 4. PRINTER
-                                    local printer = mainCheckIn:FindFirstChild("Printer")
-                                    firePromptIn(printer)
-                                    task.wait(0.1) -- Jeda 0.1 detik
-                                    
-                                    -- 5. PRINTED BADGE 
-                                    local printedBadge = activeDesk:FindFirstChild("PrintedBadge")
-                                    firePromptIn(printedBadge)
-                                    task.wait(0.1) -- Jeda 0.1 detik
-                                    
-                                    -- 6. BERIKAN KE NPC
-                                    firePromptIn(activeNPC)
-                                end)
-                                
-                                task.wait(0.1) -- Jeda antar perulangan 0.1 detik
+                        while activeNPC and activeNPC.Parent and AutoCheckInEnabled do
+                            local root = activeNPC:FindFirstChild("HumanoidRootPart") or activeNPC.PrimaryPart
+                            -- Jarak break diatur 7 stud agar konsisten
+                            if not root or (root.Position - bellPos).Magnitude > 7 then
+                                break 
                             end
+
+                            pcall(function()
+                                -- 1. FORM (Meja Pasien)
+                                firePromptIn(activeDesk:FindFirstChild("Form"))
+                                task.wait(0.1)
+                                
+                                -- 2. CAMERA (Meja Pasien)
+                                firePromptIn(activeDesk:FindFirstChild("Camera"))
+                                task.wait(0.1)
+                                
+                                -- 3. COMPUTER (Selalu Meja 1)
+                                firePromptIn(mainCheckIn:FindFirstChild("Computer"))
+                                task.wait(0.1)
+                                
+                                -- 4. PRINTER (Selalu Meja 1)
+                                firePromptIn(mainCheckIn:FindFirstChild("Printer"))
+                                task.wait(0.1)
+                                
+                                -- 5. PRINTED BADGE (Meja Pasien)
+                                firePromptIn(activeDesk:FindFirstChild("PrintedBadge"))
+                                task.wait(0.1)
+                                
+                                -- 6. BERIKAN KE NPC
+                                firePromptIn(activeNPC)
+                            end)
+                            
+                            -- Jeda antar loop 0.1 detik
+                            task.wait(0.1)
                         end
                     end)
                 end
@@ -346,7 +358,7 @@ workspace.NPCs.ChildRemoved:Connect(function(child)
 end)
 
 -- ================================================================
--- FITUR: AUTO AMBIL OBAT (Room 8) - DEEP SEARCH VERSION
+-- FITUR: AUTO AMBIL OBAT (Room 8)
 -- ================================================================
 local function hasTool(parentFolder, itemName)
     if not parentFolder then return false end
@@ -418,7 +430,7 @@ task.spawn(function()
     while task.wait(1) do
         if AutoSlimeEnabled then
             pcall(function()
-                local slime = workspace.Misc:FindFirstChild("Slime")
+                local slime = workspace:FindFirstChild("Slime") or (workspace:FindFirstChild("Misc") and workspace.Misc:FindFirstChild("Slime"))
                 if slime then firePromptIn(slime) end
             end)
         end
