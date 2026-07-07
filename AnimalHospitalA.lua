@@ -201,7 +201,7 @@ workspace.NPCs.ChildRemoved:Connect(function(child)
 end)
 
 -- ================================================================
--- FITUR: AUTO AMBIL OBAT (Room 8) - MULTIPLE GRAB & 5 SEC WAIT
+-- FITUR: AUTO AMBIL OBAT (Room 8) - SMART GRAB (CEKLIST HIJAU)
 -- ================================================================
 local function hasTool(parentFolder, itemName)
     if not parentFolder then return false end
@@ -233,11 +233,23 @@ task.spawn(function()
                 if not tv or not medicineFolder then return end
 
                 local itemsNeeded = {}
+                
+                -- MENCARI ITEM YANG DIBUTUHKAN DI TV
                 for _, desc in ipairs(tv:GetDescendants()) do
                     if desc.Name == "inv" then
                         for _, uiItem in ipairs(desc:GetChildren()) do
                             if uiItem:IsA("GuiObject") and not uiItem:IsA("UIListLayout") and not uiItem:IsA("UIPadding") and not uiItem:IsA("UICorner") then
-                                itemsNeeded[uiItem.Name] = true
+                                
+                                -- LOGIKA CERDAS: Cek apakah item sudah selesai (Ceklist Hijau)
+                                local checkMark = uiItem:FindFirstChild("check")
+                                if checkMark and checkMark.Visible == true then
+                                    -- Jika sudah diceklist hijau, lewati item ini (jangan dimasukkan ke daftar itemsNeeded)
+                                    continue
+                                else
+                                    -- Jika belum diceklist, masukkan ke daftar untuk diambil dari folder obat
+                                    itemsNeeded[uiItem.Name] = true
+                                end
+                                
                             end
                         end
                     end
@@ -280,7 +292,7 @@ task.spawn(function()
                 end
 
                 if grabbedSomething then
-                    -- Setelah mengambil semua obat yang dibutuhkan, baru tunggu 5 detik
+                    -- Setelah mengambil obat yang dibutuhkan, tunggu sebentar sebelum looping kembali
                     task.wait(5) 
                 end
             end)
