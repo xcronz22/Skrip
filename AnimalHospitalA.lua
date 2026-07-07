@@ -345,7 +345,7 @@ end)
 -- ================================================================
 Window:AddToggle("Auto Taser Anomaly", false, function(state) AutoTaserEnabled = state end)
 task.spawn(function()
-    while task.wait(1) do
+    while task.wait(0.5) do
         if AutoTaserEnabled then
             pcall(function()
                 local hasSkinwalker = false
@@ -370,23 +370,53 @@ task.spawn(function()
                     if backpack and backpack:FindFirstChild("Taser") then hasTaser = true end
                     if char and char:FindFirstChild("Taser") then hasTaser = true end
                     
-                    -- Jika belum punya Taser, ambil dari TaserStation
+                    -- Jika belum punya Taser, coba ambil dari TaserStation
                     if not hasTaser then
-                        local taserPrompt = workspace:FindFirstChild("Misc") 
-                            and workspace.Misc:FindFirstChild("TaserStation") 
-                            and workspace.Misc.TaserStation:FindFirstChild("Main") 
-                            and workspace.Misc.TaserStation.Main:FindFirstChild("PP")
+                        local taserStation = workspace:FindFirstChild("Misc") and workspace.Misc:FindFirstChild("TaserStation")
+                        local mainPart = taserStation and taserStation:FindFirstChild("Main")
+                        
+                        if mainPart then
+                            -- Cek Status Text "Ready"
+                            local statusUI = mainPart:FindFirstChild("Attachment") and mainPart.Attachment:FindFirstChild("UI")
+                            local statusLabel = statusUI and statusUI:FindFirstChild("status")
                             
-                        if taserPrompt and taserPrompt:IsA("ProximityPrompt") then
-                            fireproximityprompt(taserPrompt)
-                            task.wait(0.5) -- Jeda sebentar agar item masuk ke inventory
+                            -- Gunakan string.find dan string.lower untuk mendeteksi kata "ready" menembus tag font color
+                            if statusLabel and statusLabel.Text and string.find(string.lower(statusLabel.Text), "ready") then
+                                local taserPrompt = mainPart:FindFirstChild("PP")
+                                
+                                if taserPrompt and taserPrompt:IsA("ProximityPrompt") then
+                                    -- BYPASS: Hapus batasan jarak dan halangan untuk memaksa PP bekerja
+                                    local oldDist = taserPrompt.MaxActivationDistance
+                                    local oldLOS = taserPrompt.RequiresLineOfSight
+                                    
+                                    taserPrompt.MaxActivationDistance = 9e9
+                                    taserPrompt.RequiresLineOfSight = false
+                                    
+                                    fireproximityprompt(taserPrompt)
+                                    
+                                    -- Kembalikan settingan asli agar tidak error
+                                    task.spawn(function()
+                                        task.wait(0.5)
+                                        taserPrompt.MaxActivationDistance = oldDist
+                                        taserPrompt.RequiresLineOfSight = oldLOS
+                                    end)
+                                    
+                                    task.wait(0.8) -- Jeda tunggu agar Taser masuk ke inventory dengan sempurna
+                                end
+                            end
                         end
                     end
                     
-                    -- 3. Tembak Anomaly
-                    local args = { targetNPC }
-                    game:GetService("ReplicatedStorage"):WaitForChild("Util"):WaitForChild("Net"):WaitForChild("RE/TaserFired"):FireServer(unpack(args))
-                    task.wait(1)
+                    -- 3. Cek ulang apakah Taser SEKARANG sudah ada di tas/tangan, baru tembak
+                    local hasTaserNow = false
+                    if backpack and backpack:FindFirstChild("Taser") then hasTaserNow = true end
+                    if char and char:FindFirstChild("Taser") then hasTaserNow = true end
+                    
+                    if hasTaserNow then
+                        local args = { targetNPC }
+                        game:GetService("ReplicatedStorage"):WaitForChild("Util"):WaitForChild("Net"):WaitForChild("RE/TaserFired"):FireServer(unpack(args))
+                        task.wait(1)
+                    end
                 end
             end)
         end
