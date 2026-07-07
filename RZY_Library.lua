@@ -1,15 +1,22 @@
 local RZY_Library = {}
 
 function RZY_Library:MakeWindow(TitleText)
-    local CoreGui = game:GetService("CoreGui")
+    -- [PERBAIKAN]: Sistem Bypass TargetGui untuk Executor Mobile
+    local TargetGui
+    pcall(function()
+        TargetGui = (gethui and gethui()) or game:GetService("CoreGui")
+    end)
+    if not TargetGui then
+        TargetGui = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+    end
     
-    if CoreGui:FindFirstChild("RZY_Hub") then
-        CoreGui.RZY_Hub:Destroy()
+    if TargetGui:FindFirstChild("RZY_Hub") then
+        TargetGui.RZY_Hub:Destroy()
     end
 
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "RZY_Hub"
-    ScreenGui.Parent = CoreGui
+    ScreenGui.Parent = TargetGui
 
     local RZYIcon = Instance.new("TextButton")
     RZYIcon.Size = UDim2.new(0, 50, 0, 50)
@@ -140,7 +147,6 @@ function RZY_Library:MakeWindow(TitleText)
         return LabelHandler
     end
 
-    -- [FITUR BARU] AddDropdown
     function WindowElements:AddDropdown(Text, Options, Callback)
         local DropdownFrame = Instance.new("Frame")
         DropdownFrame.Size = UDim2.new(1, -10, 0, 35)
@@ -177,10 +183,10 @@ function RZY_Library:MakeWindow(TitleText)
         TitleBtn.MouseButton1Click:Connect(function()
             isOpen = not isOpen
             if isOpen then
-                DropdownFrame.Size = UDim2.new(1, -10, 0, 140) -- Buka
+                DropdownFrame.Size = UDim2.new(1, -10, 0, 140) 
                 TitleBtn.Text = Text .. " ▲"
             else
-                DropdownFrame.Size = UDim2.new(1, -10, 0, 35) -- Tutup
+                DropdownFrame.Size = UDim2.new(1, -10, 0, 35) 
                 TitleBtn.Text = Text .. " ▼"
             end
         end)
@@ -313,7 +319,6 @@ function RZY_Library:MakeWindow(TitleText)
         return InputHandler
     end
 
-        -- [FITUR BARU] AddMultiDropdown (Banyak Pilihan dengan Centang)
     function WindowElements:AddMultiDropdown(Text, Options, Callback)
         local DropdownFrame = Instance.new("Frame")
         DropdownFrame.Size = UDim2.new(1, -10, 0, 35)
@@ -350,19 +355,18 @@ function RZY_Library:MakeWindow(TitleText)
         TitleBtn.MouseButton1Click:Connect(function()
             isOpen = not isOpen
             if isOpen then
-                DropdownFrame.Size = UDim2.new(1, -10, 0, 140) -- Buka
+                DropdownFrame.Size = UDim2.new(1, -10, 0, 140) 
                 TitleBtn.Text = Text .. " ▲"
             else
-                DropdownFrame.Size = UDim2.new(1, -10, 0, 35) -- Tutup
+                DropdownFrame.Size = UDim2.new(1, -10, 0, 35) 
                 TitleBtn.Text = Text .. " ▼"
             end
         end)
 
-        -- Menyimpan status pilihan (centang/tidak)
         local SelectedOptions = {}
 
         for _, option in ipairs(Options) do
-            SelectedOptions[option] = false -- Default belum tercentang
+            SelectedOptions[option] = false 
 
             local OptBtn = Instance.new("TextButton")
             OptBtn.Size = UDim2.new(1, 0, 0, 25)
@@ -374,7 +378,6 @@ function RZY_Library:MakeWindow(TitleText)
             OptBtn.Parent = DropdownList
             Instance.new("UICorner", OptBtn).CornerRadius = UDim.new(0, 4)
 
-            -- Fungsi ketika opsi diklik
             OptBtn.MouseButton1Click:Connect(function()
                 SelectedOptions[option] = not SelectedOptions[option]
                 
@@ -386,7 +389,6 @@ function RZY_Library:MakeWindow(TitleText)
                     OptBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
                 end
                 
-                -- Kirim table status terbaru ke skrip utama
                 pcall(Callback, SelectedOptions)
             end)
         end
