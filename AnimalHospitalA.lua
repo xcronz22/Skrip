@@ -348,12 +348,45 @@ task.spawn(function()
     while task.wait(1) do
         if AutoTaserEnabled then
             pcall(function()
+                local hasSkinwalker = false
+                local targetNPC = nil
+                
+                -- 1. Cari apakah ada NPC Anomaly (Skinwalker) yang aktif
                 for _, npc in ipairs(workspace.NPCs:GetChildren()) do
                     if npc:GetAttribute("Skinwalker") == true then
-                        local args = { npc }
-                        game:GetService("ReplicatedStorage"):WaitForChild("Util"):WaitForChild("Net"):WaitForChild("RE/TaserFired"):FireServer(unpack(args))
-                        task.wait(1)
+                        hasSkinwalker = true
+                        targetNPC = npc
+                        break
                     end
+                end
+                
+                -- 2. Jika ada Anomaly, jalankan aksi
+                if hasSkinwalker and targetNPC then
+                    local char = LocalPlayer.Character
+                    local backpack = LocalPlayer:FindFirstChild("Backpack")
+                    
+                    -- Cek apakah Taser sudah ada di tas atau sedang dipegang
+                    local hasTaser = false
+                    if backpack and backpack:FindFirstChild("Taser") then hasTaser = true end
+                    if char and char:FindFirstChild("Taser") then hasTaser = true end
+                    
+                    -- Jika belum punya Taser, ambil dari TaserStation
+                    if not hasTaser then
+                        local taserPrompt = workspace:FindFirstChild("Misc") 
+                            and workspace.Misc:FindFirstChild("TaserStation") 
+                            and workspace.Misc.TaserStation:FindFirstChild("Main") 
+                            and workspace.Misc.TaserStation.Main:FindFirstChild("PP")
+                            
+                        if taserPrompt and taserPrompt:IsA("ProximityPrompt") then
+                            fireproximityprompt(taserPrompt)
+                            task.wait(0.5) -- Jeda sebentar agar item masuk ke inventory
+                        end
+                    end
+                    
+                    -- 3. Tembak Anomaly
+                    local args = { targetNPC }
+                    game:GetService("ReplicatedStorage"):WaitForChild("Util"):WaitForChild("Net"):WaitForChild("RE/TaserFired"):FireServer(unpack(args))
+                    task.wait(1)
                 end
             end)
         end
