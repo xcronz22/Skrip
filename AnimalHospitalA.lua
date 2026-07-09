@@ -293,7 +293,7 @@ task.spawn(function()
 
                 if grabbedSomething then
                     -- Setelah mengambil obat yang dibutuhkan, tunggu sebentar sebelum looping kembali
-                    task.wait(5) 
+                    task.wait(3) 
                 end
             end)
         end
