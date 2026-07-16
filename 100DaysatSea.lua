@@ -991,9 +991,9 @@ end)
 -- [FITUR 11]: UNIVERSAL FLY (UPGRADED: SAFE CUTSCENE, NOCLIP & FIXCAM)
 -- ====================================================================
 local UniversalFlyEnabled = true 
-local UniversalFlySpeed = 200
+local UniversalFlySpeed = 150
 
-Win:AddInput("Fly Speed (Universal)", "200", function(val)
+Win:AddInput("Fly Speed (Universal)", "150", function(val)
     local num = tonumber(val)
     if num then
         UniversalFlySpeed = num
