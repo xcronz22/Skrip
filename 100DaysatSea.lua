@@ -1237,7 +1237,7 @@ local function RunAutoHeal()
                 local backpack = player:FindFirstChild("Backpack")
                 
                 -- Pastikan karakter hidup dan humanoid ada
-                if humanoid and humanoid.Health > 0 and humanoid.Health <= 70 then
+                if humanoid and humanoid.Health > 0 and humanoid.Health <= 80 then
                     
                     -- [LANGKAH 1]: Mengingat apa yang sedang Anda pegang saat ini
                     local currentTool = character:FindFirstChildWhichIsA("Tool")
@@ -1290,7 +1290,7 @@ local function RunAutoHeal()
     end)
 end
 
-Win:AddToggle("Auto Heal (<= 70 to 100)", true, function(state)
+Win:AddToggle("Auto Heal (<= 80 to 100)", true, function(state)
     AutoHealEnabled = state
     if AutoHealEnabled then
         RunAutoHeal()
