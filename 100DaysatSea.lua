@@ -14,7 +14,7 @@ local TargetMaterials = {
     ["Big Crate"] = false,
 }
 
-Win:AddMultiDropdown("Material", {"Wood", "Metal", "Goo", "Small Gas Can", "Big Gas Can", "Gas Drum", "Small Crate", "Big Crate", "Penguin"}, function(selectedTable)
+Win:AddMultiDropdown("Material", {"Wood", "Metal", "Goo", "Small Gas Can", "Big Gas Can", "Gas Drum", "Small Crate", "Big Crate"}, function(selectedTable)
     TargetMaterials = selectedTable
 end)
 
@@ -283,7 +283,7 @@ local function RunAutoEat()
                     -- [LOGIKA 1]: NORMAL (Makan hanya jika lapar)
                     -- ==============================================================
                     if EatMode == "Normal (Lapar)" then
-                        if FillBar.Size.X.Scale <= 0.7 then
+                        if FillBar.Size.X.Scale <= 0.8 then
                             for _, folderObj in ipairs(DebrisField:GetChildren()) do
                                 -- Berhenti jika sudah kenyang atau toggle dimatikan/diganti
                                 if not AutoEatEnabled or FillBar.Size.X.Scale >= 0.99 or EatMode ~= "Normal (Lapar)" then break end
@@ -362,7 +362,7 @@ local TargetWeaponsCollect = {
     ["machete"] = true, ["poku poku"] = true, ["swordfish spear"] = true, ["ghost cutlass"] = true,
     ["flintlock"] = true, ["blunderbuss"] = true, ["rifle"] = true, ["boomstick"] = true,
     ["magma staff"] = true, ["ice staff"] = true, ["squid laser"] = true, ["revolver"] = true, ["hand cannon"] = true, 
-    ["angler flare"] = true, ["medkit"] = true
+    ["angler flare"] = true, ["medkit"] = true, ["minigun"] = true, ["void slicer"] = true
 }
 
 local function RunAutoCollect()
@@ -573,7 +573,7 @@ local function RunAutoAttack()
                                 CheckAndAttackAsync("Squid Laser", function(t) SafeRemoteFunction("ToolReplicator", "~sLaser", "~sShoot", vecStr) end)
                                 CheckAndAttackAsync("Grenade", function(t) SafeRemoteFunction("ToolReplicator", "~sGrenade", "~sThrow", vecStr, vecStr) end)
                                 
-                                local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick", "DualPistols", "Assault Rifle", "Raygun"}
+                                local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick", "DualPistols", "Assault Rifle", "Raygun", "Minigun", "Void Slicer"}
                                 for _, gunName in ipairs(gunTypes) do
                                     CheckAndAttackAsync(gunName, function(t)
                                         local firePart = t:FindFirstChild("Handle") or t:FindFirstChildWhichIsA("BasePart") or rootPart
@@ -628,7 +628,7 @@ local function RunAutoAttack()
                                         CheckAndAttackAsync("Squid Laser", function(t) SafeRemoteFunction("ToolReplicator", "~sLaser", "~sShoot", vecStr) end)
                                         CheckAndAttackAsync("Grenade", function(t) SafeRemoteFunction("ToolReplicator", "~sGrenade", "~sThrow", vecStr, vecStr) end)
 
-                                        local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick", "DualPistols", "Assault Rifle", "Raygun"}
+                                        local gunTypes = {"Rifle", "Flintlock", "Blunderbuss", "Revolver", "Hand Cannon", "Boomstick", "DualPistols", "Assault Rifle", "Raygun", "Minigun", "Void Slicer"}
                                         for _, gunName in ipairs(gunTypes) do
                                             CheckAndAttackAsync(gunName, function(t)
                                                 local firePart = t:FindFirstChild("Handle") or t:FindFirstChildWhichIsA("BasePart") or rootPart
@@ -1558,7 +1558,7 @@ local function RunAutoClaimEffects()
                                             end
                                             
                                             -- Jeda santai agar server tidak kaget
-                                            task.wait(1.5)
+                                            task.wait(1)
                                         end
                                         
                                     end
@@ -1571,7 +1571,7 @@ local function RunAutoClaimEffects()
             end)
             
             -- Jeda istirahat pencarian setiap 2 detik (Sangat ringan)
-            task.wait(2) 
+            task.wait(1) 
         end
     end)
 end
