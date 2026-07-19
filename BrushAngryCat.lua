@@ -1,43 +1,57 @@
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
-
--- 1. Membuat UI Window menggunakan MakeWindow dari library kamu
 local Window = Library:MakeWindow("Brush Angry Cat")
 
-local Event = game:GetService("ReplicatedStorage").Msg.RemoteFunction.RollFunction
-local AutoHatch = false
+local HatchEvent = game:GetService("ReplicatedStorage").Msg.RemoteFunction.RollFunction
+local TrainEvent = game:GetService("ReplicatedStorage").Msg.RemoteFunction.Setting
 
--- Tabel default untuk menyimpan status Egg
+local AutoHatch = false
+local AutoTrain = false
+
 local SelectedEggs = {
     Egg1 = false,
     Egg2 = false,
     Egg3 = false,
-    Egg4 = false,
-    Egg5 = false
+    Egg4 = false
 }
 
--- 2. Menggunakan fitur AddMultiDropdown dari library kamu untuk memilih Egg
+-- ==========================================
+-- TAMPILAN MENU (UI)
+-- ==========================================
 Window:AddMultiDropdown("Pilih Egg", {"Egg1", "Egg2", "Egg3", "Egg4", "Egg5"}, function(OpsiTerpilih)
-    -- OpsiTerpilih akan otomatis memperbarui tabel dengan Egg mana saja yang dicentang
     SelectedEggs = OpsiTerpilih
 end)
 
--- 3. Membuat Toggle utama untuk menyalakan/mematikan Auto Hatch
 Window:AddToggle("Mulai Auto Hatch", false, function(state)
     AutoHatch = state
 end)
 
--- 4. Mesin Utama (Berjalan di latar belakang)
+Window:AddToggle("Mulai Auto Train", false, function(state)
+    AutoTrain = state
+end)
+
+-- ==========================================
+-- MESIN BELAKANG (LOOPING)
+-- ==========================================
 task.spawn(function()
     while task.wait(1) do
         if AutoHatch then
-            -- Mengecek satu per satu Egg di dalam tabel SelectedEggs
             for namaEgg, dipilih in pairs(SelectedEggs) do
-                if dipilih then -- Jika Egg tersebut di-ceklis (bernilai true)
+                if dipilih then
                     pcall(function()
-                        Event:InvokeServer(namaEgg, 1, true)
+                        HatchEvent:InvokeServer(namaEgg, 1, true)
                     end)
                 end
             end
+        end
+    end
+end)
+
+task.spawn(function()
+    while task.wait(1) do
+        if AutoTrain then
+            pcall(function()
+                TrainEvent:InvokeServer("AutoTrain", 1)
+            end)
         end
     end
 end)
