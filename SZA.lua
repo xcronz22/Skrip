@@ -21,7 +21,8 @@ local SenjataTerpilih = {
     CosmicPistol = false,
     Quasar = false,
     Pulsar = false,
-    Interstellar = false
+    Interstellar = false,
+    Star Shooter = false
 }
 
 -- ==========================================
@@ -29,7 +30,7 @@ local SenjataTerpilih = {
 -- ==========================================
 
 -- 1. MultiDropdown untuk memilih lebih dari 1 senjata
-Window:AddMultiDropdown("Pilih Senjata", {"CosmicPistol", "Quasar", "Pulsar", "Interstellar"}, function(opsiTerpilih)
+Window:AddMultiDropdown("Pilih Senjata", {"CosmicPistol", "Quasar", "Pulsar", "Interstellar", "Star Shooter"}, function(opsiTerpilih)
     SenjataTerpilih = opsiTerpilih
 end)
 
