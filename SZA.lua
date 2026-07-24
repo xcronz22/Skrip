@@ -1,8 +1,8 @@
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
-local Window = Library:MakeWindow("SZA Script")
+local Window = Library:MakeWindow("SZA Script Pro")
 
 -- ==========================================
--- LAYANAN UTAMA (Tanpa mencari Remote dulu)
+-- LAYANAN UTAMA
 -- ==========================================
 local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
@@ -13,12 +13,11 @@ local AutoBloodmoon = false
 local AutoArtifact = false
 local AutoKill = false
 
--- Senjata mutlak untuk tembakan aura
+-- Senjata mutlak yang dideteksi server
 local SenjataUtama = "CosmicPistol"
 
 -- ==========================================
--- TAMPILAN MENU (UI) 
--- (Sekarang dijamin muncul karena dieksekusi duluan!)
+-- TAMPILAN MENU (UI)
 -- ==========================================
 Window:AddToggle("Auto Bloodmoon Spin", false, function(state)
     AutoBloodmoon = state
@@ -28,7 +27,7 @@ Window:AddToggle("Auto Artifact Spin", false, function(state)
     AutoArtifact = state
 end)
 
-Window:AddToggle("Auto Kill (Aura)", false, function(state)
+Window:AddToggle("Auto Kill (Aura + Damage)", false, function(state)
     AutoKill = state
 end)
 
@@ -41,7 +40,6 @@ task.spawn(function()
     while task.wait(0.1) do
         if AutoBloodmoon then
             pcall(function()
-                -- Remote dicari tepat saat fungsi dijalankan agar tidak error di awal
                 ReplicatedStorage.Remotes.EventRemotes.BloodmoonRequestSpin:InvokeServer()
             end)
         end
@@ -59,7 +57,7 @@ task.spawn(function()
     end
 end)
 
--- 3. Mesin Auto Kill (Tanpa Pegang Senjata)
+-- 3. Mesin Auto Kill (Fix Damage GunHit)
 task.spawn(function()
     while task.wait(0.04) do
         if AutoKill then
@@ -78,8 +76,19 @@ task.spawn(function()
                             local targetPos = targetPart.Position
                             local direction = (targetPos - myPos).Unit
                             
-                            -- Remote GunFire dieksekusi di sini dengan peluru CosmicPistol
-                            ReplicatedStorage.Remotes.NetRemotes.GunFire:FireServer(SenjataUtama, targetPos, direction)
+                            -- [BARU] Mengekstrak angka ID dari nama Zombie (misal: "Zombie_22" menjadi angka 22)
+                            local ID_String = string.match(zombie.Name, "%d+")
+                            
+                            if ID_String then
+                                local ID_Angka = tonumber(ID_String)
+                                
+                                -- 1. Mengirim efek tembakan (GunFire)
+                                ReplicatedStorage.Remotes.NetRemotes.GunFire:FireServer(SenjataUtama, targetPos, direction)
+                                
+                                -- 2. Mengirim DAMAGE mematikan ke server (GunHit)
+                                -- Path ini sesuai dengan video Cobalt kamu di detik 0:29
+                                ReplicatedStorage.Remotes.GunRemotes.GunHit:FireServer(SenjataUtama, ID_Angka, targetPos)
+                            end
                         end
                     end
                     
