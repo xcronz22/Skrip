@@ -13,6 +13,9 @@ local AutoBloodmoon = false
 local AutoArtifact = false
 local AutoKill = false
 
+-- Variabel Jarak Maksimal (Default: math.huge / tak terhingga)
+local MaxJarak = math.huge 
+
 -- Menyimpan daftar senjata yang dicentang di MultiDropdown
 local SenjataTerpilih = {
     CosmicPistol = false,
@@ -28,6 +31,16 @@ local SenjataTerpilih = {
 -- 1. MultiDropdown untuk memilih lebih dari 1 senjata
 Window:AddMultiDropdown("Pilih Senjata", {"CosmicPistol", "Quasar", "Pulsar", "Interstellar"}, function(opsiTerpilih)
     SenjataTerpilih = opsiTerpilih
+end)
+
+-- 2. Input untuk Jarak Auto Kill
+Window:AddInput("Jarak Auto Kill (Angka)", "Default: Semua", function(text)
+    local angka = tonumber(text)
+    if angka then
+        MaxJarak = angka -- Mengubah jarak sesuai input (misal: 20)
+    else
+        MaxJarak = math.huge -- Jika dikosongkan/huruf, kembali ke jarak tak terbatas
+    end
 end)
 
 Window:AddToggle("Auto Bloodmoon Spin", false, function(state)
@@ -68,7 +81,7 @@ task.spawn(function()
     end
 end)
 
--- 3. Mesin Auto Kill (Multi-Senjata Sesuai Dropdown)
+-- 3. Mesin Auto Kill (Dengan Batas Jarak)
 task.spawn(function()
     while task.wait(0.1) do
         if AutoKill then
@@ -85,22 +98,26 @@ task.spawn(function()
                         
                         if targetPart then
                             local targetPos = targetPart.Position
-                            -- Variabel 'direction' dihapus karena sudah tidak dipakai oleh GunFire
                             
-                            local ID_String = string.match(zombie.Name, "%d+")
+                            -- [FITUR BARU] Menghitung jarak antara kita dan zombie
+                            local jarakZombi = (targetPos - myPos).Magnitude
                             
-                            if ID_String then
-                                local ID_Angka = tonumber(ID_String)
+                            -- Mengecek apakah jarak zombie masuk ke dalam radius yang diatur
+                            if jarakZombi <= MaxJarak then
+                                local ID_String = string.match(zombie.Name, "%d+")
                                 
-                                -- Menembakkan HANYA senjata yang kamu centang di MultiDropdown
-                                for namaSenjata, statusCeklis in pairs(SenjataTerpilih) do
-                                    if statusCeklis then
-                                        -- Hanya menyisakan GunHit
-                                        ReplicatedStorage.Remotes.GunRemotes.GunHit:FireServer(namaSenjata, ID_Angka, targetPos)
+                                if ID_String then
+                                    local ID_Angka = tonumber(ID_String)
+                                    
+                                    -- Menembakkan HANYA senjata yang kamu centang di MultiDropdown
+                                    for namaSenjata, statusCeklis in pairs(SenjataTerpilih) do
+                                        if statusCeklis then
+                                            ReplicatedStorage.Remotes.GunRemotes.GunHit:FireServer(namaSenjata, ID_Angka, targetPos)
+                                        end
                                     end
                                 end
-                                
                             end
+                            
                         end
                     end
                     
