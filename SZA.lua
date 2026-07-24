@@ -11,18 +11,16 @@ local LocalPlayer = Players.LocalPlayer
 
 local AutoBloodmoon = false
 local AutoArtifact = false
-local AutoKill = false
-local AutoHipHeight = false
+local AutoKill = true -- Diubah menjadi true agar langsung aktif
 
 -- Menyimpan daftar senjata yang dicentang di MultiDropdown
+-- Diubah menjadi true semua agar langsung terpilih
 local SenjataTerpilih = {
-    CosmicPistol = false,
-    Quasar = false,
-    Pulsar = false,
-    Interstellar = false
+    CosmicPistol = true,
+    Quasar = true,
+    Pulsar = true,
+    Interstellar = true
 }
-
-local TargetHipHeight = 30 -- Nilai default otomatis 30
 
 -- ==========================================
 -- TAMPILAN MENU (UI)
@@ -33,23 +31,6 @@ Window:AddMultiDropdown("Pilih Senjata", {"CosmicPistol", "Quasar", "Pulsar", "I
     SenjataTerpilih = opsiTerpilih
 end)
 
--- 2. Toggle Hip Height + Input untuk mengatur tinggi (maksimal 60)
-Window:AddToggle("Auto Hip Height", false, function(state)
-    AutoHipHeight = state
-end)
-
-Window:AddInput("Atur Tinggi (Max 60)", "Default: 30", function(text)
-    local angka = tonumber(text)
-    if angka then
-        -- Membatasi agar tidak lebih dari 60 dan tidak kurang dari 0
-        if angka > 60 then
-            TargetHipHeight = 60
-        else
-            TargetHipHeight = angka
-        end
-    end
-end)
-
 Window:AddToggle("Auto Bloodmoon Spin", false, function(state)
     AutoBloodmoon = state
 end)
@@ -58,7 +39,8 @@ Window:AddToggle("Auto Artifact Spin", false, function(state)
     AutoArtifact = state
 end)
 
-Window:AddToggle("Auto Kill (Aura + Damage)", false, function(state)
+-- Default toggle diubah menjadi true
+Window:AddToggle("Auto Kill (Aura + Damage)", true, function(state)
     AutoKill = state
 end)
 
@@ -88,29 +70,7 @@ task.spawn(function()
     end
 end)
 
--- 3. Mesin Auto Hip Height (Mengatur posisi terbang/melayang karakter)
-task.spawn(function()
-    while task.wait(0.1) do
-        if AutoHipHeight then
-            pcall(function()
-                local character = LocalPlayer.Character
-                if character and character:FindFirstChildOfClass("Humanoid") then
-                    character.Humanoid.HipHeight = TargetHipHeight
-                end
-            end)
-        else
-            pcall(function()
-                -- Mengembalikan ke normal (0) jika toggle dimatikan
-                local character = LocalPlayer.Character
-                if character and character:FindFirstChildOfClass("Humanoid") then
-                    character.Humanoid.HipHeight = 0
-                end
-            end)
-        end
-    end
-end)
-
--- 4. Mesin Auto Kill (Multi-Senjata Sesuai Dropdown)
+-- 3. Mesin Auto Kill (Multi-Senjata Sesuai Dropdown)
 task.spawn(function()
     while task.wait(0.04) do
         if AutoKill then
@@ -127,7 +87,6 @@ task.spawn(function()
                         
                         if targetPart then
                             local targetPos = targetPart.Position
-                            local direction = (targetPos - myPos).Unit
                             
                             local ID_String = string.match(zombie.Name, "%d+")
                             
@@ -137,7 +96,7 @@ task.spawn(function()
                                 -- Menembakkan HANYA senjata yang kamu centang di MultiDropdown
                                 for namaSenjata, statusCeklis in pairs(SenjataTerpilih) do
                                     if statusCeklis then
-                                        ReplicatedStorage.Remotes.NetRemotes.GunFire:FireServer(namaSenjata, targetPos, direction)
+                                        -- Hanya menyisakan GunHit
                                         ReplicatedStorage.Remotes.GunRemotes.GunHit:FireServer(namaSenjata, ID_Angka, targetPos)
                                     end
                                 end
