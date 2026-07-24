@@ -1,11 +1,5 @@
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
-local Window = Library:MakeWindow("SZA All-in-One")
-
--- ==========================================
--- PENGATURAN SENJATA (ISI MANUAL DI SINI)
--- ==========================================
--- Ubah teks di dalam tanda kutip di bawah ini sesuai dengan nama senjatamu
-local NamaSenjata = "CosmicPistol" 
+local Window = Library:MakeWindow("SZA Script")
 
 -- ==========================================
 -- LAYANAN & REMOTE
@@ -63,7 +57,7 @@ task.spawn(function()
     end
 end)
 
--- 3. Mesin Auto Kill Zombies (0.04 Detik)
+-- 3. Mesin Auto Kill (Pendeteksi Senjata Pintar)
 task.spawn(function()
     while task.wait(0.04) do
         if AutoKill then
@@ -71,22 +65,33 @@ task.spawn(function()
                 local zombiesFolder = Workspace:FindFirstChild("Zombies_Local")
                 local character = LocalPlayer.Character
                 
-                -- Mengecek keberadaan folder zombie dan karakter pemain
                 if zombiesFolder and character and character:FindFirstChild("HumanoidRootPart") then
-                    local myPos = character.HumanoidRootPart.Position
                     
-                    -- Menyerang semua zombie di dalam folder
-                    for _, zombie in pairs(zombiesFolder:GetChildren()) do
-                        local targetPart = zombie:FindFirstChild("HumanoidRootPart")
+                    local senjataAktif = character:FindFirstChildOfClass("Tool")
+                    
+                    if senjataAktif then
+                        local namaSenjata = senjataAktif.Name
                         
-                        if targetPart then
-                            local targetPos = targetPart.Position
-                            local direction = (targetPos - myPos).Unit
+                        -- [KOREKSI OTOMATIS]: Jika senjata yang dipegang adalah Quasar, ubah datanya jadi CosmicPistol
+                        if namaSenjata == "Quasar" then
+                            namaSenjata = "CosmicPistol"
+                        end
+                        
+                        local myPos = character.HumanoidRootPart.Position
+                        
+                        for _, zombie in pairs(zombiesFolder:GetChildren()) do
+                            local targetPart = zombie:FindFirstChild("HumanoidRootPart")
                             
-                            -- Mengeksekusi tembakan menggunakan variabel NamaSenjata
-                            GunEvent:FireServer(NamaSenjata, targetPos, direction)
+                            if targetPart then
+                                local targetPos = targetPart.Position
+                                local direction = (targetPos - myPos).Unit
+                                
+                                -- Tembak menggunakan nama senjata yang sudah disesuaikan
+                                GunEvent:FireServer(namaSenjata, targetPos, direction)
+                            end
                         end
                     end
+                    
                 end
             end)
         end
