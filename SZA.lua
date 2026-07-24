@@ -2,6 +2,17 @@ local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcron
 local Window = Library:MakeWindow("SZA Script Pro")
 
 -- ==========================================
+-- INDEKS SENJATA (Smart Dictionary)
+-- ==========================================
+-- Format: ["Nama Senjata di Tangan"] = "Nama Senjata untuk Server"
+local IndeksSenjata = {
+    ["CosmicPistol"] = "CosmicPistol",
+    ["Quasar"]       = "Quasar",
+    ["Pulsar"]       = "Pulsar",
+    ["Interstellar"] = "Interstellar"
+}
+
+-- ==========================================
 -- LAYANAN UTAMA
 -- ==========================================
 local Workspace = game:GetService("Workspace")
@@ -12,9 +23,6 @@ local LocalPlayer = Players.LocalPlayer
 local AutoBloodmoon = false
 local AutoArtifact = false
 local AutoKill = false
-
--- Senjata mutlak yang dideteksi server
-local SenjataUtama = "CosmicPistol"
 
 -- ==========================================
 -- TAMPILAN MENU (UI)
@@ -35,7 +43,7 @@ end)
 -- MESIN BELAKANG (LOOPING TUGAS)
 -- ==========================================
 
--- 1. Mesin Bloodmoon Spin (0.1 Detik)
+-- 1. Mesin Bloodmoon Spin
 task.spawn(function()
     while task.wait(0.1) do
         if AutoBloodmoon then
@@ -46,7 +54,7 @@ task.spawn(function()
     end
 end)
 
--- 2. Mesin Artifact Spin (0.1 Detik)
+-- 2. Mesin Artifact Spin
 task.spawn(function()
     while task.wait(0.1) do
         if AutoArtifact then
@@ -57,7 +65,7 @@ task.spawn(function()
     end
 end)
 
--- 3. Mesin Auto Kill (Fix Damage GunHit)
+-- 3. Mesin Auto Kill (Wajib Pegang Senjata Terdaftar)
 task.spawn(function()
     while task.wait(0.04) do
         if AutoKill then
@@ -67,29 +75,35 @@ task.spawn(function()
                 
                 if zombiesFolder and character and character:FindFirstChild("HumanoidRootPart") then
                     
-                    local myPos = character.HumanoidRootPart.Position
+                    -- [WAJIB]: Mengecek senjata apa yang sedang dipegang di tangan
+                    local senjataAktif = character:FindFirstChildOfClass("Tool")
                     
-                    for _, zombie in pairs(zombiesFolder:GetChildren()) do
-                        local targetPart = zombie:FindFirstChild("HumanoidRootPart")
+                    -- Mengecek apakah senjata di tangan ada di dalam IndeksSenjata
+                    if senjataAktif and IndeksSenjata[senjataAktif.Name] then
                         
-                        if targetPart then
-                            local targetPos = targetPart.Position
-                            local direction = (targetPos - myPos).Unit
+                        -- Menerjemahkan nama senjata untuk server
+                        local namaSenjataServer = IndeksSenjata[senjataAktif.Name]
+                        local myPos = character.HumanoidRootPart.Position
+                        
+                        for _, zombie in pairs(zombiesFolder:GetChildren()) do
+                            local targetPart = zombie:FindFirstChild("HumanoidRootPart")
                             
-                            -- [BARU] Mengekstrak angka ID dari nama Zombie (misal: "Zombie_22" menjadi angka 22)
-                            local ID_String = string.match(zombie.Name, "%d+")
-                            
-                            if ID_String then
-                                local ID_Angka = tonumber(ID_String)
+                            if targetPart then
+                                local targetPos = targetPart.Position
+                                local direction = (targetPos - myPos).Unit
                                 
-                                -- 1. Mengirim efek tembakan (GunFire)
-                                ReplicatedStorage.Remotes.NetRemotes.GunFire:FireServer(SenjataUtama, targetPos, direction)
+                                local ID_String = string.match(zombie.Name, "%d+")
                                 
-                                -- 2. Mengirim DAMAGE mematikan ke server (GunHit)
-                                -- Path ini sesuai dengan video Cobalt kamu di detik 0:29
-                                ReplicatedStorage.Remotes.GunRemotes.GunHit:FireServer(SenjataUtama, ID_Angka, targetPos)
+                                if ID_String then
+                                    local ID_Angka = tonumber(ID_String)
+                                    
+                                    -- Eksekusi GunFire dan GunHit menggunakan nama senjata yang sah
+                                    ReplicatedStorage.Remotes.NetRemotes.GunFire:FireServer(namaSenjataServer, targetPos, direction)
+                                    ReplicatedStorage.Remotes.GunRemotes.GunHit:FireServer(namaSenjataServer, ID_Angka, targetPos)
+                                end
                             end
                         end
+                        
                     end
                     
                 end
