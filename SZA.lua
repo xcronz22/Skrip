@@ -72,7 +72,7 @@ end)
 
 -- 3. Mesin Auto Kill (Multi-Senjata Sesuai Dropdown)
 task.spawn(function()
-    while task.wait(0.04) do
+    while task.wait(0.1) do
         if AutoKill then
             pcall(function()
                 local zombiesFolder = Workspace:FindFirstChild("Zombies_Local")
