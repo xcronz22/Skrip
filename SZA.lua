@@ -16,6 +16,9 @@ local AutoBloodmoon = false
 local AutoArtifact = false
 local AutoKill = false
 
+-- Senjata mutlak yang akan selalu dikirim ke server meskipun tangan kosong
+local SenjataUtama = "CosmicPistol"
+
 -- ==========================================
 -- TAMPILAN MENU (UI)
 -- ==========================================
@@ -57,7 +60,7 @@ task.spawn(function()
     end
 end)
 
--- 3. Mesin Auto Kill (Pendeteksi Senjata Pintar)
+-- 3. Mesin Auto Kill (Tanpa Pegang Senjata)
 task.spawn(function()
     while task.wait(0.04) do
         if AutoKill then
@@ -65,30 +68,20 @@ task.spawn(function()
                 local zombiesFolder = Workspace:FindFirstChild("Zombies_Local")
                 local character = LocalPlayer.Character
                 
+                -- Hanya mengecek folder zombie dan keberadaan tubuh kita (tidak mengecek Tool)
                 if zombiesFolder and character and character:FindFirstChild("HumanoidRootPart") then
                     
-                    local senjataAktif = character:FindFirstChildOfClass("Tool")
+                    local myPos = character.HumanoidRootPart.Position
                     
-                    if senjataAktif then
-                        local namaSenjata = senjataAktif.Name
+                    for _, zombie in pairs(zombiesFolder:GetChildren()) do
+                        local targetPart = zombie:FindFirstChild("HumanoidRootPart")
                         
-                        -- [KOREKSI OTOMATIS]: Jika senjata yang dipegang adalah Quasar, ubah datanya jadi CosmicPistol
-                        if namaSenjata == "Quasar" then
-                            namaSenjata = "CosmicPistol"
-                        end
-                        
-                        local myPos = character.HumanoidRootPart.Position
-                        
-                        for _, zombie in pairs(zombiesFolder:GetChildren()) do
-                            local targetPart = zombie:FindFirstChild("HumanoidRootPart")
+                        if targetPart then
+                            local targetPos = targetPart.Position
+                            local direction = (targetPos - myPos).Unit
                             
-                            if targetPart then
-                                local targetPos = targetPart.Position
-                                local direction = (targetPos - myPos).Unit
-                                
-                                -- Tembak menggunakan nama senjata yang sudah disesuaikan
-                                GunEvent:FireServer(namaSenjata, targetPos, direction)
-                            end
+                            -- Mengirimkan tembakan langsung ke semua zombie secara otomatis
+                            GunEvent:FireServer(SenjataUtama, targetPos, direction)
                         end
                     end
                     
