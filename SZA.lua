@@ -142,7 +142,7 @@ end)
 
 -- 5. Mesin Auto Kill (Dengan Batas Jarak)
 task.spawn(function()
-    while task.wait(0.1) do
+    while task.wait(0.04) do
         if AutoKill then
             pcall(function()
                 local zombiesFolder = Workspace:FindFirstChild("Zombies_Local")
