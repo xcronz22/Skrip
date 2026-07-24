@@ -11,15 +11,14 @@ local LocalPlayer = Players.LocalPlayer
 
 local AutoBloodmoon = false
 local AutoArtifact = false
-local AutoKill = true -- Diubah menjadi true agar langsung aktif
+local AutoKill = false
 
 -- Menyimpan daftar senjata yang dicentang di MultiDropdown
--- Diubah menjadi true semua agar langsung terpilih
 local SenjataTerpilih = {
-    CosmicPistol = true,
-    Quasar = true,
-    Pulsar = true,
-    Interstellar = true
+    CosmicPistol = false,
+    Quasar = false,
+    Pulsar = false,
+    Interstellar = false
 }
 
 -- ==========================================
@@ -39,8 +38,7 @@ Window:AddToggle("Auto Artifact Spin", false, function(state)
     AutoArtifact = state
 end)
 
--- Default toggle diubah menjadi true
-Window:AddToggle("Auto Kill (Aura + Damage)", true, function(state)
+Window:AddToggle("Auto Kill (Aura + Damage)", false, function(state)
     AutoKill = state
 end)
 
@@ -87,6 +85,7 @@ task.spawn(function()
                         
                         if targetPart then
                             local targetPos = targetPart.Position
+                            -- Variabel 'direction' dihapus karena sudah tidak dipakai oleh GunFire
                             
                             local ID_String = string.match(zombie.Name, "%d+")
                             
