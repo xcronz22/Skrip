@@ -18,11 +18,11 @@ local MaxJarak = math.huge
 
 -- Menyimpan daftar senjata yang dicentang di MultiDropdown
 local SenjataTerpilih = {
-    CosmicPistol = false,
-    Quasar = false,
-    Pulsar = false,
-    Interstellar = false,
-    Star Shooter = false
+    ["CosmicPistol"] = false,
+    ["Quasar"] = false,
+    ["Pulsar"] = false,
+    ["Interstellar"] = false,
+    ["Star Shooter"] = false -- [BARU] Senjata ditambahkan di sini
 }
 
 -- ==========================================
@@ -82,7 +82,7 @@ task.spawn(function()
     end
 end)
 
--- 3. Mesin Auto Kill (Dengan Batas Jarak)
+-- 3. Mesin Auto Kill (Dengan Batas Jarak & Senjata Baru)
 task.spawn(function()
     while task.wait(0.04) do
         if AutoKill then
@@ -100,7 +100,7 @@ task.spawn(function()
                         if targetPart then
                             local targetPos = targetPart.Position
                             
-                            -- [FITUR BARU] Menghitung jarak antara kita dan zombie
+                            -- Menghitung jarak antara kita dan zombie
                             local jarakZombi = (targetPos - myPos).Magnitude
                             
                             -- Mengecek apakah jarak zombie masuk ke dalam radius yang diatur
