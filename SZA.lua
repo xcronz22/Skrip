@@ -106,9 +106,9 @@ task.spawn(function()
     end
 end)
 
--- 3. Mesin Auto Health Upgrade (0.5 Detik)
+-- 3. Mesin Auto Health Upgrade (0.1 Detik)
 task.spawn(function()
-    while task.wait(0.5) do
+    while task.wait(0.1) do
         if AutoHealth then
             pcall(function()
                 ReplicatedStorage.Remotes.UpgradeRemotes.PurchaseHealthUpgrade:FireServer()
