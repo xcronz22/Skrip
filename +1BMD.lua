@@ -7,7 +7,6 @@ local RunService = game:GetService("RunService")
 local VirtualUser = game:GetService("VirtualUser")
 local Lighting = game:GetService("Lighting")
 
--- Deklarasi Remote Events
 local punchRemote = RS:WaitForChild("Shared"):WaitForChild("Events"):WaitForChild("Destruction_Punch")
 local collectRemote = RS:WaitForChild("Shared"):WaitForChild("Events"):WaitForChild("Collectable_Collect")
 local grabRemote = RS:WaitForChild("Shared"):WaitForChild("Events"):WaitForChild("Chunk_Grab")
@@ -20,8 +19,9 @@ getgenv().Noclip = false
 getgenv().AutoRun = false
 getgenv().AutoGrabThrow = false
 
-getgenv().PunchRadius = 20 -- Radius pukul default 20
-getgenv().RunSpeed = 0     -- Default 0 (Menggunakan kecepatan asli dari upgrade game)
+getgenv().PunchRadius = 20
+getgenv().RunSpeed = 0 
+getgenv().CurrentPunchArg = 1 -- Memori awal untuk bergantian argumen pukulan
 
 -- ==========================================
 -- MENU 1: INPUT PENGATURAN
@@ -49,7 +49,7 @@ Window:AddToggle("Punch Wall & Floor", false, function(state)
     if state then
         task.spawn(function()
             while getgenv().WallPunch do
-                task.wait(0.1) -- Kecepatan pukulan stabil 0.1
+                task.wait(0.1) 
                 
                 pcall(function()
                     local char = Players.LocalPlayer.Character
@@ -63,9 +63,17 @@ Window:AddToggle("Punch Wall & Floor", false, function(state)
                                 if part:IsA("BasePart") and part.CanCollide == true then
                                     local distance = (part.Position - rootPos).Magnitude
                                     if distance <= radius then
-                                        -- Menembak Argumen 1 (Dinding) dan 2 (Lantai) di posisi yang sama
-                                        punchRemote:FireServer(1, part.Position)
-                                        punchRemote:FireServer(2, part.Position)
+                                        
+                                        -- Hajar menggunakan memori argumen saat ini (1 atau 2)
+                                        punchRemote:FireServer(getgenv().CurrentPunchArg, part.Position)
+                                        
+                                        -- Ganti memori agar pukulan berikutnya menggunakan argumen yang berbeda
+                                        if getgenv().CurrentPunchArg == 1 then
+                                            getgenv().CurrentPunchArg = 2
+                                        else
+                                            getgenv().CurrentPunchArg = 1
+                                        end
+                                        
                                         break 
                                     end
                                 end
@@ -147,7 +155,7 @@ Window:AddToggle("Auto Run Random", false, function(state)
                     local base = workspace:FindFirstChild("Base")
                     
                     if hum and base then
-                        -- Jika kecepatan diisi lebih dari 0, paksa ganti kecepatan. Jika 0, pakai kecepatan aslimu.
+                        -- Jika kecepatan diatur lebih dari 0, gunakan itu. Jika 0, gunakan kecepatan aslimu.
                         if getgenv().RunSpeed > 0 then
                             hum.WalkSpeed = getgenv().RunSpeed
                         end
@@ -157,13 +165,14 @@ Window:AddToggle("Auto Run Random", false, function(state)
                         local targetX = base.Position.X + math.random(-sizeX, sizeX)
                         local targetZ = base.Position.Z + math.random(-sizeZ, sizeZ)
                         
+                        -- Langsung lari ke titik acak tersebut
                         hum:MoveTo(Vector3.new(targetX, base.Position.Y + 3, targetZ))
-                        
-                        -- Tunggu sampai karakter benar-benar sampai tujuan (Maksimal nunggu 6 detik kalau nyangkut)
-                        hum.MoveToFinished:Wait(6)
                     end
                 end)
-                task.wait(0.1) -- Jeda super singkat sebelum lari ke titik berikutnya
+                
+                -- Memaksa karakter ganti arah setiap 2 detik TANPA peduli sudah sampai atau belum
+                -- Ini mencegah bug "stuck/jalan di tempat" dan tetap ngebut!
+                task.wait(2)
             end
         end)
     end
