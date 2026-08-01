@@ -20,20 +20,20 @@ getgenv().Noclip = false
 getgenv().AutoRun = false
 getgenv().AutoGrabThrow = false
 
-getgenv().PunchRadius = 50 -- Radius pukul default 50
-getgenv().RunSpeed = 30    -- Kecepatan lari default 30
+getgenv().PunchRadius = 20 -- Radius pukul default 20
+getgenv().RunSpeed = 0     -- Default 0 (Menggunakan kecepatan asli dari upgrade game)
 
 -- ==========================================
 -- MENU 1: INPUT PENGATURAN
 -- ==========================================
-Window:AddInput("Radius Hancur (Jarak)", "Default 50 stud...", function(value)
+Window:AddInput("Radius Hancur (Jarak)", "Default 20 stud...", function(value)
     local angka = tonumber(value)
     if angka then
         getgenv().PunchRadius = angka
     end
 end)
 
-Window:AddInput("Kecepatan Lari Auto Run", "Ketik angka (cth: 50)...", function(value)
+Window:AddInput("Kecepatan Auto Run", "Ketik 0 u/ speed Upgrade...", function(value)
     local angka = tonumber(value)
     if angka then
         getgenv().RunSpeed = angka
@@ -43,7 +43,7 @@ end)
 -- ==========================================
 -- MENU 2: FITUR UTAMA GAMEPLAY
 -- ==========================================
-Window:AddToggle("Punch Wall (Auto-Map)", false, function(state)
+Window:AddToggle("Punch Wall & Floor", false, function(state)
     getgenv().WallPunch = state
     
     if state then
@@ -63,7 +63,9 @@ Window:AddToggle("Punch Wall (Auto-Map)", false, function(state)
                                 if part:IsA("BasePart") and part.CanCollide == true then
                                     local distance = (part.Position - rootPos).Magnitude
                                     if distance <= radius then
+                                        -- Menembak Argumen 1 (Dinding) dan 2 (Lantai) di posisi yang sama
                                         punchRemote:FireServer(1, part.Position)
+                                        punchRemote:FireServer(2, part.Position)
                                         break 
                                     end
                                 end
@@ -82,20 +84,15 @@ Window:AddToggle("Auto Grab & Throw", false, function(state)
     if state then
         task.spawn(function()
             while getgenv().AutoGrabThrow do
-                task.wait(0.1) -- Spam kecepatan tinggi
+                task.wait(0.1) 
                 pcall(function()
                     local char = Players.LocalPlayer.Character
                     if char and char:FindFirstChild("HumanoidRootPart") then
                         local rootPos = char.HumanoidRootPart.Position
-                        
-                        -- Titik acak sedikit bergeser dari badan untuk di-Grab
                         local grabOffset = Vector3.new(math.random(-5, 5), 0, math.random(-5, 5))
                         local grabPos = rootPos + grabOffset
-                        
-                        -- Arah acak (360 derajat) untuk di-Throw
                         local randomDir = Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5).Unit
                         
-                        -- Eksekusi Grab lalu Throw secara bersamaan
                         grabRemote:FireServer(grabPos)
                         throwRemote:FireServer(rootPos, randomDir)
                     end
@@ -144,27 +141,29 @@ Window:AddToggle("Auto Run Random", false, function(state)
     if state then
         task.spawn(function()
             while getgenv().AutoRun do
-                -- Update arah lari setiap 1 detik agar gerakannya lebih acak & tidak nyangkut
-                task.wait(1) 
                 pcall(function()
                     local char = Players.LocalPlayer.Character
                     local hum = char and char:FindFirstChild("Humanoid")
                     local base = workspace:FindFirstChild("Base")
                     
                     if hum and base then
-                        -- Terapkan kecepatan lari dari input
-                        hum.WalkSpeed = getgenv().RunSpeed
+                        -- Jika kecepatan diisi lebih dari 0, paksa ganti kecepatan. Jika 0, pakai kecepatan aslimu.
+                        if getgenv().RunSpeed > 0 then
+                            hum.WalkSpeed = getgenv().RunSpeed
+                        end
                         
                         local sizeX = base.Size.X / 2
                         local sizeZ = base.Size.Z / 2
-                        
-                        -- Menentukan target koordinat di dalam arena map
                         local targetX = base.Position.X + math.random(-sizeX, sizeX)
                         local targetZ = base.Position.Z + math.random(-sizeZ, sizeZ)
                         
                         hum:MoveTo(Vector3.new(targetX, base.Position.Y + 3, targetZ))
+                        
+                        -- Tunggu sampai karakter benar-benar sampai tujuan (Maksimal nunggu 6 detik kalau nyangkut)
+                        hum.MoveToFinished:Wait(6)
                     end
                 end)
+                task.wait(0.1) -- Jeda super singkat sebelum lari ke titik berikutnya
             end
         end)
     end
