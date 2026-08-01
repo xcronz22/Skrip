@@ -19,9 +19,8 @@ getgenv().Noclip = false
 getgenv().AutoRun = false
 getgenv().AutoGrabThrow = false
 
-getgenv().PunchRadius = 20
+getgenv().PunchRadius = 20 -- Radius pukul default 20
 getgenv().RunSpeed = 0 
-getgenv().CurrentPunchArg = 1 -- Memori awal untuk bergantian argumen pukulan
 
 -- ==========================================
 -- MENU 1: INPUT PENGATURAN
@@ -43,13 +42,13 @@ end)
 -- ==========================================
 -- MENU 2: FITUR UTAMA GAMEPLAY
 -- ==========================================
-Window:AddToggle("Punch Wall & Floor", false, function(state)
+Window:AddToggle("Punch Wall (Auto-Map)", false, function(state)
     getgenv().WallPunch = state
     
     if state then
         task.spawn(function()
             while getgenv().WallPunch do
-                task.wait(0.1) 
+                task.wait(0.1) -- Kecepatan pukulan stabil 0.1
                 
                 pcall(function()
                     local char = Players.LocalPlayer.Character
@@ -64,15 +63,8 @@ Window:AddToggle("Punch Wall & Floor", false, function(state)
                                     local distance = (part.Position - rootPos).Magnitude
                                     if distance <= radius then
                                         
-                                        -- Hajar menggunakan memori argumen saat ini (1 atau 2)
-                                        punchRemote:FireServer(getgenv().CurrentPunchArg, part.Position)
-                                        
-                                        -- Ganti memori agar pukulan berikutnya menggunakan argumen yang berbeda
-                                        if getgenv().CurrentPunchArg == 1 then
-                                            getgenv().CurrentPunchArg = 2
-                                        else
-                                            getgenv().CurrentPunchArg = 1
-                                        end
+                                        -- Hanya fokus menggunakan Argumen 1
+                                        punchRemote:FireServer(1, part.Position)
                                         
                                         break 
                                     end
