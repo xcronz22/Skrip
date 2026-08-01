@@ -7,20 +7,14 @@ local RunService = game:GetService("RunService")
 local VirtualUser = game:GetService("VirtualUser")
 local Lighting = game:GetService("Lighting")
 
-local punchRemote = RS:WaitForChild("Shared"):WaitForChild("Events"):WaitForChild("Destruction_Punch")
-local collectRemote = RS:WaitForChild("Shared"):WaitForChild("Events"):WaitForChild("Collectable_Collect")
-local grabRemote = RS:WaitForChild("Shared"):WaitForChild("Events"):WaitForChild("Chunk_Grab")
-local throwRemote = RS:WaitForChild("Shared"):WaitForChild("Events"):WaitForChild("Chunk_Throw")
-
 -- Variabel Global
 getgenv().WallPunch = false
 getgenv().AutoGrabThrow = false
 getgenv().AutoCollect = false
 getgenv().Noclip = false
 getgenv().AutoRun = false
-
+getgenv().CombatActive = false 
 getgenv().PunchRadius = 20 -- Radius pukul default 20
-getgenv().CombatActive = false -- Sistem sinkronisasi baru
 
 -- ==========================================
 -- MENU 1: INPUT PENGATURAN
@@ -35,7 +29,6 @@ end)
 -- ==========================================
 -- SISTEM SINKRONISASI (PUNCH + GRAB + THROW)
 -- ==========================================
--- Fungsi ini menyatukan Pukul dan Lempar agar berjalan di frame yang sama persis
 local function StartSynchronizedCombat()
     if getgenv().CombatActive then return end
     getgenv().CombatActive = true
@@ -46,30 +39,41 @@ local function StartSynchronizedCombat()
             
             pcall(function()
                 local char = Players.LocalPlayer.Character
-                if char and char:FindFirstChild("HumanoidRootPart") then
-                    local rootPos = char.HumanoidRootPart.Position
+                if not char then return end
+                
+                local rootPart = char:FindFirstChild("HumanoidRootPart")
+                if not rootPart then return end
+                
+                local rootPos = rootPart.Position
+                local eventsFolder = RS:FindFirstChild("Shared") and RS.Shared:FindFirstChild("Events")
+                if not eventsFolder then return end
+                
+                -- 1. EKSEKUSI PUKULAN (Fokus Argumen 1)
+                if getgenv().WallPunch then
+                    local punchRemote = eventsFolder:FindFirstChild("Destruction_Punch")
+                    local mapFolder = workspace:FindFirstChild("Map")
+                    local radius = getgenv().PunchRadius
                     
-                    -- 1. EKSEKUSI PUKULAN (Jika Aktif)
-                    if getgenv().WallPunch then
-                        local radius = getgenv().PunchRadius
-                        local mapFolder = workspace:FindFirstChild("Map")
-                        
-                        if mapFolder then
-                            for _, part in ipairs(mapFolder:GetDescendants()) do
-                                if part:IsA("BasePart") and part.CanCollide == true then
-                                    local distance = (part.Position - rootPos).Magnitude
-                                    if distance <= radius then
-                                        -- Fokus Argumen 1
-                                        punchRemote:FireServer(1, part.Position)
-                                        break 
-                                    end
+                    if punchRemote and mapFolder then
+                        for _, part in ipairs(mapFolder:GetDescendants()) do
+                            -- Syarat: Harus Part & Belum Hancur (CanCollide aktif)
+                            if part:IsA("BasePart") and part.CanCollide == true then
+                                local distance = (part.Position - rootPos).Magnitude
+                                if distance <= radius then
+                                    punchRemote:FireServer(1, part.Position)
+                                    break 
                                 end
                             end
                         end
                     end
+                end
+                
+                -- 2. EKSEKUSI GRAB & THROW
+                if getgenv().AutoGrabThrow then
+                    local grabRemote = eventsFolder:FindFirstChild("Chunk_Grab")
+                    local throwRemote = eventsFolder:FindFirstChild("Chunk_Throw")
                     
-                    -- 2. EKSEKUSI GRAB & THROW (Jika Aktif, langsung setelah pukulan)
-                    if getgenv().AutoGrabThrow then
+                    if grabRemote and throwRemote then
                         local grabOffset = Vector3.new(math.random(-5, 5), 0, math.random(-5, 5))
                         local grabPos = rootPos + grabOffset
                         local randomDir = Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5).Unit
@@ -77,11 +81,10 @@ local function StartSynchronizedCombat()
                         grabRemote:FireServer(grabPos)
                         throwRemote:FireServer(rootPos, randomDir)
                     end
-                    
-                end)
-            end
+                end
+                
+            end)
         end
-        -- Mematikan loop secara aman jika kedua toggle dimatikan
         getgenv().CombatActive = false
     end)
 end
@@ -111,20 +114,25 @@ Window:AddToggle("Auto Collect", false, function(state)
             while getgenv().AutoCollect do
                 task.wait(0.5)
                 pcall(function()
-                    for _, v in pairs(workspace:GetDescendants()) do
-                        local idFromName = tonumber(v.Name)
-                        if idFromName and idFromName > 100000 then
-                            collectRemote:FireServer(idFromName)
-                        end
-                        
-                        local idFromAttr = v:GetAttribute("ID") or v:GetAttribute("Id") or v:GetAttribute("id")
-                        if idFromAttr and type(idFromAttr) == "number" then
-                            collectRemote:FireServer(idFromAttr)
-                        end
+                    local eventsFolder = RS:FindFirstChild("Shared") and RS.Shared:FindFirstChild("Events")
+                    local collectRemote = eventsFolder and eventsFolder:FindFirstChild("Collectable_Collect")
+                    
+                    if collectRemote then
+                        for _, v in pairs(workspace:GetDescendants()) do
+                            local idFromName = tonumber(v.Name)
+                            if idFromName and idFromName > 100000 then
+                                collectRemote:FireServer(idFromName)
+                            end
+                            
+                            local idFromAttr = v:GetAttribute("ID") or v:GetAttribute("Id") or v:GetAttribute("id")
+                            if idFromAttr and type(idFromAttr) == "number" then
+                                collectRemote:FireServer(idFromAttr)
+                            end
 
-                        local intVal = v:FindFirstChildOfClass("IntValue") or v:FindFirstChildOfClass("NumberValue")
-                        if intVal and intVal.Value > 100000 then
-                            collectRemote:FireServer(intVal.Value)
+                            local intVal = v:FindFirstChildOfClass("IntValue") or v:FindFirstChildOfClass("NumberValue")
+                            if intVal and intVal.Value > 100000 then
+                                collectRemote:FireServer(intVal.Value)
+                            end
                         end
                     end
                 end)
@@ -148,18 +156,15 @@ Window:AddToggle("Auto Run Random", false, function(state)
                     local base = workspace:FindFirstChild("Base")
                     
                     if hum and base then
-                        -- Lari dengan kecepatan bawaan/upgrade asli milikmu
-                        local sizeX = base.Size.X / 2
-                        local sizeZ = base.Size.Z / 2
+                        local sizeX = base.Size.X / 2.2 -- Sedikit dikurangi agar tidak mentok tembok luar
+                        local sizeZ = base.Size.Z / 2.2
                         local targetX = base.Position.X + math.random(-sizeX, sizeX)
                         local targetZ = base.Position.Z + math.random(-sizeZ, sizeZ)
                         
                         hum:MoveTo(Vector3.new(targetX, base.Position.Y + 3, targetZ))
                     end
                 end)
-                
-                -- Ganti arah acak setiap 2 detik 
-                task.wait(2)
+                task.wait(2) -- Ganti arah secara brutal tiap 2 detik
             end
         end)
     end
@@ -170,7 +175,7 @@ Window:AddToggle("Noclip + NoclipCam", false, function(state)
     local lp = Players.LocalPlayer
     
     if state then
-        lp.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Invisicam
+        pcall(function() lp.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Invisicam end)
         
         getgenv().NoclipConnection = RunService.Stepped:Connect(function()
             if getgenv().Noclip then
@@ -187,7 +192,7 @@ Window:AddToggle("Noclip + NoclipCam", false, function(state)
             end
         end)
     else
-        lp.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Zoom
+        pcall(function() lp.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Zoom end)
         
         if getgenv().NoclipConnection then
             getgenv().NoclipConnection:Disconnect()
@@ -199,9 +204,11 @@ end)
 Window:AddToggle("Anti-AFK", false, function(state)
     if state then
         getgenv().AntiAFK = Players.LocalPlayer.Idled:Connect(function()
-            VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-            task.wait(1)
-            VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+            pcall(function()
+                VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+                task.wait(1)
+                VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+            end)
         end)
     else
         if getgenv().AntiAFK then
@@ -215,41 +222,45 @@ end)
 -- MENU 4: VISUAL & PERFORMA
 -- ==========================================
 Window:AddToggle("No Fog", false, function(state)
-    if state then
-        getgenv().OriFog = Lighting.FogEnd
-        Lighting.FogEnd = 100000
-        if Lighting:FindFirstChildOfClass("Atmosphere") then
-            Lighting:FindFirstChildOfClass("Atmosphere").Density = 0
+    pcall(function()
+        if state then
+            getgenv().OriFog = Lighting.FogEnd
+            Lighting.FogEnd = 100000
+            if Lighting:FindFirstChildOfClass("Atmosphere") then
+                Lighting:FindFirstChildOfClass("Atmosphere").Density = 0
+            end
+        else
+            Lighting.FogEnd = getgenv().OriFog or 10000
+            if Lighting:FindFirstChildOfClass("Atmosphere") then
+                Lighting:FindFirstChildOfClass("Atmosphere").Density = 0.3
+            end
         end
-    else
-        Lighting.FogEnd = getgenv().OriFog or 10000
-        if Lighting:FindFirstChildOfClass("Atmosphere") then
-            Lighting:FindFirstChildOfClass("Atmosphere").Density = 0.3
-        end
-    end
+    end)
 end)
 
 Window:AddButton("Anti-Lag (FPS Boost)", function()
-    Lighting.GlobalShadows = false
-    Lighting.ShadowSoftness = 0
-    
-    for _, e in pairs(Lighting:GetChildren()) do
-        if e:IsA("BlurEffect") or e:IsA("SunRaysEffect") or e:IsA("ColorCorrectionEffect") or e:IsA("BloomEffect") or e:IsA("DepthOfFieldEffect") then
-            e.Enabled = false
+    pcall(function()
+        Lighting.GlobalShadows = false
+        Lighting.ShadowSoftness = 0
+        
+        for _, e in pairs(Lighting:GetChildren()) do
+            if e:IsA("BlurEffect") or e:IsA("SunRaysEffect") or e:IsA("ColorCorrectionEffect") or e:IsA("BloomEffect") or e:IsA("DepthOfFieldEffect") then
+                e.Enabled = false
+            end
         end
-    end
-    
-    for _, v in pairs(workspace:GetDescendants()) do
-        if v:IsA("Part") or v:IsA("UnionOperation") or v:IsA("MeshPart") then
-            v.Material = Enum.Material.SmoothPlastic
-            v.Reflectance = 0
-        elseif v:IsA("Decal") or v:IsA("Texture") then
-            v.Transparency = 1
-        elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then
-            v.Lifetime = NumberRange.new(0)
-        elseif v:IsA("Explosion") then
-            v.BlastPressure = 1
-            v.BlastRadius = 1
+        
+        for _, v in pairs(workspace:GetDescendants()) do
+            if v:IsA("Part") or v:IsA("UnionOperation") or v:IsA("MeshPart") then
+                v.Material = Enum.Material.SmoothPlastic
+                v.Reflectance = 0
+            elseif v:IsA("Decal") or v:IsA("Texture") then
+                v.Transparency = 1
+            elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then
+                v.Lifetime = NumberRange.new(0)
+            elseif v:IsA("Explosion") then
+                v.BlastPressure = 1
+                v.BlastRadius = 1
+            end
         end
-    end
+    end)
 end)
