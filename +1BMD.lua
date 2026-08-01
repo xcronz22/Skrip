@@ -14,13 +14,13 @@ local throwRemote = RS:WaitForChild("Shared"):WaitForChild("Events"):WaitForChil
 
 -- Variabel Global
 getgenv().WallPunch = false
+getgenv().AutoGrabThrow = false
 getgenv().AutoCollect = false
 getgenv().Noclip = false
 getgenv().AutoRun = false
-getgenv().AutoGrabThrow = false
 
 getgenv().PunchRadius = 20 -- Radius pukul default 20
-getgenv().RunSpeed = 0 
+getgenv().CombatActive = false -- Sistem sinkronisasi baru
 
 -- ==========================================
 -- MENU 1: INPUT PENGATURAN
@@ -32,28 +32,25 @@ Window:AddInput("Radius Hancur (Jarak)", "Default 20 stud...", function(value)
     end
 end)
 
-Window:AddInput("Kecepatan Auto Run", "Ketik 0 u/ speed Upgrade...", function(value)
-    local angka = tonumber(value)
-    if angka then
-        getgenv().RunSpeed = angka
-    end
-end)
-
 -- ==========================================
--- MENU 2: FITUR UTAMA GAMEPLAY
+-- SISTEM SINKRONISASI (PUNCH + GRAB + THROW)
 -- ==========================================
-Window:AddToggle("Punch Wall (Auto-Map)", false, function(state)
-    getgenv().WallPunch = state
+-- Fungsi ini menyatukan Pukul dan Lempar agar berjalan di frame yang sama persis
+local function StartSynchronizedCombat()
+    if getgenv().CombatActive then return end
+    getgenv().CombatActive = true
     
-    if state then
-        task.spawn(function()
-            while getgenv().WallPunch do
-                task.wait(0.1) -- Kecepatan pukulan stabil 0.1
-                
-                pcall(function()
-                    local char = Players.LocalPlayer.Character
-                    if char and char:FindFirstChild("HumanoidRootPart") then
-                        local rootPos = char.HumanoidRootPart.Position
+    task.spawn(function()
+        while getgenv().WallPunch or getgenv().AutoGrabThrow do
+            task.wait(0.1) -- Kecepatan tempur stabil 0.1
+            
+            pcall(function()
+                local char = Players.LocalPlayer.Character
+                if char and char:FindFirstChild("HumanoidRootPart") then
+                    local rootPos = char.HumanoidRootPart.Position
+                    
+                    -- 1. EKSEKUSI PUKULAN (Jika Aktif)
+                    if getgenv().WallPunch then
                         local radius = getgenv().PunchRadius
                         local mapFolder = workspace:FindFirstChild("Map")
                         
@@ -62,33 +59,17 @@ Window:AddToggle("Punch Wall (Auto-Map)", false, function(state)
                                 if part:IsA("BasePart") and part.CanCollide == true then
                                     local distance = (part.Position - rootPos).Magnitude
                                     if distance <= radius then
-                                        
-                                        -- Hanya fokus menggunakan Argumen 1
+                                        -- Fokus Argumen 1
                                         punchRemote:FireServer(1, part.Position)
-                                        
                                         break 
                                     end
                                 end
                             end
                         end
                     end
-                end)
-            end
-        end)
-    end
-end)
-
-Window:AddToggle("Auto Grab & Throw", false, function(state)
-    getgenv().AutoGrabThrow = state
-    
-    if state then
-        task.spawn(function()
-            while getgenv().AutoGrabThrow do
-                task.wait(0.1) 
-                pcall(function()
-                    local char = Players.LocalPlayer.Character
-                    if char and char:FindFirstChild("HumanoidRootPart") then
-                        local rootPos = char.HumanoidRootPart.Position
+                    
+                    -- 2. EKSEKUSI GRAB & THROW (Jika Aktif, langsung setelah pukulan)
+                    if getgenv().AutoGrabThrow then
                         local grabOffset = Vector3.new(math.random(-5, 5), 0, math.random(-5, 5))
                         local grabPos = rootPos + grabOffset
                         local randomDir = Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5).Unit
@@ -96,9 +77,29 @@ Window:AddToggle("Auto Grab & Throw", false, function(state)
                         grabRemote:FireServer(grabPos)
                         throwRemote:FireServer(rootPos, randomDir)
                     end
+                    
                 end)
             end
-        end)
+        end
+        -- Mematikan loop secara aman jika kedua toggle dimatikan
+        getgenv().CombatActive = false
+    end)
+end
+
+-- ==========================================
+-- MENU 2: FITUR UTAMA GAMEPLAY
+-- ==========================================
+Window:AddToggle("Punch Wall (Auto-Map)", false, function(state)
+    getgenv().WallPunch = state
+    if state then
+        StartSynchronizedCombat()
+    end
+end)
+
+Window:AddToggle("Auto Grab & Throw", false, function(state)
+    getgenv().AutoGrabThrow = state
+    if state then
+        StartSynchronizedCombat()
     end
 end)
 
@@ -147,23 +148,17 @@ Window:AddToggle("Auto Run Random", false, function(state)
                     local base = workspace:FindFirstChild("Base")
                     
                     if hum and base then
-                        -- Jika kecepatan diatur lebih dari 0, gunakan itu. Jika 0, gunakan kecepatan aslimu.
-                        if getgenv().RunSpeed > 0 then
-                            hum.WalkSpeed = getgenv().RunSpeed
-                        end
-                        
+                        -- Lari dengan kecepatan bawaan/upgrade asli milikmu
                         local sizeX = base.Size.X / 2
                         local sizeZ = base.Size.Z / 2
                         local targetX = base.Position.X + math.random(-sizeX, sizeX)
                         local targetZ = base.Position.Z + math.random(-sizeZ, sizeZ)
                         
-                        -- Langsung lari ke titik acak tersebut
                         hum:MoveTo(Vector3.new(targetX, base.Position.Y + 3, targetZ))
                     end
                 end)
                 
-                -- Memaksa karakter ganti arah setiap 2 detik TANPA peduli sudah sampai atau belum
-                -- Ini mencegah bug "stuck/jalan di tempat" dan tetap ngebut!
+                -- Ganti arah acak setiap 2 detik 
                 task.wait(2)
             end
         end)
