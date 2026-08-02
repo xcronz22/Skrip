@@ -18,7 +18,7 @@ getgenv().AutoRun = false
 getgenv().CombatActive = false 
 getgenv().AntiShake = false
 getgenv().PunchRadius = 20 
-getgenv().CombatSpeed = 0.1 -- Variabel baru untuk mengatur kecepatan tempur
+getgenv().CombatSpeed = 0.1 -- Kecepatan tempur default
 
 -- ==========================================
 -- HOOKS: PENGUNCIAN METAMETHOD (ABSOLUT)
@@ -26,7 +26,6 @@ getgenv().CombatSpeed = 0.1 -- Variabel baru untuk mengatur kecepatan tempur
 if not getgenv().MetamethodsHooked then
     getgenv().MetamethodsHooked = true
     
-    -- 1. Mencegat script game yang mencoba mengubah nilai CameraOffset secara paksa
     local oldNewIndex
     oldNewIndex = hookmetamethod(game, "__newindex", newcclosure(function(t, k, v)
         if getgenv().AntiShake and not checkcaller() then
@@ -37,7 +36,6 @@ if not getgenv().MetamethodsHooked then
         return oldNewIndex(t, k, v)
     end))
 
-    -- 2. Memblokir sinyal "Shake" atau "Impact" dari RemoteEvent / BindableEvent game
     local oldNamecall
     oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
         local method = getnamecallmethod()
@@ -45,7 +43,7 @@ if not getgenv().MetamethodsHooked then
             if tostring(method) == "Fire" or tostring(method) == "Invoke" then
                 local objName = tostring(self.Name):lower()
                 if string.find(objName, "shake") or string.find(objName, "impact") or string.find(objName, "recoil") then
-                    return -- Blokir sinyal
+                    return 
                 end
             end
         end
@@ -61,10 +59,8 @@ Window:AddInput("Radius Hancur (Jarak)", "Default 20 stud...", function(value)
     if angka then getgenv().PunchRadius = angka end
 end)
 
--- FITUR BARU: Input untuk kecepatan sinkronisasi tempur
 Window:AddInput("Kecepatan Pukul & Lempar", "Default 0.1 detik...", function(value)
     local angka = tonumber(value)
-    -- Pastikan nilainya berupa angka (bisa pakai desimal seperti 0.05)
     if angka then getgenv().CombatSpeed = angka end
 end)
 
@@ -73,7 +69,7 @@ Window:AddMultiDropdown("Pilih Tier Training", {"Tier1A", "Tier1B", "Tier1C", "T
 end)
 
 -- ==========================================
--- SISTEM SINKRONISASI (PUNCH + GRAB + THROW)
+-- SISTEM SINKRONISASI (BERURUTAN: PUKUL -> GRAB -> THROW)
 -- ==========================================
 local function StartSynchronizedCombat()
     if getgenv().CombatActive then return end
@@ -81,9 +77,6 @@ local function StartSynchronizedCombat()
     
     task.spawn(function()
         while getgenv().WallPunch or getgenv().AutoGrabThrow do
-            -- Menggunakan variabel CombatSpeed yang bisa diubah kapan saja
-            task.wait(getgenv().CombatSpeed) 
-            
             pcall(function()
                 local char = Players.LocalPlayer.Character
                 if not char then return end
@@ -95,6 +88,7 @@ local function StartSynchronizedCombat()
                 local eventsFolder = RS:FindFirstChild("Shared") and RS.Shared:FindFirstChild("Events")
                 if not eventsFolder then return end
                 
+                -- URUTAN 1: PUKULAN
                 if getgenv().WallPunch then
                     local punchRemote = eventsFolder:FindFirstChild("Destruction_Punch")
                     local mapFolder = workspace:FindFirstChild("Map")
@@ -111,8 +105,12 @@ local function StartSynchronizedCombat()
                             end
                         end
                     end
+                    
+                    -- Jeda Mikro agar pukulan diproses server lebih dulu
+                    task.wait() 
                 end
                 
+                -- URUTAN 2 & 3: GRAB LALU THROW
                 if getgenv().AutoGrabThrow then
                     local grabRemote = eventsFolder:FindFirstChild("Chunk_Grab")
                     local throwRemote = eventsFolder:FindFirstChild("Chunk_Throw")
@@ -122,12 +120,21 @@ local function StartSynchronizedCombat()
                         local grabPos = rootPos + grabOffset
                         local randomDir = Vector3.new(math.random() - 0.5, math.random(0.5, 1.5), math.random() - 0.5).Unit
                         
+                        -- URUTAN 2: GRAB
                         grabRemote:FireServer(grabPos)
+                        
+                        -- Jeda Mikro agar barang berhasil masuk ke tangan
+                        task.wait() 
+                        
+                        -- URUTAN 3: THROW
                         throwRemote:FireServer(rootPos, randomDir)
                     end
                 end
                 
             end)
+            
+            -- Waktu istirahat sebelum mengulangi loop (diambil dari input, default 0.1)
+            task.wait(getgenv().CombatSpeed)
         end
         getgenv().CombatActive = false
     end)
