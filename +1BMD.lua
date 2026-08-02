@@ -11,10 +11,12 @@ local Lighting = game:GetService("Lighting")
 getgenv().WallPunch = false
 getgenv().AutoGrabThrow = false
 getgenv().AutoCollect = false
+getgenv().AutoTrain = false
 getgenv().Noclip = false
 getgenv().AutoRun = false
 getgenv().CombatActive = false 
-getgenv().PunchRadius = 20 -- Radius pukul default 20
+getgenv().AntiShake = false
+getgenv().PunchRadius = 20 
 
 -- ==========================================
 -- MENU 1: INPUT PENGATURAN
@@ -35,7 +37,7 @@ local function StartSynchronizedCombat()
     
     task.spawn(function()
         while getgenv().WallPunch or getgenv().AutoGrabThrow do
-            task.wait(0.1) -- Kecepatan tempur stabil 0.1
+            task.wait(0.1) 
             
             pcall(function()
                 local char = Players.LocalPlayer.Character
@@ -48,7 +50,7 @@ local function StartSynchronizedCombat()
                 local eventsFolder = RS:FindFirstChild("Shared") and RS.Shared:FindFirstChild("Events")
                 if not eventsFolder then return end
                 
-                -- 1. EKSEKUSI PUKULAN (Fokus Argumen 1)
+                -- 1. PUKULAN (Fokus Argumen 1)
                 if getgenv().WallPunch then
                     local punchRemote = eventsFolder:FindFirstChild("Destruction_Punch")
                     local mapFolder = workspace:FindFirstChild("Map")
@@ -56,7 +58,6 @@ local function StartSynchronizedCombat()
                     
                     if punchRemote and mapFolder then
                         for _, part in ipairs(mapFolder:GetDescendants()) do
-                            -- Syarat: Harus Part & Belum Hancur (CanCollide aktif)
                             if part:IsA("BasePart") and part.CanCollide == true then
                                 local distance = (part.Position - rootPos).Magnitude
                                 if distance <= radius then
@@ -68,7 +69,7 @@ local function StartSynchronizedCombat()
                     end
                 end
                 
-                -- 2. EKSEKUSI GRAB & THROW
+                -- 2. GRAB & THROW
                 if getgenv().AutoGrabThrow then
                     local grabRemote = eventsFolder:FindFirstChild("Chunk_Grab")
                     local throwRemote = eventsFolder:FindFirstChild("Chunk_Throw")
@@ -92,6 +93,26 @@ end
 -- ==========================================
 -- MENU 2: FITUR UTAMA GAMEPLAY
 -- ==========================================
+Window:AddToggle("Auto Train", false, function(state)
+    getgenv().AutoTrain = state
+    
+    if state then
+        task.spawn(function()
+            while getgenv().AutoTrain do
+                pcall(function()
+                    local trainEvent = RS:FindFirstChild("Shared") and RS.Shared:FindFirstChild("Events") and RS.Shared.Events:FindFirstChild("Training_Punch")
+                    local zone = workspace:FindFirstChild("LobbyArea") and workspace.LobbyArea:FindFirstChild("TrainingArea") and workspace.LobbyArea.TrainingArea:FindFirstChild("Tier1B") and workspace.LobbyArea.TrainingArea.Tier1B:FindFirstChild("Zone")
+                    
+                    if trainEvent and zone then
+                        trainEvent:FireServer(zone)
+                    end
+                end)
+                task.wait(0.1) -- Kecepatan delay 0.1
+            end
+        end)
+    end
+end)
+
 Window:AddToggle("Punch Wall (Auto-Map)", false, function(state)
     getgenv().WallPunch = state
     if state then
@@ -156,7 +177,7 @@ Window:AddToggle("Auto Run Random", false, function(state)
                     local base = workspace:FindFirstChild("Base")
                     
                     if hum and base then
-                        local sizeX = base.Size.X / 2.2 -- Sedikit dikurangi agar tidak mentok tembok luar
+                        local sizeX = base.Size.X / 2.2 
                         local sizeZ = base.Size.Z / 2.2
                         local targetX = base.Position.X + math.random(-sizeX, sizeX)
                         local targetZ = base.Position.Z + math.random(-sizeZ, sizeZ)
@@ -164,7 +185,7 @@ Window:AddToggle("Auto Run Random", false, function(state)
                         hum:MoveTo(Vector3.new(targetX, base.Position.Y + 3, targetZ))
                     end
                 end)
-                task.wait(2) -- Ganti arah secara brutal tiap 2 detik
+                task.wait(2) 
             end
         end)
     end
@@ -221,6 +242,58 @@ end)
 -- ==========================================
 -- MENU 4: VISUAL & PERFORMA
 -- ==========================================
+-- Alternatif Anti-Shake menggunakan RenderStepped & Script Disabler
+Window:AddToggle("Anti-Shake (Fix Loop)", false, function(state)
+    getgenv().AntiShake = state
+    
+    if state then
+        -- Method 1: Paksa Humanoid CameraOffset ke 0 setiap frame dirender
+        getgenv().ShakeConn = RunService.RenderStepped:Connect(function()
+            pcall(function()
+                local char = Players.LocalPlayer.Character
+                local hum = char and char:FindFirstChild("Humanoid")
+                if hum then
+                    hum.CameraOffset = Vector3.new(0, 0, 0)
+                end
+            end)
+        end)
+        
+        -- Method 2: Coba mematikan LocalScript bawaan game yang mengurus layar getar
+        pcall(function()
+            for _, script in pairs(Players.LocalPlayer.PlayerScripts:GetDescendants()) do
+                if script:IsA("LocalScript") and string.find(string.lower(script.Name), "shake") then
+                    script.Disabled = true
+                end
+            end
+        end)
+
+        -- Method 3: Matikan kolisi fisika serpihan untuk menghindari interaksi fisik ke kamera
+        getgenv().DebrisConn = workspace.DescendantAdded:Connect(function(v)
+            if getgenv().AntiShake then
+                task.wait() 
+                pcall(function()
+                    if v:IsA("BasePart") and not v.Anchored then
+                        v.CanCollide = false
+                        v.Massless = true
+                    end
+                end)
+            end
+        end)
+    else
+        if getgenv().ShakeConn then getgenv().ShakeConn:Disconnect() end
+        if getgenv().DebrisConn then getgenv().DebrisConn:Disconnect() end
+        
+        -- Nyalakan kembali LocalScript yang dimatikan
+        pcall(function()
+            for _, script in pairs(Players.LocalPlayer.PlayerScripts:GetDescendants()) do
+                if script:IsA("LocalScript") and string.find(string.lower(script.Name), "shake") then
+                    script.Disabled = false
+                end
+            end
+        end)
+    end
+end)
+
 Window:AddToggle("No Fog", false, function(state)
     pcall(function()
         if state then
