@@ -12,12 +12,39 @@ getgenv().WallPunch = false
 getgenv().AutoGrabThrow = false
 getgenv().AutoCollect = false
 getgenv().AutoTrain = false
-getgenv().SelectedTiers = {} -- Diubah menjadi table untuk menampung multi-select
+getgenv().SelectedTiers = {} 
 getgenv().Noclip = false
 getgenv().AutoRun = false
 getgenv().CombatActive = false 
 getgenv().AntiShake = false
 getgenv().PunchRadius = 20 
+
+-- ==========================================
+-- SISTEM BYPASS ANTI-SHAKE BRUTAL (HOOKS)
+-- ==========================================
+-- Lapisan 1: Hook Metamethod (Mencegat instruksi getaran)
+local oldNewIndex
+oldNewIndex = hookmetamethod(game, "__newindex", newcclosure(function(t, k, v)
+    if not checkcaller() and getgenv().AntiShake then
+        -- Kunci mutlak CameraOffset
+        if tostring(k) == "CameraOffset" and t:IsA("Humanoid") then
+            return oldNewIndex(t, k, Vector3.new(0, 0, 0))
+        end
+    end
+    return oldNewIndex(t, k, v)
+end))
+
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+    local method = tostring(getnamecallmethod()):lower()
+    if not checkcaller() and getgenv().AntiShake then
+        -- Mencegat pemanggilan fungsi shake (misal game pakai bindable event khusus)
+        if string.find(method, "camshake") or string.find(method, "shakeonce") then
+            return -- Blokir pemanggilan
+        end
+    end
+    return oldNamecall(self, ...)
+end))
 
 -- ==========================================
 -- MENU 1: INPUT PENGATURAN & TIER SELECTION
@@ -29,9 +56,7 @@ Window:AddInput("Radius Hancur (Jarak)", "Default 20 stud...", function(value)
     end
 end)
 
--- Menggunakan AddMultiDropdown sesuai pembaruan library kamu
 Window:AddMultiDropdown("Pilih Tier Training", {"Tier1A", "Tier1B", "Tier1C", "Tier2", "Tier3", "Tier4", "Tier5", "Tier6"}, function(selected)
-    -- 'selected' me-return table e.g., {["Tier1A"] = true, ["Tier2"] = false}
     getgenv().SelectedTiers = selected 
 end)
 
@@ -57,7 +82,6 @@ local function StartSynchronizedCombat()
                 local eventsFolder = RS:FindFirstChild("Shared") and RS.Shared:FindFirstChild("Events")
                 if not eventsFolder then return end
                 
-                -- 1. PUKULAN (Fokus Argumen 1)
                 if getgenv().WallPunch then
                     local punchRemote = eventsFolder:FindFirstChild("Destruction_Punch")
                     local mapFolder = workspace:FindFirstChild("Map")
@@ -76,7 +100,6 @@ local function StartSynchronizedCombat()
                     end
                 end
                 
-                -- 2. GRAB & THROW
                 if getgenv().AutoGrabThrow then
                     local grabRemote = eventsFolder:FindFirstChild("Chunk_Grab")
                     local throwRemote = eventsFolder:FindFirstChild("Chunk_Throw")
@@ -111,9 +134,8 @@ Window:AddToggle("Auto Train", false, function(state)
                     local trainingArea = workspace:FindFirstChild("LobbyArea") and workspace.LobbyArea:FindFirstChild("TrainingArea")
                     
                     if trainEvent and trainingArea then
-                        -- Looping semua opsi yang ada di dalam table SelectedTiers
                         for tierName, isSelected in pairs(getgenv().SelectedTiers) do
-                            if isSelected then -- Jika tier tersebut di-ceklis (true)
+                            if isSelected then
                                 local currentTier = trainingArea:FindFirstChild(tierName)
                                 local zone = currentTier and currentTier:FindFirstChild("Zone")
                                 
@@ -124,7 +146,7 @@ Window:AddToggle("Auto Train", false, function(state)
                         end
                     end
                 end)
-                task.wait(0.04) -- Delay 0.1s
+                task.wait()
             end
         end)
     end
@@ -132,16 +154,12 @@ end)
 
 Window:AddToggle("Punch Wall (Auto-Map)", false, function(state)
     getgenv().WallPunch = state
-    if state then
-        StartSynchronizedCombat()
-    end
+    if state then StartSynchronizedCombat() end
 end)
 
 Window:AddToggle("Auto Grab & Throw", false, function(state)
     getgenv().AutoGrabThrow = state
-    if state then
-        StartSynchronizedCombat()
-    end
+    if state then StartSynchronizedCombat() end
 end)
 
 Window:AddToggle("Auto Collect", false, function(state)
@@ -158,19 +176,13 @@ Window:AddToggle("Auto Collect", false, function(state)
                     if collectRemote then
                         for _, v in pairs(workspace:GetDescendants()) do
                             local idFromName = tonumber(v.Name)
-                            if idFromName and idFromName > 100000 then
-                                collectRemote:FireServer(idFromName)
-                            end
+                            if idFromName and idFromName > 100000 then collectRemote:FireServer(idFromName) end
                             
                             local idFromAttr = v:GetAttribute("ID") or v:GetAttribute("Id") or v:GetAttribute("id")
-                            if idFromAttr and type(idFromAttr) == "number" then
-                                collectRemote:FireServer(idFromAttr)
-                            end
+                            if idFromAttr and type(idFromAttr) == "number" then collectRemote:FireServer(idFromAttr) end
 
                             local intVal = v:FindFirstChildOfClass("IntValue") or v:FindFirstChildOfClass("NumberValue")
-                            if intVal and intVal.Value > 100000 then
-                                collectRemote:FireServer(intVal.Value)
-                            end
+                            if intVal and intVal.Value > 100000 then collectRemote:FireServer(intVal.Value) end
                         end
                     end
                 end)
@@ -214,16 +226,13 @@ Window:AddToggle("Noclip + NoclipCam", false, function(state)
     
     if state then
         pcall(function() lp.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Invisicam end)
-        
         getgenv().NoclipConnection = RunService.Stepped:Connect(function()
             if getgenv().Noclip then
                 pcall(function()
                     local char = lp.Character
                     if char then
                         for _, v in pairs(char:GetDescendants()) do
-                            if v:IsA("BasePart") and v.CanCollide then
-                                v.CanCollide = false
-                            end
+                            if v:IsA("BasePart") and v.CanCollide then v.CanCollide = false end
                         end
                     end
                 end)
@@ -231,11 +240,7 @@ Window:AddToggle("Noclip + NoclipCam", false, function(state)
         end)
     else
         pcall(function() lp.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Zoom end)
-        
-        if getgenv().NoclipConnection then
-            getgenv().NoclipConnection:Disconnect()
-            getgenv().NoclipConnection = nil
-        end
+        if getgenv().NoclipConnection then getgenv().NoclipConnection:Disconnect() end
     end
 end)
 
@@ -249,38 +254,61 @@ Window:AddToggle("Anti-AFK", false, function(state)
             end)
         end)
     else
-        if getgenv().AntiAFK then
-            getgenv().AntiAFK:Disconnect()
-            getgenv().AntiAFK = nil
-        end
+        if getgenv().AntiAFK then getgenv().AntiAFK:Disconnect() end
     end
 end)
 
 -- ==========================================
 -- MENU 4: VISUAL & PERFORMA
 -- ==========================================
-Window:AddToggle("Anti-Shake (Fix Loop)", false, function(state)
+Window:AddToggle("Anti-Shake (Brutal/Total Fix)", false, function(state)
     getgenv().AntiShake = state
     
     if state then
-        getgenv().ShakeConn = RunService.RenderStepped:Connect(function()
+        -- Lapisan 2: Garbage Collector Nuke (Membunuh fungsi shaker dari memori internal)
+        task.spawn(function()
             pcall(function()
+                for _, obj in pairs(getgc(true)) do
+                    if type(obj) == "table" then
+                        -- Jika script mendeteksi fungsi "Shake" di dalam modul game, kita kosongkan fungsinya
+                        if rawget(obj, "Shake") and type(rawget(obj, "Shake")) == "function" then
+                            rawset(obj, "Shake", function() end) 
+                        end
+                        if rawget(obj, "StartShake") and type(rawget(obj, "StartShake")) == "function" then
+                            rawset(obj, "StartShake", function() end)
+                        end
+                        if rawget(obj, "ShakeOnce") and type(rawget(obj, "ShakeOnce")) == "function" then
+                            rawset(obj, "ShakeOnce", function() end)
+                        end
+                    end
+                end
+            end)
+        end)
+
+        -- Lapisan 3 & 4: Absolute Render Priority & Z-Roll Lock
+        -- Enum.RenderPriority.Camera.Value adalah 200, kita taruh di 299 agar berjalan PALING AKHIR (meng-override script game)
+        RunService:BindToRenderStep("BrutalAntiShake", 299, function()
+            pcall(function()
+                -- Paksa CameraOffset ke tengah
                 local char = Players.LocalPlayer.Character
                 local hum = char and char:FindFirstChild("Humanoid")
                 if hum then
                     hum.CameraOffset = Vector3.new(0, 0, 0)
                 end
+                
+                -- Mematikan CFrame Z-Roll Tilt (Banyak kamera shake memanipulasi rotasi Z)
+                local cam = workspace.CurrentCamera
+                if cam then
+                    local rx, ry, rz = cam.CFrame:ToOrientation()
+                    if rz ~= 0 then
+                        -- Jika kamera miring karena ledakan/efek, kita paksa posisinya tetap lurus
+                        cam.CFrame = CFrame.new(cam.CFrame.Position) * CFrame.fromOrientation(rx, ry, 0)
+                    end
+                end
             end)
         end)
         
-        pcall(function()
-            for _, script in pairs(Players.LocalPlayer.PlayerScripts:GetDescendants()) do
-                if script:IsA("LocalScript") and string.find(string.lower(script.Name), "shake") then
-                    script.Disabled = true
-                end
-            end
-        end)
-
+        -- Matikan kolisi fisika puing-puing 
         getgenv().DebrisConn = workspace.DescendantAdded:Connect(function(v)
             if getgenv().AntiShake then
                 task.wait() 
@@ -293,16 +321,9 @@ Window:AddToggle("Anti-Shake (Fix Loop)", false, function(state)
             end
         end)
     else
-        if getgenv().ShakeConn then getgenv().ShakeConn:Disconnect() end
+        -- Matikan semua modifikasi brutal jika toggle dimatikan
+        RunService:UnbindFromRenderStep("BrutalAntiShake")
         if getgenv().DebrisConn then getgenv().DebrisConn:Disconnect() end
-        
-        pcall(function()
-            for _, script in pairs(Players.LocalPlayer.PlayerScripts:GetDescendants()) do
-                if script:IsA("LocalScript") and string.find(string.lower(script.Name), "shake") then
-                    script.Disabled = false
-                end
-            end
-        end)
     end
 end)
 
@@ -311,14 +332,10 @@ Window:AddToggle("No Fog", false, function(state)
         if state then
             getgenv().OriFog = Lighting.FogEnd
             Lighting.FogEnd = 100000
-            if Lighting:FindFirstChildOfClass("Atmosphere") then
-                Lighting:FindFirstChildOfClass("Atmosphere").Density = 0
-            end
+            if Lighting:FindFirstChildOfClass("Atmosphere") then Lighting:FindFirstChildOfClass("Atmosphere").Density = 0 end
         else
             Lighting.FogEnd = getgenv().OriFog or 10000
-            if Lighting:FindFirstChildOfClass("Atmosphere") then
-                Lighting:FindFirstChildOfClass("Atmosphere").Density = 0.3
-            end
+            if Lighting:FindFirstChildOfClass("Atmosphere") then Lighting:FindFirstChildOfClass("Atmosphere").Density = 0.3 end
         end
     end)
 end)
