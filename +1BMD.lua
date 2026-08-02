@@ -12,6 +12,7 @@ getgenv().WallPunch = false
 getgenv().AutoGrabThrow = false
 getgenv().AutoCollect = false
 getgenv().AutoTrain = false
+getgenv().SelectedTiers = {} -- Diubah menjadi table untuk menampung multi-select
 getgenv().Noclip = false
 getgenv().AutoRun = false
 getgenv().CombatActive = false 
@@ -19,13 +20,19 @@ getgenv().AntiShake = false
 getgenv().PunchRadius = 20 
 
 -- ==========================================
--- MENU 1: INPUT PENGATURAN
+-- MENU 1: INPUT PENGATURAN & TIER SELECTION
 -- ==========================================
 Window:AddInput("Radius Hancur (Jarak)", "Default 20 stud...", function(value)
     local angka = tonumber(value)
     if angka then
         getgenv().PunchRadius = angka
     end
+end)
+
+-- Menggunakan AddMultiDropdown sesuai pembaruan library kamu
+Window:AddMultiDropdown("Pilih Tier Training", {"Tier1A", "Tier1B", "Tier1C", "Tier2", "Tier3", "Tier4", "Tier5", "Tier6"}, function(selected)
+    -- 'selected' me-return table e.g., {["Tier1A"] = true, ["Tier2"] = false}
+    getgenv().SelectedTiers = selected 
 end)
 
 -- ==========================================
@@ -101,13 +108,23 @@ Window:AddToggle("Auto Train", false, function(state)
             while getgenv().AutoTrain do
                 pcall(function()
                     local trainEvent = RS:FindFirstChild("Shared") and RS.Shared:FindFirstChild("Events") and RS.Shared.Events:FindFirstChild("Training_Punch")
-                    local zone = workspace:FindFirstChild("LobbyArea") and workspace.LobbyArea:FindFirstChild("TrainingArea") and workspace.LobbyArea.TrainingArea:FindFirstChild("Tier1B") and workspace.LobbyArea.TrainingArea.Tier1B:FindFirstChild("Zone")
+                    local trainingArea = workspace:FindFirstChild("LobbyArea") and workspace.LobbyArea:FindFirstChild("TrainingArea")
                     
-                    if trainEvent and zone then
-                        trainEvent:FireServer(zone)
+                    if trainEvent and trainingArea then
+                        -- Looping semua opsi yang ada di dalam table SelectedTiers
+                        for tierName, isSelected in pairs(getgenv().SelectedTiers) do
+                            if isSelected then -- Jika tier tersebut di-ceklis (true)
+                                local currentTier = trainingArea:FindFirstChild(tierName)
+                                local zone = currentTier and currentTier:FindFirstChild("Zone")
+                                
+                                if zone then
+                                    trainEvent:FireServer(zone)
+                                end
+                            end
+                        end
                     end
                 end)
-                task.wait(0.1) -- Kecepatan delay 0.1
+                task.wait(0.04) -- Delay 0.1s
             end
         end)
     end
@@ -242,12 +259,10 @@ end)
 -- ==========================================
 -- MENU 4: VISUAL & PERFORMA
 -- ==========================================
--- Alternatif Anti-Shake menggunakan RenderStepped & Script Disabler
 Window:AddToggle("Anti-Shake (Fix Loop)", false, function(state)
     getgenv().AntiShake = state
     
     if state then
-        -- Method 1: Paksa Humanoid CameraOffset ke 0 setiap frame dirender
         getgenv().ShakeConn = RunService.RenderStepped:Connect(function()
             pcall(function()
                 local char = Players.LocalPlayer.Character
@@ -258,7 +273,6 @@ Window:AddToggle("Anti-Shake (Fix Loop)", false, function(state)
             end)
         end)
         
-        -- Method 2: Coba mematikan LocalScript bawaan game yang mengurus layar getar
         pcall(function()
             for _, script in pairs(Players.LocalPlayer.PlayerScripts:GetDescendants()) do
                 if script:IsA("LocalScript") and string.find(string.lower(script.Name), "shake") then
@@ -267,7 +281,6 @@ Window:AddToggle("Anti-Shake (Fix Loop)", false, function(state)
             end
         end)
 
-        -- Method 3: Matikan kolisi fisika serpihan untuk menghindari interaksi fisik ke kamera
         getgenv().DebrisConn = workspace.DescendantAdded:Connect(function(v)
             if getgenv().AntiShake then
                 task.wait() 
@@ -283,7 +296,6 @@ Window:AddToggle("Anti-Shake (Fix Loop)", false, function(state)
         if getgenv().ShakeConn then getgenv().ShakeConn:Disconnect() end
         if getgenv().DebrisConn then getgenv().DebrisConn:Disconnect() end
         
-        -- Nyalakan kembali LocalScript yang dimatikan
         pcall(function()
             for _, script in pairs(Players.LocalPlayer.PlayerScripts:GetDescendants()) do
                 if script:IsA("LocalScript") and string.find(string.lower(script.Name), "shake") then
