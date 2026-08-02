@@ -18,6 +18,7 @@ getgenv().AutoRun = false
 getgenv().CombatActive = false 
 getgenv().AntiShake = false
 getgenv().PunchRadius = 20 
+getgenv().CombatSpeed = 0.1 -- Variabel baru untuk mengatur kecepatan tempur
 
 -- ==========================================
 -- HOOKS: PENGUNCIAN METAMETHOD (ABSOLUT)
@@ -60,6 +61,13 @@ Window:AddInput("Radius Hancur (Jarak)", "Default 20 stud...", function(value)
     if angka then getgenv().PunchRadius = angka end
 end)
 
+-- FITUR BARU: Input untuk kecepatan sinkronisasi tempur
+Window:AddInput("Kecepatan Pukul & Lempar", "Default 0.1 detik...", function(value)
+    local angka = tonumber(value)
+    -- Pastikan nilainya berupa angka (bisa pakai desimal seperti 0.05)
+    if angka then getgenv().CombatSpeed = angka end
+end)
+
 Window:AddMultiDropdown("Pilih Tier Training", {"Tier1A", "Tier1B", "Tier1C", "Tier2", "Tier3", "Tier4", "Tier5", "Tier6"}, function(selected)
     getgenv().SelectedTiers = selected 
 end)
@@ -73,7 +81,8 @@ local function StartSynchronizedCombat()
     
     task.spawn(function()
         while getgenv().WallPunch or getgenv().AutoGrabThrow do
-            task.wait(0.1) 
+            -- Menggunakan variabel CombatSpeed yang bisa diubah kapan saja
+            task.wait(getgenv().CombatSpeed) 
             
             pcall(function()
                 local char = Players.LocalPlayer.Character
@@ -280,9 +289,6 @@ Window:AddToggle("Anti-Shake (ANTI-IMPACT FIX)", false, function(state)
                 if v:IsA("BasePart") and not v.Anchored and not v:IsDescendantOf(lp.Character) then
                     task.defer(function()
                         pcall(function()
-                            -- PERUBAHAN UTAMA: Membekukan part di udara (Anchored = true)
-                            -- Part ini tidak akan bisa meluncur jatuh dan menabrak tanah
-                            -- sehingga "Sensor Tabrakan" game tidak akan pernah terpicu.
                             v.Anchored = true 
                             v.CanCollide = false
                             v.Massless = true
@@ -307,7 +313,6 @@ Window:AddToggle("Anti-Shake (ANTI-IMPACT FIX)", false, function(state)
                 local cam = workspace.CurrentCamera
                 local hum = lp.Character and lp.Character:FindFirstChild("Humanoid")
                 
-                -- Memaksa offset tetap 0 jika script game menggunakan sistem spring/recoil statis
                 if hum then hum.CameraOffset = Vector3.new(0, 0, 0) end
                 
                 if cam then
