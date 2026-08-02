@@ -20,19 +20,31 @@ getgenv().AntiShake = false
 getgenv().PunchRadius = 20 
 
 -- ==========================================
--- HOOKS: MENCEGAT SCRIPT GAME SECARA PAKSA
+-- HOOKS: PENGUNCIAN METAMETHOD (ABSOLUT)
 -- ==========================================
-if not getgenv().ShakeHooked then
-    getgenv().ShakeHooked = true
+if not getgenv().MetamethodsHooked then
+    getgenv().MetamethodsHooked = true
+    
+    -- 1. Mencegat script game yang mencoba mengubah nilai CameraOffset secara paksa
+    local oldNewIndex
+    oldNewIndex = hookmetamethod(game, "__newindex", newcclosure(function(t, k, v)
+        if getgenv().AntiShake and not checkcaller() then
+            if tostring(k) == "CameraOffset" and t:IsA("Humanoid") then
+                return oldNewIndex(t, k, Vector3.new(0, 0, 0))
+            end
+        end
+        return oldNewIndex(t, k, v)
+    end))
+
+    -- 2. Memblokir sinyal "Shake" atau "Impact" dari RemoteEvent / BindableEvent game
     local oldNamecall
     oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
         local method = getnamecallmethod()
         if getgenv().AntiShake and not checkcaller() then
-            -- Mencegat pemanggilan Event/Fungsi dari game yang mengandung kata "shake"
             if tostring(method) == "Fire" or tostring(method) == "Invoke" then
                 local objName = tostring(self.Name):lower()
-                if string.find(objName, "shake") or string.find(objName, "camshake") then
-                    return -- Hentikan perintah getaran ke kamera
+                if string.find(objName, "shake") or string.find(objName, "impact") or string.find(objName, "recoil") then
+                    return -- Blokir sinyal
                 end
             end
         end
@@ -246,7 +258,7 @@ end)
 -- ==========================================
 -- MENU 4: VISUAL & PERFORMA
 -- ==========================================
-Window:AddToggle("Anti-Shake (ULTIMATE FIX)", false, function(state)
+Window:AddToggle("Anti-Shake (ANTI-IMPACT FIX)", false, function(state)
     getgenv().AntiShake = state
     local lp = Players.LocalPlayer
     
@@ -265,48 +277,40 @@ Window:AddToggle("Anti-Shake (ULTIMATE FIX)", false, function(state)
 
         getgenv().DebrisConn = workspace.DescendantAdded:Connect(function(v)
             if getgenv().AntiShake then
-                -- 1. Pertahankan perbaikan performa (Puing dikecilkan)
                 if v:IsA("BasePart") and not v.Anchored and not v:IsDescendantOf(lp.Character) then
                     task.defer(function()
                         pcall(function()
+                            -- PERUBAHAN UTAMA: Membekukan part di udara (Anchored = true)
+                            -- Part ini tidak akan bisa meluncur jatuh dan menabrak tanah
+                            -- sehingga "Sensor Tabrakan" game tidak akan pernah terpicu.
+                            v.Anchored = true 
                             v.CanCollide = false
                             v.Massless = true
-                            v.Size = Vector3.new(0.05, 0.05, 0.05) 
+                            v.Size = Vector3.new(0.01, 0.01, 0.01) 
                             v.Transparency = 1 
-                            v.CustomPhysicalProperties = PhysicalProperties.new(0, 0, 0, 0, 0)
                         end)
                     end)
-                -- 2. SUMBER GEMPA: Hancurkan Explosion secara instan!
                 elseif v:IsA("Explosion") then
-                    task.defer(function()
-                        pcall(function()
-                            v.BlastPressure = 0
-                            v.BlastRadius = 0
-                            v.Visible = false
-                            v:Destroy()
-                        end)
-                    end)
+                    task.defer(function() pcall(function() v:Destroy() end) end)
                 end
             end
         end)
         
-        -- 3. Hapus ledakan yang sudah terlanjur ada di map
         task.spawn(function()
             for _, v in pairs(workspace:GetDescendants()) do
                 if v:IsA("Explosion") then v:Destroy() end
             end
         end)
 
-        -- 4. Kunci Kamera Render Terakhir (Prioritas 2000 untuk menimpa script game)
         RunService:BindToRenderStep("UltimateCameraLock", 2000, function()
             pcall(function()
                 local cam = workspace.CurrentCamera
                 local hum = lp.Character and lp.Character:FindFirstChild("Humanoid")
                 
+                -- Memaksa offset tetap 0 jika script game menggunakan sistem spring/recoil statis
                 if hum then hum.CameraOffset = Vector3.new(0, 0, 0) end
                 
                 if cam then
-                    -- Menghilangkan guncangan miring (Z-Roll) pada kamera
                     local x, y, z = cam.CFrame:ToOrientation()
                     if z ~= 0 then
                         cam.CFrame = CFrame.new(cam.CFrame.Position) * CFrame.fromOrientation(x, y, 0)
