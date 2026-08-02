@@ -20,6 +20,27 @@ getgenv().AntiShake = false
 getgenv().PunchRadius = 20 
 
 -- ==========================================
+-- HOOKS: MENCEGAT SCRIPT GAME SECARA PAKSA
+-- ==========================================
+if not getgenv().ShakeHooked then
+    getgenv().ShakeHooked = true
+    local oldNamecall
+    oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+        local method = getnamecallmethod()
+        if getgenv().AntiShake and not checkcaller() then
+            -- Mencegat pemanggilan Event/Fungsi dari game yang mengandung kata "shake"
+            if tostring(method) == "Fire" or tostring(method) == "Invoke" then
+                local objName = tostring(self.Name):lower()
+                if string.find(objName, "shake") or string.find(objName, "camshake") then
+                    return -- Hentikan perintah getaran ke kamera
+                end
+            end
+        end
+        return oldNamecall(self, ...)
+    end))
+end
+
+-- ==========================================
 -- MENU 1: INPUT PENGATURAN & TIER SELECTION
 -- ==========================================
 Window:AddInput("Radius Hancur (Jarak)", "Default 20 stud...", function(value)
@@ -76,11 +97,8 @@ local function StartSynchronizedCombat()
                     local throwRemote = eventsFolder:FindFirstChild("Chunk_Throw")
                     
                     if grabRemote and throwRemote then
-                        -- Mengubah koordinat pengambilan agar tidak bertumpuk di tengah badan pemain
                         local grabOffset = Vector3.new(math.random(-15, 15), 0, math.random(-15, 15))
                         local grabPos = rootPos + grabOffset
-                        
-                        -- Mengarahkan lemparan sedikit ke atas untuk menghindari tabrakan dengan kaki pemain
                         local randomDir = Vector3.new(math.random() - 0.5, math.random(0.5, 1.5), math.random() - 0.5).Unit
                         
                         grabRemote:FireServer(grabPos)
@@ -228,58 +246,76 @@ end)
 -- ==========================================
 -- MENU 4: VISUAL & PERFORMA
 -- ==========================================
-Window:AddToggle("Anti-Shake & Anti-Fling (Physics Fix)", false, function(state)
+Window:AddToggle("Anti-Shake (ULTIMATE FIX)", false, function(state)
     getgenv().AntiShake = state
     local lp = Players.LocalPlayer
     
     if state then
-        -- 1. Kamera bebas menembus objek (Mencegah Glitch Layar)
-        pcall(function()
-            lp.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Invisicam
-        end)
+        pcall(function() lp.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Invisicam end)
 
-        -- 2. Kunci Karakter agar tidak bisa jatuh/ragdoll karena ditabrak objek
         getgenv().AntiRagdoll = RunService.Stepped:Connect(function()
             pcall(function()
                 local hum = lp.Character and lp.Character:FindFirstChild("Humanoid")
                 if hum then
                     hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
                     hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
-                    hum:SetStateEnabled(Enum.HumanoidStateType.Flying, false)
                 end
             end)
         end)
 
-        -- 3. Mengecilkan dan mematikan kolisi serpihan SECARA NATURAL (Tanpa Teleport)
         getgenv().DebrisConn = workspace.DescendantAdded:Connect(function(v)
             if getgenv().AntiShake then
+                -- 1. Pertahankan perbaikan performa (Puing dikecilkan)
                 if v:IsA("BasePart") and not v.Anchored and not v:IsDescendantOf(lp.Character) then
                     task.defer(function()
                         pcall(function()
-                            -- Kita TIDAK memindahkan posisinya, melainkan menghancurkan properti fisiknya
                             v.CanCollide = false
                             v.Massless = true
-                            v.Size = Vector3.new(0.05, 0.05, 0.05) -- Jadikan sekecil debu
-                            v.Transparency = 1 -- Sembunyikan
+                            v.Size = Vector3.new(0.05, 0.05, 0.05) 
+                            v.Transparency = 1 
                             v.CustomPhysicalProperties = PhysicalProperties.new(0, 0, 0, 0, 0)
+                        end)
+                    end)
+                -- 2. SUMBER GEMPA: Hancurkan Explosion secara instan!
+                elseif v:IsA("Explosion") then
+                    task.defer(function()
+                        pcall(function()
+                            v.BlastPressure = 0
+                            v.BlastRadius = 0
+                            v.Visible = false
+                            v:Destroy()
                         end)
                     end)
                 end
             end
         end)
         
-        -- 4. Paksa nilai getaran layar ke 0
-        getgenv().ShakeConn = RunService.RenderStepped:Connect(function()
+        -- 3. Hapus ledakan yang sudah terlanjur ada di map
+        task.spawn(function()
+            for _, v in pairs(workspace:GetDescendants()) do
+                if v:IsA("Explosion") then v:Destroy() end
+            end
+        end)
+
+        -- 4. Kunci Kamera Render Terakhir (Prioritas 2000 untuk menimpa script game)
+        RunService:BindToRenderStep("UltimateCameraLock", 2000, function()
             pcall(function()
+                local cam = workspace.CurrentCamera
                 local hum = lp.Character and lp.Character:FindFirstChild("Humanoid")
-                if hum then
-                    hum.CameraOffset = Vector3.new(0, 0, 0)
+                
+                if hum then hum.CameraOffset = Vector3.new(0, 0, 0) end
+                
+                if cam then
+                    -- Menghilangkan guncangan miring (Z-Roll) pada kamera
+                    local x, y, z = cam.CFrame:ToOrientation()
+                    if z ~= 0 then
+                        cam.CFrame = CFrame.new(cam.CFrame.Position) * CFrame.fromOrientation(x, y, 0)
+                    end
                 end
             end)
         end)
 
     else
-        -- KEMBALIKAN KE NORMAL
         pcall(function()
             lp.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Zoom
             local hum = lp.Character and lp.Character:FindFirstChild("Humanoid")
@@ -289,8 +325,8 @@ Window:AddToggle("Anti-Shake & Anti-Fling (Physics Fix)", false, function(state)
             end
         end)
         if getgenv().DebrisConn then getgenv().DebrisConn:Disconnect() end
-        if getgenv().ShakeConn then getgenv().ShakeConn:Disconnect() end
         if getgenv().AntiRagdoll then getgenv().AntiRagdoll:Disconnect() end
+        RunService:UnbindFromRenderStep("UltimateCameraLock")
     end
 end)
 
