@@ -10,7 +10,6 @@ local Lighting = game:GetService("Lighting")
 -- Variabel Global
 getgenv().WallPunch = false
 getgenv().AutoGrabThrow = false
-getgenv().AutoCollect = false
 getgenv().AutoTrain = false
 getgenv().SelectedTiers = {} 
 getgenv().Noclip = false
@@ -18,7 +17,7 @@ getgenv().AutoRun = false
 getgenv().CombatActive = false 
 getgenv().HideDebris = false
 getgenv().PunchRadius = 20 
-getgenv().CombatSpeed = 0.5 -- Default diubah menjadi 0.5
+getgenv().CombatSpeed = 0.5
 
 -- ==========================================
 -- MENU 1: INPUT PENGATURAN & TIER SELECTION
@@ -38,7 +37,7 @@ Window:AddMultiDropdown("Pilih Tier Training", {"Tier1A", "Tier1B", "Tier1C", "T
 end)
 
 -- ==========================================
--- SISTEM SINKRONISASI (BERURUTAN DENGAN AMAN)
+-- SISTEM SINKRONISASI (AIMBOT THROW)
 -- ==========================================
 local function StartSynchronizedCombat()
     if getgenv().CombatActive then return end
@@ -57,10 +56,11 @@ local function StartSynchronizedCombat()
                 local eventsFolder = RS:FindFirstChild("Shared") and RS.Shared:FindFirstChild("Events")
                 if not eventsFolder then return end
                 
+                local mapFolder = workspace:FindFirstChild("Map")
+                
                 -- URUTAN 1: PUKULAN
                 if getgenv().WallPunch then
                     local punchRemote = eventsFolder:FindFirstChild("Destruction_Punch")
-                    local mapFolder = workspace:FindFirstChild("Map")
                     local radius = getgenv().PunchRadius
                     
                     if punchRemote and mapFolder then
@@ -77,7 +77,7 @@ local function StartSynchronizedCombat()
                     task.wait() 
                 end
                 
-                -- URUTAN 2 & 3: GRAB LALU THROW 
+                -- URUTAN 2 & 3: GRAB LALU THROW (AIMBOT KE PART YANG MASIH HIDUP)
                 if getgenv().AutoGrabThrow then
                     local grabRemote = eventsFolder:FindFirstChild("Chunk_Grab")
                     local throwRemote = eventsFolder:FindFirstChild("Chunk_Throw")
@@ -86,13 +86,31 @@ local function StartSynchronizedCombat()
                         local grabOffset = Vector3.new(math.random(-15, 15), 0, math.random(-15, 15))
                         local grabPos = rootPos + grabOffset
                         
-                        -- Melempar dari posisi 15 stud di atas kepala
                         local throwOrigin = rootPos + Vector3.new(0, 15, 0)
-                        local randomDir = Vector3.new(math.random() - 0.5, math.random(0.5, 1.5), math.random() - 0.5).Unit
+                        local targetDir = nil
+                        
+                        if mapFolder then
+                            local validParts = {}
+                            for _, part in ipairs(mapFolder:GetDescendants()) do
+                                if part:IsA("BasePart") and part.CanCollide == true then
+                                    table.insert(validParts, part)
+                                    if #validParts >= 20 then break end 
+                                end
+                            end
+                            
+                            if #validParts > 0 then
+                                local randomTarget = validParts[math.random(1, #validParts)]
+                                targetDir = (randomTarget.Position - throwOrigin).Unit
+                            end
+                        end
+                        
+                        if not targetDir then
+                            targetDir = Vector3.new(math.random() - 0.5, math.random(0.5, 1.5), math.random() - 0.5).Unit
+                        end
                         
                         grabRemote:FireServer(grabPos)
                         task.wait() 
-                        throwRemote:FireServer(throwOrigin, randomDir)
+                        throwRemote:FireServer(throwOrigin, targetDir)
                     end
                 end
             end)
@@ -141,34 +159,6 @@ Window:AddToggle("Auto Grab & Throw", false, function(state)
     if state then StartSynchronizedCombat() end
 end)
 
-Window:AddToggle("Auto Collect", false, function(state)
-    getgenv().AutoCollect = state
-    if state then
-        task.spawn(function()
-            while getgenv().AutoCollect do
-                task.wait(0.5)
-                pcall(function()
-                    local eventsFolder = RS:FindFirstChild("Shared") and RS.Shared:FindFirstChild("Events")
-                    local collectRemote = eventsFolder and eventsFolder:FindFirstChild("Collectable_Collect")
-                    
-                    if collectRemote then
-                        for _, v in pairs(workspace:GetDescendants()) do
-                            local idFromName = tonumber(v.Name)
-                            if idFromName and idFromName > 100000 then collectRemote:FireServer(idFromName) end
-                            
-                            local idFromAttr = v:GetAttribute("ID") or v:GetAttribute("Id") or v:GetAttribute("id")
-                            if idFromAttr and type(idFromAttr) == "number" then collectRemote:FireServer(idFromAttr) end
-
-                            local intVal = v:FindFirstChildOfClass("IntValue") or v:FindFirstChildOfClass("NumberValue")
-                            if intVal and intVal.Value > 100000 then collectRemote:FireServer(intVal.Value) end
-                        end
-                    end
-                end)
-            end
-        end)
-    end
-end)
-
 -- ==========================================
 -- MENU 3: MOVEMENT & UTILITY
 -- ==========================================
@@ -177,20 +167,23 @@ Window:AddToggle("Auto Run Random", false, function(state)
     if state then
         task.spawn(function()
             while getgenv().AutoRun do
+                task.wait(0.5)
                 pcall(function()
                     local char = Players.LocalPlayer.Character
                     local hum = char and char:FindFirstChild("Humanoid")
                     local base = workspace:FindFirstChild("Base")
                     
                     if hum and base then
-                        local sizeX = base.Size.X / 2.2 
-                        local sizeZ = base.Size.Z / 2.2
+                        local sizeX = base.Size.X / 2
+                        local sizeZ = base.Size.Z / 2
                         local targetX = base.Position.X + math.random(-sizeX, sizeX)
                         local targetZ = base.Position.Z + math.random(-sizeZ, sizeZ)
-                        hum:MoveTo(Vector3.new(targetX, base.Position.Y + 3, targetZ))
+                        local targetPos = Vector3.new(targetX, base.Position.Y + 3, targetZ)
+                        
+                        hum:MoveTo(targetPos)
+                        hum.MoveToFinished:Wait(5) 
                     end
                 end)
-                task.wait(2) 
             end
         end)
     end
@@ -241,9 +234,7 @@ Window:AddToggle("Hilangkan Serpihan (No Debris)", false, function(state)
     getgenv().HideDebris = state
     
     local function ProsesSerpihan(v)
-        -- Hanya proses balok yang bisa bergerak (tidak di-anchor)
         if v:IsA("BasePart") and not v.Anchored then
-            -- Mencegah penghapusan karakter player lain
             local isPlayer = false
             if v.Parent and v.Parent:FindFirstChild("Humanoid") then isPlayer = true end
             if v.Parent and v.Parent.Parent and v.Parent.Parent:FindFirstChild("Humanoid") then isPlayer = true end
@@ -264,14 +255,12 @@ Window:AddToggle("Hilangkan Serpihan (No Debris)", false, function(state)
     end
 
     if state then
-        -- Terapkan ke benda yang baru muncul
         getgenv().DebrisConn = workspace.DescendantAdded:Connect(function(v)
             if getgenv().HideDebris then
                 ProsesSerpihan(v)
             end
         end)
         
-        -- Terapkan ke benda yang sudah ada di map saat tombol dinyalakan
         for _, v in pairs(workspace:GetDescendants()) do
             ProsesSerpihan(v)
         end
