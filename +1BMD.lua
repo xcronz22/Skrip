@@ -18,7 +18,7 @@ getgenv().AutoRun = false
 getgenv().CombatActive = false 
 getgenv().AntiShake = false
 getgenv().PunchRadius = 20 
-getgenv().CombatSpeed = 0.1 -- Kecepatan tempur default
+getgenv().CombatSpeed = 0.1 
 
 -- ==========================================
 -- HOOKS: PENGUNCIAN METAMETHOD (ABSOLUT)
@@ -40,9 +40,17 @@ if not getgenv().MetamethodsHooked then
     oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
         local method = getnamecallmethod()
         if getgenv().AntiShake and not checkcaller() then
-            if tostring(method) == "Fire" or tostring(method) == "Invoke" then
+            local methodStr = tostring(method)
+            
+            -- 1. BLOKIR GETARAN FISIK (HAPTIC / VIBRASI HP & CONTROLLER)
+            if self.ClassName == "HapticService" and methodStr == "SetMotor" then
+                return 
+            end
+            
+            -- 2. BLOKIR SINYAL GUNCANGAN LAYAR DARI REMOTE/BINDABLE EVENT
+            if methodStr == "Fire" or methodStr == "Invoke" or methodStr == "FireClient" or methodStr == "OnClientEvent" then
                 local objName = tostring(self.Name):lower()
-                if string.find(objName, "shake") or string.find(objName, "impact") or string.find(objName, "recoil") then
+                if string.find(objName, "shake") or string.find(objName, "impact") or string.find(objName, "recoil") or string.find(objName, "vibration") then
                     return 
                 end
             end
@@ -69,7 +77,7 @@ Window:AddMultiDropdown("Pilih Tier Training", {"Tier1A", "Tier1B", "Tier1C", "T
 end)
 
 -- ==========================================
--- SISTEM SINKRONISASI (BERURUTAN: PUKUL -> GRAB -> THROW)
+-- SISTEM SINKRONISASI (BERURUTAN DENGAN AMAN)
 -- ==========================================
 local function StartSynchronizedCombat()
     if getgenv().CombatActive then return end
@@ -105,12 +113,10 @@ local function StartSynchronizedCombat()
                             end
                         end
                     end
-                    
-                    -- Jeda Mikro agar pukulan diproses server lebih dulu
                     task.wait() 
                 end
                 
-                -- URUTAN 2 & 3: GRAB LALU THROW
+                -- URUTAN 2 & 3: GRAB LALU THROW 
                 if getgenv().AutoGrabThrow then
                     local grabRemote = eventsFolder:FindFirstChild("Chunk_Grab")
                     local throwRemote = eventsFolder:FindFirstChild("Chunk_Throw")
@@ -118,22 +124,18 @@ local function StartSynchronizedCombat()
                     if grabRemote and throwRemote then
                         local grabOffset = Vector3.new(math.random(-15, 15), 0, math.random(-15, 15))
                         local grabPos = rootPos + grabOffset
+                        
+                        -- Melempar balok dari posisi 15 stud di ATAS KEPALA agar tidak nabrak badan
+                        local throwOrigin = rootPos + Vector3.new(0, 15, 0)
                         local randomDir = Vector3.new(math.random() - 0.5, math.random(0.5, 1.5), math.random() - 0.5).Unit
                         
-                        -- URUTAN 2: GRAB
                         grabRemote:FireServer(grabPos)
-                        
-                        -- Jeda Mikro agar barang berhasil masuk ke tangan
                         task.wait() 
-                        
-                        -- URUTAN 3: THROW
-                        throwRemote:FireServer(rootPos, randomDir)
+                        throwRemote:FireServer(throwOrigin, randomDir)
                     end
                 end
-                
             end)
             
-            -- Waktu istirahat sebelum mengulangi loop (diambil dari input, default 0.1)
             task.wait(getgenv().CombatSpeed)
         end
         getgenv().CombatActive = false
@@ -274,75 +276,36 @@ end)
 -- ==========================================
 -- MENU 4: VISUAL & PERFORMA
 -- ==========================================
-Window:AddToggle("Anti-Shake (ANTI-IMPACT FIX)", false, function(state)
+Window:AddToggle("Anti-Shake & Silent Map", false, function(state)
     getgenv().AntiShake = state
-    local lp = Players.LocalPlayer
     
     if state then
-        pcall(function() lp.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Invisicam end)
-
-        getgenv().AntiRagdoll = RunService.Stepped:Connect(function()
-            pcall(function()
-                local hum = lp.Character and lp.Character:FindFirstChild("Humanoid")
-                if hum then
-                    hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-                    hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
-                end
-            end)
-        end)
-
-        getgenv().DebrisConn = workspace.DescendantAdded:Connect(function(v)
-            if getgenv().AntiShake then
-                if v:IsA("BasePart") and not v.Anchored and not v:IsDescendantOf(lp.Character) then
-                    task.defer(function()
-                        pcall(function()
-                            v.Anchored = true 
-                            v.CanCollide = false
-                            v.Massless = true
-                            v.Size = Vector3.new(0.01, 0.01, 0.01) 
-                            v.Transparency = 1 
-                        end)
-                    end)
-                elseif v:IsA("Explosion") then
-                    task.defer(function() pcall(function() v:Destroy() end) end)
-                end
-            end
-        end)
-        
-        task.spawn(function()
-            for _, v in pairs(workspace:GetDescendants()) do
-                if v:IsA("Explosion") then v:Destroy() end
-            end
-        end)
-
-        RunService:BindToRenderStep("UltimateCameraLock", 2000, function()
-            pcall(function()
-                local cam = workspace.CurrentCamera
-                local hum = lp.Character and lp.Character:FindFirstChild("Humanoid")
-                
-                if hum then hum.CameraOffset = Vector3.new(0, 0, 0) end
-                
-                if cam then
-                    local x, y, z = cam.CFrame:ToOrientation()
-                    if z ~= 0 then
-                        cam.CFrame = CFrame.new(cam.CFrame.Position) * CFrame.fromOrientation(x, y, 0)
+        -- SISTEM VOID TELEPORT: Melenyapkan serpihan map yang hancur agar tidak saling menabrak
+        getgenv().VoidDebrisLoop = task.spawn(function()
+            while getgenv().AntiShake do
+                pcall(function()
+                    local mapFolder = workspace:FindFirstChild("Map")
+                    if mapFolder then
+                        for _, part in ipairs(mapFolder:GetDescendants()) do
+                            -- Jika balok menjadi tidak ter-Anchor (artinya baru saja hancur/jatuh)
+                            if part:IsA("BasePart") and part.Anchored == false then
+                                part.CanCollide = false
+                                part.Massless = true
+                                -- Teleport balok ke jurang hitam (-9999) agar tidak menabrak balok lain
+                                part.CFrame = CFrame.new(0, -9999, 0)
+                                part.Anchored = true 
+                            end
+                        end
                     end
-                end
-            end)
-        end)
-
-    else
-        pcall(function()
-            lp.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Zoom
-            local hum = lp.Character and lp.Character:FindFirstChild("Humanoid")
-            if hum then
-                hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
-                hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
+                end)
+                task.wait(0.1) -- Cek dengan sangat cepat
             end
         end)
-        if getgenv().DebrisConn then getgenv().DebrisConn:Disconnect() end
-        if getgenv().AntiRagdoll then getgenv().AntiRagdoll:Disconnect() end
-        RunService:UnbindFromRenderStep("UltimateCameraLock")
+    else
+        if getgenv().VoidDebrisLoop then
+            task.cancel(getgenv().VoidDebrisLoop)
+            getgenv().VoidDebrisLoop = nil
+        end
     end
 end)
 
@@ -374,8 +337,6 @@ Window:AddButton("Anti-Lag (FPS Boost)", function()
             if v:IsA("Part") or v:IsA("UnionOperation") or v:IsA("MeshPart") then
                 v.Material = Enum.Material.SmoothPlastic
                 v.Reflectance = 0
-            elseif v:IsA("Decal") or v:IsA("Texture") then
-                v.Transparency = 1
             elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then
                 v.Lifetime = NumberRange.new(0)
             elseif v:IsA("Explosion") then
