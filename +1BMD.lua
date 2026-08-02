@@ -20,40 +20,11 @@ getgenv().AntiShake = false
 getgenv().PunchRadius = 20 
 
 -- ==========================================
--- SISTEM BYPASS ANTI-SHAKE BRUTAL (HOOKS)
--- ==========================================
--- Lapisan 1: Hook Metamethod (Mencegat instruksi getaran)
-local oldNewIndex
-oldNewIndex = hookmetamethod(game, "__newindex", newcclosure(function(t, k, v)
-    if not checkcaller() and getgenv().AntiShake then
-        -- Kunci mutlak CameraOffset
-        if tostring(k) == "CameraOffset" and t:IsA("Humanoid") then
-            return oldNewIndex(t, k, Vector3.new(0, 0, 0))
-        end
-    end
-    return oldNewIndex(t, k, v)
-end))
-
-local oldNamecall
-oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
-    local method = tostring(getnamecallmethod()):lower()
-    if not checkcaller() and getgenv().AntiShake then
-        -- Mencegat pemanggilan fungsi shake (misal game pakai bindable event khusus)
-        if string.find(method, "camshake") or string.find(method, "shakeonce") then
-            return -- Blokir pemanggilan
-        end
-    end
-    return oldNamecall(self, ...)
-end))
-
--- ==========================================
 -- MENU 1: INPUT PENGATURAN & TIER SELECTION
 -- ==========================================
 Window:AddInput("Radius Hancur (Jarak)", "Default 20 stud...", function(value)
     local angka = tonumber(value)
-    if angka then
-        getgenv().PunchRadius = angka
-    end
+    if angka then getgenv().PunchRadius = angka end
 end)
 
 Window:AddMultiDropdown("Pilih Tier Training", {"Tier1A", "Tier1B", "Tier1C", "Tier2", "Tier3", "Tier4", "Tier5", "Tier6"}, function(selected)
@@ -125,7 +96,6 @@ end
 -- ==========================================
 Window:AddToggle("Auto Train", false, function(state)
     getgenv().AutoTrain = state
-    
     if state then
         task.spawn(function()
             while getgenv().AutoTrain do
@@ -138,15 +108,12 @@ Window:AddToggle("Auto Train", false, function(state)
                             if isSelected then
                                 local currentTier = trainingArea:FindFirstChild(tierName)
                                 local zone = currentTier and currentTier:FindFirstChild("Zone")
-                                
-                                if zone then
-                                    trainEvent:FireServer(zone)
-                                end
+                                if zone then trainEvent:FireServer(zone) end
                             end
                         end
                     end
                 end)
-                task.wait()
+                task.wait(0.04)
             end
         end)
     end
@@ -164,7 +131,6 @@ end)
 
 Window:AddToggle("Auto Collect", false, function(state)
     getgenv().AutoCollect = state
-    
     if state then
         task.spawn(function()
             while getgenv().AutoCollect do
@@ -196,7 +162,6 @@ end)
 -- ==========================================
 Window:AddToggle("Auto Run Random", false, function(state)
     getgenv().AutoRun = state
-    
     if state then
         task.spawn(function()
             while getgenv().AutoRun do
@@ -210,7 +175,6 @@ Window:AddToggle("Auto Run Random", false, function(state)
                         local sizeZ = base.Size.Z / 2.2
                         local targetX = base.Position.X + math.random(-sizeX, sizeX)
                         local targetZ = base.Position.Z + math.random(-sizeZ, sizeZ)
-                        
                         hum:MoveTo(Vector3.new(targetX, base.Position.Y + 3, targetZ))
                     end
                 end)
@@ -261,69 +225,51 @@ end)
 -- ==========================================
 -- MENU 4: VISUAL & PERFORMA
 -- ==========================================
-Window:AddToggle("Anti-Shake (Brutal/Total Fix)", false, function(state)
+Window:AddToggle("Anti-Shake (Physics Collision Fix)", false, function(state)
     getgenv().AntiShake = state
+    local lp = Players.LocalPlayer
     
     if state then
-        -- Lapisan 2: Garbage Collector Nuke (Membunuh fungsi shaker dari memori internal)
-        task.spawn(function()
+        -- 1. PAKSA KAMERA TEMBUS PANDANG (Ini akan menghentikan kamera maju-mundur secara brutal)
+        pcall(function()
+            lp.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Invisicam
+        end)
+
+        -- 2. HANCURKAN SERPIHAN SECARA LOKAL (Menghilangkan sumber lag dan tabrakan fisik)
+        getgenv().DebrisConn = workspace.DescendantAdded:Connect(function(v)
+            if getgenv().AntiShake then
+                -- Jangan hapus part milik pemain
+                if v:IsA("BasePart") and not v.Anchored and v.Parent ~= lp.Character then
+                    -- Kita teleportasikan serpihan jauh ke bawah map dan matikan kolisinya secara instan
+                    task.defer(function()
+                        pcall(function()
+                            v.CanCollide = false
+                            v.Massless = true
+                            v.Transparency = 1
+                            v.CFrame = CFrame.new(0, -99999, 0)
+                        end)
+                    end)
+                end
+            end
+        end)
+        
+        -- 3. MATIKAN FUNGSI SHAKE BAWAAN ROBLOX HUMANOID (Jaga-jaga)
+        getgenv().ShakeConn = RunService.RenderStepped:Connect(function()
             pcall(function()
-                for _, obj in pairs(getgc(true)) do
-                    if type(obj) == "table" then
-                        -- Jika script mendeteksi fungsi "Shake" di dalam modul game, kita kosongkan fungsinya
-                        if rawget(obj, "Shake") and type(rawget(obj, "Shake")) == "function" then
-                            rawset(obj, "Shake", function() end) 
-                        end
-                        if rawget(obj, "StartShake") and type(rawget(obj, "StartShake")) == "function" then
-                            rawset(obj, "StartShake", function() end)
-                        end
-                        if rawget(obj, "ShakeOnce") and type(rawget(obj, "ShakeOnce")) == "function" then
-                            rawset(obj, "ShakeOnce", function() end)
-                        end
-                    end
+                local hum = lp.Character and lp.Character:FindFirstChild("Humanoid")
+                if hum then
+                    hum.CameraOffset = Vector3.new(0, 0, 0)
                 end
             end)
         end)
 
-        -- Lapisan 3 & 4: Absolute Render Priority & Z-Roll Lock
-        -- Enum.RenderPriority.Camera.Value adalah 200, kita taruh di 299 agar berjalan PALING AKHIR (meng-override script game)
-        RunService:BindToRenderStep("BrutalAntiShake", 299, function()
-            pcall(function()
-                -- Paksa CameraOffset ke tengah
-                local char = Players.LocalPlayer.Character
-                local hum = char and char:FindFirstChild("Humanoid")
-                if hum then
-                    hum.CameraOffset = Vector3.new(0, 0, 0)
-                end
-                
-                -- Mematikan CFrame Z-Roll Tilt (Banyak kamera shake memanipulasi rotasi Z)
-                local cam = workspace.CurrentCamera
-                if cam then
-                    local rx, ry, rz = cam.CFrame:ToOrientation()
-                    if rz ~= 0 then
-                        -- Jika kamera miring karena ledakan/efek, kita paksa posisinya tetap lurus
-                        cam.CFrame = CFrame.new(cam.CFrame.Position) * CFrame.fromOrientation(rx, ry, 0)
-                    end
-                end
-            end)
-        end)
-        
-        -- Matikan kolisi fisika puing-puing 
-        getgenv().DebrisConn = workspace.DescendantAdded:Connect(function(v)
-            if getgenv().AntiShake then
-                task.wait() 
-                pcall(function()
-                    if v:IsA("BasePart") and not v.Anchored then
-                        v.CanCollide = false
-                        v.Massless = true
-                    end
-                end)
-            end
-        end)
     else
-        -- Matikan semua modifikasi brutal jika toggle dimatikan
-        RunService:UnbindFromRenderStep("BrutalAntiShake")
+        -- KEMBALIKAN KE NORMAL
+        pcall(function()
+            lp.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Zoom
+        end)
         if getgenv().DebrisConn then getgenv().DebrisConn:Disconnect() end
+        if getgenv().ShakeConn then getgenv().ShakeConn:Disconnect() end
     end
 end)
 
