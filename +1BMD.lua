@@ -16,48 +16,9 @@ getgenv().SelectedTiers = {}
 getgenv().Noclip = false
 getgenv().AutoRun = false
 getgenv().CombatActive = false 
-getgenv().AntiShake = false
+getgenv().HideDebris = false
 getgenv().PunchRadius = 20 
-getgenv().CombatSpeed = 0.1 
-
--- ==========================================
--- HOOKS: PENGUNCIAN METAMETHOD (ABSOLUT)
--- ==========================================
-if not getgenv().MetamethodsHooked then
-    getgenv().MetamethodsHooked = true
-    
-    local oldNewIndex
-    oldNewIndex = hookmetamethod(game, "__newindex", newcclosure(function(t, k, v)
-        if getgenv().AntiShake and not checkcaller() then
-            if tostring(k) == "CameraOffset" and t:IsA("Humanoid") then
-                return oldNewIndex(t, k, Vector3.new(0, 0, 0))
-            end
-        end
-        return oldNewIndex(t, k, v)
-    end))
-
-    local oldNamecall
-    oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
-        local method = getnamecallmethod()
-        if getgenv().AntiShake and not checkcaller() then
-            local methodStr = tostring(method)
-            
-            -- 1. BLOKIR GETARAN FISIK (HAPTIC / VIBRASI HP & CONTROLLER)
-            if self.ClassName == "HapticService" and methodStr == "SetMotor" then
-                return 
-            end
-            
-            -- 2. BLOKIR SINYAL GUNCANGAN LAYAR DARI REMOTE/BINDABLE EVENT
-            if methodStr == "Fire" or methodStr == "Invoke" or methodStr == "FireClient" or methodStr == "OnClientEvent" then
-                local objName = tostring(self.Name):lower()
-                if string.find(objName, "shake") or string.find(objName, "impact") or string.find(objName, "recoil") or string.find(objName, "vibration") then
-                    return 
-                end
-            end
-        end
-        return oldNamecall(self, ...)
-    end))
-end
+getgenv().CombatSpeed = 0.5 -- Default diubah menjadi 0.5
 
 -- ==========================================
 -- MENU 1: INPUT PENGATURAN & TIER SELECTION
@@ -67,7 +28,7 @@ Window:AddInput("Radius Hancur (Jarak)", "Default 20 stud...", function(value)
     if angka then getgenv().PunchRadius = angka end
 end)
 
-Window:AddInput("Kecepatan Pukul & Lempar", "Default 0.1 detik...", function(value)
+Window:AddInput("Kecepatan Pukul & Lempar", "Default 0.5 detik...", function(value)
     local angka = tonumber(value)
     if angka then getgenv().CombatSpeed = angka end
 end)
@@ -125,7 +86,7 @@ local function StartSynchronizedCombat()
                         local grabOffset = Vector3.new(math.random(-15, 15), 0, math.random(-15, 15))
                         local grabPos = rootPos + grabOffset
                         
-                        -- Melempar balok dari posisi 15 stud di ATAS KEPALA agar tidak nabrak badan
+                        -- Melempar dari posisi 15 stud di atas kepala
                         local throwOrigin = rootPos + Vector3.new(0, 15, 0)
                         local randomDir = Vector3.new(math.random() - 0.5, math.random(0.5, 1.5), math.random() - 0.5).Unit
                         
@@ -276,36 +237,46 @@ end)
 -- ==========================================
 -- MENU 4: VISUAL & PERFORMA
 -- ==========================================
-Window:AddToggle("Anti-Shake & Silent Map", false, function(state)
-    getgenv().AntiShake = state
+Window:AddToggle("Hilangkan Serpihan (No Debris)", false, function(state)
+    getgenv().HideDebris = state
     
-    if state then
-        -- SISTEM VOID TELEPORT: Melenyapkan serpihan map yang hancur agar tidak saling menabrak
-        getgenv().VoidDebrisLoop = task.spawn(function()
-            while getgenv().AntiShake do
-                pcall(function()
-                    local mapFolder = workspace:FindFirstChild("Map")
-                    if mapFolder then
-                        for _, part in ipairs(mapFolder:GetDescendants()) do
-                            -- Jika balok menjadi tidak ter-Anchor (artinya baru saja hancur/jatuh)
-                            if part:IsA("BasePart") and part.Anchored == false then
-                                part.CanCollide = false
-                                part.Massless = true
-                                -- Teleport balok ke jurang hitam (-9999) agar tidak menabrak balok lain
-                                part.CFrame = CFrame.new(0, -9999, 0)
-                                part.Anchored = true 
-                            end
-                        end
-                    end
+    local function ProsesSerpihan(v)
+        -- Hanya proses balok yang bisa bergerak (tidak di-anchor)
+        if v:IsA("BasePart") and not v.Anchored then
+            -- Mencegah penghapusan karakter player lain
+            local isPlayer = false
+            if v.Parent and v.Parent:FindFirstChild("Humanoid") then isPlayer = true end
+            if v.Parent and v.Parent.Parent and v.Parent.Parent:FindFirstChild("Humanoid") then isPlayer = true end
+            
+            if not isPlayer then
+                task.defer(function()
+                    pcall(function()
+                        v.Transparency = 1
+                        v.CanCollide = false
+                        v.Size = Vector3.new(0, 0, 0)
+                        v.Massless = true
+                    end)
                 end)
-                task.wait(0.1) -- Cek dengan sangat cepat
+            end
+        elseif v:IsA("Explosion") then
+            task.defer(function() pcall(function() v:Destroy() end) end)
+        end
+    end
+
+    if state then
+        -- Terapkan ke benda yang baru muncul
+        getgenv().DebrisConn = workspace.DescendantAdded:Connect(function(v)
+            if getgenv().HideDebris then
+                ProsesSerpihan(v)
             end
         end)
-    else
-        if getgenv().VoidDebrisLoop then
-            task.cancel(getgenv().VoidDebrisLoop)
-            getgenv().VoidDebrisLoop = nil
+        
+        -- Terapkan ke benda yang sudah ada di map saat tombol dinyalakan
+        for _, v in pairs(workspace:GetDescendants()) do
+            ProsesSerpihan(v)
         end
+    else
+        if getgenv().DebrisConn then getgenv().DebrisConn:Disconnect() end
     end
 end)
 
