@@ -76,9 +76,12 @@ local function StartSynchronizedCombat()
                     local throwRemote = eventsFolder:FindFirstChild("Chunk_Throw")
                     
                     if grabRemote and throwRemote then
-                        local grabOffset = Vector3.new(math.random(-5, 5), 0, math.random(-5, 5))
+                        -- Mengubah koordinat pengambilan agar tidak bertumpuk di tengah badan pemain
+                        local grabOffset = Vector3.new(math.random(-15, 15), 0, math.random(-15, 15))
                         local grabPos = rootPos + grabOffset
-                        local randomDir = Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5).Unit
+                        
+                        -- Mengarahkan lemparan sedikit ke atas untuk menghindari tabrakan dengan kaki pemain
+                        local randomDir = Vector3.new(math.random() - 0.5, math.random(0.5, 1.5), math.random() - 0.5).Unit
                         
                         grabRemote:FireServer(grabPos)
                         throwRemote:FireServer(rootPos, randomDir)
@@ -113,7 +116,7 @@ Window:AddToggle("Auto Train", false, function(state)
                         end
                     end
                 end)
-                task.wait(0.04)
+                task.wait(0.1)
             end
         end)
     end
@@ -225,35 +228,47 @@ end)
 -- ==========================================
 -- MENU 4: VISUAL & PERFORMA
 -- ==========================================
-Window:AddToggle("Anti-Shake (Physics Collision Fix)", false, function(state)
+Window:AddToggle("Anti-Shake & Anti-Fling (Physics Fix)", false, function(state)
     getgenv().AntiShake = state
     local lp = Players.LocalPlayer
     
     if state then
-        -- 1. PAKSA KAMERA TEMBUS PANDANG (Ini akan menghentikan kamera maju-mundur secara brutal)
+        -- 1. Kamera bebas menembus objek (Mencegah Glitch Layar)
         pcall(function()
             lp.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Invisicam
         end)
 
-        -- 2. HANCURKAN SERPIHAN SECARA LOKAL (Menghilangkan sumber lag dan tabrakan fisik)
+        -- 2. Kunci Karakter agar tidak bisa jatuh/ragdoll karena ditabrak objek
+        getgenv().AntiRagdoll = RunService.Stepped:Connect(function()
+            pcall(function()
+                local hum = lp.Character and lp.Character:FindFirstChild("Humanoid")
+                if hum then
+                    hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+                    hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+                    hum:SetStateEnabled(Enum.HumanoidStateType.Flying, false)
+                end
+            end)
+        end)
+
+        -- 3. Mengecilkan dan mematikan kolisi serpihan SECARA NATURAL (Tanpa Teleport)
         getgenv().DebrisConn = workspace.DescendantAdded:Connect(function(v)
             if getgenv().AntiShake then
-                -- Jangan hapus part milik pemain
-                if v:IsA("BasePart") and not v.Anchored and v.Parent ~= lp.Character then
-                    -- Kita teleportasikan serpihan jauh ke bawah map dan matikan kolisinya secara instan
+                if v:IsA("BasePart") and not v.Anchored and not v:IsDescendantOf(lp.Character) then
                     task.defer(function()
                         pcall(function()
+                            -- Kita TIDAK memindahkan posisinya, melainkan menghancurkan properti fisiknya
                             v.CanCollide = false
                             v.Massless = true
-                            v.Transparency = 1
-                            v.CFrame = CFrame.new(0, -99999, 0)
+                            v.Size = Vector3.new(0.05, 0.05, 0.05) -- Jadikan sekecil debu
+                            v.Transparency = 1 -- Sembunyikan
+                            v.CustomPhysicalProperties = PhysicalProperties.new(0, 0, 0, 0, 0)
                         end)
                     end)
                 end
             end
         end)
         
-        -- 3. MATIKAN FUNGSI SHAKE BAWAAN ROBLOX HUMANOID (Jaga-jaga)
+        -- 4. Paksa nilai getaran layar ke 0
         getgenv().ShakeConn = RunService.RenderStepped:Connect(function()
             pcall(function()
                 local hum = lp.Character and lp.Character:FindFirstChild("Humanoid")
@@ -267,9 +282,15 @@ Window:AddToggle("Anti-Shake (Physics Collision Fix)", false, function(state)
         -- KEMBALIKAN KE NORMAL
         pcall(function()
             lp.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Zoom
+            local hum = lp.Character and lp.Character:FindFirstChild("Humanoid")
+            if hum then
+                hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+                hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
+            end
         end)
         if getgenv().DebrisConn then getgenv().DebrisConn:Disconnect() end
         if getgenv().ShakeConn then getgenv().ShakeConn:Disconnect() end
+        if getgenv().AntiRagdoll then getgenv().AntiRagdoll:Disconnect() end
     end
 end)
 
