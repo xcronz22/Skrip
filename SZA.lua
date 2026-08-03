@@ -8,35 +8,32 @@ local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
+local Lighting = game:GetService("Lighting")
 local LocalPlayer = Players.LocalPlayer
 
 -- Nama File Konfigurasi
 local ConfigFile = "SZA_Config.json"
 
+-- Variabel Default (Auto Kill langsung AKTIF sesuai permintaan)
+local AutoSilentAim = true
+local AutoAuraKill = true
 local AutoBloodmoon = false
 local AutoArtifact = false
 local AutoHealth = false
 local AutoHipHeight = false
-local AutoSilentAim = false
-local AutoAuraKill = false
 local AutoNoFog = false
 local AutoAntiLag = false
 
--- Variabel dengan nilai default baru
 local MaxJarakSilentAim = 100 
 local MaxJarakAuraKill = 100
 local TargetHipHeight = 30 
-local KecepatanRemote = 0.04 -- Kecepatan looping remote baru
+local KecepatanRemote = 0.04 
 
--- Indeks Semua Senjata dari Video (Slot 1 sampai Slot 4)
+-- Indeks Semua Senjata (Sudah terpilih langsung untuk Silent Aim)
 local SemuaSenjata = {
-    -- Pistols (Slot 1)
     "BloodPistol", "CosmicPistol", "Revolver", "DualPistols", "RicochetRevolver", "Deagle", "USP-S", "Redline",
-    -- SMGs & Shotguns (Slot 2)
     "BloodSMG", "Shotgun", "SMG", "Quasar", "CombatShotgun", "HoneyBadger", "P90", "ArcWelder", "Slingshot", "MP5",
-    -- Assault Rifles & Snipers (Slot 3)
     "BloodAR", "Rifle", "BurstRifle", "AK-47", "Pulsar", "TommyGun", "Sniper", "HeavyRifle", "Scar-H", "ImpalerRifle",
-    -- Heavies & Specials/Mythics (Slot 4)
     "Bloodblaster", "Minigun", "Flamethrower", "GrenadeLauncher", "VoidScythe", "BloodStaff", "GumdropBlaster", 
     "ArcticStriker", "AcidSpitter", "HydraCannon", "Interstellar", "WorldEnder", "StarShooter", "SantitosGoldenAK-47"
 }
@@ -48,38 +45,33 @@ local UI = {}
 -- TAMPILAN MENU (UI)
 -- ==========================================
 
-Window:AddLabel("--- Fitur Serangan ---")
-
--- 1. Pengaturan Kecepatan Remote
 UI.KecepatanRemote = Window:AddInput("Kecepatan Remote (Detik)", "Default: 0.04", function(text)
     local angka = tonumber(text)
-    KecepatanRemote = angka or 0.04
+    if angka then KecepatanRemote = angka end
 end)
 
--- 2. Auto Silent Aim
-UI.SilentAim = Window:AddToggle("Auto Silent Aim", false, function(state)
+UI.SilentAim = Window:AddToggle("Auto Silent Aim (All Guns)", true, function(state)
     AutoSilentAim = state
 end)
+
 UI.JarakSilentAim = Window:AddInput("Jarak Silent Aim", "Default: 100", function(text)
     local angka = tonumber(text)
-    MaxJarakSilentAim = angka or 100 
+    if angka then MaxJarakSilentAim = angka end
 end)
 
--- 3. Auto Kill Aura
-UI.AuraKill = Window:AddToggle("Auto Kill Aura", false, function(state)
+UI.AuraKill = Window:AddToggle("Auto Kill Aura (Damage)", true, function(state)
     AutoAuraKill = state
 end)
+
 UI.JarakAuraKill = Window:AddInput("Jarak Kill Aura", "Default: 100", function(text)
     local angka = tonumber(text)
-    MaxJarakAuraKill = angka or 100 
+    if angka then MaxJarakAuraKill = angka end
 end)
 
-Window:AddLabel("--- Pengaturan Karakter ---")
-
--- 4. Hip Height
 UI.HipHeight = Window:AddToggle("Auto Hip Height", false, function(state)
     AutoHipHeight = state
 end)
+
 UI.TinggiHipHeight = Window:AddInput("Atur Tinggi (Max 60)", "Default: 30", function(text)
     local angka = tonumber(text)
     if angka then
@@ -87,16 +79,13 @@ UI.TinggiHipHeight = Window:AddInput("Atur Tinggi (Max 60)", "Default: 30", func
     end
 end)
 
-Window:AddLabel("--- Visual & Performa ---")
-
--- 5. No Fog & Anti Lag
 UI.NoFog = Window:AddToggle("No Fog (Hapus Kabut)", false, function(state)
     AutoNoFog = state
 end)
+
 UI.AntiLag = Window:AddToggle("Anti Lag (Mode Kentang)", false, function(state)
     AutoAntiLag = state
     if state then
-        -- Menghapus material berat di seluruh map secara bertahap agar TIDAK LAG (Frame drop)
         task.spawn(function()
             for i, v in pairs(Workspace:GetDescendants()) do
                 if v:IsA("BasePart") then
@@ -105,29 +94,25 @@ UI.AntiLag = Window:AddToggle("Anti Lag (Mode Kentang)", false, function(state)
                 elseif v:IsA("Decal") or v:IsA("Texture") then
                     v.Transparency = 1
                 end
-                -- Beri jeda sepersekian milidetik setiap 50 objek agar tidak nge-freeze
+                -- Jeda agar game tidak crash/lag saat mengubah map
                 if i % 50 == 0 then task.wait() end 
             end
         end)
     end
 end)
 
-Window:AddLabel("--- Fitur Auto Lainnya ---")
-
--- 6. Upgrade & Spin
 UI.Bloodmoon = Window:AddToggle("Auto Bloodmoon Spin", false, function(state)
     AutoBloodmoon = state
 end)
+
 UI.Artifact = Window:AddToggle("Auto Artifact Spin", false, function(state)
     AutoArtifact = state
 end)
+
 UI.Health = Window:AddToggle("Auto Health Upgrade", false, function(state)
     AutoHealth = state
 end)
 
-Window:AddLabel("--- Save / Load Config ---")
-
--- 7. Config System
 Window:AddButton("Simpan Config", function()
     local configData = {
         C_KecepatanRemote = KecepatanRemote,
@@ -153,24 +138,18 @@ Window:AddButton("Muat Config", function()
         if isfile(ConfigFile) then
             local data = HttpService:JSONDecode(readfile(ConfigFile))
             
-            -- Memperbarui Variabel Internal & Memperbarui Tampilan UI
-            if data.C_KecepatanRemote ~= nil then KecepatanRemote = data.C_KecepatanRemote UI.KecepatanRemote:Set(tostring(KecepatanRemote)) end
-            
-            if data.C_AutoSilentAim ~= nil then AutoSilentAim = data.C_AutoSilentAim UI.SilentAim:Set(AutoSilentAim) end
-            if data.C_MaxJarakSilentAim ~= nil then MaxJarakSilentAim = data.C_MaxJarakSilentAim UI.JarakSilentAim:Set(tostring(MaxJarakSilentAim)) end
-            
-            if data.C_AutoAuraKill ~= nil then AutoAuraKill = data.C_AutoAuraKill UI.AuraKill:Set(AutoAuraKill) end
-            if data.C_MaxJarakAuraKill ~= nil then MaxJarakAuraKill = data.C_MaxJarakAuraKill UI.JarakAuraKill:Set(tostring(MaxJarakAuraKill)) end
-            
-            if data.C_AutoHipHeight ~= nil then AutoHipHeight = data.C_AutoHipHeight UI.HipHeight:Set(AutoHipHeight) end
-            if data.C_TargetHipHeight ~= nil then TargetHipHeight = data.C_TargetHipHeight UI.TinggiHipHeight:Set(tostring(TargetHipHeight)) end
-            
-            if data.C_AutoNoFog ~= nil then AutoNoFog = data.C_AutoNoFog UI.NoFog:Set(AutoNoFog) end
-            if data.C_AutoAntiLag ~= nil then AutoAntiLag = data.C_AutoAntiLag UI.AntiLag:Set(AutoAntiLag) end
-            
-            if data.C_AutoBloodmoon ~= nil then AutoBloodmoon = data.C_AutoBloodmoon UI.Bloodmoon:Set(AutoBloodmoon) end
-            if data.C_AutoArtifact ~= nil then AutoArtifact = data.C_AutoArtifact UI.Artifact:Set(AutoArtifact) end
-            if data.C_AutoHealth ~= nil then AutoHealth = data.C_AutoHealth UI.Health:Set(AutoHealth) end
+            if data.C_KecepatanRemote ~= nil then KecepatanRemote = data.C_KecepatanRemote end
+            if data.C_AutoSilentAim ~= nil then AutoSilentAim = data.C_AutoSilentAim end
+            if data.C_MaxJarakSilentAim ~= nil then MaxJarakSilentAim = data.C_MaxJarakSilentAim end
+            if data.C_AutoAuraKill ~= nil then AutoAuraKill = data.C_AutoAuraKill end
+            if data.C_MaxJarakAuraKill ~= nil then MaxJarakAuraKill = data.C_MaxJarakAuraKill end
+            if data.C_AutoHipHeight ~= nil then AutoHipHeight = data.C_AutoHipHeight end
+            if data.C_TargetHipHeight ~= nil then TargetHipHeight = data.C_TargetHipHeight end
+            if data.C_AutoNoFog ~= nil then AutoNoFog = data.C_AutoNoFog end
+            if data.C_AutoAntiLag ~= nil then AutoAntiLag = data.C_AutoAntiLag end
+            if data.C_AutoBloodmoon ~= nil then AutoBloodmoon = data.C_AutoBloodmoon end
+            if data.C_AutoArtifact ~= nil then AutoArtifact = data.C_AutoArtifact end
+            if data.C_AutoHealth ~= nil then AutoHealth = data.C_AutoHealth end
         end
     end)
 end)
@@ -179,7 +158,7 @@ end)
 -- MESIN BELAKANG (LOOPING TUGAS)
 -- ==========================================
 
--- 1. Mesin Bloodmoon, Spin & Health
+-- 1. Mesin Auto Upgrade & Spin
 task.spawn(function()
     while task.wait(0.1) do
         if AutoBloodmoon then
@@ -210,7 +189,7 @@ task.spawn(function()
     end
 end)
 
--- 3. Mesin Auto Silent Aim (Menggunakan KecepatanRemote)
+-- 3. Mesin Auto Silent Aim (GunFire + GunHit Semua Senjata)
 task.spawn(function()
     while true do
         task.wait(KecepatanRemote)
@@ -234,6 +213,7 @@ task.spawn(function()
                                     local ID_Angka = tonumber(ID_String)
                                     local arahTembakan = (targetPos - myPos).Unit
                                     
+                                    -- Menembakkan seluruh 40+ senjata secara bersamaan ke target
                                     for _, namaSenjata in ipairs(SemuaSenjata) do
                                         ReplicatedStorage.Remotes.NetRemotes.GunFire:FireServer(namaSenjata, myPos, arahTembakan)
                                         ReplicatedStorage.Remotes.GunRemotes.GunHit:FireServer(namaSenjata, ID_Angka, targetPos)
@@ -248,7 +228,7 @@ task.spawn(function()
     end
 end)
 
--- 4. Mesin Auto Kill Aura (Menggunakan KecepatanRemote)
+-- 4. Mesin Auto Kill Aura (ZombieDamage)
 task.spawn(function()
     while true do
         task.wait(KecepatanRemote)
@@ -281,25 +261,23 @@ task.spawn(function()
     end
 end)
 
--- 5. Mesin NoFog & AntiLag (Loop Ringan)
+-- 5. Mesin NoFog & AntiLag (Loop Ringan Berkala)
 task.spawn(function()
     while task.wait(3) do
-        local lighting = game:GetService("Lighting")
-        
         if AutoNoFog then
             pcall(function()
-                lighting.FogEnd = 9e9
-                lighting.FogStart = 9e9
+                Lighting.FogEnd = 9e9
+                Lighting.FogStart = 9e9
             end)
         end
         
         if AutoAntiLag then
             pcall(function()
                 settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-                lighting.GlobalShadows = false
+                Lighting.GlobalShadows = false
                 
                 if sethiddenproperty then
-                    sethiddenproperty(lighting, "Technology", 2)
+                    sethiddenproperty(Lighting, "Technology", 2)
                 end
             end)
         end
