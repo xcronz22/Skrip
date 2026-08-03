@@ -21,6 +21,7 @@ local LocalPlayer = Players.LocalPlayer
 -- Pengaturan Bawaan (Default)
 local AutoSilentAim = true
 local AutoAuraKill = true
+local AutoKillAll = false -- Fitur Baru
 local AutoBloodmoon = false
 local AutoArtifact = false
 local AutoHealth = false
@@ -33,7 +34,7 @@ local MaxJarakAuraKill = 100
 local TargetHipHeight = 30 
 local KecepatanRemote = 0.1 
 
--- Daftar Semua Senjata (Pistol sudah ditambahkan)
+-- Daftar Semua Senjata
 local SemuaSenjata = {
     "Pistol", "BloodPistol", "CosmicPistol", "Revolver", "DualPistols", "RicochetRevolver", "Deagle", "USP-S", "Redline",
     "BloodSMG", "Shotgun", "SMG", "Quasar", "CombatShotgun", "HoneyBadger", "P90", "ArcWelder", "Slingshot", "MP5",
@@ -66,13 +67,18 @@ Window:AddInput("Jarak Silent Aim", "Default: 100", function(text)
     if angka then MaxJarakSilentAim = angka end
 end)
 
-Window:AddToggle("Auto Kill Aura (Damage)", true, function(state)
+Window:AddToggle("Auto Kill Aura (Terdekat)", true, function(state)
     AutoAuraKill = state
 end)
 
 Window:AddInput("Jarak Kill Aura", "Default: 100", function(text)
     local angka = tonumber(text)
     if angka then MaxJarakAuraKill = angka end
+end)
+
+-- Tombol UI untuk Auto Kill All (Tanpa Batas Jarak)
+Window:AddToggle("Auto Kill All (Satu Map)", false, function(state)
+    AutoKillAll = state
 end)
 
 Window:AddToggle("Auto Hip Height", false, function(state)
@@ -99,7 +105,6 @@ Window:AddToggle("Anti Lag (Mode Kentang)", true, function(state)
                 elseif v:IsA("Decal") or v:IsA("Texture") then
                     v.Transparency = 1
                 end
-                -- Jeda agar game tidak freeze
                 if i % 50 == 0 then task.wait() end 
             end
         end)
@@ -153,7 +158,7 @@ task.spawn(function()
     end
 end)
 
--- 3. Mesin Auto Silent Aim (Otomatis mendeteksi senjata yang dipegang)
+-- 3. Mesin Auto Silent Aim
 task.spawn(function()
     while true do
         task.wait(KecepatanRemote)
@@ -162,10 +167,8 @@ task.spawn(function()
                 local character = LocalPlayer.Character
                 if not character then return end
                 
-                -- Mencari Tool (senjata) yang sedang di-equip di dalam Character
                 local senjataPegang = character:FindFirstChildOfClass("Tool")
                 
-                -- Memastikan player memegang senjata dan senjata tersebut ada di daftar valid kita
                 if senjataPegang and SenjataValid[senjataPegang.Name] then
                     local namaSenjata = senjataPegang.Name
                     local zombiesFolder = Workspace:FindFirstChild("Zombies_Local") or Workspace:FindFirstChild("Zombies")
@@ -185,7 +188,6 @@ task.spawn(function()
                                         local ID_Angka = tonumber(ID_String)
                                         local arahTembakan = (targetPos - myPos).Unit
                                         
-                                        -- Tembak hanya menggunakan senjata yang sedang dipegang
                                         ReplicatedStorage.Remotes.NetRemotes.GunFire:FireServer(namaSenjata, myPos, arahTembakan)
                                         ReplicatedStorage.Remotes.GunRemotes.GunHit:FireServer(namaSenjata, ID_Angka, targetPos)
                                     end
@@ -199,7 +201,7 @@ task.spawn(function()
     end
 end)
 
--- 4. Mesin Auto Kill Aura (ZombieDamage)
+-- 4. Mesin Auto Kill Aura (Terbatas Jarak)
 task.spawn(function()
     while true do
         task.wait(KecepatanRemote)
@@ -232,7 +234,31 @@ task.spawn(function()
     end
 end)
 
--- 5. Mesin NoFog & AntiLag (Loop Ringan Berkala)
+-- 5. Mesin Auto Kill All (Satu Map)
+task.spawn(function()
+    while true do
+        task.wait(KecepatanRemote)
+        if AutoKillAll then
+            pcall(function()
+                local zombiesFolder = Workspace:FindFirstChild("Zombies_Local") or Workspace:FindFirstChild("Zombies")
+                
+                if zombiesFolder then
+                    -- Looping semua isi dalam folder tanpa peduli jarak
+                    for _, zombie in pairs(zombiesFolder:GetChildren()) do
+                        local ID_String = string.match(zombie.Name, "%d+")
+                        if ID_String then
+                            local ID_Angka = tonumber(ID_String)
+                            -- Kirim damage instant ke server
+                            ReplicatedStorage.Remotes.ZombieRemotes.ZombieDamage:FireServer(ID_Angka, math.huge)
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- 6. Mesin NoFog & AntiLag (Loop Ringan Berkala)
 task.spawn(function()
     while task.wait(3) do
         if AutoNoFog then
