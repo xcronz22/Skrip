@@ -1,6 +1,5 @@
 local queue_on_teleport = queue_on_teleport or (syn and syn.queue_on_teleport) or (fluxus and fluxus.queue_on_teleport)
 if queue_on_teleport then
-    -- Fitur ini berjalan otomatis di latar belakang untuk mengeksekusi ulang saat ganti map/rejoin
     queue_on_teleport([[
         loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/SZA.lua"))()
     ]])
@@ -16,12 +15,13 @@ local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Lighting = game:GetService("Lighting")
+local Camera = Workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
 -- Pengaturan Bawaan (Default)
 local AutoSilentAim = true
 local AutoAuraKill = true
-local AutoKillAll = false -- Fitur Baru
+local AutoKillAll = false
 local AutoBloodmoon = false
 local AutoArtifact = false
 local AutoHealth = false
@@ -29,7 +29,8 @@ local AutoHipHeight = false
 local AutoNoFog = true
 local AutoAntiLag = true
 
-local MaxJarakSilentAim = 100 
+local MaxJarakSilentAim = 200 
+local MaxFOVSilentAim = 150 -- Jarak pixel dari crosshair (tengah layar)
 local MaxJarakAuraKill = 100
 local TargetHipHeight = 30 
 local KecepatanRemote = 0.1 
@@ -43,7 +44,6 @@ local SemuaSenjata = {
     "ArcticStriker", "AcidSpitter", "HydraCannon", "Interstellar", "WorldEnder", "StarShooter", "SantitosGoldenAK-47"
 }
 
--- Mengubah daftar menjadi dictionary agar pengecekan senjata lebih cepat
 local SenjataValid = {}
 for _, nama in ipairs(SemuaSenjata) do
     SenjataValid[nama] = true
@@ -58,13 +58,18 @@ Window:AddInput("Kecepatan Remote (Detik)", "Default: 0.1", function(text)
     if angka then KecepatanRemote = angka end
 end)
 
-Window:AddToggle("Auto Silent Aim", true, function(state)
+Window:AddToggle("Auto Silent Aim (Legit/Crosshair)", true, function(state)
     AutoSilentAim = state
 end)
 
-Window:AddInput("Jarak Silent Aim", "Default: 100", function(text)
+Window:AddInput("Jarak Maksimal Silent Aim", "Default: 200", function(text)
     local angka = tonumber(text)
     if angka then MaxJarakSilentAim = angka end
+end)
+
+Window:AddInput("Radius FOV Crosshair (Pixel)", "Default: 150", function(text)
+    local angka = tonumber(text)
+    if angka then MaxFOVSilentAim = angka end
 end)
 
 Window:AddToggle("Auto Kill Aura (Terdekat)", true, function(state)
@@ -76,8 +81,7 @@ Window:AddInput("Jarak Kill Aura", "Default: 100", function(text)
     if angka then MaxJarakAuraKill = angka end
 end)
 
--- Tombol UI untuk Auto Kill All (Tanpa Batas Jarak)
-Window:AddToggle("Auto Kill All (Satu Map)", false, function(state)
+Window:AddToggle("Auto Kill All (Tembak 1 Map)", false, function(state)
     AutoKillAll = state
 end)
 
@@ -158,23 +162,26 @@ task.spawn(function()
     end
 end)
 
--- 3. Mesin Auto Silent Aim
+-- 3. Mesin Auto Silent Aim (LEGIT: Hanya di layar & dekat crosshair)
 task.spawn(function()
     while true do
         task.wait(KecepatanRemote)
         if AutoSilentAim then
             pcall(function()
                 local character = LocalPlayer.Character
-                if not character then return end
+                if not character or not character:FindFirstChild("HumanoidRootPart") then return end
                 
                 local senjataPegang = character:FindFirstChildOfClass("Tool")
                 
                 if senjataPegang and SenjataValid[senjataPegang.Name] then
                     local namaSenjata = senjataPegang.Name
+                    local myPos = character.HumanoidRootPart.Position
                     local zombiesFolder = Workspace:FindFirstChild("Zombies_Local") or Workspace:FindFirstChild("Zombies")
                     
-                    if zombiesFolder and character:FindFirstChild("HumanoidRootPart") then
-                        local myPos = character.HumanoidRootPart.Position
+                    if zombiesFolder then
+                        -- Mendapatkan posisi tengah layar (Crosshair)
+                        local viewportSize = Camera.ViewportSize
+                        local screenCenter = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
                         
                         for _, zombie in pairs(zombiesFolder:GetChildren()) do
                             local targetPart = zombie:FindFirstChild("HumanoidRootPart")
@@ -182,14 +189,27 @@ task.spawn(function()
                                 local targetPos = targetPart.Position
                                 local jarakZombi = (targetPos - myPos).Magnitude
                                 
+                                -- Cek jarak maksimal di dunia nyata
                                 if jarakZombi <= MaxJarakSilentAim then
-                                    local ID_String = string.match(zombie.Name, "%d+")
-                                    if ID_String then
-                                        local ID_Angka = tonumber(ID_String)
-                                        local arahTembakan = (targetPos - myPos).Unit
+                                    -- Konversi posisi 3D zombie ke posisi 2D layar
+                                    local screenPos, onScreen = Camera:WorldToViewportPoint(targetPos)
+                                    
+                                    -- onScreen bernilai true jika zombie ada di depan layar (tidak di belakang karakter)
+                                    if onScreen then
+                                        -- Hitung jarak zombie di layar menuju crosshair (tengah layar)
+                                        local distanceToCenter = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
                                         
-                                        ReplicatedStorage.Remotes.NetRemotes.GunFire:FireServer(namaSenjata, myPos, arahTembakan)
-                                        ReplicatedStorage.Remotes.GunRemotes.GunHit:FireServer(namaSenjata, ID_Angka, targetPos)
+                                        -- Tembak hanya jika jaraknya masuk dalam radius FOV
+                                        if distanceToCenter <= MaxFOVSilentAim then
+                                            local ID_String = string.match(zombie.Name, "%d+")
+                                            if ID_String then
+                                                local ID_Angka = tonumber(ID_String)
+                                                local arahTembakan = (targetPos - myPos).Unit
+                                                
+                                                ReplicatedStorage.Remotes.NetRemotes.GunFire:FireServer(namaSenjata, myPos, arahTembakan)
+                                                ReplicatedStorage.Remotes.GunRemotes.GunHit:FireServer(namaSenjata, ID_Angka, targetPos)
+                                            end
+                                        end
                                     end
                                 end
                             end
@@ -234,22 +254,38 @@ task.spawn(function()
     end
 end)
 
--- 5. Mesin Auto Kill All (Satu Map)
+-- 5. Mesin Auto Kill All (Tembak 1 Map dengan Senjata, Tanpa ZombieDamage)
 task.spawn(function()
     while true do
         task.wait(KecepatanRemote)
         if AutoKillAll then
             pcall(function()
-                local zombiesFolder = Workspace:FindFirstChild("Zombies_Local") or Workspace:FindFirstChild("Zombies")
+                local character = LocalPlayer.Character
+                if not character or not character:FindFirstChild("HumanoidRootPart") then return end
                 
-                if zombiesFolder then
-                    -- Looping semua isi dalam folder tanpa peduli jarak
-                    for _, zombie in pairs(zombiesFolder:GetChildren()) do
-                        local ID_String = string.match(zombie.Name, "%d+")
-                        if ID_String then
-                            local ID_Angka = tonumber(ID_String)
-                            -- Kirim damage instant ke server
-                            ReplicatedStorage.Remotes.ZombieRemotes.ZombieDamage:FireServer(ID_Angka, math.huge)
+                local senjataPegang = character:FindFirstChildOfClass("Tool")
+                
+                if senjataPegang and SenjataValid[senjataPegang.Name] then
+                    local namaSenjata = senjataPegang.Name
+                    local myPos = character.HumanoidRootPart.Position
+                    local zombiesFolder = Workspace:FindFirstChild("Zombies_Local") or Workspace:FindFirstChild("Zombies")
+                    
+                    if zombiesFolder then
+                        -- Tembak semua yang ada di dalam folder tanpa batas jarak
+                        for _, zombie in pairs(zombiesFolder:GetChildren()) do
+                            local targetPart = zombie:FindFirstChild("HumanoidRootPart")
+                            if targetPart then
+                                local targetPos = targetPart.Position
+                                local ID_String = string.match(zombie.Name, "%d+")
+                                
+                                if ID_String then
+                                    local ID_Angka = tonumber(ID_String)
+                                    local arahTembakan = (targetPos - myPos).Unit
+                                    
+                                    ReplicatedStorage.Remotes.NetRemotes.GunFire:FireServer(namaSenjata, myPos, arahTembakan)
+                                    ReplicatedStorage.Remotes.GunRemotes.GunHit:FireServer(namaSenjata, ID_Angka, targetPos)
+                                end
+                            end
                         end
                     end
                 end
@@ -258,7 +294,7 @@ task.spawn(function()
     end
 end)
 
--- 6. Mesin NoFog & AntiLag (Loop Ringan Berkala)
+-- 6. Mesin NoFog & AntiLag
 task.spawn(function()
     while task.wait(3) do
         if AutoNoFog then
