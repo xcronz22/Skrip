@@ -20,7 +20,7 @@ local LocalPlayer = Players.LocalPlayer
 
 -- Pengaturan Bawaan (Default)
 local AutoSilentAim = true
-local AutoAuraKill = true
+local AutoAuraKill = false
 local AutoKillAll = false
 local AutoBloodmoon = false
 local AutoArtifact = false
@@ -72,7 +72,7 @@ Window:AddInput("Radius FOV Crosshair (Pixel)", "Default: 50", function(text)
     if angka then MaxFOVSilentAim = angka end
 end)
 
-Window:AddToggle("Auto Kill Aura (Terdekat)", true, function(state)
+Window:AddToggle("Auto Kill Aura (Terdekat)", false, function(state)
     AutoAuraKill = state
 end)
 
