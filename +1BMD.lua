@@ -17,8 +17,11 @@ getgenv().Noclip = false
 getgenv().AutoRun = false
 getgenv().CombatActive = false 
 getgenv().HideDebris = false
+getgenv().FastAnimation = false
+
 getgenv().PunchRadius = 20 
 getgenv().CombatSpeed = 0.5
+getgenv().AnimSpeed = 5 -- Default kecepatan animasi 5x lipat
 
 -- ==========================================
 -- MENU 1: INPUT PENGATURAN & TIER SELECTION
@@ -28,12 +31,11 @@ Window:AddInput("Radius Hancur (Jarak)", "Default 20 stud...", function(value)
     if angka then getgenv().PunchRadius = angka end
 end)
 
-Window:AddInput("Kecepatan Pukul & Lempar", "Default 0.5 detik...", function(value)
+Window:AddInput("Kecepatan Auto Pukul & Lempar", "Default 0.5 detik...", function(value)
     local angka = tonumber(value)
     if angka then getgenv().CombatSpeed = angka end
 end)
 
--- Menambahkan "Admin" ke dalam daftar Dropdown
 Window:AddMultiDropdown("Pilih Tier Training", {"Tier1A", "Tier1B", "Tier1C", "Tier2", "Tier3", "Tier4", "Tier5", "Tier6", "Admin"}, function(selected)
     getgenv().SelectedTiers = selected 
 end)
@@ -96,7 +98,7 @@ local function StartSynchronizedCombat()
                             for _, part in ipairs(mapFolder:GetDescendants()) do
                                 if part:IsA("BasePart") and part.CanCollide == true then
                                     table.insert(validParts, part)
-                                    if #validParts >= 10 then break end 
+                                    if #validParts >= 20 then break end 
                                 end
                             end
                             
@@ -191,6 +193,51 @@ end)
 -- ==========================================
 -- MENU 3: MOVEMENT & UTILITY
 -- ==========================================
+Window:AddInput("Kecepatan Animasi Manual", "Cth: 5 atau 10...", function(value)
+    local angka = tonumber(value)
+    if angka then getgenv().AnimSpeed = angka end
+end)
+
+Window:AddToggle("Fast Animation (Bermain Manual)", false, function(state)
+    getgenv().FastAnimation = state
+    
+    if state then
+        -- Menerapkan kecepatan baru secara real-time ke setiap animasi yang sedang berjalan
+        getgenv().AnimConnection = RunService.Stepped:Connect(function()
+            if getgenv().FastAnimation then
+                pcall(function()
+                    local char = Players.LocalPlayer.Character
+                    local hum = char and char:FindFirstChild("Humanoid")
+                    local animator = hum and hum:FindFirstChild("Animator")
+                    
+                    if animator then
+                        for _, track in pairs(animator:GetPlayingAnimationTracks()) do
+                            track:AdjustSpeed(getgenv().AnimSpeed)
+                        end
+                    end
+                end)
+            end
+        end)
+    else
+        -- Mematikan loop dan menormalkan kembali kecepatan animasi ke 1x lipat
+        if getgenv().AnimConnection then 
+            getgenv().AnimConnection:Disconnect() 
+            getgenv().AnimConnection = nil
+        end
+        pcall(function()
+            local char = Players.LocalPlayer.Character
+            local hum = char and char:FindFirstChild("Humanoid")
+            local animator = hum and hum:FindFirstChild("Animator")
+            
+            if animator then
+                for _, track in pairs(animator:GetPlayingAnimationTracks()) do
+                    track:AdjustSpeed(1)
+                end
+            end
+        end)
+    end
+end)
+
 Window:AddToggle("Auto Run Random", false, function(state)
     getgenv().AutoRun = state
     if state then
