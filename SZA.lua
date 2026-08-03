@@ -29,8 +29,8 @@ local AutoHipHeight = false
 local AutoNoFog = true
 local AutoAntiLag = true
 
-local MaxJarakSilentAim = 200 
-local MaxFOVSilentAim = 150 -- Jarak pixel dari crosshair (tengah layar)
+local MaxJarakSilentAim = 100 
+local MaxFOVSilentAim = 50 -- Jarak pixel dari crosshair (tengah layar)
 local MaxJarakAuraKill = 100
 local TargetHipHeight = 30 
 local KecepatanRemote = 0.1 
@@ -62,12 +62,12 @@ Window:AddToggle("Auto Silent Aim (Legit/Crosshair)", true, function(state)
     AutoSilentAim = state
 end)
 
-Window:AddInput("Jarak Maksimal Silent Aim", "Default: 200", function(text)
+Window:AddInput("Jarak Maksimal Silent Aim", "Default: 100", function(text)
     local angka = tonumber(text)
     if angka then MaxJarakSilentAim = angka end
 end)
 
-Window:AddInput("Radius FOV Crosshair (Pixel)", "Default: 150", function(text)
+Window:AddInput("Radius FOV Crosshair (Pixel)", "Default: 50", function(text)
     local angka = tonumber(text)
     if angka then MaxFOVSilentAim = angka end
 end)
