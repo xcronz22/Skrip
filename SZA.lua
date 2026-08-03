@@ -1,3 +1,11 @@
+local queue_on_teleport = queue_on_teleport or (syn and syn.queue_on_teleport) or (fluxus and fluxus.queue_on_teleport)
+if queue_on_teleport then
+    -- Fitur ini berjalan otomatis di latar belakang untuk mengeksekusi ulang saat ganti map/rejoin
+    queue_on_teleport([[
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/SZA.lua"))()
+    ]])
+end
+
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
 local Window = Library:MakeWindow("SZA Script Pro")
 
@@ -7,29 +15,25 @@ local Window = Library:MakeWindow("SZA Script Pro")
 local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local HttpService = game:GetService("HttpService")
 local Lighting = game:GetService("Lighting")
 local LocalPlayer = Players.LocalPlayer
 
--- Nama File Konfigurasi
-local ConfigFile = "SZA_Config.json"
-
--- Variabel Default (Auto Kill langsung AKTIF sesuai permintaan)
-local AutoSilentAim = true
+-- Pengaturan Bawaan (Default)
+local AutoSilentAim = false
 local AutoAuraKill = true
 local AutoBloodmoon = false
 local AutoArtifact = false
 local AutoHealth = false
 local AutoHipHeight = false
-local AutoNoFog = false
-local AutoAntiLag = false
+local AutoNoFog = true
+local AutoAntiLag = true
 
 local MaxJarakSilentAim = 100 
 local MaxJarakAuraKill = 100
 local TargetHipHeight = 30 
-local KecepatanRemote = 0.04 
+local KecepatanRemote = 0.1 
 
--- Indeks Semua Senjata (Sudah terpilih langsung untuk Silent Aim)
+-- Daftar Semua Senjata
 local SemuaSenjata = {
     "BloodPistol", "CosmicPistol", "Revolver", "DualPistols", "RicochetRevolver", "Deagle", "USP-S", "Redline",
     "BloodSMG", "Shotgun", "SMG", "Quasar", "CombatShotgun", "HoneyBadger", "P90", "ArcWelder", "Slingshot", "MP5",
@@ -38,52 +42,54 @@ local SemuaSenjata = {
     "ArcticStriker", "AcidSpitter", "HydraCannon", "Interstellar", "WorldEnder", "StarShooter", "SantitosGoldenAK-47"
 }
 
--- Menyimpan Handler UI untuk fungsi Load Config
-local UI = {}
+-- Menyimpan senjata yang dipilih dari dropdown
+local SenjataTerpilih = {}
 
 -- ==========================================
 -- TAMPILAN MENU (UI)
 -- ==========================================
 
-UI.KecepatanRemote = Window:AddInput("Kecepatan Remote (Detik)", "Default: 0.04", function(text)
+Window:AddInput("Kecepatan Remote (Detik)", "Default: 0.1", function(text)
     local angka = tonumber(text)
     if angka then KecepatanRemote = angka end
 end)
 
-UI.SilentAim = Window:AddToggle("Auto Silent Aim (All Guns)", true, function(state)
+Window:AddMultiDropdown("Pilih Senjata (Bisa Lebih Dari 1)", SemuaSenjata, function(opsiTerpilih)
+    SenjataTerpilih = opsiTerpilih
+end)
+
+Window:AddToggle("Auto Silent Aim", false, function(state)
     AutoSilentAim = state
 end)
 
-UI.JarakSilentAim = Window:AddInput("Jarak Silent Aim", "Default: 100", function(text)
+Window:AddInput("Jarak Silent Aim", "Default: 100", function(text)
     local angka = tonumber(text)
     if angka then MaxJarakSilentAim = angka end
 end)
 
-UI.AuraKill = Window:AddToggle("Auto Kill Aura (Damage)", true, function(state)
+Window:AddToggle("Auto Kill Aura (Damage)", true, function(state)
     AutoAuraKill = state
 end)
 
-UI.JarakAuraKill = Window:AddInput("Jarak Kill Aura", "Default: 100", function(text)
+Window:AddInput("Jarak Kill Aura", "Default: 100", function(text)
     local angka = tonumber(text)
     if angka then MaxJarakAuraKill = angka end
 end)
 
-UI.HipHeight = Window:AddToggle("Auto Hip Height", false, function(state)
+Window:AddToggle("Auto Hip Height", false, function(state)
     AutoHipHeight = state
 end)
 
-UI.TinggiHipHeight = Window:AddInput("Atur Tinggi (Max 60)", "Default: 30", function(text)
+Window:AddInput("Atur Tinggi (Max 60)", "Default: 30", function(text)
     local angka = tonumber(text)
-    if angka then
-        TargetHipHeight = (angka > 60) and 60 or angka
-    end
+    if angka then TargetHipHeight = (angka > 60) and 60 or angka end
 end)
 
-UI.NoFog = Window:AddToggle("No Fog (Hapus Kabut)", false, function(state)
+Window:AddToggle("No Fog (Hapus Kabut)", true, function(state)
     AutoNoFog = state
 end)
 
-UI.AntiLag = Window:AddToggle("Anti Lag (Mode Kentang)", false, function(state)
+Window:AddToggle("Anti Lag (Mode Kentang)", true, function(state)
     AutoAntiLag = state
     if state then
         task.spawn(function()
@@ -94,64 +100,23 @@ UI.AntiLag = Window:AddToggle("Anti Lag (Mode Kentang)", false, function(state)
                 elseif v:IsA("Decal") or v:IsA("Texture") then
                     v.Transparency = 1
                 end
-                -- Jeda agar game tidak crash/lag saat mengubah map
+                -- Jeda agar game tidak freeze
                 if i % 50 == 0 then task.wait() end 
             end
         end)
     end
 end)
 
-UI.Bloodmoon = Window:AddToggle("Auto Bloodmoon Spin", false, function(state)
+Window:AddToggle("Auto Bloodmoon Spin", false, function(state)
     AutoBloodmoon = state
 end)
 
-UI.Artifact = Window:AddToggle("Auto Artifact Spin", false, function(state)
+Window:AddToggle("Auto Artifact Spin", false, function(state)
     AutoArtifact = state
 end)
 
-UI.Health = Window:AddToggle("Auto Health Upgrade", false, function(state)
+Window:AddToggle("Auto Health Upgrade", false, function(state)
     AutoHealth = state
-end)
-
-Window:AddButton("Simpan Config", function()
-    local configData = {
-        C_KecepatanRemote = KecepatanRemote,
-        C_AutoSilentAim = AutoSilentAim,
-        C_MaxJarakSilentAim = MaxJarakSilentAim,
-        C_AutoAuraKill = AutoAuraKill,
-        C_MaxJarakAuraKill = MaxJarakAuraKill,
-        C_AutoHipHeight = AutoHipHeight,
-        C_TargetHipHeight = TargetHipHeight,
-        C_AutoNoFog = AutoNoFog,
-        C_AutoAntiLag = AutoAntiLag,
-        C_AutoBloodmoon = AutoBloodmoon,
-        C_AutoArtifact = AutoArtifact,
-        C_AutoHealth = AutoHealth
-    }
-    pcall(function()
-        writefile(ConfigFile, HttpService:JSONEncode(configData))
-    end)
-end)
-
-Window:AddButton("Muat Config", function()
-    pcall(function()
-        if isfile(ConfigFile) then
-            local data = HttpService:JSONDecode(readfile(ConfigFile))
-            
-            if data.C_KecepatanRemote ~= nil then KecepatanRemote = data.C_KecepatanRemote end
-            if data.C_AutoSilentAim ~= nil then AutoSilentAim = data.C_AutoSilentAim end
-            if data.C_MaxJarakSilentAim ~= nil then MaxJarakSilentAim = data.C_MaxJarakSilentAim end
-            if data.C_AutoAuraKill ~= nil then AutoAuraKill = data.C_AutoAuraKill end
-            if data.C_MaxJarakAuraKill ~= nil then MaxJarakAuraKill = data.C_MaxJarakAuraKill end
-            if data.C_AutoHipHeight ~= nil then AutoHipHeight = data.C_AutoHipHeight end
-            if data.C_TargetHipHeight ~= nil then TargetHipHeight = data.C_TargetHipHeight end
-            if data.C_AutoNoFog ~= nil then AutoNoFog = data.C_AutoNoFog end
-            if data.C_AutoAntiLag ~= nil then AutoAntiLag = data.C_AutoAntiLag end
-            if data.C_AutoBloodmoon ~= nil then AutoBloodmoon = data.C_AutoBloodmoon end
-            if data.C_AutoArtifact ~= nil then AutoArtifact = data.C_AutoArtifact end
-            if data.C_AutoHealth ~= nil then AutoHealth = data.C_AutoHealth end
-        end
-    end)
 end)
 
 -- ==========================================
@@ -189,7 +154,7 @@ task.spawn(function()
     end
 end)
 
--- 3. Mesin Auto Silent Aim (GunFire + GunHit Semua Senjata)
+-- 3. Mesin Auto Silent Aim (Menembakkan semua senjata yang dipilih)
 task.spawn(function()
     while true do
         task.wait(KecepatanRemote)
@@ -213,10 +178,16 @@ task.spawn(function()
                                     local ID_Angka = tonumber(ID_String)
                                     local arahTembakan = (targetPos - myPos).Unit
                                     
-                                    -- Menembakkan seluruh 40+ senjata secara bersamaan ke target
-                                    for _, namaSenjata in ipairs(SemuaSenjata) do
-                                        ReplicatedStorage.Remotes.NetRemotes.GunFire:FireServer(namaSenjata, myPos, arahTembakan)
-                                        ReplicatedStorage.Remotes.GunRemotes.GunHit:FireServer(namaSenjata, ID_Angka, targetPos)
+                                    -- Looping untuk menembakkan setiap senjata yang diceklis
+                                    for k, v in pairs(SenjataTerpilih) do
+                                        -- Mengakomodasi jika library UI me-return array (opsi) atau dictionary (status)
+                                        local namaSenjata = type(k) == "number" and v or k
+                                        local statusCeklis = type(k) == "number" and true or v
+                                        
+                                        if statusCeklis then
+                                            ReplicatedStorage.Remotes.NetRemotes.GunFire:FireServer(namaSenjata, myPos, arahTembakan)
+                                            ReplicatedStorage.Remotes.GunRemotes.GunHit:FireServer(namaSenjata, ID_Angka, targetPos)
+                                        end
                                     end
                                 end
                             end
