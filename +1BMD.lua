@@ -11,6 +11,7 @@ local Lighting = game:GetService("Lighting")
 getgenv().WallPunch = false
 getgenv().AutoGrabThrow = false
 getgenv().AutoTrain = false
+getgenv().AutoBuyItem = false
 getgenv().SelectedTiers = {} 
 getgenv().Noclip = false
 getgenv().AutoRun = false
@@ -32,7 +33,8 @@ Window:AddInput("Kecepatan Pukul & Lempar", "Default 0.5 detik...", function(val
     if angka then getgenv().CombatSpeed = angka end
 end)
 
-Window:AddMultiDropdown("Pilih Tier Training", {"Tier1A", "Tier1B", "Tier1C", "Tier2", "Tier3", "Tier4", "Tier5", "Tier6"}, function(selected)
+-- Menambahkan "Admin" ke dalam daftar Dropdown
+Window:AddMultiDropdown("Pilih Tier Training", {"Tier1A", "Tier1B", "Tier1C", "Tier2", "Tier3", "Tier4", "Tier5", "Tier6", "Admin"}, function(selected)
     getgenv().SelectedTiers = selected 
 end)
 
@@ -144,6 +146,33 @@ Window:AddToggle("Auto Train", false, function(state)
                     end
                 end)
                 task.wait(0.1)
+            end
+        end)
+    end
+end)
+
+Window:AddToggle("Auto Buy Item Shop", false, function(state)
+    getgenv().AutoBuyItem = state
+    if state then
+        task.spawn(function()
+            while getgenv().AutoBuyItem do
+                pcall(function()
+                    local buyEvent = RS:FindFirstChild("Shared") and RS.Shared:FindFirstChild("Events") and RS.Shared.Events:FindFirstChild("ItemShop_Buy")
+                    
+                    if buyEvent then
+                        buyEvent:FireServer(1)
+                        task.wait(1)
+                        
+                        if not getgenv().AutoBuyItem then return end 
+                        buyEvent:FireServer(2)
+                        task.wait(1)
+                        
+                        if not getgenv().AutoBuyItem then return end
+                        buyEvent:FireServer(3)
+                    end
+                end)
+                
+                task.wait(10)
             end
         end)
     end
