@@ -71,7 +71,6 @@ local function StartSynchronizedCombat()
                                 local distance = (part.Position - rootPos).Magnitude
                                 if distance <= radius then
                                     punchRemote:FireServer(1, part.Position)
-                                    punchRemote:FireServer(2, part.Position)
                                     break 
                                 end
                             end
@@ -97,7 +96,7 @@ local function StartSynchronizedCombat()
                             for _, part in ipairs(mapFolder:GetDescendants()) do
                                 if part:IsA("BasePart") and part.CanCollide == true then
                                     table.insert(validParts, part)
-                                    if #validParts >= 20 then break end 
+                                    if #validParts >= 10 then break end 
                                 end
                             end
                             
