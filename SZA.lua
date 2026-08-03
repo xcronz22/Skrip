@@ -30,7 +30,7 @@ local AutoNoFog = true
 local AutoAntiLag = true
 
 local MaxJarakSilentAim = 100 
-local MaxFOVSilentAim = 50 -- Jarak pixel dari crosshair (tengah layar)
+local MaxFOVSilentAim = 50
 local MaxJarakAuraKill = 100
 local TargetHipHeight = 30 
 local KecepatanRemote = 0.1 
@@ -62,12 +62,12 @@ Window:AddToggle("Auto Silent Aim (Legit/Crosshair)", true, function(state)
     AutoSilentAim = state
 end)
 
-Window:AddInput("Jarak Maksimal Silent Aim", "Default: 100", function(text)
+Window:AddInput("Jarak Maksimal Silent Aim", "Default: 200", function(text)
     local angka = tonumber(text)
     if angka then MaxJarakSilentAim = angka end
 end)
 
-Window:AddInput("Radius FOV Crosshair (Pixel)", "Default: 50", function(text)
+Window:AddInput("Radius FOV Crosshair (Pixel)", "Default: 150", function(text)
     local angka = tonumber(text)
     if angka then MaxFOVSilentAim = angka end
 end)
@@ -179,7 +179,6 @@ task.spawn(function()
                     local zombiesFolder = Workspace:FindFirstChild("Zombies_Local") or Workspace:FindFirstChild("Zombies")
                     
                     if zombiesFolder then
-                        -- Mendapatkan posisi tengah layar (Crosshair)
                         local viewportSize = Camera.ViewportSize
                         local screenCenter = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
                         
@@ -189,17 +188,12 @@ task.spawn(function()
                                 local targetPos = targetPart.Position
                                 local jarakZombi = (targetPos - myPos).Magnitude
                                 
-                                -- Cek jarak maksimal di dunia nyata
                                 if jarakZombi <= MaxJarakSilentAim then
-                                    -- Konversi posisi 3D zombie ke posisi 2D layar
                                     local screenPos, onScreen = Camera:WorldToViewportPoint(targetPos)
                                     
-                                    -- onScreen bernilai true jika zombie ada di depan layar (tidak di belakang karakter)
                                     if onScreen then
-                                        -- Hitung jarak zombie di layar menuju crosshair (tengah layar)
                                         local distanceToCenter = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
                                         
-                                        -- Tembak hanya jika jaraknya masuk dalam radius FOV
                                         if distanceToCenter <= MaxFOVSilentAim then
                                             local ID_String = string.match(zombie.Name, "%d+")
                                             if ID_String then
@@ -254,7 +248,7 @@ task.spawn(function()
     end
 end)
 
--- 5. Mesin Auto Kill All (Tembak 1 Map dengan Senjata, Tanpa ZombieDamage)
+-- 5. Mesin Auto Kill All (Perpaduan Tembak & Zombie Damage 1 Map)
 task.spawn(function()
     while true do
         task.wait(KecepatanRemote)
@@ -271,7 +265,6 @@ task.spawn(function()
                     local zombiesFolder = Workspace:FindFirstChild("Zombies_Local") or Workspace:FindFirstChild("Zombies")
                     
                     if zombiesFolder then
-                        -- Tembak semua yang ada di dalam folder tanpa batas jarak
                         for _, zombie in pairs(zombiesFolder:GetChildren()) do
                             local targetPart = zombie:FindFirstChild("HumanoidRootPart")
                             if targetPart then
@@ -282,8 +275,10 @@ task.spawn(function()
                                     local ID_Angka = tonumber(ID_String)
                                     local arahTembakan = (targetPos - myPos).Unit
                                     
+                                    -- Eksekusi perpaduan ketiga remote
                                     ReplicatedStorage.Remotes.NetRemotes.GunFire:FireServer(namaSenjata, myPos, arahTembakan)
                                     ReplicatedStorage.Remotes.GunRemotes.GunHit:FireServer(namaSenjata, ID_Angka, targetPos)
+                                    ReplicatedStorage.Remotes.ZombieRemotes.ZombieDamage:FireServer(ID_Angka, math.huge)
                                 end
                             end
                         end
