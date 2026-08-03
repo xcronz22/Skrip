@@ -62,12 +62,12 @@ Window:AddToggle("Auto Silent Aim (Legit/Crosshair)", true, function(state)
     AutoSilentAim = state
 end)
 
-Window:AddInput("Jarak Maksimal Silent Aim", "Default: 200", function(text)
+Window:AddInput("Jarak Maksimal Silent Aim", "Default: 100", function(text)
     local angka = tonumber(text)
     if angka then MaxJarakSilentAim = angka end
 end)
 
-Window:AddInput("Radius FOV Crosshair (Pixel)", "Default: 150", function(text)
+Window:AddInput("Radius FOV Crosshair (Pixel)", "Default: 50", function(text)
     local angka = tonumber(text)
     if angka then MaxFOVSilentAim = angka end
 end)
