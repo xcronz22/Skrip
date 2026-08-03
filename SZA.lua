@@ -19,7 +19,7 @@ local Lighting = game:GetService("Lighting")
 local LocalPlayer = Players.LocalPlayer
 
 -- Pengaturan Bawaan (Default)
-local AutoSilentAim = false
+local AutoSilentAim = true
 local AutoAuraKill = true
 local AutoBloodmoon = false
 local AutoArtifact = false
@@ -33,17 +33,20 @@ local MaxJarakAuraKill = 100
 local TargetHipHeight = 30 
 local KecepatanRemote = 0.1 
 
--- Daftar Semua Senjata
+-- Daftar Semua Senjata (Pistol sudah ditambahkan)
 local SemuaSenjata = {
-    "BloodPistol", "CosmicPistol", "Revolver", "DualPistols", "RicochetRevolver", "Deagle", "USP-S", "Redline",
+    "Pistol", "BloodPistol", "CosmicPistol", "Revolver", "DualPistols", "RicochetRevolver", "Deagle", "USP-S", "Redline",
     "BloodSMG", "Shotgun", "SMG", "Quasar", "CombatShotgun", "HoneyBadger", "P90", "ArcWelder", "Slingshot", "MP5",
     "BloodAR", "Rifle", "BurstRifle", "AK-47", "Pulsar", "TommyGun", "Sniper", "HeavyRifle", "Scar-H", "ImpalerRifle",
     "Bloodblaster", "Minigun", "Flamethrower", "GrenadeLauncher", "VoidScythe", "BloodStaff", "GumdropBlaster", 
     "ArcticStriker", "AcidSpitter", "HydraCannon", "Interstellar", "WorldEnder", "StarShooter", "SantitosGoldenAK-47"
 }
 
--- Menyimpan senjata yang dipilih dari dropdown
-local SenjataTerpilih = {}
+-- Mengubah daftar menjadi dictionary agar pengecekan senjata lebih cepat
+local SenjataValid = {}
+for _, nama in ipairs(SemuaSenjata) do
+    SenjataValid[nama] = true
+end
 
 -- ==========================================
 -- TAMPILAN MENU (UI)
@@ -54,11 +57,7 @@ Window:AddInput("Kecepatan Remote (Detik)", "Default: 0.1", function(text)
     if angka then KecepatanRemote = angka end
 end)
 
-Window:AddMultiDropdown("Pilih Senjata (Bisa Lebih Dari 1)", SemuaSenjata, function(opsiTerpilih)
-    SenjataTerpilih = opsiTerpilih
-end)
-
-Window:AddToggle("Auto Silent Aim", false, function(state)
+Window:AddToggle("Auto Silent Aim", true, function(state)
     AutoSilentAim = state
 end)
 
@@ -154,40 +153,41 @@ task.spawn(function()
     end
 end)
 
--- 3. Mesin Auto Silent Aim (Menembakkan semua senjata yang dipilih)
+-- 3. Mesin Auto Silent Aim (Otomatis mendeteksi senjata yang dipegang)
 task.spawn(function()
     while true do
         task.wait(KecepatanRemote)
         if AutoSilentAim then
             pcall(function()
-                local zombiesFolder = Workspace:FindFirstChild("Zombies_Local") or Workspace:FindFirstChild("Zombies")
                 local character = LocalPlayer.Character
+                if not character then return end
                 
-                if zombiesFolder and character and character:FindFirstChild("HumanoidRootPart") then
-                    local myPos = character.HumanoidRootPart.Position
+                -- Mencari Tool (senjata) yang sedang di-equip di dalam Character
+                local senjataPegang = character:FindFirstChildOfClass("Tool")
+                
+                -- Memastikan player memegang senjata dan senjata tersebut ada di daftar valid kita
+                if senjataPegang and SenjataValid[senjataPegang.Name] then
+                    local namaSenjata = senjataPegang.Name
+                    local zombiesFolder = Workspace:FindFirstChild("Zombies_Local") or Workspace:FindFirstChild("Zombies")
                     
-                    for _, zombie in pairs(zombiesFolder:GetChildren()) do
-                        local targetPart = zombie:FindFirstChild("HumanoidRootPart")
-                        if targetPart then
-                            local targetPos = targetPart.Position
-                            local jarakZombi = (targetPos - myPos).Magnitude
-                            
-                            if jarakZombi <= MaxJarakSilentAim then
-                                local ID_String = string.match(zombie.Name, "%d+")
-                                if ID_String then
-                                    local ID_Angka = tonumber(ID_String)
-                                    local arahTembakan = (targetPos - myPos).Unit
-                                    
-                                    -- Looping untuk menembakkan setiap senjata yang diceklis
-                                    for k, v in pairs(SenjataTerpilih) do
-                                        -- Mengakomodasi jika library UI me-return array (opsi) atau dictionary (status)
-                                        local namaSenjata = type(k) == "number" and v or k
-                                        local statusCeklis = type(k) == "number" and true or v
+                    if zombiesFolder and character:FindFirstChild("HumanoidRootPart") then
+                        local myPos = character.HumanoidRootPart.Position
+                        
+                        for _, zombie in pairs(zombiesFolder:GetChildren()) do
+                            local targetPart = zombie:FindFirstChild("HumanoidRootPart")
+                            if targetPart then
+                                local targetPos = targetPart.Position
+                                local jarakZombi = (targetPos - myPos).Magnitude
+                                
+                                if jarakZombi <= MaxJarakSilentAim then
+                                    local ID_String = string.match(zombie.Name, "%d+")
+                                    if ID_String then
+                                        local ID_Angka = tonumber(ID_String)
+                                        local arahTembakan = (targetPos - myPos).Unit
                                         
-                                        if statusCeklis then
-                                            ReplicatedStorage.Remotes.NetRemotes.GunFire:FireServer(namaSenjata, myPos, arahTembakan)
-                                            ReplicatedStorage.Remotes.GunRemotes.GunHit:FireServer(namaSenjata, ID_Angka, targetPos)
-                                        end
+                                        -- Tembak hanya menggunakan senjata yang sedang dipegang
+                                        ReplicatedStorage.Remotes.NetRemotes.GunFire:FireServer(namaSenjata, myPos, arahTembakan)
+                                        ReplicatedStorage.Remotes.GunRemotes.GunHit:FireServer(namaSenjata, ID_Angka, targetPos)
                                     end
                                 end
                             end
