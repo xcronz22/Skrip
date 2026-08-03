@@ -71,6 +71,7 @@ local function StartSynchronizedCombat()
                                 local distance = (part.Position - rootPos).Magnitude
                                 if distance <= radius then
                                     punchRemote:FireServer(1, part.Position)
+                                    punchRemote:FireServer(2, part.Position)
                                     break 
                                 end
                             end
