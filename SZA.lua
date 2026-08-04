@@ -38,13 +38,19 @@ local MaxJarakAuraKill = 100
 local TargetHipHeight = 30 
 local KecepatanRemote = 0.2 
 
--- Daftar Semua Senjata
+-- Daftar Semua Senjata (Telah Diperbarui Sesuai Video)
 local SemuaSenjata = {
-    "Pistol", "BloodPistol", "CosmicPistol", "Revolver", "DualPistols", "RicochetRevolver", "Deagle", "USP-S", "Redline",
-    "BloodSMG", "Shotgun", "SMG", "Quasar", "CombatShotgun", "HoneyBadger", "P90", "ArcWelder", "Slingshot", "MP5",
-    "BloodAR", "Rifle", "BurstRifle", "AK-47", "Pulsar", "TommyGun", "Sniper", "HeavyRifle", "Scar-H", "ImpalerRifle",
-    "Bloodblaster", "Minigun", "Flamethrower", "GrenadeLauncher", "VoidScythe", "BloodStaff", "GumdropBlaster", 
-    "ArcticStriker", "AcidSpitter", "HydraCannon", "Interstellar", "WorldEnder", "StarShooter", "SantitosGoldenAK-47"
+    "AcidSpitter", "AK47", "ArcWelder", "ArcticStriker", "BloodAR", "Bloodblaster", 
+    "BloodPistol", "BloodSMG", "BloodStaff", "BurstRifle", "CombatShotgun", 
+    "CoreBreaker", "CosmicPistol", "Deagle", "DualPistols", "EmberSMG", 
+    "Flamethrower", "GalacticWeaver", "GoldenAK47", "GrenadeLauncher", 
+    "GumdropBlaster", "HeavyRifle", "HoneyBadger", "HydraCannon", "ImpalerRifle", 
+    "InfernoMinigun", "Interstellar", "LavaBow", "LavaGatling", "LavaRifle", 
+    "Minigun", "MP5", "P90", "Pistol", "Plasma", "Pulsar", "Quasar", "Redline", 
+    "Revolver", "RicochetRevolver", "Rifle", "RPG", "Scar-H", "ShotGun", 
+    "Slingshot", "SMG", "Sniper", "StarShooter", "TommyGun", "USPS", 
+    "ViridianAR", "ViridianPistol", "ViridianShotgun", "ViridianSniper", 
+    "VoidScythe", "WorldEnder", "WorldrootCrossbow"
 }
 
 local SenjataValid = {}
