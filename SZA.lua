@@ -29,14 +29,14 @@ local AutoArtifact = false
 local AutoHealth = false
 local AutoHipHeight = false
 local AutoNoFog = true
-local AutoAntiLag = true
+local AutoAntiLag = false
 local AntiLagConnection = nil
 
 local MaxJarakSilentAim = 200 
 local MaxFOVSilentAim = 70
 local MaxJarakAuraKill = 100
 local TargetHipHeight = 30 
-local KecepatanRemote = 0.05 
+local KecepatanRemote = 0.2 
 
 -- Daftar Semua Senjata
 local SemuaSenjata = {
@@ -78,7 +78,7 @@ end
 -- TAMPILAN MENU (UI)
 -- ==========================================
 
-Window:AddInput("Kecepatan Remote (Detik)", "Default: 0.05", function(text)
+Window:AddInput("Kecepatan Remote (Detik)", "Default: 0.2", function(text)
     local angka = tonumber(text)
     if angka then KecepatanRemote = angka end
 end)
@@ -135,7 +135,7 @@ Window:AddToggle("No Fog (Hapus Kabut)", true, function(state)
 end)
 
 -- Tombol Anti Lag yang Diperbarui (Pengecualian Zombie)
-Window:AddToggle("Anti Lag (Advanced & 0% Spike)", true, function(state)
+Window:AddToggle("Anti Lag (Advanced & 0% Spike)", false, function(state)
     AutoAntiLag = state
     if state then
         -- 1. Penurunan Kualitas Rendering Dasar
@@ -189,7 +189,7 @@ end)
 
 -- 1. Mesin Auto Upgrade & Spin
 task.spawn(function()
-    while task.wait(0.1) do
+    while task.wait(0.2) do
         if AutoBloodmoon then
             pcall(function() ReplicatedStorage.Remotes.EventRemotes.BloodmoonRequestSpin:InvokeServer() end)
         end
@@ -204,7 +204,7 @@ end)
 
 -- 2. Mesin Auto Hip Height
 task.spawn(function()
-    while task.wait(0.1) do
+    while task.wait(0.2) do
         local character = LocalPlayer.Character
         if character and character:FindFirstChildOfClass("Humanoid") then
             if AutoHipHeight then
