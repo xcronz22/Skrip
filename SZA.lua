@@ -30,7 +30,7 @@ local AutoNoFog = true
 local AutoAntiLag = true
 
 local MaxJarakSilentAim = 200
-local MaxFOVSilentAim = 100
+local MaxFOVSilentAim = 70
 local MaxJarakAuraKill = 50
 local TargetHipHeight = 30
 local KecepatanRemote = 0.05
@@ -67,7 +67,7 @@ end)
     --if angka then MaxJarakSilentAim = angka end
 --end)
 
---Window:AddInput("Radius FOV Crosshair (Pixel)", "Default: 100", function(text)
+--Window:AddInput("Radius FOV Crosshair (Pixel)", "Default: 70", function(text)
     --local angka = tonumber(text)
     --if angka then MaxFOVSilentAim = angka end
 --end)
