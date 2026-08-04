@@ -53,10 +53,10 @@ end
 -- TAMPILAN MENU (UI)
 -- ==========================================
 
-Window:AddInput("Kecepatan Remote (Detik)", "Default: 0.05", function(text)
-    local angka = tonumber(text)
-    if angka then KecepatanRemote = angka end
-end)
+--Window:AddInput("Kecepatan Remote (Detik)", "Default: 0.05", function(text)
+    --local angka = tonumber(text)
+    --if angka then KecepatanRemote = angka end
+--end)
 
 Window:AddToggle("Auto Silent Aim (Legit/Crosshair)", true, function(state)
     AutoSilentAim = state
@@ -89,10 +89,10 @@ Window:AddToggle("Auto Hip Height", false, function(state)
     AutoHipHeight = state
 end)
 
-Window:AddInput("Atur Tinggi (Max 60)", "Default: 30", function(text)
-    local angka = tonumber(text)
-    if angka then TargetHipHeight = (angka > 60) and 60 or angka end
-end)
+--Window:AddInput("Atur Tinggi (Max 60)", "Default: 30", function(text)
+    --local angka = tonumber(text)
+    --if angka then TargetHipHeight = (angka > 60) and 60 or angka end
+--end)
 
 Window:AddToggle("No Fog (Hapus Kabut)", true, function(state)
     AutoNoFog = state
