@@ -15,6 +15,7 @@ local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Lighting = game:GetService("Lighting")
+local VirtualUser = game:GetService("VirtualUser")
 local Camera = Workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
@@ -22,18 +23,20 @@ local LocalPlayer = Players.LocalPlayer
 local AutoSilentAim = true
 local AutoAuraKill = false
 local AutoKillAll = false
+local AutoAntiAFK = true
 local AutoBloodmoon = false
 local AutoArtifact = false
 local AutoHealth = false
 local AutoHipHeight = false
 local AutoNoFog = true
 local AutoAntiLag = true
+local AntiLagConnection = nil
 
-local MaxJarakSilentAim = 200
+local MaxJarakSilentAim = 200 
 local MaxFOVSilentAim = 70
-local MaxJarakAuraKill = 50
-local TargetHipHeight = 30
-local KecepatanRemote = 0.05
+local MaxJarakAuraKill = 100
+local TargetHipHeight = 30 
+local KecepatanRemote = 0.05 
 
 -- Daftar Semua Senjata
 local SemuaSenjata = {
@@ -50,13 +53,35 @@ for _, nama in ipairs(SemuaSenjata) do
 end
 
 -- ==========================================
+-- FUNGSI OPTIMASI PART (NO LAG)
+-- ==========================================
+local function OptimasiObjek(obj)
+    if not AutoAntiLag then return end
+    
+    -- Filter: Jangan sentuh Zombie atau Karakter Pemain
+    if obj:FindFirstAncestor("Zombies") or obj:FindFirstAncestor("Zombies_Local") then return end
+    if obj:FindFirstAncestorOfClass("Model") and Players:GetPlayerFromCharacter(obj:FindFirstAncestorOfClass("Model")) then return end
+
+    pcall(function()
+        if obj:IsA("BasePart") then
+            obj.Material = Enum.Material.SmoothPlastic
+            obj.Reflectance = 0
+        elseif obj:IsA("Decal") or obj:IsA("Texture") then
+            obj.Transparency = 1
+        elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") then
+            obj.Enabled = false -- Matikan efek partikel berlebih pada map/senjata luar
+        end
+    end)
+end
+
+-- ==========================================
 -- TAMPILAN MENU (UI)
 -- ==========================================
 
---Window:AddInput("Kecepatan Remote (Detik)", "Default: 0.05", function(text)
-    --local angka = tonumber(text)
-    --if angka then KecepatanRemote = angka end
---end)
+Window:AddInput("Kecepatan Remote (Detik)", "Default: 0.05", function(text)
+    local angka = tonumber(text)
+    if angka then KecepatanRemote = angka end
+end)
 
 Window:AddToggle("Auto Silent Aim (Legit/Crosshair)", true, function(state)
     AutoSilentAim = state
@@ -76,13 +101,24 @@ Window:AddToggle("Auto Kill Aura (Terdekat)", false, function(state)
     AutoAuraKill = state
 end)
 
-Window:AddInput("Jarak Kill Aura", "Default: 50", function(text)
+Window:AddInput("Jarak Kill Aura", "Default: 100", function(text)
     local angka = tonumber(text)
     if angka then MaxJarakAuraKill = angka end
 end)
 
 Window:AddToggle("Auto Kill All (Tembak 1 Map)", false, function(state)
     AutoKillAll = state
+end)
+
+Window:AddToggle("Anti AFK (Advanced & No Lag)", true, function(state)
+    AutoAntiAFK = state
+    if state and getconnections then
+        pcall(function()
+            for _, connection in pairs(getconnections(LocalPlayer.Idled)) do
+                connection:Disable()
+            end
+        end)
+    end
 end)
 
 Window:AddToggle("Auto Hip Height", false, function(state)
@@ -98,20 +134,32 @@ Window:AddToggle("No Fog (Hapus Kabut)", true, function(state)
     AutoNoFog = state
 end)
 
-Window:AddToggle("Anti Lag (Mode Kentang)", true, function(state)
+-- Tombol Anti Lag yang Diperbarui (Pengecualian Zombie)
+Window:AddToggle("Anti Lag (Advanced & 0% Spike)", true, function(state)
     AutoAntiLag = state
     if state then
-        task.spawn(function()
-            for i, v in pairs(Workspace:GetDescendants()) do
-                if v:IsA("BasePart") then
-                    v.Material = Enum.Material.SmoothPlastic
-                    v.Reflectance = 0
-                elseif v:IsA("Decal") or v:IsA("Texture") then
-                    v.Transparency = 1
-                end
-                if i % 50 == 0 then task.wait() end 
+        -- 1. Penurunan Kualitas Rendering Dasar
+        pcall(function()
+            settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+            Lighting.GlobalShadows = false
+            if sethiddenproperty then
+                sethiddenproperty(Lighting, "Technology", 2)
             end
         end)
+
+        -- 2. Proses objek yang SUDAH ADA di dalam map
+        task.spawn(function()
+            local isiMap = Workspace:GetDescendants()
+            for i = 1, #isiMap do
+                OptimasiObjek(isiMap[i])
+                if i % 1000 == 0 then task.wait() end 
+            end
+        end)
+
+        -- 3. Tangkap objek yang BARU MUNCUL
+        if not AntiLagConnection then
+            AntiLagConnection = Workspace.DescendantAdded:Connect(OptimasiObjek)
+        end
     end
 end)
 
@@ -130,6 +178,14 @@ end)
 -- ==========================================
 -- MESIN BELAKANG (LOOPING TUGAS)
 -- ==========================================
+
+-- 0. Mesin Pasif Anti-AFK
+LocalPlayer.Idled:Connect(function()
+    if AutoAntiAFK then
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new())
+    end
+end)
 
 -- 1. Mesin Auto Upgrade & Spin
 task.spawn(function()
@@ -162,7 +218,7 @@ task.spawn(function()
     end
 end)
 
--- 3. Mesin Auto Silent Aim (LEGIT: Hanya di layar & dekat crosshair)
+-- 3. Mesin Auto Silent Aim
 task.spawn(function()
     while true do
         task.wait(KecepatanRemote)
@@ -215,7 +271,7 @@ task.spawn(function()
     end
 end)
 
--- 4. Mesin Auto Kill Aura (Terbatas Jarak)
+-- 4. Mesin Auto Kill Aura
 task.spawn(function()
     while true do
         task.wait(KecepatanRemote)
@@ -248,7 +304,7 @@ task.spawn(function()
     end
 end)
 
--- 5. Mesin Auto Kill All (Perpaduan Tembak & Zombie Damage 1 Map)
+-- 5. Mesin Auto Kill All
 task.spawn(function()
     while true do
         task.wait(KecepatanRemote)
@@ -275,7 +331,6 @@ task.spawn(function()
                                     local ID_Angka = tonumber(ID_String)
                                     local arahTembakan = (targetPos - myPos).Unit
                                     
-                                    -- Eksekusi perpaduan ketiga remote
                                     ReplicatedStorage.Remotes.NetRemotes.GunFire:FireServer(namaSenjata, myPos, arahTembakan)
                                     ReplicatedStorage.Remotes.GunRemotes.GunHit:FireServer(namaSenjata, ID_Angka, targetPos)
                                     ReplicatedStorage.Remotes.ZombieRemotes.ZombieDamage:FireServer(ID_Angka, math.huge)
@@ -289,24 +344,13 @@ task.spawn(function()
     end
 end)
 
--- 6. Mesin NoFog & AntiLag
+-- 6. Mesin NoFog
 task.spawn(function()
     while task.wait(3) do
         if AutoNoFog then
             pcall(function()
                 Lighting.FogEnd = 9e9
                 Lighting.FogStart = 9e9
-            end)
-        end
-        
-        if AutoAntiLag then
-            pcall(function()
-                settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-                Lighting.GlobalShadows = false
-                
-                if sethiddenproperty then
-                    sethiddenproperty(Lighting, "Technology", 2)
-                end
             end)
         end
     end
