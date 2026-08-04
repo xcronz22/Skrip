@@ -29,11 +29,11 @@ local AutoHipHeight = false
 local AutoNoFog = true
 local AutoAntiLag = true
 
-local MaxJarakSilentAim = 100 
-local MaxFOVSilentAim = 50
-local MaxJarakAuraKill = 100
-local TargetHipHeight = 30 
-local KecepatanRemote = 0.1 
+local MaxJarakSilentAim = 200
+local MaxFOVSilentAim = 100
+local MaxJarakAuraKill = 50
+local TargetHipHeight = 30
+local KecepatanRemote = 0.05
 
 -- Daftar Semua Senjata
 local SemuaSenjata = {
@@ -53,7 +53,7 @@ end
 -- TAMPILAN MENU (UI)
 -- ==========================================
 
-Window:AddInput("Kecepatan Remote (Detik)", "Default: 0.1", function(text)
+Window:AddInput("Kecepatan Remote (Detik)", "Default: 0.05", function(text)
     local angka = tonumber(text)
     if angka then KecepatanRemote = angka end
 end)
@@ -62,21 +62,21 @@ Window:AddToggle("Auto Silent Aim (Legit/Crosshair)", true, function(state)
     AutoSilentAim = state
 end)
 
-Window:AddInput("Jarak Maksimal Silent Aim", "Default: 100", function(text)
-    local angka = tonumber(text)
-    if angka then MaxJarakSilentAim = angka end
-end)
+--Window:AddInput("Jarak Maksimal Silent Aim", "Default: 200", function(text)
+    --local angka = tonumber(text)
+    --if angka then MaxJarakSilentAim = angka end
+--end)
 
-Window:AddInput("Radius FOV Crosshair (Pixel)", "Default: 50", function(text)
-    local angka = tonumber(text)
-    if angka then MaxFOVSilentAim = angka end
-end)
+--Window:AddInput("Radius FOV Crosshair (Pixel)", "Default: 100", function(text)
+    --local angka = tonumber(text)
+    --if angka then MaxFOVSilentAim = angka end
+--end)
 
 Window:AddToggle("Auto Kill Aura (Terdekat)", false, function(state)
     AutoAuraKill = state
 end)
 
-Window:AddInput("Jarak Kill Aura", "Default: 100", function(text)
+Window:AddInput("Jarak Kill Aura", "Default: 50", function(text)
     local angka = tonumber(text)
     if angka then MaxJarakAuraKill = angka end
 end)
