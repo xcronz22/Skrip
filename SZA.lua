@@ -16,19 +16,35 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Lighting = game:GetService("Lighting")
 local VirtualUser = game:GetService("VirtualUser")
-local RunService = game:GetService("RunService") -- [DITAMBAHKAN]: Untuk update visual indikator FOV
+local RunService = game:GetService("RunService")
 local Camera = Workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
 -- ==========================================
--- INDIKATOR FOV (VISUAL)
+-- INDIKATOR FOV (GUI ROBLOX NATIVE)
 -- ==========================================
-local FOVCircle = Drawing.new("Circle") -- [DITAMBAHKAN]: Membuat gambar lingkaran
-FOVCircle.Color = Color3.fromRGB(255, 255, 255) -- Warna merah
-FOVCircle.Thickness = 1
-FOVCircle.Filled = false
-FOVCircle.Transparency = 0.7
-FOVCircle.NumSides = 100
+local FOVGui = Instance.new("ScreenGui")
+FOVGui.Name = "FOVCircleGUI"
+FOVGui.IgnoreGuiInset = true -- Memastikan presisi di tengah layar
+-- Menyembunyikan GUI ke CoreGui agar tidak terdeteksi game (jika ada), atau ke PlayerGui sebagai cadangan
+local success, coreGui = pcall(function() return game:GetService("CoreGui") end)
+FOVGui.Parent = success and coreGui or LocalPlayer:WaitForChild("PlayerGui")
+
+local FOVFrame = Instance.new("Frame")
+FOVFrame.Parent = FOVGui
+FOVFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+FOVFrame.BackgroundTransparency = 1 -- Tengahnya bolong (transparan)
+FOVFrame.AnchorPoint = Vector2.new(0.5, 0.5) -- Titik tumpu di tengah
+
+local FOVCorner = Instance.new("UICorner")
+FOVCorner.CornerRadius = UDim.new(1, 0) -- Membuatnya bulat sempurna
+FOVCorner.Parent = FOVFrame
+
+local FOVStroke = Instance.new("UIStroke")
+FOVStroke.Color = Color3.fromRGB(255, 255, 255) -- Warna Putih
+FOVStroke.Thickness = 1.5
+FOVStroke.Transparency = 0.3 -- Sedikit transparan agar tidak mengganggu mata
+FOVStroke.Parent = FOVFrame
 
 -- Pengaturan Bawaan (Default)
 local AutoSilentAim = true
@@ -45,7 +61,7 @@ local AntiLagConnection = nil
 
 local MaxJarakSilentAim = 1500 
 local MaxFOVSilentAim = 50
-local MaxJarakAuraKill = 50
+local MaxJarakAuraKill = 100
 local TargetHipHeight = 30 
 local KecepatanRemote = 0.3 
 
@@ -95,7 +111,7 @@ end
 -- TAMPILAN MENU (UI)
 -- ==========================================
 
-Window:AddInput("Kecepatan Remote (Detik)", "Default: 0.2", function(text)
+Window:AddInput("Kecepatan Remote (Detik)", "Default: 0.3", function(text)
     local angka = tonumber(text)
     if angka then KecepatanRemote = angka end
 end)
@@ -118,7 +134,7 @@ Window:AddToggle("Auto Kill Aura (Terdekat)", false, function(state)
     AutoAuraKill = state
 end)
 
-Window:AddInput("Jarak Kill Aura", "Default: 50", function(text)
+Window:AddInput("Jarak Kill Aura", "Default: 100", function(text)
     local angka = tonumber(text)
     if angka then MaxJarakAuraKill = angka end
 end)
@@ -373,17 +389,16 @@ task.spawn(function()
     end
 end)
 
--- 7. Mesin Update Indikator FOV [DITAMBAHKAN]
+-- 7. Mesin Update Indikator FOV (Diperbarui untuk GUI Native)
 RunService.RenderStepped:Connect(function()
     if AutoSilentAim then
         local viewportSize = Camera.ViewportSize
-        -- Memposisikan lingkaran tepat di tengah layar
-        FOVCircle.Position = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
-        -- Mengatur ukuran radius lingkaran sesuai angka di menu
-        FOVCircle.Radius = MaxFOVSilentAim
-        FOVCircle.Visible = true
+        -- Update posisi agar selalu persis di tengah layar
+        FOVFrame.Position = UDim2.new(0, viewportSize.X / 2, 0, viewportSize.Y / 2)
+        -- Update ukuran berdasarkan angka FOV (Radius dikali 2 untuk dapat Diameter / ukuran Frame)
+        FOVFrame.Size = UDim2.new(0, MaxFOVSilentAim * 2, 0, MaxFOVSilentAim * 2)
+        FOVFrame.Visible = true
     else
-        -- Sembunyikan lingkaran jika Auto Silent Aim dimatikan
-        FOVCircle.Visible = false
+        FOVFrame.Visible = false
     end
 end)
