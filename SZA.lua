@@ -32,7 +32,7 @@ local AutoNoFog = true
 local AutoAntiLag = false
 local AntiLagConnection = nil
 
-local MaxJarakSilentAim = 200 
+local MaxJarakSilentAim = 1500 
 local MaxFOVSilentAim = 50
 local MaxJarakAuraKill = 100
 local TargetHipHeight = 30 
@@ -93,7 +93,7 @@ Window:AddToggle("Auto Silent Aim (Legit/Crosshair)", true, function(state)
     AutoSilentAim = state
 end)
 
---Window:AddInput("Jarak Maksimal Silent Aim", "Default: 200", function(text)
+--Window:AddInput("Jarak Maksimal Silent Aim", "Default: 1500", function(text)
     --local angka = tonumber(text)
     --if angka then MaxJarakSilentAim = angka end
 --end)
