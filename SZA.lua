@@ -60,10 +60,10 @@ local AutoAntiLag = false
 local AntiLagConnection = nil
 
 local MaxJarakSilentAim = 1500 
-local MaxFOVSilentAim = 50
-local MaxJarakAuraKill = 100
+local MaxFOVSilentAim = 150
+local MaxJarakAuraKill = 50
 local TargetHipHeight = 30 
-local KecepatanRemote = 0.3 
+local KecepatanRemote = 0.2 
 
 -- Daftar Semua Senjata (Telah Diperbarui Sesuai Video)
 local SemuaSenjata = {
@@ -111,7 +111,7 @@ end
 -- TAMPILAN MENU (UI)
 -- ==========================================
 
-Window:AddInput("Kecepatan Remote (Detik)", "Default: 0.3", function(text)
+Window:AddInput("Kecepatan Remote (Detik)", "Default: 0.2", function(text)
     local angka = tonumber(text)
     if angka then KecepatanRemote = angka end
 end)
@@ -125,7 +125,7 @@ end)
     --if angka then MaxJarakSilentAim = angka end
 --end)
 
-Window:AddInput("Radius FOV Crosshair (Pixel)", "Default: 50", function(text)
+Window:AddInput("Radius FOV Crosshair (Pixel)", "Default: 150", function(text)
     local angka = tonumber(text)
     if angka then MaxFOVSilentAim = angka end
 end)
@@ -134,7 +134,7 @@ Window:AddToggle("Auto Kill Aura (Terdekat)", false, function(state)
     AutoAuraKill = state
 end)
 
-Window:AddInput("Jarak Kill Aura", "Default: 100", function(text)
+Window:AddInput("Jarak Kill Aura", "Default: 50", function(text)
     local angka = tonumber(text)
     if angka then MaxJarakAuraKill = angka end
 end)
