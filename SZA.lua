@@ -16,8 +16,19 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Lighting = game:GetService("Lighting")
 local VirtualUser = game:GetService("VirtualUser")
+local RunService = game:GetService("RunService") -- [DITAMBAHKAN]: Untuk update visual indikator FOV
 local Camera = Workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
+
+-- ==========================================
+-- INDIKATOR FOV (VISUAL)
+-- ==========================================
+local FOVCircle = Drawing.new("Circle") -- [DITAMBAHKAN]: Membuat gambar lingkaran
+FOVCircle.Color = Color3.fromRGB(255, 255, 255) -- Warna merah
+FOVCircle.Thickness = 1
+FOVCircle.Filled = false
+FOVCircle.Transparency = 0.7
+FOVCircle.NumSides = 100
 
 -- Pengaturan Bawaan (Default)
 local AutoSilentAim = true
@@ -34,9 +45,9 @@ local AntiLagConnection = nil
 
 local MaxJarakSilentAim = 1500 
 local MaxFOVSilentAim = 50
-local MaxJarakAuraKill = 100
+local MaxJarakAuraKill = 50
 local TargetHipHeight = 30 
-local KecepatanRemote = 0.2 
+local KecepatanRemote = 0.3 
 
 -- Daftar Semua Senjata (Telah Diperbarui Sesuai Video)
 local SemuaSenjata = {
@@ -107,7 +118,7 @@ Window:AddToggle("Auto Kill Aura (Terdekat)", false, function(state)
     AutoAuraKill = state
 end)
 
-Window:AddInput("Jarak Kill Aura", "Default: 100", function(text)
+Window:AddInput("Jarak Kill Aura", "Default: 50", function(text)
     local angka = tonumber(text)
     if angka then MaxJarakAuraKill = angka end
 end)
@@ -359,5 +370,20 @@ task.spawn(function()
                 Lighting.FogStart = 9e9
             end)
         end
+    end
+end)
+
+-- 7. Mesin Update Indikator FOV [DITAMBAHKAN]
+RunService.RenderStepped:Connect(function()
+    if AutoSilentAim then
+        local viewportSize = Camera.ViewportSize
+        -- Memposisikan lingkaran tepat di tengah layar
+        FOVCircle.Position = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
+        -- Mengatur ukuran radius lingkaran sesuai angka di menu
+        FOVCircle.Radius = MaxFOVSilentAim
+        FOVCircle.Visible = true
+    else
+        -- Sembunyikan lingkaran jika Auto Silent Aim dimatikan
+        FOVCircle.Visible = false
     end
 end)
