@@ -58,6 +58,8 @@ local AutoHipHeight = false
 local AutoNoFog = true
 local AutoAntiLag = false
 local AntiLagConnection = nil
+local AutoCollectBloodmoon = false
+local DaftarIDShard = {} -- Menyimpan ID Shard yang belum diambil
 
 local MaxJarakSilentAim = 1500 
 local MaxFOVSilentAim = 150
@@ -206,6 +208,10 @@ end)
 
 Window:AddToggle("Auto Health Upgrade", false, function(state)
     AutoHealth = state
+end)
+
+Window:AddToggle("Auto Collect Bloodmoon Shard", false, function(state)
+    AutoCollectBloodmoon = state
 end)
 
 -- ==========================================
@@ -400,5 +406,33 @@ RunService.RenderStepped:Connect(function()
         FOVFrame.Visible = true
     else
         FOVFrame.Visible = false
+    end
+end)
+
+-- Mesin Penangkap ID Shard yang jatuh
+task.spawn(function()
+    local eventRemotes = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("EventRemotes")
+    local dropEvent = eventRemotes:WaitForChild("BloodmoonShardDrop")
+    
+    dropEvent.OnClientEvent:Connect(function(shardID, amount, position)
+        if shardID then
+            DaftarIDShard[shardID] = true -- Simpan ID ke dalam memori
+        end
+    end)
+end)
+
+-- Mesin Eksekutor Auto Collect Shard (1 Detik)
+task.spawn(function()
+    while task.wait(1) do
+        if AutoCollectBloodmoon then
+            for id_shard, tersedia in pairs(DaftarIDShard) do
+                if tersedia then
+                    pcall(function()
+                        ReplicatedStorage.Remotes.EventRemotes.BloodmoonShardCollect:FireServer(id_shard)
+                        DaftarIDShard[id_shard] = nil -- Hapus dari memori setelah berhasil diambil
+                    end)
+                end
+            end
+        end
     end
 end)
