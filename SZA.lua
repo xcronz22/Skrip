@@ -421,9 +421,9 @@ task.spawn(function()
     end)
 end)
 
--- Mesin Eksekutor Auto Collect Shard (1 Detik)
+-- Mesin Eksekutor Auto Collect Shard
 task.spawn(function()
-    while task.wait(1) do
+    while task.wait(0.3) do
         if AutoCollectBloodmoon then
             for id_shard, tersedia in pairs(DaftarIDShard) do
                 if tersedia then
