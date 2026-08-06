@@ -409,27 +409,38 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Mesin Penangkap ID Shard yang jatuh
+-- ==========================================
+-- MESIN AUTO COLLECT BLOODMOON SHARD
+-- ==========================================
+
+-- A. Mesin Penangkap ID & Jumlah Shard (Real-time)
 task.spawn(function()
     local eventRemotes = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("EventRemotes")
     local dropEvent = eventRemotes:WaitForChild("BloodmoonShardDrop")
     
     dropEvent.OnClientEvent:Connect(function(shardID, amount, position)
-        if shardID then
-            DaftarIDShard[shardID] = true -- Simpan ID ke dalam memori
+        if shardID and type(amount) == "number" then
+            -- Alih-alih pakai 'true', kita simpan JUMLAH shard yang jatuh ke dalam ID tersebut.
+            -- Jika ID yang sama jatuh lagi, jumlahnya akan ditambahkan.
+            DaftarIDShard[shardID] = (DaftarIDShard[shardID] or 0) + amount
         end
     end)
 end)
 
--- Mesin Eksekutor Auto Collect Shard
+-- B. Mesin Eksekutor Pengambil Shard (Per 1 Detik)
 task.spawn(function()
-    while task.wait(0.3) do
+    while task.wait(1) do
         if AutoCollectBloodmoon then
-            for id_shard, tersedia in pairs(DaftarIDShard) do
-                if tersedia then
+            for id_shard, jumlah in pairs(DaftarIDShard) do
+                if jumlah > 0 then
                     pcall(function()
-                        ReplicatedStorage.Remotes.EventRemotes.BloodmoonShardCollect:FireServer(id_shard)
-                        DaftarIDShard[id_shard] = nil -- Hapus dari memori setelah berhasil diambil
+                        -- Lakukan spam remote sebanyak jumlah shard yang jatuh untuk ID tersebut
+                        for i = 1, jumlah do
+                            ReplicatedStorage.Remotes.EventRemotes.BloodmoonShardCollect:FireServer(id_shard)
+                        end
+                        
+                        -- Setelah semua ditembak ke server, hapus ID dari memori agar tidak lag
+                        DaftarIDShard[id_shard] = nil
                     end)
                 end
             end
