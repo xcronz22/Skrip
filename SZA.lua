@@ -67,7 +67,7 @@ local KecepatanRemote = 0.2
 
 -- Daftar Semua Senjata (Telah Diperbarui Sesuai Video)
 local SemuaSenjata = {
-    "AcidSpitter", "AK47", "ArcWelder", "ArcticStriker", "BloodAR", "Bloodblaster", 
+    "AcidSpitter", "AK47", "ArcWelder", "ArticStriker", "BloodAR", "Bloodblaster", 
     "BloodPistol", "BloodSMG", "BloodStaff", "BurstRifle", "CombatShotgun", 
     "CoreBreaker", "CosmicPistol", "Deagle", "DualPistols", "EmberSMG", 
     "Flamethrower", "GalacticWeaver", "GoldenAK47", "GrenadeLauncher", 
