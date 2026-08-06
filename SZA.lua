@@ -58,8 +58,6 @@ local AutoHipHeight = false
 local AutoNoFog = true
 local AutoAntiLag = false
 local AntiLagConnection = nil
-local AutoCollectBloodmoon = false
-local DaftarIDShard = {} -- Menyimpan ID Shard yang belum diambil
 
 local MaxJarakSilentAim = 1500 
 local MaxFOVSilentAim = 150
@@ -208,10 +206,6 @@ end)
 
 Window:AddToggle("Auto Health Upgrade", false, function(state)
     AutoHealth = state
-end)
-
-Window:AddToggle("Auto Collect Bloodmoon Shard", false, function(state)
-    AutoCollectBloodmoon = state
 end)
 
 -- ==========================================
@@ -406,44 +400,5 @@ RunService.RenderStepped:Connect(function()
         FOVFrame.Visible = true
     else
         FOVFrame.Visible = false
-    end
-end)
-
--- ==========================================
--- MESIN AUTO COLLECT BLOODMOON SHARD
--- ==========================================
-
--- A. Mesin Penangkap ID & Jumlah Shard (Real-time)
-task.spawn(function()
-    local eventRemotes = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("EventRemotes")
-    local dropEvent = eventRemotes:WaitForChild("BloodmoonShardDrop")
-    
-    dropEvent.OnClientEvent:Connect(function(shardID, amount, position)
-        if shardID and type(amount) == "number" then
-            -- Alih-alih pakai 'true', kita simpan JUMLAH shard yang jatuh ke dalam ID tersebut.
-            -- Jika ID yang sama jatuh lagi, jumlahnya akan ditambahkan.
-            DaftarIDShard[shardID] = (DaftarIDShard[shardID] or 0) + amount
-        end
-    end)
-end)
-
--- B. Mesin Eksekutor Pengambil Shard
-task.spawn(function()
-    while task.wait() do
-        if AutoCollectBloodmoon then
-            for id_shard, jumlah in pairs(DaftarIDShard) do
-                if jumlah > 0 then
-                    pcall(function()
-                        -- Lakukan spam remote sebanyak jumlah shard yang jatuh untuk ID tersebut
-                        for i = 1, jumlah do
-                            ReplicatedStorage.Remotes.EventRemotes.BloodmoonShardCollect:FireServer(id_shard)
-                        end
-                        
-                        -- Setelah semua ditembak ke server, hapus ID dari memori agar tidak lag
-                        DaftarIDShard[id_shard] = nil
-                    end)
-                end
-            end
-        end
     end
 end)
