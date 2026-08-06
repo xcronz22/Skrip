@@ -79,11 +79,11 @@ local SemuaSenjata = {
     "WorldEnder", "WorldrootCrossbow"
 }
 
--- Daftar Senjata Melee (Tambahkan nama melee lainnya ke sini jika ada)
+-- Daftar Senjata Melee
 local SenjataMelee = {
     "BloodStaff",
     "Scythe",
-    "VoidScythe" -- VoidScythe dipindahkan ke sini karena ini adalah senjata jarak dekat
+    "VoidScythe"
 }
 
 local SenjataValid = {}
@@ -158,14 +158,8 @@ Window:AddToggle("Anti AFK (Advanced & No Lag)", true, function(state)
     end
 end)
 
-Window:AddToggle("Auto Hip Height", false, function(state)
-    AutoHipHeight = state
-end)
-
-Window:AddToggle("No Fog (Hapus Kabut)", true, function(state)
-    AutoNoFog = state
-end)
-
+Window:AddToggle("Auto Hip Height", false, function(state) AutoHipHeight = state end)
+Window:AddToggle("No Fog (Hapus Kabut)", true, function(state) AutoNoFog = state end)
 Window:AddToggle("Anti Lag (Advanced & 0% Spike)", false, function(state)
     AutoAntiLag = state
     if state then
@@ -221,10 +215,10 @@ task.spawn(function()
     end
 end)
 
--- 3. Mesin Auto Silent Aim (Ditambahkan Logika Melee)
+-- 3. Mesin Auto Silent Aim (DIPERBARUI)
 task.spawn(function()
     while true do
-        task.wait(KecepatanRemote)
+        task.wait(KecepatanRemote) -- Kecepatan utama ayunan/tembakan
         if AutoSilentAim then
             pcall(function()
                 local character = LocalPlayer.Character
@@ -244,34 +238,51 @@ task.spawn(function()
                         if zombiesFolder then
                             local viewportSize = Camera.ViewportSize
                             local screenCenter = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
-                            local meleeFired = false -- Flag agar melee tidak spam remote per zombie
                             
-                            for _, zombie in pairs(zombiesFolder:GetChildren()) do
-                                local targetPart = zombie:FindFirstChild("HumanoidRootPart")
-                                if targetPart then
-                                    local targetPos = targetPart.Position
-                                    local jarakZombi = (targetPos - myPos).Magnitude
+                            -- LOGIKA KHUSUS MELEE (AYUNAN KONSTAN SELAMA ADA MUSUH HIDUP)
+                            if isMelee then
+                                local musuhDiFOV = false
+                                
+                                for _, zombie in pairs(zombiesFolder:GetChildren()) do
+                                    local targetPart = zombie:FindFirstChild("HumanoidRootPart")
+                                    local targetHum = zombie:FindFirstChildOfClass("Humanoid") or zombie:FindFirstChild("Humanoid")
                                     
-                                    if jarakZombi <= MaxJarakSilentAim then
-                                        local screenPos, onScreen = Camera:WorldToViewportPoint(targetPos)
-                                        
-                                        if onScreen then
-                                            local distanceToCenter = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
-                                            
-                                            if distanceToCenter <= MaxFOVSilentAim then
+                                    -- Cek validitas & pastikan zombie MASIH HIDUP (>0)
+                                    if targetPart and targetHum and targetHum.Health > 0 then
+                                        local targetPos = targetPart.Position
+                                        if (targetPos - myPos).Magnitude <= MaxJarakSilentAim then
+                                            local screenPos, onScreen = Camera:WorldToViewportPoint(targetPos)
+                                            if onScreen and (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude <= MaxFOVSilentAim then
+                                                musuhDiFOV = true
+                                                break -- Cukup temukan 1 musuh hidup, stop pencarian
+                                            end
+                                        end
+                                    end
+                                end
+                                
+                                -- Jika ada minimal 1 musuh hidup di FOV, tembak remote ayunan pedang!
+                                if musuhDiFOV then
+                                    ReplicatedStorage.Remotes.GunRemotes.MeleeSwing:FireServer(namaSenjata)
+                                end
+                                
+                            -- LOGIKA KHUSUS SENJATA API (TEMBAK SEMUA MUSUH DI FOV)
+                            elseif isGun then
+                                for _, zombie in pairs(zombiesFolder:GetChildren()) do
+                                    local targetPart = zombie:FindFirstChild("HumanoidRootPart")
+                                    local targetHum = zombie:FindFirstChildOfClass("Humanoid") or zombie:FindFirstChild("Humanoid")
+                                    
+                                    if targetPart and targetHum and targetHum.Health > 0 then
+                                        local targetPos = targetPart.Position
+                                        if (targetPos - myPos).Magnitude <= MaxJarakSilentAim then
+                                            local screenPos, onScreen = Camera:WorldToViewportPoint(targetPos)
+                                            if onScreen and (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude <= MaxFOVSilentAim then
                                                 local ID_String = string.match(zombie.Name, "%d+")
                                                 if ID_String then
                                                     local ID_Angka = tonumber(ID_String)
+                                                    local arahTembakan = (targetPos - myPos).Unit
                                                     
-                                                    if isGun then
-                                                        local arahTembakan = (targetPos - myPos).Unit
-                                                        ReplicatedStorage.Remotes.NetRemotes.GunFire:FireServer(namaSenjata, myPos, arahTembakan)
-                                                        ReplicatedStorage.Remotes.GunRemotes.GunHit:FireServer(namaSenjata, ID_Angka, targetPos)
-                                                    elseif isMelee and not meleeFired then
-                                                        -- Hanya fire 1x per loop jika ada zombie di FOV
-                                                        ReplicatedStorage.Remotes.GunRemotes.MeleeSwing:FireServer(namaSenjata)
-                                                        meleeFired = true 
-                                                    end
+                                                    ReplicatedStorage.Remotes.NetRemotes.GunFire:FireServer(namaSenjata, myPos, arahTembakan)
+                                                    ReplicatedStorage.Remotes.GunRemotes.GunHit:FireServer(namaSenjata, ID_Angka, targetPos)
                                                 end
                                             end
                                         end
@@ -286,7 +297,7 @@ task.spawn(function()
     end
 end)
 
--- 4. Mesin Auto Kill Aura
+-- 4. Mesin Auto Kill Aura (DIPERBARUI)
 task.spawn(function()
     while true do
         task.wait(KecepatanRemote)
@@ -300,11 +311,13 @@ task.spawn(function()
                     
                     for _, zombie in pairs(zombiesFolder:GetChildren()) do
                         local targetPart = zombie:FindFirstChild("HumanoidRootPart")
-                        if targetPart then
+                        local targetHum = zombie:FindFirstChildOfClass("Humanoid") or zombie:FindFirstChild("Humanoid")
+                        
+                        -- Pastikan hanya menyerang yang masih hidup
+                        if targetPart and targetHum and targetHum.Health > 0 then
                             local targetPos = targetPart.Position
-                            local jarakZombi = (targetPos - myPos).Magnitude
                             
-                            if jarakZombi <= MaxJarakAuraKill then
+                            if (targetPos - myPos).Magnitude <= MaxJarakAuraKill then
                                 local ID_String = string.match(zombie.Name, "%d+")
                                 if ID_String then
                                     local ID_Angka = tonumber(ID_String)
@@ -319,7 +332,7 @@ task.spawn(function()
     end
 end)
 
--- 5. Mesin Auto Kill All (Ditambahkan Logika Melee)
+-- 5. Mesin Auto Kill All (DIPERBARUI)
 task.spawn(function()
     while true do
         task.wait(KecepatanRemote)
@@ -340,24 +353,27 @@ task.spawn(function()
                         local zombiesFolder = Workspace:FindFirstChild("Zombies_Local") or Workspace:FindFirstChild("Zombies")
                         
                         if zombiesFolder then
-                            local meleeFired = false
+                            -- Jika pegang pedang, spam remote pedang secara instan tanpa cek jarak/FOV
+                            if isMelee then
+                                ReplicatedStorage.Remotes.GunRemotes.MeleeSwing:FireServer(namaSenjata)
+                            end
                             
                             for _, zombie in pairs(zombiesFolder:GetChildren()) do
                                 local targetPart = zombie:FindFirstChild("HumanoidRootPart")
-                                if targetPart then
-                                    local targetPos = targetPart.Position
+                                local targetHum = zombie:FindFirstChildOfClass("Humanoid") or zombie:FindFirstChild("Humanoid")
+                                
+                                -- Hajar semua yang masih hidup di dalam map
+                                if targetPart and targetHum and targetHum.Health > 0 then
                                     local ID_String = string.match(zombie.Name, "%d+")
                                     
                                     if ID_String then
                                         local ID_Angka = tonumber(ID_String)
+                                        local targetPos = targetPart.Position
                                         
                                         if isGun then
                                             local arahTembakan = (targetPos - myPos).Unit
                                             ReplicatedStorage.Remotes.NetRemotes.GunFire:FireServer(namaSenjata, myPos, arahTembakan)
                                             ReplicatedStorage.Remotes.GunRemotes.GunHit:FireServer(namaSenjata, ID_Angka, targetPos)
-                                        elseif isMelee and not meleeFired then
-                                            ReplicatedStorage.Remotes.GunRemotes.MeleeSwing:FireServer(namaSenjata)
-                                            meleeFired = true
                                         end
                                         
                                         ReplicatedStorage.Remotes.ZombieRemotes.ZombieDamage:FireServer(ID_Angka, math.huge)
