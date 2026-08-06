@@ -215,10 +215,10 @@ task.spawn(function()
     end
 end)
 
--- 3. Mesin Auto Silent Aim (DIPERBARUI)
+-- 3. Mesin Auto Silent Aim (DIPERBAIKI)
 task.spawn(function()
     while true do
-        task.wait(KecepatanRemote) -- Kecepatan utama ayunan/tembakan
+        task.wait(KecepatanRemote)
         if AutoSilentAim then
             pcall(function()
                 local character = LocalPlayer.Character
@@ -239,39 +239,35 @@ task.spawn(function()
                             local viewportSize = Camera.ViewportSize
                             local screenCenter = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
                             
-                            -- LOGIKA KHUSUS MELEE (AYUNAN KONSTAN SELAMA ADA MUSUH HIDUP)
+                            -- LOGIKA KHUSUS MELEE 
                             if isMelee then
                                 local musuhDiFOV = false
                                 
                                 for _, zombie in pairs(zombiesFolder:GetChildren()) do
                                     local targetPart = zombie:FindFirstChild("HumanoidRootPart")
-                                    local targetHum = zombie:FindFirstChildOfClass("Humanoid") or zombie:FindFirstChild("Humanoid")
                                     
-                                    -- Cek validitas & pastikan zombie MASIH HIDUP (>0)
-                                    if targetPart and targetHum and targetHum.Health > 0 then
+                                    if targetPart then
                                         local targetPos = targetPart.Position
                                         if (targetPos - myPos).Magnitude <= MaxJarakSilentAim then
                                             local screenPos, onScreen = Camera:WorldToViewportPoint(targetPos)
                                             if onScreen and (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude <= MaxFOVSilentAim then
                                                 musuhDiFOV = true
-                                                break -- Cukup temukan 1 musuh hidup, stop pencarian
+                                                break 
                                             end
                                         end
                                     end
                                 end
                                 
-                                -- Jika ada minimal 1 musuh hidup di FOV, tembak remote ayunan pedang!
                                 if musuhDiFOV then
                                     ReplicatedStorage.Remotes.GunRemotes.MeleeSwing:FireServer(namaSenjata)
                                 end
                                 
-                            -- LOGIKA KHUSUS SENJATA API (TEMBAK SEMUA MUSUH DI FOV)
+                            -- LOGIKA KHUSUS SENJATA API 
                             elseif isGun then
                                 for _, zombie in pairs(zombiesFolder:GetChildren()) do
                                     local targetPart = zombie:FindFirstChild("HumanoidRootPart")
-                                    local targetHum = zombie:FindFirstChildOfClass("Humanoid") or zombie:FindFirstChild("Humanoid")
                                     
-                                    if targetPart and targetHum and targetHum.Health > 0 then
+                                    if targetPart then
                                         local targetPos = targetPart.Position
                                         if (targetPos - myPos).Magnitude <= MaxJarakSilentAim then
                                             local screenPos, onScreen = Camera:WorldToViewportPoint(targetPos)
@@ -297,7 +293,7 @@ task.spawn(function()
     end
 end)
 
--- 4. Mesin Auto Kill Aura (DIPERBARUI)
+-- 4. Mesin Auto Kill Aura (DIPERBAIKI)
 task.spawn(function()
     while true do
         task.wait(KecepatanRemote)
@@ -311,10 +307,8 @@ task.spawn(function()
                     
                     for _, zombie in pairs(zombiesFolder:GetChildren()) do
                         local targetPart = zombie:FindFirstChild("HumanoidRootPart")
-                        local targetHum = zombie:FindFirstChildOfClass("Humanoid") or zombie:FindFirstChild("Humanoid")
                         
-                        -- Pastikan hanya menyerang yang masih hidup
-                        if targetPart and targetHum and targetHum.Health > 0 then
+                        if targetPart then
                             local targetPos = targetPart.Position
                             
                             if (targetPos - myPos).Magnitude <= MaxJarakAuraKill then
@@ -332,7 +326,7 @@ task.spawn(function()
     end
 end)
 
--- 5. Mesin Auto Kill All (DIPERBARUI)
+-- 5. Mesin Auto Kill All (DIPERBAIKI)
 task.spawn(function()
     while true do
         task.wait(KecepatanRemote)
@@ -353,17 +347,14 @@ task.spawn(function()
                         local zombiesFolder = Workspace:FindFirstChild("Zombies_Local") or Workspace:FindFirstChild("Zombies")
                         
                         if zombiesFolder then
-                            -- Jika pegang pedang, spam remote pedang secara instan tanpa cek jarak/FOV
                             if isMelee then
                                 ReplicatedStorage.Remotes.GunRemotes.MeleeSwing:FireServer(namaSenjata)
                             end
                             
                             for _, zombie in pairs(zombiesFolder:GetChildren()) do
                                 local targetPart = zombie:FindFirstChild("HumanoidRootPart")
-                                local targetHum = zombie:FindFirstChildOfClass("Humanoid") or zombie:FindFirstChild("Humanoid")
                                 
-                                -- Hajar semua yang masih hidup di dalam map
-                                if targetPart and targetHum and targetHum.Health > 0 then
+                                if targetPart then
                                     local ID_String = string.match(zombie.Name, "%d+")
                                     
                                     if ID_String then
