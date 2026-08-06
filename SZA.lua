@@ -58,6 +58,7 @@ local AutoHipHeight = false
 local AutoNoFog = true
 local AutoAntiLag = false
 local AntiLagConnection = nil
+local AutoCollectBloodmoon = true
 
 local MaxJarakSilentAim = 1500 
 local MaxFOVSilentAim = 150
@@ -206,6 +207,10 @@ end)
 
 Window:AddToggle("Auto Health Upgrade", false, function(state)
     AutoHealth = state
+end)
+
+Window:AddToggle("Auto Collect Bloodmoon Shard", true, function(state)
+    AutoCollectBloodmoon = state
 end)
 
 -- ==========================================
@@ -401,4 +406,22 @@ RunService.RenderStepped:Connect(function()
     else
         FOVFrame.Visible = false
     end
+end)
+
+-- 8. MESIN AUTO COLLECT BLOODMOON SHARD (REAL-TIME INSTAN)
+task.spawn(function()
+    local eventRemotes = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("EventRemotes")
+    local dropEvent = eventRemotes:WaitForChild("BloodmoonShardDrop")
+    
+    dropEvent.OnClientEvent:Connect(function(shardID, amount, position)
+        if AutoCollectBloodmoon and shardID then
+            local jumlah = (type(amount) == "number" and amount > 0) and amount or 1
+            
+            task.spawn(function()
+                for i = 1, jumlah do
+                    ReplicatedStorage.Remotes.EventRemotes.BloodmoonShardCollect:FireServer(shardID)
+                end
+            end)
+        end
+    end)
 end)
