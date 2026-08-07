@@ -1,4 +1,4 @@
-Local queue_on_teleport = queue_on_teleport or (syn and syn.queue_on_teleport) or (fluxus and fluxus.queue_on_teleport)
+local queue_on_teleport = queue_on_teleport or (syn and syn.queue_on_teleport) or (fluxus and fluxus.queue_on_teleport)
 if queue_on_teleport then
     queue_on_teleport([[
         loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/SZA.lua"))()
@@ -67,7 +67,7 @@ local KecepatanRemote = 0.2
 
 -- Daftar Semua Senjata (Telah Diperbarui Sesuai Video)
 local SemuaSenjata = {
-    "AcidSpitter", "AK47", "ArcWelder", "ArticStriker", "BloodAR", "Bloodblaster", 
+    "AcidSpitter", "AK47", "ArcWelder", "ArcticStriker", "BloodAR", "Bloodblaster", 
     "BloodPistol", "BloodSMG", "BloodStaff", "BurstRifle", "CombatShotgun", 
     "CoreBreaker", "CosmicPistol", "Deagle", "DualPistols", "EmberSMG", 
     "Flamethrower", "GalacticWeaver", "GoldenAK47", "GrenadeLauncher", 
