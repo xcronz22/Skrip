@@ -1,4 +1,4 @@
-local queue_on_teleport = queue_on_teleport or (syn and syn.queue_on_teleport) or (fluxus and fluxus.queue_on_teleport)
+Local queue_on_teleport = queue_on_teleport or (syn and syn.queue_on_teleport) or (fluxus and fluxus.queue_on_teleport)
 if queue_on_teleport then
     queue_on_teleport([[
         loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/SZA.lua"))()
@@ -25,24 +25,25 @@ local LocalPlayer = Players.LocalPlayer
 -- ==========================================
 local FOVGui = Instance.new("ScreenGui")
 FOVGui.Name = "FOVCircleGUI"
-FOVGui.IgnoreGuiInset = true
+FOVGui.IgnoreGuiInset = true -- Memastikan presisi di tengah layar
+-- Menyembunyikan GUI ke CoreGui agar tidak terdeteksi game (jika ada), atau ke PlayerGui sebagai cadangan
 local success, coreGui = pcall(function() return game:GetService("CoreGui") end)
 FOVGui.Parent = success and coreGui or LocalPlayer:WaitForChild("PlayerGui")
 
 local FOVFrame = Instance.new("Frame")
 FOVFrame.Parent = FOVGui
 FOVFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-FOVFrame.BackgroundTransparency = 1 
-FOVFrame.AnchorPoint = Vector2.new(0.5, 0.5) 
+FOVFrame.BackgroundTransparency = 1 -- Tengahnya bolong (transparan)
+FOVFrame.AnchorPoint = Vector2.new(0.5, 0.5) -- Titik tumpu di tengah
 
 local FOVCorner = Instance.new("UICorner")
-FOVCorner.CornerRadius = UDim.new(1, 0) 
+FOVCorner.CornerRadius = UDim.new(1, 0) -- Membuatnya bulat sempurna
 FOVCorner.Parent = FOVFrame
 
 local FOVStroke = Instance.new("UIStroke")
-FOVStroke.Color = Color3.fromRGB(255, 255, 255) 
+FOVStroke.Color = Color3.fromRGB(255, 255, 255) -- Warna Putih
 FOVStroke.Thickness = 1.5
-FOVStroke.Transparency = 0.3 
+FOVStroke.Transparency = 0.3 -- Sedikit transparan agar tidak mengganggu mata
 FOVStroke.Parent = FOVFrame
 
 -- Pengaturan Bawaan (Default)
@@ -64,10 +65,10 @@ local MaxJarakAuraKill = 50
 local TargetHipHeight = 30 
 local KecepatanRemote = 0.2 
 
--- Daftar Senjata Tembak
+-- Daftar Semua Senjata (Telah Diperbarui Sesuai Video)
 local SemuaSenjata = {
     "AcidSpitter", "AK47", "ArcWelder", "ArticStriker", "BloodAR", "Bloodblaster", 
-    "BloodPistol", "BloodSMG", "BurstRifle", "CombatShotgun", 
+    "BloodPistol", "BloodSMG", "BloodStaff", "BurstRifle", "CombatShotgun", 
     "CoreBreaker", "CosmicPistol", "Deagle", "DualPistols", "EmberSMG", 
     "Flamethrower", "GalacticWeaver", "GoldenAK47", "GrenadeLauncher", 
     "GumdropBlaster", "HeavyRifle", "HoneyBadger", "HydraCannon", "ImpalerRifle", 
@@ -76,14 +77,7 @@ local SemuaSenjata = {
     "Revolver", "RicochetRevolver", "Rifle", "RPG", "Scar-H", "ShotGun", 
     "Slingshot", "SMG", "Sniper", "StarShooter", "TommyGun", "USPS", 
     "ViridianAR", "ViridianPistol", "ViridianShotgun", "ViridianSniper", 
-    "WorldEnder", "WorldrootCrossbow"
-}
-
--- Daftar Senjata Melee
-local SenjataMelee = {
-    "BloodStaff",
-    "Scythe",
-    "VoidScythe"
+    "VoidScythe", "WorldEnder", "WorldrootCrossbow"
 }
 
 local SenjataValid = {}
@@ -91,16 +85,13 @@ for _, nama in ipairs(SemuaSenjata) do
     SenjataValid[nama] = true
 end
 
-local SenjataMeleeValid = {}
-for _, nama in ipairs(SenjataMelee) do
-    SenjataMeleeValid[nama] = true
-end
-
 -- ==========================================
 -- FUNGSI OPTIMASI PART (NO LAG)
 -- ==========================================
 local function OptimasiObjek(obj)
     if not AutoAntiLag then return end
+    
+    -- Filter: Jangan sentuh Zombie atau Karakter Pemain
     if obj:FindFirstAncestor("Zombies") or obj:FindFirstAncestor("Zombies_Local") then return end
     if obj:FindFirstAncestorOfClass("Model") and Players:GetPlayerFromCharacter(obj:FindFirstAncestorOfClass("Model")) then return end
 
@@ -111,7 +102,7 @@ local function OptimasiObjek(obj)
         elseif obj:IsA("Decal") or obj:IsA("Texture") then
             obj.Transparency = 1
         elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") then
-            obj.Enabled = false
+            obj.Enabled = false -- Matikan efek partikel berlebih pada map/senjata luar
         end
     end)
 end
@@ -128,6 +119,11 @@ end)
 Window:AddToggle("Auto Silent Aim (Legit/Crosshair)", true, function(state)
     AutoSilentAim = state
 end)
+
+--Window:AddInput("Jarak Maksimal Silent Aim", "Default: 1500", function(text)
+    --local angka = tonumber(text)
+    --if angka then MaxJarakSilentAim = angka end
+--end)
 
 Window:AddInput("Radius FOV Crosshair (Pixel)", "Default: 150", function(text)
     local angka = tonumber(text)
@@ -158,16 +154,33 @@ Window:AddToggle("Anti AFK (Advanced & No Lag)", true, function(state)
     end
 end)
 
-Window:AddToggle("Auto Hip Height", false, function(state) AutoHipHeight = state end)
-Window:AddToggle("No Fog (Hapus Kabut)", true, function(state) AutoNoFog = state end)
+Window:AddToggle("Auto Hip Height", false, function(state)
+    AutoHipHeight = state
+end)
+
+--Window:AddInput("Atur Tinggi (Max 60)", "Default: 30", function(text)
+    --local angka = tonumber(text)
+    --if angka then TargetHipHeight = (angka > 60) and 60 or angka end
+--end)
+
+Window:AddToggle("No Fog (Hapus Kabut)", true, function(state)
+    AutoNoFog = state
+end)
+
+-- Tombol Anti Lag yang Diperbarui (Pengecualian Zombie)
 Window:AddToggle("Anti Lag (Advanced & 0% Spike)", false, function(state)
     AutoAntiLag = state
     if state then
+        -- 1. Penurunan Kualitas Rendering Dasar
         pcall(function()
             settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
             Lighting.GlobalShadows = false
-            if sethiddenproperty then sethiddenproperty(Lighting, "Technology", 2) end
+            if sethiddenproperty then
+                sethiddenproperty(Lighting, "Technology", 2)
+            end
         end)
+
+        -- 2. Proses objek yang SUDAH ADA di dalam map
         task.spawn(function()
             local isiMap = Workspace:GetDescendants()
             for i = 1, #isiMap do
@@ -175,18 +188,31 @@ Window:AddToggle("Anti Lag (Advanced & 0% Spike)", false, function(state)
                 if i % 1000 == 0 then task.wait() end 
             end
         end)
-        if not AntiLagConnection then AntiLagConnection = Workspace.DescendantAdded:Connect(OptimasiObjek) end
+
+        -- 3. Tangkap objek yang BARU MUNCUL
+        if not AntiLagConnection then
+            AntiLagConnection = Workspace.DescendantAdded:Connect(OptimasiObjek)
+        end
     end
 end)
 
-Window:AddToggle("Auto Bloodmoon Spin", false, function(state) AutoBloodmoon = state end)
-Window:AddToggle("Auto Artifact Spin", false, function(state) AutoArtifact = state end)
-Window:AddToggle("Auto Health Upgrade", false, function(state) AutoHealth = state end)
+Window:AddToggle("Auto Bloodmoon Spin", false, function(state)
+    AutoBloodmoon = state
+end)
+
+Window:AddToggle("Auto Artifact Spin", false, function(state)
+    AutoArtifact = state
+end)
+
+Window:AddToggle("Auto Health Upgrade", false, function(state)
+    AutoHealth = state
+end)
 
 -- ==========================================
 -- MESIN BELAKANG (LOOPING TUGAS)
 -- ==========================================
 
+-- 0. Mesin Pasif Anti-AFK
 LocalPlayer.Idled:Connect(function()
     if AutoAntiAFK then
         VirtualUser:CaptureController()
@@ -194,14 +220,22 @@ LocalPlayer.Idled:Connect(function()
     end
 end)
 
+-- 1. Mesin Auto Upgrade & Spin
 task.spawn(function()
     while task.wait(0.3) do
-        if AutoBloodmoon then pcall(function() ReplicatedStorage.Remotes.EventRemotes.BloodmoonRequestSpin:InvokeServer() end) end
-        if AutoArtifact then pcall(function() ReplicatedStorage.Remotes.ArtifactCrateRemotes.Spin:InvokeServer("Standard", 5) end) end
-        if AutoHealth then pcall(function() ReplicatedStorage.Remotes.UpgradeRemotes.PurchaseHealthUpgrade:FireServer() end) end
+        if AutoBloodmoon then
+            pcall(function() ReplicatedStorage.Remotes.EventRemotes.BloodmoonRequestSpin:InvokeServer() end)
+        end
+        if AutoArtifact then
+            pcall(function() ReplicatedStorage.Remotes.ArtifactCrateRemotes.Spin:InvokeServer("Standard", 5) end)
+        end
+        if AutoHealth then
+            pcall(function() ReplicatedStorage.Remotes.UpgradeRemotes.PurchaseHealthUpgrade:FireServer() end)
+        end
     end
 end)
 
+-- 2. Mesin Auto Hip Height
 task.spawn(function()
     while task.wait(0.5) do
         local character = LocalPlayer.Character
@@ -209,13 +243,15 @@ task.spawn(function()
             if AutoHipHeight then
                 character.Humanoid.HipHeight = TargetHipHeight
             else
-                if character.Humanoid.HipHeight ~= 0 then character.Humanoid.HipHeight = 0 end
+                if character.Humanoid.HipHeight ~= 0 then
+                    character.Humanoid.HipHeight = 0
+                end
             end
         end
     end
 end)
 
--- 3. Mesin Auto Silent Aim (DIPERBAIKI)
+-- 3. Mesin Auto Silent Aim
 task.spawn(function()
     while true do
         task.wait(KecepatanRemote)
@@ -226,60 +262,35 @@ task.spawn(function()
                 
                 local senjataPegang = character:FindFirstChildOfClass("Tool")
                 
-                if senjataPegang then
+                if senjataPegang and SenjataValid[senjataPegang.Name] then
                     local namaSenjata = senjataPegang.Name
-                    local isGun = SenjataValid[namaSenjata]
-                    local isMelee = SenjataMeleeValid[namaSenjata]
+                    local myPos = character.HumanoidRootPart.Position
+                    local zombiesFolder = Workspace:FindFirstChild("Zombies_Local") or Workspace:FindFirstChild("Zombies")
                     
-                    if isGun or isMelee then
-                        local myPos = character.HumanoidRootPart.Position
-                        local zombiesFolder = Workspace:FindFirstChild("Zombies_Local") or Workspace:FindFirstChild("Zombies")
+                    if zombiesFolder then
+                        local viewportSize = Camera.ViewportSize
+                        local screenCenter = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
                         
-                        if zombiesFolder then
-                            local viewportSize = Camera.ViewportSize
-                            local screenCenter = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
-                            
-                            -- LOGIKA KHUSUS MELEE 
-                            if isMelee then
-                                local musuhDiFOV = false
+                        for _, zombie in pairs(zombiesFolder:GetChildren()) do
+                            local targetPart = zombie:FindFirstChild("HumanoidRootPart")
+                            if targetPart then
+                                local targetPos = targetPart.Position
+                                local jarakZombi = (targetPos - myPos).Magnitude
                                 
-                                for _, zombie in pairs(zombiesFolder:GetChildren()) do
-                                    local targetPart = zombie:FindFirstChild("HumanoidRootPart")
+                                if jarakZombi <= MaxJarakSilentAim then
+                                    local screenPos, onScreen = Camera:WorldToViewportPoint(targetPos)
                                     
-                                    if targetPart then
-                                        local targetPos = targetPart.Position
-                                        if (targetPos - myPos).Magnitude <= MaxJarakSilentAim then
-                                            local screenPos, onScreen = Camera:WorldToViewportPoint(targetPos)
-                                            if onScreen and (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude <= MaxFOVSilentAim then
-                                                musuhDiFOV = true
-                                                break 
-                                            end
-                                        end
-                                    end
-                                end
-                                
-                                if musuhDiFOV then
-                                    ReplicatedStorage.Remotes.GunRemotes.MeleeSwing:FireServer(namaSenjata)
-                                end
-                                
-                            -- LOGIKA KHUSUS SENJATA API 
-                            elseif isGun then
-                                for _, zombie in pairs(zombiesFolder:GetChildren()) do
-                                    local targetPart = zombie:FindFirstChild("HumanoidRootPart")
-                                    
-                                    if targetPart then
-                                        local targetPos = targetPart.Position
-                                        if (targetPos - myPos).Magnitude <= MaxJarakSilentAim then
-                                            local screenPos, onScreen = Camera:WorldToViewportPoint(targetPos)
-                                            if onScreen and (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude <= MaxFOVSilentAim then
-                                                local ID_String = string.match(zombie.Name, "%d+")
-                                                if ID_String then
-                                                    local ID_Angka = tonumber(ID_String)
-                                                    local arahTembakan = (targetPos - myPos).Unit
-                                                    
-                                                    ReplicatedStorage.Remotes.NetRemotes.GunFire:FireServer(namaSenjata, myPos, arahTembakan)
-                                                    ReplicatedStorage.Remotes.GunRemotes.GunHit:FireServer(namaSenjata, ID_Angka, targetPos)
-                                                end
+                                    if onScreen then
+                                        local distanceToCenter = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                                        
+                                        if distanceToCenter <= MaxFOVSilentAim then
+                                            local ID_String = string.match(zombie.Name, "%d+")
+                                            if ID_String then
+                                                local ID_Angka = tonumber(ID_String)
+                                                local arahTembakan = (targetPos - myPos).Unit
+                                                
+                                                ReplicatedStorage.Remotes.NetRemotes.GunFire:FireServer(namaSenjata, myPos, arahTembakan)
+                                                ReplicatedStorage.Remotes.GunRemotes.GunHit:FireServer(namaSenjata, ID_Angka, targetPos)
                                             end
                                         end
                                     end
@@ -293,7 +304,7 @@ task.spawn(function()
     end
 end)
 
--- 4. Mesin Auto Kill Aura (DIPERBAIKI)
+-- 4. Mesin Auto Kill Aura
 task.spawn(function()
     while true do
         task.wait(KecepatanRemote)
@@ -307,11 +318,11 @@ task.spawn(function()
                     
                     for _, zombie in pairs(zombiesFolder:GetChildren()) do
                         local targetPart = zombie:FindFirstChild("HumanoidRootPart")
-                        
                         if targetPart then
                             local targetPos = targetPart.Position
+                            local jarakZombi = (targetPos - myPos).Magnitude
                             
-                            if (targetPos - myPos).Magnitude <= MaxJarakAuraKill then
+                            if jarakZombi <= MaxJarakAuraKill then
                                 local ID_String = string.match(zombie.Name, "%d+")
                                 if ID_String then
                                     local ID_Angka = tonumber(ID_String)
@@ -326,7 +337,7 @@ task.spawn(function()
     end
 end)
 
--- 5. Mesin Auto Kill All (DIPERBAIKI)
+-- 5. Mesin Auto Kill All
 task.spawn(function()
     while true do
         task.wait(KecepatanRemote)
@@ -337,38 +348,25 @@ task.spawn(function()
                 
                 local senjataPegang = character:FindFirstChildOfClass("Tool")
                 
-                if senjataPegang then
+                if senjataPegang and SenjataValid[senjataPegang.Name] then
                     local namaSenjata = senjataPegang.Name
-                    local isGun = SenjataValid[namaSenjata]
-                    local isMelee = SenjataMeleeValid[namaSenjata]
+                    local myPos = character.HumanoidRootPart.Position
+                    local zombiesFolder = Workspace:FindFirstChild("Zombies_Local") or Workspace:FindFirstChild("Zombies")
                     
-                    if isGun or isMelee then
-                        local myPos = character.HumanoidRootPart.Position
-                        local zombiesFolder = Workspace:FindFirstChild("Zombies_Local") or Workspace:FindFirstChild("Zombies")
-                        
-                        if zombiesFolder then
-                            if isMelee then
-                                ReplicatedStorage.Remotes.GunRemotes.MeleeSwing:FireServer(namaSenjata)
-                            end
-                            
-                            for _, zombie in pairs(zombiesFolder:GetChildren()) do
-                                local targetPart = zombie:FindFirstChild("HumanoidRootPart")
+                    if zombiesFolder then
+                        for _, zombie in pairs(zombiesFolder:GetChildren()) do
+                            local targetPart = zombie:FindFirstChild("HumanoidRootPart")
+                            if targetPart then
+                                local targetPos = targetPart.Position
+                                local ID_String = string.match(zombie.Name, "%d+")
                                 
-                                if targetPart then
-                                    local ID_String = string.match(zombie.Name, "%d+")
+                                if ID_String then
+                                    local ID_Angka = tonumber(ID_String)
+                                    local arahTembakan = (targetPos - myPos).Unit
                                     
-                                    if ID_String then
-                                        local ID_Angka = tonumber(ID_String)
-                                        local targetPos = targetPart.Position
-                                        
-                                        if isGun then
-                                            local arahTembakan = (targetPos - myPos).Unit
-                                            ReplicatedStorage.Remotes.NetRemotes.GunFire:FireServer(namaSenjata, myPos, arahTembakan)
-                                            ReplicatedStorage.Remotes.GunRemotes.GunHit:FireServer(namaSenjata, ID_Angka, targetPos)
-                                        end
-                                        
-                                        ReplicatedStorage.Remotes.ZombieRemotes.ZombieDamage:FireServer(ID_Angka, math.huge)
-                                    end
+                                    ReplicatedStorage.Remotes.NetRemotes.GunFire:FireServer(namaSenjata, myPos, arahTembakan)
+                                    ReplicatedStorage.Remotes.GunRemotes.GunHit:FireServer(namaSenjata, ID_Angka, targetPos)
+                                    ReplicatedStorage.Remotes.ZombieRemotes.ZombieDamage:FireServer(ID_Angka, math.huge)
                                 end
                             end
                         end
@@ -391,11 +389,13 @@ task.spawn(function()
     end
 end)
 
--- 7. Mesin Update Indikator FOV
+-- 7. Mesin Update Indikator FOV (Diperbarui untuk GUI Native)
 RunService.RenderStepped:Connect(function()
     if AutoSilentAim then
         local viewportSize = Camera.ViewportSize
+        -- Update posisi agar selalu persis di tengah layar
         FOVFrame.Position = UDim2.new(0, viewportSize.X / 2, 0, viewportSize.Y / 2)
+        -- Update ukuran berdasarkan angka FOV (Radius dikali 2 untuk dapat Diameter / ukuran Frame)
         FOVFrame.Size = UDim2.new(0, MaxFOVSilentAim * 2, 0, MaxFOVSilentAim * 2)
         FOVFrame.Visible = true
     else
