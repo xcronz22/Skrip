@@ -60,7 +60,7 @@ local AutoAntiLag = false
 local AntiLagConnection = nil
 
 local MaxJarakSilentAim = 1500 
-local MaxFOVSilentAim = 150
+local MaxFOVSilentAim = 200
 local MaxJarakAuraKill = 50
 local TargetHipHeight = 30 
 local KecepatanRemote = 0.2 
@@ -120,12 +120,7 @@ Window:AddToggle("Auto Silent Aim (Legit/Crosshair)", true, function(state)
     AutoSilentAim = state
 end)
 
---Window:AddInput("Jarak Maksimal Silent Aim", "Default: 1500", function(text)
-    --local angka = tonumber(text)
-    --if angka then MaxJarakSilentAim = angka end
---end)
-
-Window:AddInput("Radius FOV Crosshair (Pixel)", "Default: 150", function(text)
+Window:AddInput("Radius FOV Crosshair (Pixel)", "Default: 200", function(text)
     local angka = tonumber(text)
     if angka then MaxFOVSilentAim = angka end
 end)
@@ -158,16 +153,10 @@ Window:AddToggle("Auto Hip Height", false, function(state)
     AutoHipHeight = state
 end)
 
---Window:AddInput("Atur Tinggi (Max 60)", "Default: 30", function(text)
-    --local angka = tonumber(text)
-    --if angka then TargetHipHeight = (angka > 60) and 60 or angka end
---end)
-
 Window:AddToggle("No Fog (Hapus Kabut)", true, function(state)
     AutoNoFog = state
 end)
 
--- Tombol Anti Lag yang Diperbarui (Pengecualian Zombie)
 Window:AddToggle("Anti Lag (Advanced & 0% Spike)", false, function(state)
     AutoAntiLag = state
     if state then
@@ -220,15 +209,21 @@ LocalPlayer.Idled:Connect(function()
     end
 end)
 
--- 1. Mesin Auto Upgrade & Spin
+-- 1a. Mesin Auto Spin (Bloodmoon & Artifact) -> Dipercepat 0.1 Detik
 task.spawn(function()
-    while task.wait(0.3) do
+    while task.wait(0.1) do
         if AutoBloodmoon then
             pcall(function() ReplicatedStorage.Remotes.EventRemotes.BloodmoonRequestSpin:InvokeServer() end)
         end
         if AutoArtifact then
             pcall(function() ReplicatedStorage.Remotes.ArtifactCrateRemotes.Spin:InvokeServer("Standard", 5) end)
         end
+    end
+end)
+
+-- 1b. Mesin Auto Health Upgrade -> Diperlambat 1 Detik
+task.spawn(function()
+    while task.wait(1) do
         if AutoHealth then
             pcall(function() ReplicatedStorage.Remotes.UpgradeRemotes.PurchaseHealthUpgrade:FireServer() end)
         end
@@ -337,7 +332,7 @@ task.spawn(function()
     end
 end)
 
--- 5. Mesin Auto Kill All
+-- 5. Mesin Auto Kill All (Tanpa ZombieDamage)
 task.spawn(function()
     while true do
         task.wait(KecepatanRemote)
@@ -366,7 +361,7 @@ task.spawn(function()
                                     
                                     ReplicatedStorage.Remotes.NetRemotes.GunFire:FireServer(namaSenjata, myPos, arahTembakan)
                                     ReplicatedStorage.Remotes.GunRemotes.GunHit:FireServer(namaSenjata, ID_Angka, targetPos)
-                                    ReplicatedStorage.Remotes.ZombieRemotes.ZombieDamage:FireServer(ID_Angka, math.huge)
+                                    -- ZombieDamage dihapus agar lebih hemat beban memori
                                 end
                             end
                         end
@@ -389,13 +384,11 @@ task.spawn(function()
     end
 end)
 
--- 7. Mesin Update Indikator FOV (Diperbarui untuk GUI Native)
+-- 7. Mesin Update Indikator FOV 
 RunService.RenderStepped:Connect(function()
     if AutoSilentAim then
         local viewportSize = Camera.ViewportSize
-        -- Update posisi agar selalu persis di tengah layar
         FOVFrame.Position = UDim2.new(0, viewportSize.X / 2, 0, viewportSize.Y / 2)
-        -- Update ukuran berdasarkan angka FOV (Radius dikali 2 untuk dapat Diameter / ukuran Frame)
         FOVFrame.Size = UDim2.new(0, MaxFOVSilentAim * 2, 0, MaxFOVSilentAim * 2)
         FOVFrame.Visible = true
     else
