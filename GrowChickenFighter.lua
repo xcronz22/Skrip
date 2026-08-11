@@ -21,12 +21,14 @@ local AutoBuyGenerator = false
 local AutoUpgradeGenerator = false
 local AutoUpgradeRecycler = false
 local AutoExpandCoop = false
-local AutoNoThanks = false -- State baru untuk Tower Continue
+local AutoNoThanks = false
+local AutoTower = false
+local TowerDelay = 1 -- Default 1 detik
 local AutoAntiLag = false
 local AutoNoFog = false
 local AutoAntiAFK = true
 
-local LoopInterval = 1
+local LoopInterval = 1.2
 
 -- ==========================================
 -- ADVANCED ANTI-AFK ENGINE
@@ -114,11 +116,43 @@ task.spawn(function()
                 local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
                 if playerGui then
                     local towerContinue = playerGui:FindFirstChild("TowerContinue")
-                    -- Hanya tembakkan remote JIKA 'Frame' benar-benar ada di dalam 'TowerContinue'
                     if towerContinue and towerContinue:FindFirstChild("Frame") then
                         local declineEvent = Remotes and Remotes:FindFirstChild("TowerContinueDecline")
                         if declineEvent then
                             declineEvent:FireServer()
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- 6. Auto Tower (Filter Teks & Delay)
+task.spawn(function()
+    while task.wait(1) do -- Cek setiap 1 detik
+        if AutoTower then
+            pcall(function()
+                local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+                if playerGui then
+                    local hud = playerGui:FindFirstChild("HUD")
+                    local caption = hud 
+                        and hud:FindFirstChild("Frame") 
+                        and hud.Frame:FindFirstChild("trio") 
+                        and hud.Frame.trio:FindFirstChild("tower") 
+                        and hud.Frame.trio.tower:FindFirstChild("caption")
+
+                    -- Cek apakah teks berisi "TOWER" (huruf besar/kecil diabaikan agar aman)
+                    if caption and string.match(string.upper(caption.Text), "TOWER") then
+                        -- Tunggu sesuai input (default 1 detik)
+                        task.wait(TowerDelay)
+                        
+                        -- Cek lagi apakah Auto Tower masih menyala setelah delay selesai
+                        if AutoTower then
+                            local towerStart = Remotes and Remotes:FindFirstChild("TowerStart")
+                            if towerStart then
+                                towerStart:InvokeServer()
+                            end
                         end
                     end
                 end
@@ -184,6 +218,21 @@ end)
 
 Window:AddToggle("Auto No Thanks (Tower)", false, function(state)
     AutoNoThanks = state
+end)
+
+-- Input dan Toggle untuk Tower Start
+Window:AddInput("Tower Delay (Detik)", "Angka (Def: 1)", function(text)
+    -- Pastikan yang dimasukkan adalah angka, jika gagal kembali ke default 1 detik
+    local num = tonumber(text)
+    if num then
+        TowerDelay = num
+    else
+        TowerDelay = 1
+    end
+end)
+
+Window:AddToggle("Auto Tower", false, function(state)
+    AutoTower = state
 end)
 
 Window:AddToggle("No Fog (Infinite View)", false, function(state)
