@@ -21,6 +21,7 @@ local AutoBuyGenerator = false
 local AutoUpgradeGenerator = false
 local AutoUpgradeRecycler = false
 local AutoExpandCoop = false
+local AutoRebirth = false
 local AutoNoThanks = false
 local AutoTower = false
 local TowerDelay = 1 -- Default 1 detik
@@ -108,7 +109,18 @@ task.spawn(function()
     end
 end)
 
--- 5. Auto No Thanks (Tower Continue Decline)
+-- 5. Auto Rebirth
+task.spawn(function()
+    while task.wait(LoopInterval) do
+        if AutoRebirth and Remotes and Remotes:FindFirstChild("Rebirth") then
+            pcall(function()
+                Remotes.Rebirth:InvokeServer()
+            end)
+        end
+    end
+end)
+
+-- 6. Auto No Thanks (Tower Continue Decline)
 task.spawn(function()
     while task.wait(LoopInterval) do
         if AutoNoThanks then
@@ -128,7 +140,7 @@ task.spawn(function()
     end
 end)
 
--- 6. Auto Tower (Filter Teks & Delay)
+-- 7. Auto Tower (Filter Teks & Delay)
 task.spawn(function()
     while task.wait(1) do -- Cek setiap 1 detik
         if AutoTower then
@@ -142,12 +154,8 @@ task.spawn(function()
                         and hud.Frame.trio:FindFirstChild("tower") 
                         and hud.Frame.trio.tower:FindFirstChild("caption")
 
-                    -- Cek apakah teks berisi "TOWER" (huruf besar/kecil diabaikan agar aman)
                     if caption and string.match(string.upper(caption.Text), "TOWER") then
-                        -- Tunggu sesuai input (default 1 detik)
                         task.wait(TowerDelay)
-                        
-                        -- Cek lagi apakah Auto Tower masih menyala setelah delay selesai
                         if AutoTower then
                             local towerStart = Remotes and Remotes:FindFirstChild("TowerStart")
                             if towerStart then
@@ -216,13 +224,15 @@ Window:AddToggle("Auto Expand Coop", false, function(state)
     AutoExpandCoop = state
 end)
 
+Window:AddToggle("Auto Rebirth", false, function(state)
+    AutoRebirth = state
+end)
+
 Window:AddToggle("Auto No Thanks (Tower)", false, function(state)
     AutoNoThanks = state
 end)
 
--- Input dan Toggle untuk Tower Start
 Window:AddInput("Tower Delay (Detik)", "Angka (Def: 1)", function(text)
-    -- Pastikan yang dimasukkan adalah angka, jika gagal kembali ke default 1 detik
     local num = tonumber(text)
     if num then
         TowerDelay = num
