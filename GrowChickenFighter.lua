@@ -2,7 +2,7 @@
 -- GROW A CHICKEN FIGHTER - AUTOMATION SCRIPT
 -- ==========================================
 
--- Memanggil library dari GitHub (Pastikan file di GitHub sudah Anda perbarui)
+-- Memanggil library dari GitHub
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
 local Window = Library:MakeWindow("Grow a Chicken Fighter")
 
@@ -21,11 +21,12 @@ local AutoBuyGenerator = false
 local AutoUpgradeGenerator = false
 local AutoUpgradeRecycler = false
 local AutoExpandCoop = false
+local AutoNoThanks = false -- State baru untuk Tower Continue
 local AutoAntiLag = false
 local AutoNoFog = false
 local AutoAntiAFK = true
 
-local LoopInterval = 1.2
+local LoopInterval = 1
 
 -- ==========================================
 -- ADVANCED ANTI-AFK ENGINE
@@ -53,7 +54,7 @@ end)
 -- LOOP OTOMASI REMOTE
 -- ==========================================
 
--- 1. Auto Buy Generator (DIPERBARUI: 1 sampai 6 untuk Rebirth)
+-- 1. Auto Buy Generator (1 sampai 6)
 task.spawn(function()
     while task.wait(LoopInterval) do
         if AutoBuyGenerator and Remotes and Remotes:FindFirstChild("BuyGenerator") then
@@ -100,6 +101,27 @@ task.spawn(function()
         if AutoExpandCoop and Remotes and Remotes:FindFirstChild("ExpandCoop") then
             pcall(function()
                 Remotes.ExpandCoop:InvokeServer()
+            end)
+        end
+    end
+end)
+
+-- 5. Auto No Thanks (Tower Continue Decline)
+task.spawn(function()
+    while task.wait(LoopInterval) do
+        if AutoNoThanks then
+            pcall(function()
+                local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+                if playerGui then
+                    local towerContinue = playerGui:FindFirstChild("TowerContinue")
+                    -- Hanya tembakkan remote JIKA 'Frame' benar-benar ada di dalam 'TowerContinue'
+                    if towerContinue and towerContinue:FindFirstChild("Frame") then
+                        local declineEvent = Remotes and Remotes:FindFirstChild("TowerContinueDecline")
+                        if declineEvent then
+                            declineEvent:FireServer()
+                        end
+                    end
+                end
             end)
         end
     end
@@ -158,6 +180,10 @@ end)
 
 Window:AddToggle("Auto Expand Coop", false, function(state)
     AutoExpandCoop = state
+end)
+
+Window:AddToggle("Auto No Thanks (Tower)", false, function(state)
+    AutoNoThanks = state
 end)
 
 Window:AddToggle("No Fog (Infinite View)", false, function(state)
