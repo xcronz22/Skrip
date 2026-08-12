@@ -22,6 +22,7 @@ local AutoUpgradeGenerator = false
 local AutoUpgradeRecycler = false
 local AutoExpandCoop = false
 local AutoRebirth = false
+local ManualRebirthTarget = 0 -- Fallback 1: Input manual dari player
 local AutoNoThanks = false
 local AutoTower = false
 local TowerDelay = 1 
@@ -30,7 +31,7 @@ local AutoNoFog = false
 local AutoAntiAFK = true
 
 -- Variabel Memori Smart Tracking
-local TargetRebirthFloor = nil
+local TargetRebirthFloor = nil -- Prioritas Utama dari UI
 local HighestFloorMemory = 0
 
 local LoopInterval = 1.2
@@ -128,7 +129,6 @@ task.spawn(function()
                                 local uiFloor = tonumber(curStr)
                                 TargetRebirthFloor = tonumber(reqStr)
                                 
-                                -- Simpan angka tertinggi
                                 if uiFloor > HighestFloorMemory then
                                     HighestFloorMemory = uiFloor
                                 end
@@ -189,13 +189,19 @@ task.spawn(function()
     end
 end)
 
--- 5. SMART AUTO REBIRTH + FALLBACK
+-- 5. SMART AUTO REBIRTH (3 LAPIS PRIORITAS)
 task.spawn(function()
     while task.wait(LoopInterval) do
         if AutoRebirth then
-            if TargetRebirthFloor then
-                -- Eksekusi jika memori lantai saat ini sudah mencapai target
-                if HighestFloorMemory >= TargetRebirthFloor then
+            -- Menentukan target yang aktif (UI menang dari Manual Input)
+            local activeTarget = TargetRebirthFloor
+            if not activeTarget and ManualRebirthTarget > 0 then
+                activeTarget = ManualRebirthTarget
+            end
+
+            if activeTarget then
+                -- Eksekusi jika memori lantai saat ini sudah mencapai target (Prioritas 1 & 2)
+                if HighestFloorMemory >= activeTarget then
                     pcall(function()
                         local surrenderEvent = Remotes:FindFirstChild("TowerSurrender")
                         if surrenderEvent then
@@ -207,19 +213,18 @@ task.spawn(function()
                         if rebirthEvent then
                             rebirthEvent:InvokeServer()
                             
-                            -- Reset memori kembali ke 0 karena sudah sukses rebirth
+                            -- Hanya reset memori target otomatis, memori manual input tetap tersimpan
                             TargetRebirthFloor = nil 
                             HighestFloorMemory = 0
                         end
                     end)
                 end
             else
-                -- Fallback jika target floor belum terdeteksi (Menu UI belum pernah dibuka)
+                -- Prioritas 3: Fallback tembak remote jika UI belum dibaca & input manual kosong/0
                 pcall(function()
                     local rebirthEvent = Remotes and Remotes:FindFirstChild("Rebirth")
                     if rebirthEvent then
                         rebirthEvent:InvokeServer()
-                        -- Reset memori just in case berhasil rebirth via fallback
                         HighestFloorMemory = 0 
                     end
                 end)
@@ -264,16 +269,14 @@ task.spawn(function()
                         task.wait(TowerDelay)
                         if AutoTower then
                             
-                            -- A. Tembak Elevator menggunakan memori lantai terakhir yang diingat
                             if HighestFloorMemory > 0 then
                                 local elevatorEvent = Remotes and Remotes:FindFirstChild("TowerElevator")
                                 if elevatorEvent then
                                     pcall(function() elevatorEvent:InvokeServer(HighestFloorMemory) end)
-                                    task.wait(0.2) -- Jeda sebentar sebelum menekan start
+                                    task.wait(0.2) 
                                 end
                             end
 
-                            -- B. Tembak Tower Start (Sebagai kelanjutan atau fallback jika elevator gagal)
                             local towerStart = Remotes and Remotes:FindFirstChild("TowerStart")
                             if towerStart then 
                                 towerStart:InvokeServer() 
@@ -344,7 +347,17 @@ Window:AddToggle("Auto Upgrade Generator", false, function(state) AutoUpgradeGen
 
 Window:AddToggle("Auto Upgrade Recycler", false, function(state) AutoUpgradeRecycler = state end)
 Window:AddToggle("Auto Expand Coop", false, function(state) AutoExpandCoop = state end)
+
+Window:AddInput("Target Rebirth Manual", "Kosongkan/Ketik 0 jika tak dipakai", function(text)
+    local num = tonumber(text)
+    if num and num > 0 then
+        ManualRebirthTarget = math.floor(num)
+    else
+        ManualRebirthTarget = 0 
+    end
+end)
 Window:AddToggle("Auto Rebirth (Smart Tracking)", false, function(state) AutoRebirth = state end)
+
 Window:AddToggle("Auto No Thanks (Tower)", false, function(state) AutoNoThanks = state end)
 
 Window:AddInput("Tower Delay (Detik)", "Angka (Def: 1)", function(text)
