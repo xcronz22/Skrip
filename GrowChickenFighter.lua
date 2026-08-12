@@ -27,7 +27,6 @@ local TowerDelay = 1
 local AutoAntiLag = false
 local AutoNoFog = false
 local AutoAntiAFK = true
-local AutoWalkAFK = false
 
 local LoopInterval = 1.2
 
@@ -54,87 +53,10 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- FUNGSI PENCARI PLOT (REAL-TIME TANPA CACHE)
--- ==========================================
-local function GetMyCoop()
-    local plotSigns = Workspace:FindFirstChild("PlotSigns")
-    local coops = Workspace:FindFirstChild("Coops")
-    
-    if plotSigns and coops then
-        for _, sign in pairs(plotSigns:GetChildren()) do
-            local ownerId = sign:GetAttribute("Owner")
-            if ownerId and tostring(ownerId) == tostring(LocalPlayer.UserId) then
-                local plotNum = string.match(sign.Name, "Sign(%d+)")
-                if plotNum then
-                    return coops:FindFirstChild("Coop" .. plotNum)
-                end
-            end
-        end
-    end
-    return nil
-end
-
--- ==========================================
--- REALISTIC RANDOM WALK (Akurat di Dalam Plot)
--- ==========================================
-task.spawn(function()
-    while task.wait(1) do
-        if AutoWalkAFK then
-            pcall(function()
-                local char = LocalPlayer.Character
-                local root = char and char:FindFirstChild("HumanoidRootPart")
-                local humanoid = char and char:FindFirstChild("Humanoid")
-                
-                if root and humanoid then
-                    local myCoop = GetMyCoop() -- Cari plot secara real-time
-                    
-                    if myCoop then
-                        local coopCFrame, coopSize = myCoop:GetBoundingBox()
-                        
-                        -- Radius jalan maksimal dari titik tengah (dipersempit agar makin aman)
-                        local maxLimitX = math.floor(math.clamp((coopSize.X / 2) - 12, 5, 20))
-                        local maxLimitZ = math.floor(math.clamp((coopSize.Z / 2) - 12, 5, 20))
-                        
-                        local randomX = math.random(-maxLimitX, maxLimitX)
-                        local randomZ = math.random(-maxLimitZ, maxLimitZ)
-                        
-                        -- Menggunakan CFrame relatif terhadap rotasi plot, bukan rotasi dunia
-                        local targetCFrame = coopCFrame * CFrame.new(randomX, 0, randomZ)
-                        local targetPos = Vector3.new(targetCFrame.Position.X, root.Position.Y, targetCFrame.Position.Z)
-
-                        humanoid:MoveTo(targetPos)
-
-                        local reached = false
-                        local connection
-                        connection = humanoid.MoveToFinished:Connect(function()
-                            reached = true
-                        end)
-                        
-                        local timeout = 0
-                        while not reached and timeout < 6 do
-                            task.wait(0.5)
-                            timeout = timeout + 0.5
-                        end
-                        if connection then connection:Disconnect() end
-
-                        -- Jika karakter nyangkut melebihi waktu timeout, paksa berhenti
-                        if not reached then
-                            humanoid:MoveTo(root.Position)
-                        end
-
-                        if AutoWalkAFK then
-                            task.wait(math.random(3, 12))
-                        end
-                    end
-                end
-            end)
-        end
-    end
-end)
-
--- ==========================================
 -- LOOP OTOMASI REMOTE
 -- ==========================================
+
+-- 1. Auto Buy Generator (1 sampai 6)
 task.spawn(function()
     while task.wait(LoopInterval) do
         if AutoBuyGenerator and Remotes and Remotes:FindFirstChild("BuyGenerator") then
@@ -147,6 +69,7 @@ task.spawn(function()
     end
 end)
 
+-- 2. Auto Upgrade Generator (1 sampai 6)
 task.spawn(function()
     while task.wait(LoopInterval) do
         if AutoUpgradeGenerator and Remotes and Remotes:FindFirstChild("UpgradeGenerator") then
@@ -159,6 +82,7 @@ task.spawn(function()
     end
 end)
 
+-- 3. Auto Upgrade Recycler
 task.spawn(function()
     while task.wait(LoopInterval) do
         if AutoUpgradeRecycler and Remotes and Remotes:FindFirstChild("UpgradeRecycler") then
@@ -167,6 +91,7 @@ task.spawn(function()
     end
 end)
 
+-- 4. Auto Expand Coop
 task.spawn(function()
     while task.wait(LoopInterval) do
         if AutoExpandCoop and Remotes and Remotes:FindFirstChild("ExpandCoop") then
@@ -175,6 +100,7 @@ task.spawn(function()
     end
 end)
 
+-- 5. Auto Rebirth
 task.spawn(function()
     while task.wait(LoopInterval) do
         if AutoRebirth and Remotes and Remotes:FindFirstChild("Rebirth") then
@@ -183,6 +109,7 @@ task.spawn(function()
     end
 end)
 
+-- 6. Auto No Thanks (Tower Continue Decline)
 task.spawn(function()
     while task.wait(LoopInterval) do
         if AutoNoThanks then
@@ -200,6 +127,7 @@ task.spawn(function()
     end
 end)
 
+-- 7. Auto Tower
 task.spawn(function()
     while task.wait(1) do 
         if AutoTower then
@@ -275,8 +203,6 @@ Window:AddInput("Tower Delay (Detik)", "Angka (Def: 1)", function(text)
     if num then TowerDelay = num else TowerDelay = 1 end
 end)
 Window:AddToggle("Auto Tower", false, function(state) AutoTower = state end)
-
-Window:AddToggle("Auto Walk (Realistic Anti-AFK)", false, function(state) AutoWalkAFK = state end)
 
 Window:AddToggle("No Fog (Infinite View)", false, function(state) AutoNoFog = state end)
 Window:AddToggle("Anti-Lag (Memory Light)", false, function(state)
