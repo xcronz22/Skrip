@@ -22,7 +22,7 @@ local AutoUpgradeGenerator = false
 local AutoUpgradeRecycler = false
 local AutoExpandCoop = false
 local AutoRebirth = false
-local ManualRebirthTarget = 0 -- Fallback 1: Input manual dari player
+local ManualRebirthTarget = 0 
 local AutoNoThanks = false
 local AutoTower = false
 local TowerDelay = 1 
@@ -31,7 +31,7 @@ local AutoNoFog = false
 local AutoAntiAFK = true
 
 -- Variabel Memori Smart Tracking
-local TargetRebirthFloor = nil -- Prioritas Utama dari UI
+local TargetRebirthFloor = nil 
 local HighestFloorMemory = 0
 
 local LoopInterval = 1.2
@@ -102,13 +102,11 @@ end
 -- ==========================================
 task.spawn(function()
     while task.wait(0.5) do
-        -- 1. Update dari Workspace (saat TowerStack ada)
         local wsFloor = GetCurrentTowerFloor()
         if wsFloor > HighestFloorMemory then
             HighestFloorMemory = wsFloor
         end
 
-        -- 2. Update dari UI Rebirth (jika menu sedang dibuka)
         pcall(function()
             local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
             if playerGui then
@@ -189,42 +187,54 @@ task.spawn(function()
     end
 end)
 
--- 5. SMART AUTO REBIRTH (3 LAPIS PRIORITAS)
+-- 5. SMART AUTO REBIRTH (Hanya Menggunakan InvokeServer)
 task.spawn(function()
     while task.wait(LoopInterval) do
         if AutoRebirth then
-            -- Menentukan target yang aktif (UI menang dari Manual Input)
             local activeTarget = TargetRebirthFloor
             if not activeTarget and ManualRebirthTarget > 0 then
                 activeTarget = ManualRebirthTarget
             end
 
             if activeTarget then
-                -- Eksekusi jika memori lantai saat ini sudah mencapai target (Prioritas 1 & 2)
                 if HighestFloorMemory >= activeTarget then
                     pcall(function()
+                        -- 1. Surrender / Pulangkan Ayam ke Coop
                         local surrenderEvent = Remotes:FindFirstChild("TowerSurrender")
                         if surrenderEvent then
                             surrenderEvent:InvokeServer()
-                            task.wait(1) 
                         end
                         
+                        -- 2. Tunggu sampai TowerStack benar-benar hilang dari Workspace (Ayam sudah sampai di Coop)
+                        local waitStartTime = tick()
+                        while tick() - waitStartTime < 6 do
+                            task.wait(0.5)
+                            if GetCurrentTowerFloor() == 0 then
+                                break
+                            end
+                        end
+                        
+                        -- Jeda ekstra pengaman stabilitas server
+                        task.wait(1)
+
+                        -- 3. Eksekusi Rebirth (Hanya InvokeServer)
                         local rebirthEvent = Remotes:FindFirstChild("Rebirth")
                         if rebirthEvent then
-                            rebirthEvent:InvokeServer()
+                            pcall(function() rebirthEvent:InvokeServer() end)
                             
-                            -- Hanya reset memori target otomatis, memori manual input tetap tersimpan
+                            -- Reset memori target otomatis
                             TargetRebirthFloor = nil 
                             HighestFloorMemory = 0
+                            task.wait(2) 
                         end
                     end)
                 end
             else
-                -- Prioritas 3: Fallback tembak remote jika UI belum dibaca & input manual kosong/0
+                -- Fallback tembak remote berkala jika UI belum dibaca & input manual kosong/0
                 pcall(function()
                     local rebirthEvent = Remotes and Remotes:FindFirstChild("Rebirth")
                     if rebirthEvent then
-                        rebirthEvent:InvokeServer()
+                        pcall(function() rebirthEvent:InvokeServer() end)
                         HighestFloorMemory = 0 
                     end
                 end)
