@@ -24,15 +24,19 @@ local AutoExpandCoop = false
 local AutoRebirth = false
 local AutoNoThanks = false
 local AutoTower = false
-local TowerDelay = 1 -- Default 1 detik
+local TowerDelay = 1 
 local AutoAntiLag = false
 local AutoNoFog = false
 local AutoAntiAFK = true
 
+-- State & Cache untuk Random Walk
+local AutoWalkAFK = false
+local MyCoopModel = nil 
+
 local LoopInterval = 1.2
 
 -- ==========================================
--- ADVANCED ANTI-AFK ENGINE
+-- ADVANCED ANTI-AFK ENGINE (Klik Virtual)
 -- ==========================================
 task.spawn(function()
     LocalPlayer.Idled:Connect(function()
@@ -54,73 +58,144 @@ task.spawn(function()
 end)
 
 -- ==========================================
+-- FUNGSI PENCARI PLOT (RINGAN & TANPA RAYCAST)
+-- ==========================================
+local function GetMyCoop()
+    if MyCoopModel then return MyCoopModel end -- Kembalikan dari cache jika sudah ketemu
+    
+    local plotSigns = Workspace:FindFirstChild("PlotSigns")
+    local coops = Workspace:FindFirstChild("Coops")
+    
+    if plotSigns and coops then
+        for _, sign in pairs(plotSigns:GetChildren()) do
+            local ownerId = sign:GetAttribute("Owner")
+            -- Cek apakah Atribut Owner sama dengan UserId milik kita
+            if ownerId and tostring(ownerId) == tostring(LocalPlayer.UserId) then
+                -- Ambil angkanya saja dari nama "Sign4", "Sign7", dll
+                local plotNum = string.match(sign.Name, "Sign(%d+)")
+                if plotNum then
+                    MyCoopModel = coops:FindFirstChild("Coop" .. plotNum)
+                    return MyCoopModel
+                end
+            end
+        end
+    end
+    return nil
+end
+
+-- ==========================================
+-- REALISTIC RANDOM WALK (Berjalan di Plot)
+-- ==========================================
+task.spawn(function()
+    while task.wait(1) do
+        if AutoWalkAFK then
+            pcall(function()
+                local char = LocalPlayer.Character
+                local root = char and char:FindFirstChild("HumanoidRootPart")
+                local humanoid = char and char:FindFirstChild("Humanoid")
+                
+                if root and humanoid then
+                    local myCoop = GetMyCoop()
+                    
+                    if myCoop then
+                        -- Dapatkan titik tengah dan ukuran keseluruhan dari Coop
+                        local coopCFrame, coopSize = myCoop:GetBoundingBox()
+                        
+                        -- Batasi jarak maksimal jalan agar tidak menabrak pagar (dikurangi 10 stud dari ujung)
+                        -- Kita batasi juga maksimal radius 35 stud sebagai jaring pengaman
+                        local maxLimitX = math.floor(math.clamp((coopSize.X / 2) - 10, 5, 35))
+                        local maxLimitZ = math.floor(math.clamp((coopSize.Z / 2) - 10, 5, 35))
+                        
+                        local randomX = math.random(-maxLimitX, maxLimitX)
+                        local randomZ = math.random(-maxLimitZ, maxLimitZ)
+                        
+                        -- Target posisi jalan di sekitar titik tengah Coop
+                        local targetPos = Vector3.new(
+                            coopCFrame.Position.X + randomX, 
+                            root.Position.Y, -- Gunakan ketinggian root agar karakter tidak masuk ke tanah
+                            coopCFrame.Position.Z + randomZ
+                        )
+
+                        humanoid:MoveTo(targetPos)
+
+                        -- Tunggu sampai karakter selesai berjalan
+                        local reached = false
+                        local connection
+                        connection = humanoid.MoveToFinished:Connect(function()
+                            reached = true
+                        end)
+                        
+                        -- Batas waktu jalan (maksimal 6 detik jika nyangkut)
+                        local timeout = 0
+                        while not reached and timeout < 6 do
+                            task.wait(0.5)
+                            timeout = timeout + 0.5
+                        end
+                        if connection then connection:Disconnect() end
+
+                        -- Diam sejenak (Natural AFK Pause antara 3-12 detik)
+                        if AutoWalkAFK then
+                            task.wait(math.random(3, 12))
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- ==========================================
 -- LOOP OTOMASI REMOTE
 -- ==========================================
 
--- 1. Auto Buy Generator (1 sampai 6)
 task.spawn(function()
     while task.wait(LoopInterval) do
         if AutoBuyGenerator and Remotes and Remotes:FindFirstChild("BuyGenerator") then
             for gen = 1, 6 do
                 if not AutoBuyGenerator then break end
-                pcall(function()
-                    Remotes.BuyGenerator:InvokeServer(gen)
-                end)
+                pcall(function() Remotes.BuyGenerator:InvokeServer(gen) end)
                 task.wait(0.25)
             end
         end
     end
 end)
 
--- 2. Auto Upgrade Generator (1 sampai 6)
 task.spawn(function()
     while task.wait(LoopInterval) do
         if AutoUpgradeGenerator and Remotes and Remotes:FindFirstChild("UpgradeGenerator") then
             for gen = 1, 6 do
                 if not AutoUpgradeGenerator then break end
-                pcall(function()
-                    Remotes.UpgradeGenerator:InvokeServer(gen)
-                end)
+                pcall(function() Remotes.UpgradeGenerator:InvokeServer(gen) end)
                 task.wait(0.25)
             end
         end
     end
 end)
 
--- 3. Auto Upgrade Recycler
 task.spawn(function()
     while task.wait(LoopInterval) do
         if AutoUpgradeRecycler and Remotes and Remotes:FindFirstChild("UpgradeRecycler") then
-            pcall(function()
-                Remotes.UpgradeRecycler:InvokeServer()
-            end)
+            pcall(function() Remotes.UpgradeRecycler:InvokeServer() end)
         end
     end
 end)
 
--- 4. Auto Expand Coop
 task.spawn(function()
     while task.wait(LoopInterval) do
         if AutoExpandCoop and Remotes and Remotes:FindFirstChild("ExpandCoop") then
-            pcall(function()
-                Remotes.ExpandCoop:InvokeServer()
-            end)
+            pcall(function() Remotes.ExpandCoop:InvokeServer() end)
         end
     end
 end)
 
--- 5. Auto Rebirth
 task.spawn(function()
     while task.wait(LoopInterval) do
         if AutoRebirth and Remotes and Remotes:FindFirstChild("Rebirth") then
-            pcall(function()
-                Remotes.Rebirth:InvokeServer()
-            end)
+            pcall(function() Remotes.Rebirth:InvokeServer() end)
         end
     end
 end)
 
--- 6. Auto No Thanks (Tower Continue Decline)
 task.spawn(function()
     while task.wait(LoopInterval) do
         if AutoNoThanks then
@@ -130,9 +205,7 @@ task.spawn(function()
                     local towerContinue = playerGui:FindFirstChild("TowerContinue")
                     if towerContinue and towerContinue:FindFirstChild("Frame") then
                         local declineEvent = Remotes and Remotes:FindFirstChild("TowerContinueDecline")
-                        if declineEvent then
-                            declineEvent:FireServer()
-                        end
+                        if declineEvent then declineEvent:FireServer() end
                     end
                 end
             end)
@@ -140,9 +213,8 @@ task.spawn(function()
     end
 end)
 
--- 7. Auto Tower (Filter Teks & Delay)
 task.spawn(function()
-    while task.wait(1) do -- Cek setiap 1 detik
+    while task.wait(1) do 
         if AutoTower then
             pcall(function()
                 local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
@@ -158,9 +230,7 @@ task.spawn(function()
                         task.wait(TowerDelay)
                         if AutoTower then
                             local towerStart = Remotes and Remotes:FindFirstChild("TowerStart")
-                            if towerStart then
-                                towerStart:InvokeServer()
-                            end
+                            if towerStart then towerStart:InvokeServer() end
                         end
                     end
                 end
@@ -197,9 +267,7 @@ task.spawn(function()
                 Lighting.FogEnd = 9e9
                 Lighting.FogStart = 9e9
                 local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
-                if atmosphere then
-                    atmosphere.Density = 0
-                end
+                if atmosphere then atmosphere.Density = 0 end
             end)
         end
     end
@@ -208,54 +276,30 @@ end)
 -- ==========================================
 -- UI MENU & TOGGLES
 -- ==========================================
-Window:AddToggle("Auto Buy Generator (1-6)", false, function(state)
-    AutoBuyGenerator = state
-end)
-
-Window:AddToggle("Auto Upgrade Generator (1-6)", false, function(state)
-    AutoUpgradeGenerator = state
-end)
-
-Window:AddToggle("Auto Upgrade Recycler", false, function(state)
-    AutoUpgradeRecycler = state
-end)
-
-Window:AddToggle("Auto Expand Coop", false, function(state)
-    AutoExpandCoop = state
-end)
-
-Window:AddToggle("Auto Rebirth", false, function(state)
-    AutoRebirth = state
-end)
-
-Window:AddToggle("Auto No Thanks (Tower)", false, function(state)
-    AutoNoThanks = state
-end)
+Window:AddToggle("Auto Buy Generator (1-6)", false, function(state) AutoBuyGenerator = state end)
+Window:AddToggle("Auto Upgrade Generator (1-6)", false, function(state) AutoUpgradeGenerator = state end)
+Window:AddToggle("Auto Upgrade Recycler", false, function(state) AutoUpgradeRecycler = state end)
+Window:AddToggle("Auto Expand Coop", false, function(state) AutoExpandCoop = state end)
+Window:AddToggle("Auto Rebirth", false, function(state) AutoRebirth = state end)
+Window:AddToggle("Auto No Thanks (Tower)", false, function(state) AutoNoThanks = state end)
 
 Window:AddInput("Tower Delay (Detik)", "Angka (Def: 1)", function(text)
     local num = tonumber(text)
-    if num then
-        TowerDelay = num
-    else
-        TowerDelay = 1
+    if num then TowerDelay = num else TowerDelay = 1 end
+end)
+Window:AddToggle("Auto Tower", false, function(state) AutoTower = state end)
+
+Window:AddToggle("Auto Walk (Realistic Anti-AFK)", false, function(state)
+    AutoWalkAFK = state
+    -- Reset pencarian plot jika dimatikan
+    if not state then
+        MyCoopModel = nil
     end
 end)
 
-Window:AddToggle("Auto Tower", false, function(state)
-    AutoTower = state
-end)
-
-Window:AddToggle("No Fog (Infinite View)", false, function(state)
-    AutoNoFog = state
-end)
-
+Window:AddToggle("No Fog (Infinite View)", false, function(state) AutoNoFog = state end)
 Window:AddToggle("Anti-Lag (Memory Light)", false, function(state)
     AutoAntiLag = state
-    if state then
-        MemoryLightAntiLag()
-    end
+    if state then MemoryLightAntiLag() end
 end)
-
-Window:AddToggle("Advanced Anti-AFK", true, function(state)
-    AutoAntiAFK = state
-end)
+Window:AddToggle("Advanced Anti-AFK", true, function(state) AutoAntiAFK = state end)
