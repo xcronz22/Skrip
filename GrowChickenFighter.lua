@@ -29,8 +29,9 @@ local AutoAntiLag = false
 local AutoNoFog = false
 local AutoAntiAFK = true
 
--- Variabel Memori Smart Rebirth
+-- Variabel Memori Smart Tracking
 local TargetRebirthFloor = nil
+local HighestFloorMemory = 0
 
 local LoopInterval = 1.2
 
@@ -57,10 +58,94 @@ task.spawn(function()
 end)
 
 -- ==========================================
+-- HELPER FUNCTION: GET CURRENT FLOOR (WORKSPACE)
+-- ==========================================
+local function GetCurrentTowerFloor()
+    local currentFloor = 0
+    local myPlotNum = nil
+
+    pcall(function()
+        local plots = Workspace:FindFirstChild("World") and Workspace.World:FindFirstChild("Plots")
+        if plots then
+            for _, plot in pairs(plots:GetChildren()) do
+                if plot:FindFirstChild("Owner") and plot.Owner:FindFirstChild("PlayerName") then
+                    if plot.Owner.PlayerName.Text == LocalPlayer.Name then
+                        myPlotNum = string.match(plot.Name, "Plot(%d+)")
+                        break
+                    end
+                end
+            end
+        end
+
+        if myPlotNum then
+            local towerStack = Workspace:FindFirstChild("TowerStack" .. myPlotNum)
+            if towerStack then
+                for _, floorPart in pairs(towerStack:GetChildren()) do
+                    local fNum = string.match(floorPart.Name, "Floor(%d+)")
+                    if fNum then
+                        local num = tonumber(fNum)
+                        if num > currentFloor then
+                            currentFloor = num
+                        end
+                    end
+                end
+            end
+        end
+    end)
+
+    return currentFloor
+end
+
+-- ==========================================
+-- MEMORY TRACKER LOOP (Menjaga Ingatan Skrip)
+-- ==========================================
+task.spawn(function()
+    while task.wait(0.5) do
+        -- 1. Update dari Workspace (saat TowerStack ada)
+        local wsFloor = GetCurrentTowerFloor()
+        if wsFloor > HighestFloorMemory then
+            HighestFloorMemory = wsFloor
+        end
+
+        -- 2. Update dari UI Rebirth (jika menu sedang dibuka)
+        pcall(function()
+            local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+            if playerGui then
+                local rebirthGui = playerGui:FindFirstChild("Rebirth")
+                if rebirthGui and rebirthGui:FindFirstChild("Frame") and rebirthGui.Frame:FindFirstChild("window") then
+                    local reqCard = rebirthGui.Frame.window:FindFirstChild("panel")
+                        and rebirthGui.Frame.window.panel:FindFirstChild("face")
+                        and rebirthGui.Frame.window.panel.face:FindFirstChild("content")
+                        and rebirthGui.Frame.window.panel.face.content:FindFirstChild("content")
+                        and rebirthGui.Frame.window.panel.face.content.content:FindFirstChild("body")
+                        and rebirthGui.Frame.window.panel.face.content.content.body:FindFirstChild("reqCard")
+
+                    if reqCard and reqCard:FindFirstChild("face") and reqCard.face:FindFirstChild("content") and reqCard.face.content:FindFirstChild("bar") then
+                        local textLabel = reqCard.face.content.bar:FindFirstChild("text")
+                        if textLabel and textLabel.Text then
+                            local curStr, reqStr = string.match(textLabel.Text, "(%d+)%s*/%s*(%d+)")
+                            if curStr and reqStr then
+                                local uiFloor = tonumber(curStr)
+                                TargetRebirthFloor = tonumber(reqStr)
+                                
+                                -- Simpan angka tertinggi
+                                if uiFloor > HighestFloorMemory then
+                                    HighestFloorMemory = uiFloor
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+-- ==========================================
 -- LOOP OTOMASI REMOTE
 -- ==========================================
 
--- 1. Auto Buy Generator (1 sampai Max Tier)
+-- 1. Auto Buy Generator
 task.spawn(function()
     while task.wait(LoopInterval) do
         if AutoBuyGenerator and Remotes and Remotes:FindFirstChild("BuyGenerator") then
@@ -73,7 +158,7 @@ task.spawn(function()
     end
 end)
 
--- 2. Auto Upgrade Generator (1 sampai Max Tier)
+-- 2. Auto Upgrade Generator
 task.spawn(function()
     while task.wait(LoopInterval) do
         if AutoUpgradeGenerator and Remotes and Remotes:FindFirstChild("UpgradeGenerator") then
@@ -108,72 +193,9 @@ end)
 task.spawn(function()
     while task.wait(LoopInterval) do
         if AutoRebirth then
-            -- A. Coba tangkap Target Floor jika Menu Rebirth sedang terbuka
-            pcall(function()
-                local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-                if playerGui then
-                    local rebirthGui = playerGui:FindFirstChild("Rebirth")
-                    if rebirthGui and rebirthGui:FindFirstChild("Frame") and rebirthGui.Frame:FindFirstChild("window") then
-                        local reqCard = rebirthGui.Frame.window:FindFirstChild("panel")
-                            and rebirthGui.Frame.window.panel:FindFirstChild("face")
-                            and rebirthGui.Frame.window.panel.face:FindFirstChild("content")
-                            and rebirthGui.Frame.window.panel.face.content:FindFirstChild("content")
-                            and rebirthGui.Frame.window.panel.face.content.content:FindFirstChild("body")
-                            and rebirthGui.Frame.window.panel.face.content.content.body:FindFirstChild("reqCard")
-
-                        if reqCard and reqCard:FindFirstChild("face") and reqCard.face:FindFirstChild("content") and reqCard.face.content:FindFirstChild("bar") then
-                            local textLabel = reqCard.face.content.bar:FindFirstChild("text")
-                            if textLabel and textLabel.Text then
-                                local curStr, reqStr = string.match(textLabel.Text, "(%d+)%s*/%s*(%d+)")
-                                if reqStr then
-                                    TargetRebirthFloor = tonumber(reqStr)
-                                end
-                            end
-                        end
-                    end
-                end
-            end)
-
-            -- B. Jika Target Floor diketahui, gunakan mode Smart Rebirth
             if TargetRebirthFloor then
-                local currentFloor = 0
-                local myPlotNum = nil
-
-                -- Cari Plot Player
-                pcall(function()
-                    local plots = Workspace:FindFirstChild("World") and Workspace.World:FindFirstChild("Plots")
-                    if plots then
-                        for _, plot in pairs(plots:GetChildren()) do
-                            if plot:FindFirstChild("Owner") and plot.Owner:FindFirstChild("PlayerName") then
-                                if plot.Owner.PlayerName.Text == LocalPlayer.Name then
-                                    myPlotNum = string.match(plot.Name, "Plot(%d+)")
-                                    break
-                                end
-                            end
-                        end
-                    end
-                end)
-
-                -- Cari Floor tertinggi di TowerStack Player
-                if myPlotNum then
-                    pcall(function()
-                        local towerStack = Workspace:FindFirstChild("TowerStack" .. myPlotNum)
-                        if towerStack then
-                            for _, floorPart in pairs(towerStack:GetChildren()) do
-                                local fNum = string.match(floorPart.Name, "Floor(%d+)")
-                                if fNum then
-                                    local num = tonumber(fNum)
-                                    if num > currentFloor then
-                                        currentFloor = num
-                                    end
-                                end
-                            end
-                        end
-                    end)
-                end
-
-                -- Eksekusi Retreat & Rebirth jika sudah mencapai Target Floor
-                if currentFloor >= TargetRebirthFloor then
+                -- Eksekusi jika memori lantai saat ini sudah mencapai target
+                if HighestFloorMemory >= TargetRebirthFloor then
                     pcall(function()
                         local surrenderEvent = Remotes:FindFirstChild("TowerSurrender")
                         if surrenderEvent then
@@ -184,17 +206,21 @@ task.spawn(function()
                         local rebirthEvent = Remotes:FindFirstChild("Rebirth")
                         if rebirthEvent then
                             rebirthEvent:InvokeServer()
-                            TargetRebirthFloor = nil -- Reset memori
+                            
+                            -- Reset memori kembali ke 0 karena sudah sukses rebirth
+                            TargetRebirthFloor = nil 
+                            HighestFloorMemory = 0
                         end
                     end)
                 end
-            
-            -- C. Jika Target Floor belum diketahui, gunakan mode Fallback (Tembak Remote Biasa)
             else
+                -- Fallback jika target floor belum terdeteksi (Menu UI belum pernah dibuka)
                 pcall(function()
                     local rebirthEvent = Remotes and Remotes:FindFirstChild("Rebirth")
                     if rebirthEvent then
                         rebirthEvent:InvokeServer()
+                        -- Reset memori just in case berhasil rebirth via fallback
+                        HighestFloorMemory = 0 
                     end
                 end)
             end
@@ -220,7 +246,7 @@ task.spawn(function()
     end
 end)
 
--- 7. Auto Tower
+-- 7. SMART AUTO TOWER (Elevator + Start)
 task.spawn(function()
     while task.wait(1) do 
         if AutoTower then
@@ -237,8 +263,22 @@ task.spawn(function()
                     if caption and string.match(string.upper(caption.Text), "TOWER") then
                         task.wait(TowerDelay)
                         if AutoTower then
+                            
+                            -- A. Tembak Elevator menggunakan memori lantai terakhir yang diingat
+                            if HighestFloorMemory > 0 then
+                                local elevatorEvent = Remotes and Remotes:FindFirstChild("TowerElevator")
+                                if elevatorEvent then
+                                    pcall(function() elevatorEvent:InvokeServer(HighestFloorMemory) end)
+                                    task.wait(0.2) -- Jeda sebentar sebelum menekan start
+                                end
+                            end
+
+                            -- B. Tembak Tower Start (Sebagai kelanjutan atau fallback jika elevator gagal)
                             local towerStart = Remotes and Remotes:FindFirstChild("TowerStart")
-                            if towerStart then towerStart:InvokeServer() end
+                            if towerStart then 
+                                towerStart:InvokeServer() 
+                            end
+
                         end
                     end
                 end
@@ -311,7 +351,7 @@ Window:AddInput("Tower Delay (Detik)", "Angka (Def: 1)", function(text)
     local num = tonumber(text)
     if num then TowerDelay = num else TowerDelay = 1 end
 end)
-Window:AddToggle("Auto Tower", false, function(state) AutoTower = state end)
+Window:AddToggle("Auto Tower (Smart Elevator)", false, function(state) AutoTower = state end)
 
 Window:AddToggle("No Fog (Infinite View)", false, function(state) AutoNoFog = state end)
 Window:AddToggle("Anti-Lag (Memory Light)", false, function(state)
