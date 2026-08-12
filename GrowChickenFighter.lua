@@ -16,6 +16,7 @@ local LocalPlayer = Players.LocalPlayer
 local Remotes = ReplicatedStorage:WaitForChild("Remotes", 5)
 
 -- State Variables
+local MaxGeneratorTier = 6 -- Default eksekusi dari tier 1 sampai 6
 local AutoBuyGenerator = false
 local AutoUpgradeGenerator = false
 local AutoUpgradeRecycler = false
@@ -56,11 +57,11 @@ end)
 -- LOOP OTOMASI REMOTE
 -- ==========================================
 
--- 1. Auto Buy Generator (1 sampai 6)
+-- 1. Auto Buy Generator (1 sampai Max Tier)
 task.spawn(function()
     while task.wait(LoopInterval) do
         if AutoBuyGenerator and Remotes and Remotes:FindFirstChild("BuyGenerator") then
-            for gen = 1, 6 do
+            for gen = 1, MaxGeneratorTier do
                 if not AutoBuyGenerator then break end
                 pcall(function() Remotes.BuyGenerator:InvokeServer(gen) end)
                 task.wait(0.25)
@@ -69,11 +70,11 @@ task.spawn(function()
     end
 end)
 
--- 2. Auto Upgrade Generator (1 sampai 6)
+-- 2. Auto Upgrade Generator (1 sampai Max Tier)
 task.spawn(function()
     while task.wait(LoopInterval) do
         if AutoUpgradeGenerator and Remotes and Remotes:FindFirstChild("UpgradeGenerator") then
-            for gen = 1, 6 do
+            for gen = 1, MaxGeneratorTier do
                 if not AutoUpgradeGenerator then break end
                 pcall(function() Remotes.UpgradeGenerator:InvokeServer(gen) end)
                 task.wait(0.25)
@@ -191,8 +192,26 @@ end)
 -- ==========================================
 -- UI MENU & TOGGLES
 -- ==========================================
-Window:AddToggle("Auto Buy Generator (1-6)", false, function(state) AutoBuyGenerator = state end)
-Window:AddToggle("Auto Upgrade Generator (1-6)", false, function(state) AutoUpgradeGenerator = state end)
+
+-- Input untuk mengatur batas maksimal eksekusi Generator (Buy & Upgrade)
+Window:AddInput("Batas Maksimal Generator (1-6)", "Ketik 1 - 6 (Def: 6)", function(text)
+    local num = tonumber(text)
+    if num then
+        num = math.floor(num)
+        -- Validasi agar angka yang dimasukkan hanya di antara 1 sampai 6
+        if num >= 1 and num <= 6 then
+            MaxGeneratorTier = num
+        else
+            MaxGeneratorTier = 6 -- Jika angka di luar rentang, kembalikan ke default
+        end
+    else
+        MaxGeneratorTier = 6 -- Jika yang diinput bukan angka, kembalikan ke default
+    end
+end)
+
+Window:AddToggle("Auto Buy Generator", false, function(state) AutoBuyGenerator = state end)
+Window:AddToggle("Auto Upgrade Generator", false, function(state) AutoUpgradeGenerator = state end)
+
 Window:AddToggle("Auto Upgrade Recycler", false, function(state) AutoUpgradeRecycler = state end)
 Window:AddToggle("Auto Expand Coop", false, function(state) AutoExpandCoop = state end)
 Window:AddToggle("Auto Rebirth", false, function(state) AutoRebirth = state end)
