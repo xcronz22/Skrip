@@ -16,7 +16,7 @@ local LocalPlayer = Players.LocalPlayer
 local Remotes = ReplicatedStorage:WaitForChild("Remotes", 5)
 
 -- State Variables
-local MaxGeneratorTier = 6 -- Default eksekusi dari tier 1 sampai 6
+local MaxGeneratorTier = 6
 local AutoBuyGenerator = false
 local AutoUpgradeGenerator = false
 local AutoUpgradeRecycler = false
@@ -28,6 +28,9 @@ local TowerDelay = 1
 local AutoAntiLag = false
 local AutoNoFog = false
 local AutoAntiAFK = true
+
+-- Variabel Memori Smart Rebirth
+local TargetRebirthFloor = nil
 
 local LoopInterval = 1.2
 
@@ -101,11 +104,100 @@ task.spawn(function()
     end
 end)
 
--- 5. Auto Rebirth
+-- 5. SMART AUTO REBIRTH + FALLBACK
 task.spawn(function()
     while task.wait(LoopInterval) do
-        if AutoRebirth and Remotes and Remotes:FindFirstChild("Rebirth") then
-            pcall(function() Remotes.Rebirth:InvokeServer() end)
+        if AutoRebirth then
+            -- A. Coba tangkap Target Floor jika Menu Rebirth sedang terbuka
+            pcall(function()
+                local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+                if playerGui then
+                    local rebirthGui = playerGui:FindFirstChild("Rebirth")
+                    if rebirthGui and rebirthGui:FindFirstChild("Frame") and rebirthGui.Frame:FindFirstChild("window") then
+                        local reqCard = rebirthGui.Frame.window:FindFirstChild("panel")
+                            and rebirthGui.Frame.window.panel:FindFirstChild("face")
+                            and rebirthGui.Frame.window.panel.face:FindFirstChild("content")
+                            and rebirthGui.Frame.window.panel.face.content:FindFirstChild("content")
+                            and rebirthGui.Frame.window.panel.face.content.content:FindFirstChild("body")
+                            and rebirthGui.Frame.window.panel.face.content.content.body:FindFirstChild("reqCard")
+
+                        if reqCard and reqCard:FindFirstChild("face") and reqCard.face:FindFirstChild("content") and reqCard.face.content:FindFirstChild("bar") then
+                            local textLabel = reqCard.face.content.bar:FindFirstChild("text")
+                            if textLabel and textLabel.Text then
+                                local curStr, reqStr = string.match(textLabel.Text, "(%d+)%s*/%s*(%d+)")
+                                if reqStr then
+                                    TargetRebirthFloor = tonumber(reqStr)
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+
+            -- B. Jika Target Floor diketahui, gunakan mode Smart Rebirth
+            if TargetRebirthFloor then
+                local currentFloor = 0
+                local myPlotNum = nil
+
+                -- Cari Plot Player
+                pcall(function()
+                    local plots = Workspace:FindFirstChild("World") and Workspace.World:FindFirstChild("Plots")
+                    if plots then
+                        for _, plot in pairs(plots:GetChildren()) do
+                            if plot:FindFirstChild("Owner") and plot.Owner:FindFirstChild("PlayerName") then
+                                if plot.Owner.PlayerName.Text == LocalPlayer.Name then
+                                    myPlotNum = string.match(plot.Name, "Plot(%d+)")
+                                    break
+                                end
+                            end
+                        end
+                    end
+                end)
+
+                -- Cari Floor tertinggi di TowerStack Player
+                if myPlotNum then
+                    pcall(function()
+                        local towerStack = Workspace:FindFirstChild("TowerStack" .. myPlotNum)
+                        if towerStack then
+                            for _, floorPart in pairs(towerStack:GetChildren()) do
+                                local fNum = string.match(floorPart.Name, "Floor(%d+)")
+                                if fNum then
+                                    local num = tonumber(fNum)
+                                    if num > currentFloor then
+                                        currentFloor = num
+                                    end
+                                end
+                            end
+                        end
+                    end)
+                end
+
+                -- Eksekusi Retreat & Rebirth jika sudah mencapai Target Floor
+                if currentFloor >= TargetRebirthFloor then
+                    pcall(function()
+                        local surrenderEvent = Remotes:FindFirstChild("TowerSurrender")
+                        if surrenderEvent then
+                            surrenderEvent:InvokeServer()
+                            task.wait(1) 
+                        end
+                        
+                        local rebirthEvent = Remotes:FindFirstChild("Rebirth")
+                        if rebirthEvent then
+                            rebirthEvent:InvokeServer()
+                            TargetRebirthFloor = nil -- Reset memori
+                        end
+                    end)
+                end
+            
+            -- C. Jika Target Floor belum diketahui, gunakan mode Fallback (Tembak Remote Biasa)
+            else
+                pcall(function()
+                    local rebirthEvent = Remotes and Remotes:FindFirstChild("Rebirth")
+                    if rebirthEvent then
+                        rebirthEvent:InvokeServer()
+                    end
+                end)
+            end
         end
     end
 end)
@@ -193,19 +285,17 @@ end)
 -- UI MENU & TOGGLES
 -- ==========================================
 
--- Input untuk mengatur batas maksimal eksekusi Generator (Buy & Upgrade)
 Window:AddInput("Batas Maksimal Generator (1-6)", "Ketik 1 - 6 (Def: 6)", function(text)
     local num = tonumber(text)
     if num then
         num = math.floor(num)
-        -- Validasi agar angka yang dimasukkan hanya di antara 1 sampai 6
         if num >= 1 and num <= 6 then
             MaxGeneratorTier = num
         else
-            MaxGeneratorTier = 6 -- Jika angka di luar rentang, kembalikan ke default
+            MaxGeneratorTier = 6 
         end
     else
-        MaxGeneratorTier = 6 -- Jika yang diinput bukan angka, kembalikan ke default
+        MaxGeneratorTier = 6 
     end
 end)
 
@@ -214,7 +304,7 @@ Window:AddToggle("Auto Upgrade Generator", false, function(state) AutoUpgradeGen
 
 Window:AddToggle("Auto Upgrade Recycler", false, function(state) AutoUpgradeRecycler = state end)
 Window:AddToggle("Auto Expand Coop", false, function(state) AutoExpandCoop = state end)
-Window:AddToggle("Auto Rebirth", false, function(state) AutoRebirth = state end)
+Window:AddToggle("Auto Rebirth (Smart Tracking)", false, function(state) AutoRebirth = state end)
 Window:AddToggle("Auto No Thanks (Tower)", false, function(state) AutoNoThanks = state end)
 
 Window:AddInput("Tower Delay (Detik)", "Angka (Def: 1)", function(text)
