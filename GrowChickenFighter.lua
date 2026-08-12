@@ -2,7 +2,6 @@
 -- GROW A CHICKEN FIGHTER - AUTOMATION SCRIPT
 -- ==========================================
 
--- Memanggil library dari GitHub
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
 local Window = Library:MakeWindow("Grow a Chicken Fighter")
 
@@ -28,15 +27,12 @@ local TowerDelay = 1
 local AutoAntiLag = false
 local AutoNoFog = false
 local AutoAntiAFK = true
-
--- State & Cache untuk Random Walk
 local AutoWalkAFK = false
-local MyCoopModel = nil 
 
 local LoopInterval = 1.2
 
 -- ==========================================
--- ADVANCED ANTI-AFK ENGINE (Klik Virtual)
+-- ADVANCED ANTI-AFK ENGINE
 -- ==========================================
 task.spawn(function()
     LocalPlayer.Idled:Connect(function()
@@ -58,24 +54,19 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- FUNGSI PENCARI PLOT (RINGAN & TANPA RAYCAST)
+-- FUNGSI PENCARI PLOT (REAL-TIME TANPA CACHE)
 -- ==========================================
 local function GetMyCoop()
-    if MyCoopModel then return MyCoopModel end -- Kembalikan dari cache jika sudah ketemu
-    
     local plotSigns = Workspace:FindFirstChild("PlotSigns")
     local coops = Workspace:FindFirstChild("Coops")
     
     if plotSigns and coops then
         for _, sign in pairs(plotSigns:GetChildren()) do
             local ownerId = sign:GetAttribute("Owner")
-            -- Cek apakah Atribut Owner sama dengan UserId milik kita
             if ownerId and tostring(ownerId) == tostring(LocalPlayer.UserId) then
-                -- Ambil angkanya saja dari nama "Sign4", "Sign7", dll
                 local plotNum = string.match(sign.Name, "Sign(%d+)")
                 if plotNum then
-                    MyCoopModel = coops:FindFirstChild("Coop" .. plotNum)
-                    return MyCoopModel
+                    return coops:FindFirstChild("Coop" .. plotNum)
                 end
             end
         end
@@ -84,7 +75,7 @@ local function GetMyCoop()
 end
 
 -- ==========================================
--- REALISTIC RANDOM WALK (Berjalan di Plot)
+-- REALISTIC RANDOM WALK (Akurat di Dalam Plot)
 -- ==========================================
 task.spawn(function()
     while task.wait(1) do
@@ -95,37 +86,30 @@ task.spawn(function()
                 local humanoid = char and char:FindFirstChild("Humanoid")
                 
                 if root and humanoid then
-                    local myCoop = GetMyCoop()
+                    local myCoop = GetMyCoop() -- Cari plot secara real-time
                     
                     if myCoop then
-                        -- Dapatkan titik tengah dan ukuran keseluruhan dari Coop
                         local coopCFrame, coopSize = myCoop:GetBoundingBox()
                         
-                        -- Batasi jarak maksimal jalan agar tidak menabrak pagar (dikurangi 10 stud dari ujung)
-                        -- Kita batasi juga maksimal radius 35 stud sebagai jaring pengaman
-                        local maxLimitX = math.floor(math.clamp((coopSize.X / 2) - 10, 5, 35))
-                        local maxLimitZ = math.floor(math.clamp((coopSize.Z / 2) - 10, 5, 35))
+                        -- Radius jalan maksimal dari titik tengah (dipersempit agar makin aman)
+                        local maxLimitX = math.floor(math.clamp((coopSize.X / 2) - 12, 5, 20))
+                        local maxLimitZ = math.floor(math.clamp((coopSize.Z / 2) - 12, 5, 20))
                         
                         local randomX = math.random(-maxLimitX, maxLimitX)
                         local randomZ = math.random(-maxLimitZ, maxLimitZ)
                         
-                        -- Target posisi jalan di sekitar titik tengah Coop
-                        local targetPos = Vector3.new(
-                            coopCFrame.Position.X + randomX, 
-                            root.Position.Y, -- Gunakan ketinggian root agar karakter tidak masuk ke tanah
-                            coopCFrame.Position.Z + randomZ
-                        )
+                        -- Menggunakan CFrame relatif terhadap rotasi plot, bukan rotasi dunia
+                        local targetCFrame = coopCFrame * CFrame.new(randomX, 0, randomZ)
+                        local targetPos = Vector3.new(targetCFrame.Position.X, root.Position.Y, targetCFrame.Position.Z)
 
                         humanoid:MoveTo(targetPos)
 
-                        -- Tunggu sampai karakter selesai berjalan
                         local reached = false
                         local connection
                         connection = humanoid.MoveToFinished:Connect(function()
                             reached = true
                         end)
                         
-                        -- Batas waktu jalan (maksimal 6 detik jika nyangkut)
                         local timeout = 0
                         while not reached and timeout < 6 do
                             task.wait(0.5)
@@ -133,7 +117,11 @@ task.spawn(function()
                         end
                         if connection then connection:Disconnect() end
 
-                        -- Diam sejenak (Natural AFK Pause antara 3-12 detik)
+                        -- Jika karakter nyangkut melebihi waktu timeout, paksa berhenti
+                        if not reached then
+                            humanoid:MoveTo(root.Position)
+                        end
+
                         if AutoWalkAFK then
                             task.wait(math.random(3, 12))
                         end
@@ -147,7 +135,6 @@ end)
 -- ==========================================
 -- LOOP OTOMASI REMOTE
 -- ==========================================
-
 task.spawn(function()
     while task.wait(LoopInterval) do
         if AutoBuyGenerator and Remotes and Remotes:FindFirstChild("BuyGenerator") then
@@ -289,13 +276,7 @@ Window:AddInput("Tower Delay (Detik)", "Angka (Def: 1)", function(text)
 end)
 Window:AddToggle("Auto Tower", false, function(state) AutoTower = state end)
 
-Window:AddToggle("Auto Walk (Realistic Anti-AFK)", false, function(state)
-    AutoWalkAFK = state
-    -- Reset pencarian plot jika dimatikan
-    if not state then
-        MyCoopModel = nil
-    end
-end)
+Window:AddToggle("Auto Walk (Realistic Anti-AFK)", false, function(state) AutoWalkAFK = state end)
 
 Window:AddToggle("No Fog (Infinite View)", false, function(state) AutoNoFog = state end)
 Window:AddToggle("Anti-Lag (Memory Light)", false, function(state)
