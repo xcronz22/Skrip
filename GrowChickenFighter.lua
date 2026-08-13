@@ -59,56 +59,82 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- HELPER FUNCTION: GET CURRENT FLOOR (WORKSPACE)
+-- HELPER FUNCTION & SMART TRACKING (UPDATED)
 -- ==========================================
-local function GetCurrentTowerFloor()
-    local currentFloor = 0
-    local myPlotNum = nil
+local CachedPlotNum = nil
+local MyTowerStack = nil
+local TowerConnection = nil
 
-    pcall(function()
+-- Fungsi untuk update memori tertinggi secara instan
+local function UpdateMaxFloorFromPart(part)
+    if part and part.Name then
+        local fNum = string.match(part.Name, "Floor(%d+)")
+        if fNum then
+            local num = tonumber(fNum)
+            if num and num > HighestFloorMemory then
+                HighestFloorMemory = num
+            end
+        end
+    end
+end
+
+-- Fungsi efisien untuk mengunci TowerStack milikmu tanpa scan berat berulang kali
+local function FindMyTowerStack()
+    if not CachedPlotNum then
         local plots = Workspace:FindFirstChild("World") and Workspace.World:FindFirstChild("Plots")
         if plots then
             for _, plot in pairs(plots:GetChildren()) do
                 if plot:FindFirstChild("Owner") and plot.Owner:FindFirstChild("PlayerName") then
                     if plot.Owner.PlayerName.Text == LocalPlayer.Name then
-                        myPlotNum = string.match(plot.Name, "Plot(%d+)")
+                        CachedPlotNum = string.match(plot.Name, "%d+")
                         break
                     end
                 end
             end
         end
-
-        if myPlotNum then
-            local towerStack = Workspace:FindFirstChild("TowerStack" .. myPlotNum)
-            if towerStack then
-                for _, floorPart in pairs(towerStack:GetChildren()) do
-                    local fNum = string.match(floorPart.Name, "Floor(%d+)")
-                    if fNum then
-                        local num = tonumber(fNum)
-                        if num > currentFloor then
-                            currentFloor = num
-                        end
-                    end
-                end
-            end
-        end
-    end)
-
-    return currentFloor
+    end
+    if CachedPlotNum then
+        return Workspace:FindFirstChild("TowerStack" .. CachedPlotNum)
+    end
+    return nil
 end
 
 -- ==========================================
--- MEMORY TRACKER LOOP (Menjaga Ingatan Skrip)
+-- INSTANT MEMORY TRACKER LOOP
 -- ==========================================
 task.spawn(function()
-    while task.wait(0.5) do
-        -- 1. Update dari Workspace (saat TowerStack ada)
-        local wsFloor = GetCurrentTowerFloor()
-        if wsFloor > HighestFloorMemory then
-            HighestFloorMemory = wsFloor
-        end
+    while task.wait(0.2) do -- Loop dipercepat dari 0.5 ke 0.2 detik agar lebih gesit
+        -- 1. INSTANT WORKSPACE TRACKING (Event-Driven)
+        pcall(function()
+            local currentTower = FindMyTowerStack()
+            
+            -- Jika TowerStack berubah atau baru terdeteksi (misal sehabis Rebirth)
+            if currentTower ~= MyTowerStack then
+                MyTowerStack = currentTower
+                
+                -- Putuskan koneksi event lama jika ada agar tidak memory leak
+                if TowerConnection then TowerConnection:Disconnect() end
+                
+                if MyTowerStack then
+                    -- Scan cepat satu kali untuk lantai yang sudah muncul
+                    for _, part in pairs(MyTowerStack:GetChildren()) do
+                        UpdateMaxFloorFromPart(part)
+                    end
+                    
+                    -- EVENT LISTENER: Sangat krusial! Membaca lantai baru *saat detik itu juga* ketika muncul di workspace
+                    TowerConnection = MyTowerStack.ChildAdded:Connect(function(child)
+                        UpdateMaxFloorFromPart(child)
+                    end)
+                end
+            elseif MyTowerStack then
+                -- Backup scan berkala untuk mencegah ada part yang gagal terbaca
+                for _, part in pairs(MyTowerStack:GetChildren()) do
+                    UpdateMaxFloorFromPart(part)
+                end
+            end
+        end)
 
-        -- 2. Update dari UI Rebirth (jika menu sedang dibuka)
+        -- 2. BACKUP TRACKING DARI UI REBIRTH
         pcall(function()
             local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
             if playerGui then
@@ -129,7 +155,7 @@ task.spawn(function()
                                 local uiFloor = tonumber(curStr)
                                 TargetRebirthFloor = tonumber(reqStr)
                                 
-                                if uiFloor > HighestFloorMemory then
+                                if uiFloor and uiFloor > HighestFloorMemory then
                                     HighestFloorMemory = uiFloor
                                 end
                             end
