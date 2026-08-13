@@ -181,8 +181,8 @@ end)
 
 -- 2. Auto Upgrade Generator
 task.spawn(function()
-    -- Menggunakan 0.2 secara mandiri, terlepas dari LoopInterval utama
-    while task.wait(0.2) do 
+    -- Menggunakan 0.3 secara mandiri, terlepas dari LoopInterval utama
+    while task.wait(0.3) do 
         if AutoUpgradeGenerator and Remotes and Remotes:FindFirstChild("UpgradeGenerator") then
             for gen = 1, MaxGeneratorTier do
                 if not AutoUpgradeGenerator then break end
