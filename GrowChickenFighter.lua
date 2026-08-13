@@ -29,9 +29,11 @@ local AutoAntiLag = false
 local AutoNoFog = false
 local AutoAntiAFK = true
 
--- Variabel Memori Smart Tracking
+-- Variabel Memori Smart Tracking & Anti-Stuck
 local TargetRebirthFloor = nil
 local HighestFloorMemory = 0
+local LastFloorChangeTime = tick() -- Mencatat waktu terakhir lantai berubah
+local MaxStuckTime = 10 -- Batas waktu deteksi macet (bisa diubah di UI)
 
 local LoopInterval = 1.2
 
@@ -64,7 +66,6 @@ local CachedPlotNum = nil
 local MyTowerStack = nil
 local TowerConnection = nil
 
--- Fungsi untuk update memori tertinggi secara instan
 local function UpdateMaxFloorFromPart(part)
     if part and part.Name then
         local fNum = string.match(part.Name, "Floor(%d+)")
@@ -72,12 +73,12 @@ local function UpdateMaxFloorFromPart(part)
             local num = tonumber(fNum)
             if num and num > HighestFloorMemory then
                 HighestFloorMemory = num
+                LastFloorChangeTime = tick() -- Reset timer macet karena berhasil naik lantai
             end
         end
     end
 end
 
--- Fungsi efisien untuk mengunci TowerStack milikmu tanpa scan berat berulang kali
 local function FindMyTowerStack()
     if not CachedPlotNum then
         local plots = Workspace:FindFirstChild("World") and Workspace.World:FindFirstChild("Plots")
@@ -99,34 +100,28 @@ local function FindMyTowerStack()
 end
 
 -- ==========================================
--- INSTANT MEMORY TRACKER LOOP
+-- MEMORY TRACKER LOOP (INSTANT & UI SCAN)
 -- ==========================================
 task.spawn(function()
-    while task.wait(0.2) do -- Loop dipercepat dari 0.5 ke 0.2 detik agar lebih gesit
+    while task.wait(0.2) do
         -- 1. INSTANT WORKSPACE TRACKING (Event-Driven)
         pcall(function()
             local currentTower = FindMyTowerStack()
             
-            -- Jika TowerStack berubah atau baru terdeteksi (misal sehabis Rebirth)
             if currentTower ~= MyTowerStack then
                 MyTowerStack = currentTower
-                
-                -- Putuskan koneksi event lama jika ada agar tidak memory leak
                 if TowerConnection then TowerConnection:Disconnect() end
                 
                 if MyTowerStack then
-                    -- Scan cepat satu kali untuk lantai yang sudah muncul
                     for _, part in pairs(MyTowerStack:GetChildren()) do
                         UpdateMaxFloorFromPart(part)
                     end
                     
-                    -- EVENT LISTENER: Sangat krusial! Membaca lantai baru *saat detik itu juga* ketika muncul di workspace
                     TowerConnection = MyTowerStack.ChildAdded:Connect(function(child)
                         UpdateMaxFloorFromPart(child)
                     end)
                 end
             elseif MyTowerStack then
-                -- Backup scan berkala untuk mencegah ada part yang gagal terbaca
                 for _, part in pairs(MyTowerStack:GetChildren()) do
                     UpdateMaxFloorFromPart(part)
                 end
@@ -156,6 +151,7 @@ task.spawn(function()
                                 
                                 if uiFloor and uiFloor > HighestFloorMemory then
                                     HighestFloorMemory = uiFloor
+                                    LastFloorChangeTime = tick() -- Reset timer macet
                                 end
                             end
                         end
@@ -219,7 +215,6 @@ task.spawn(function()
     while task.wait(LoopInterval) do
         if AutoRebirth then
             if TargetRebirthFloor then
-                -- Eksekusi jika memori lantai saat ini sudah mencapai target
                 if HighestFloorMemory >= TargetRebirthFloor then
                     pcall(function()
                         local surrenderEvent = Remotes:FindFirstChild("TowerSurrender")
@@ -232,19 +227,17 @@ task.spawn(function()
                         if rebirthEvent then
                             rebirthEvent:InvokeServer()
                             
-                            -- Reset memori kembali ke 0 karena sudah sukses rebirth
                             TargetRebirthFloor = nil 
                             HighestFloorMemory = 0
+                            LastFloorChangeTime = tick() -- Reset jam
                         end
                     end)
                 end
             else
-                -- Fallback jika target floor belum terdeteksi (Menu UI belum pernah dibuka)
                 pcall(function()
                     local rebirthEvent = Remotes and Remotes:FindFirstChild("Rebirth")
                     if rebirthEvent then
                         rebirthEvent:InvokeServer()
-                        -- Reset memori just in case berhasil rebirth via fallback
                         HighestFloorMemory = 0 
                     end
                 end)
@@ -271,7 +264,7 @@ task.spawn(function()
     end
 end)
 
--- 7. SMART AUTO TOWER (Elevator + Start)
+-- 7. SMART AUTO TOWER (Elevator + Start + ANTI-STUCK EFISIEN)
 task.spawn(function()
     while task.wait(1) do 
         if AutoTower then
@@ -285,26 +278,44 @@ task.spawn(function()
                         and hud.Frame.trio:FindFirstChild("tower") 
                         and hud.Frame.trio.tower:FindFirstChild("caption")
 
-                    if caption and string.match(string.upper(caption.Text), "TOWER") then
-                        task.wait(TowerDelay)
-                        if AutoTower then
+                    if caption and caption.Text then
+                        local capText = string.upper(caption.Text)
+
+                        -- SKENARIO 1: AYAM SEDANG DI COOP (Tombol = TOWER)
+                        if string.match(capText, "TOWER") then
+                            task.wait(TowerDelay) -- Satu-satunya delay utama sebelum kembali masuk tower
                             
-                            -- A. Tembak Elevator menggunakan memori lantai terakhir yang diingat
-                            if HighestFloorMemory > 0 then
-                                local elevatorEvent = Remotes and Remotes:FindFirstChild("TowerElevator")
-                                if elevatorEvent then
-                                    pcall(function() elevatorEvent:InvokeServer(HighestFloorMemory) end)
-                                    task.wait(0.2) -- Jeda sebentar sebelum menekan start
+                            if AutoTower then
+                                -- Elevator dulu
+                                if HighestFloorMemory > 0 then
+                                    local elevatorEvent = Remotes and Remotes:FindFirstChild("TowerElevator")
+                                    if elevatorEvent then
+                                        pcall(function() elevatorEvent:InvokeServer(HighestFloorMemory) end)
+                                        task.wait(0.2) 
+                                    end
+                                end
+
+                                -- Mulai Tower
+                                local towerStart = Remotes and Remotes:FindFirstChild("TowerStart")
+                                if towerStart then 
+                                    towerStart:InvokeServer() 
+                                    LastFloorChangeTime = tick() -- Mulai hitung waktu macet sejak mulai mendaki
                                 end
                             end
 
-                            -- B. Tembak Tower Start (Sebagai kelanjutan atau fallback jika elevator gagal)
-                            local towerStart = Remotes and Remotes:FindFirstChild("TowerStart")
-                            if towerStart then 
-                                towerStart:InvokeServer() 
+                        -- SKENARIO 2: AYAM SEDANG MENDAKI (Tombol = RETREAT)
+                        elseif string.match(capText, "RETREAT") then
+                            -- Jika lantai tidak berubah selama batas MaxStuckTime yang kamu input (Berarti macet)
+                            if (tick() - LastFloorChangeTime) > MaxStuckTime then
+                                local surrenderEvent = Remotes and Remotes:FindFirstChild("TowerSurrender")
+                                if surrenderEvent then
+                                    surrenderEvent:InvokeServer()
+                                    -- Tidak perlu tunggu di sini, teks akan jadi TOWER dan siklus masuk ke Skenario 1 (TowerDelay)
+                                    LastFloorChangeTime = tick()
+                                end
                             end
-
                         end
+                        
                     end
                 end
             end)
@@ -366,18 +377,22 @@ end)
 
 Window:AddToggle("Auto Buy Generator", false, function(state) AutoBuyGenerator = state end)
 Window:AddToggle("Auto Upgrade Generator", false, function(state) AutoUpgradeGenerator = state end)
-
 Window:AddToggle("Auto Upgrade Recycler", false, function(state) AutoUpgradeRecycler = state end)
 Window:AddToggle("Auto Expand Coop", false, function(state) AutoExpandCoop = state end)
 Window:AddToggle("Auto Rebirth (Smart Tracking)", false, function(state) AutoRebirth = state end)
 Window:AddToggle("Auto No Thanks (Tower)", false, function(state) AutoNoThanks = state end)
 
-Window:AddInput("Tower Delay (Detik)", "Angka (Def: 1)", function(text)
+Window:AddInput("Waktu Jeda Makan / Tower Delay", "Angka (Def: 1)", function(text)
     local num = tonumber(text)
     if num then TowerDelay = num else TowerDelay = 1 end
 end)
-Window:AddToggle("Auto Tower (Smart Elevator)", false, function(state) AutoTower = state end)
 
+Window:AddInput("Batas Toleransi Macet (Detik)", "Angka (Def: 10)", function(text)
+    local num = tonumber(text)
+    if num then MaxStuckTime = num else MaxStuckTime = 10 end
+end)
+
+Window:AddToggle("Auto Tower (Smart Elevator)", false, function(state) AutoTower = state end)
 Window:AddToggle("No Fog (Infinite View)", false, function(state) AutoNoFog = state end)
 Window:AddToggle("Anti-Lag (Memory Light)", false, function(state)
     AutoAntiLag = state
