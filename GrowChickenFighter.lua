@@ -181,12 +181,13 @@ end)
 
 -- 2. Auto Upgrade Generator
 task.spawn(function()
-    while task.wait(LoopInterval) do
+    -- Menggunakan 0.2 secara mandiri, terlepas dari LoopInterval utama
+    while task.wait(0.2) do 
         if AutoUpgradeGenerator and Remotes and Remotes:FindFirstChild("UpgradeGenerator") then
             for gen = 1, MaxGeneratorTier do
                 if not AutoUpgradeGenerator then break end
                 pcall(function() Remotes.UpgradeGenerator:InvokeServer(gen) end)
-                task.wait(0.25)
+                -- task.wait(0.25) dihapus agar eksekusi tier 1-6 berjalan kilat
             end
         end
     end
