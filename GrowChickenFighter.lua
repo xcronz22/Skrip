@@ -1,22 +1,21 @@
 -- ==========================================
--- GROW A CHICKEN FIGHTER - AUTOMATION SCRIPT
+-- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH
 -- ==========================================
 
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
 local Window = Library:MakeWindow("Grow a Chicken Fighter")
 
--- Services
+-- Services (TANPA VIRTUAL USER)
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Lighting = game:GetService("Lighting")
-local VirtualUser = game:GetService("VirtualUser")
 local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
 local Remotes = ReplicatedStorage:WaitForChild("Remotes", 5)
 
--- State Variables
-local MaxGeneratorTier = 6
+-- State Variables (Diatur dari UI)
+local MaxGeneratorTier = 1
 local AutoBuyGenerator = false
 local AutoUpgradeGenerator = false
 local AutoUpgradeRecycler = false
@@ -24,43 +23,30 @@ local AutoExpandCoop = false
 local AutoRebirth = false
 local AutoNoThanks = false
 local AutoTower = false
-local TowerDelay = 1 
+local TowerDelay = 10 -- Default baru: 10
 local AutoAntiLag = false
 local AutoNoFog = false
-local AutoAntiAFK = true
+local MaxStuckTime = 5 -- Default baru: 5
 
--- Variabel Memori Smart Tracking & Anti-Stuck
+-- Variabel Internal
+local LoopInterval = 1.2
+local UpgradeSpeed = 0.3
 local TargetRebirthFloor = nil
 local HighestFloorMemory = 0
-local LastFloorChangeTime = tick() -- Mencatat waktu terakhir lantai berubah
-local MaxStuckTime = 10 -- Batas waktu deteksi macet (bisa diubah di UI)
-
-local LoopInterval = 1.2
+local LastFloorChangeTime = tick()
 
 -- ==========================================
--- ADVANCED ANTI-AFK ENGINE
+-- ANTI-AFK STEALTH (BYPASS EXECUTOR)
+-- Berjalan otomatis di latar belakang, tak terdeteksi
 -- ==========================================
-task.spawn(function()
-    LocalPlayer.Idled:Connect(function()
-        if AutoAntiAFK then
-            VirtualUser:CaptureController()
-            VirtualUser:ClickButton2(Vector2.new())
-        end
-    end)
-    while task.wait(60) do
-        if AutoAntiAFK then
-            pcall(function()
-                VirtualUser:CaptureController()
-                VirtualUser:Button2Down(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
-                task.wait(0.1)
-                VirtualUser:Button2Up(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
-            end)
-        end
+pcall(function()
+    for _, conn in pairs(getconnections(LocalPlayer.Idled)) do
+        conn:Disable()
     end
 end)
 
 -- ==========================================
--- HELPER FUNCTION & SMART TRACKING (UPDATED)
+-- HELPER FUNCTION & SMART TRACKING (WORKSPACE & UI)
 -- ==========================================
 local CachedPlotNum = nil
 local MyTowerStack = nil
@@ -73,7 +59,7 @@ local function UpdateMaxFloorFromPart(part)
             local num = tonumber(fNum)
             if num and num > HighestFloorMemory then
                 HighestFloorMemory = num
-                LastFloorChangeTime = tick() -- Reset timer macet karena berhasil naik lantai
+                LastFloorChangeTime = tick()
             end
         end
     end
@@ -99,24 +85,18 @@ local function FindMyTowerStack()
     return nil
 end
 
--- ==========================================
--- MEMORY TRACKER LOOP (INSTANT & UI SCAN)
--- ==========================================
 task.spawn(function()
     while task.wait(0.2) do
-        -- 1. INSTANT WORKSPACE TRACKING (Event-Driven)
+        -- 1. INSTANT WORKSPACE TRACKING
         pcall(function()
             local currentTower = FindMyTowerStack()
-            
             if currentTower ~= MyTowerStack then
                 MyTowerStack = currentTower
                 if TowerConnection then TowerConnection:Disconnect() end
-                
                 if MyTowerStack then
                     for _, part in pairs(MyTowerStack:GetChildren()) do
                         UpdateMaxFloorFromPart(part)
                     end
-                    
                     TowerConnection = MyTowerStack.ChildAdded:Connect(function(child)
                         UpdateMaxFloorFromPart(child)
                     end)
@@ -128,7 +108,7 @@ task.spawn(function()
             end
         end)
 
-        -- 2. BACKUP TRACKING DARI UI REBIRTH
+        -- 2. UI REBIRTH TRACKING
         pcall(function()
             local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
             if playerGui then
@@ -148,10 +128,9 @@ task.spawn(function()
                             if curStr and reqStr then
                                 local uiFloor = tonumber(curStr)
                                 TargetRebirthFloor = tonumber(reqStr)
-                                
                                 if uiFloor and uiFloor > HighestFloorMemory then
                                     HighestFloorMemory = uiFloor
-                                    LastFloorChangeTime = tick() -- Reset timer macet
+                                    LastFloorChangeTime = tick()
                                 end
                             end
                         end
@@ -163,7 +142,7 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- LOOP OTOMASI REMOTE
+-- LOOP OTOMASI REMOTE (KECEPATAN MURNI)
 -- ==========================================
 
 -- 1. Auto Buy Generator
@@ -173,21 +152,18 @@ task.spawn(function()
             for gen = 1, MaxGeneratorTier do
                 if not AutoBuyGenerator then break end
                 pcall(function() Remotes.BuyGenerator:InvokeServer(gen) end)
-                task.wait(0.25)
             end
         end
     end
 end)
 
--- 2. Auto Upgrade Generator
+-- 2. Auto Upgrade Generator (Kecepatan Terpisah)
 task.spawn(function()
-    -- Menggunakan 0.3 secara mandiri, terlepas dari LoopInterval utama
-    while task.wait(0.3) do 
+    while task.wait(UpgradeSpeed) do
         if AutoUpgradeGenerator and Remotes and Remotes:FindFirstChild("UpgradeGenerator") then
             for gen = 1, MaxGeneratorTier do
                 if not AutoUpgradeGenerator then break end
                 pcall(function() Remotes.UpgradeGenerator:InvokeServer(gen) end)
-                -- task.wait(0.25) dihapus agar eksekusi tier 1-6 berjalan kilat
             end
         end
     end
@@ -211,7 +187,7 @@ task.spawn(function()
     end
 end)
 
--- 5. SMART AUTO REBIRTH + FALLBACK
+-- 5. SMART AUTO REBIRTH
 task.spawn(function()
     while task.wait(LoopInterval) do
         if AutoRebirth then
@@ -223,14 +199,12 @@ task.spawn(function()
                             surrenderEvent:InvokeServer()
                             task.wait(1) 
                         end
-                        
                         local rebirthEvent = Remotes:FindFirstChild("Rebirth")
                         if rebirthEvent then
                             rebirthEvent:InvokeServer()
-                            
                             TargetRebirthFloor = nil 
                             HighestFloorMemory = 0
-                            LastFloorChangeTime = tick() -- Reset jam
+                            LastFloorChangeTime = tick()
                         end
                     end)
                 end
@@ -247,7 +221,7 @@ task.spawn(function()
     end
 end)
 
--- 6. Auto No Thanks (Tower Continue Decline)
+-- 6. Auto No Thanks
 task.spawn(function()
     while task.wait(LoopInterval) do
         if AutoNoThanks then
@@ -265,7 +239,7 @@ task.spawn(function()
     end
 end)
 
--- 7. SMART AUTO TOWER (Elevator + Start + ANTI-STUCK EFISIEN)
+-- 7. SMART AUTO TOWER (Elevator + Anti-Stuck)
 task.spawn(function()
     while task.wait(1) do 
         if AutoTower then
@@ -282,12 +256,9 @@ task.spawn(function()
                     if caption and caption.Text then
                         local capText = string.upper(caption.Text)
 
-                        -- SKENARIO 1: AYAM SEDANG DI COOP (Tombol = TOWER)
                         if string.match(capText, "TOWER") then
-                            task.wait(TowerDelay) -- Satu-satunya delay utama sebelum kembali masuk tower
-                            
+                            task.wait(TowerDelay) 
                             if AutoTower then
-                                -- Elevator dulu
                                 if HighestFloorMemory > 0 then
                                     local elevatorEvent = Remotes and Remotes:FindFirstChild("TowerElevator")
                                     if elevatorEvent then
@@ -296,27 +267,22 @@ task.spawn(function()
                                     end
                                 end
 
-                                -- Mulai Tower
                                 local towerStart = Remotes and Remotes:FindFirstChild("TowerStart")
                                 if towerStart then 
                                     towerStart:InvokeServer() 
-                                    LastFloorChangeTime = tick() -- Mulai hitung waktu macet sejak mulai mendaki
+                                    LastFloorChangeTime = tick()
                                 end
                             end
 
-                        -- SKENARIO 2: AYAM SEDANG MENDAKI (Tombol = RETREAT)
                         elseif string.match(capText, "RETREAT") then
-                            -- Jika lantai tidak berubah selama batas MaxStuckTime yang kamu input (Berarti macet)
                             if (tick() - LastFloorChangeTime) > MaxStuckTime then
                                 local surrenderEvent = Remotes and Remotes:FindFirstChild("TowerSurrender")
                                 if surrenderEvent then
                                     surrenderEvent:InvokeServer()
-                                    -- Tidak perlu tunggu di sini, teks akan jadi TOWER dan siklus masuk ke Skenario 1 (TowerDelay)
                                     LastFloorChangeTime = tick()
                                 end
                             end
                         end
-                        
                     end
                 end
             end)
@@ -362,17 +328,17 @@ end)
 -- UI MENU & TOGGLES
 -- ==========================================
 
-Window:AddInput("Batas Maksimal Generator (1-6)", "Ketik 1 - 6 (Def: 6)", function(text)
+Window:AddInput("Batas Maksimal Generator (1-6)", "Ketik 1 - 6 (Def: 1)", function(text)
     local num = tonumber(text)
     if num then
         num = math.floor(num)
         if num >= 1 and num <= 6 then
             MaxGeneratorTier = num
         else
-            MaxGeneratorTier = 6 
+            MaxGeneratorTier = 1
         end
     else
-        MaxGeneratorTier = 6 
+        MaxGeneratorTier = 1
     end
 end)
 
@@ -383,14 +349,14 @@ Window:AddToggle("Auto Expand Coop", false, function(state) AutoExpandCoop = sta
 Window:AddToggle("Auto Rebirth (Smart Tracking)", false, function(state) AutoRebirth = state end)
 Window:AddToggle("Auto No Thanks (Tower)", false, function(state) AutoNoThanks = state end)
 
-Window:AddInput("Waktu Jeda Makan / Tower Delay", "Angka (Def: 1)", function(text)
+Window:AddInput("Waktu Jeda Makan / Tower Delay", "Angka (Def: 10)", function(text)
     local num = tonumber(text)
-    if num then TowerDelay = num else TowerDelay = 1 end
+    if num then TowerDelay = num else TowerDelay = 10 end
 end)
 
-Window:AddInput("Batas Toleransi Macet (Detik)", "Angka (Def: 10)", function(text)
+Window:AddInput("Batas Toleransi Macet (Detik)", "Angka (Def: 5)", function(text)
     local num = tonumber(text)
-    if num then MaxStuckTime = num else MaxStuckTime = 10 end
+    if num then MaxStuckTime = num else MaxStuckTime = 5 end
 end)
 
 Window:AddToggle("Auto Tower (Smart Elevator)", false, function(state) AutoTower = state end)
@@ -399,4 +365,3 @@ Window:AddToggle("Anti-Lag (Memory Light)", false, function(state)
     AutoAntiLag = state
     if state then MemoryLightAntiLag() end
 end)
-Window:AddToggle("Advanced Anti-AFK", true, function(state) AutoAntiAFK = state end)
