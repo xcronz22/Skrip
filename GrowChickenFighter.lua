@@ -62,7 +62,7 @@ task.spawn(function()
                 local hrp = character and character:FindFirstChild("HumanoidRootPart")
                 
                 if humanoid and hrp then
-                    -- 1. Selalu update ingatan posisi Feeder jika wujudnya ada di Workspace
+                    -- 1. Selalu update ingatan posisi Feeder
                     local coopUI = Workspace:FindFirstChild("CoopUI") or (Workspace:FindFirstChild("Coops") and Workspace.Coops:FindFirstChild("CoopUI"))
                     if coopUI then
                         local feeder = coopUI:FindFirstChild("Feeder")
@@ -71,7 +71,7 @@ task.spawn(function()
                         end
                     end
                     
-                    -- 2. Gunakan memori posisi Feeder untuk navigasi (Mencegah error saat Rebirth)
+                    -- 2. Gunakan memori posisi Feeder untuk navigasi
                     if SavedFeederPosition then
                         local distance = (hrp.Position - SavedFeederPosition).Magnitude
                         
@@ -81,29 +81,46 @@ task.spawn(function()
                             IsInFeederZone = false -- Hentikan Auto Buy & Upgrade!
                             
                             task.spawn(function()
-                                -- Jalan keluar sejauh 10 sampai 20 stud
-                                local randDistOut = math.random(100, 200) / 10 
+                                -- Jalan keluar sejauh 30 sampai 60 stud
+                                local randDistOut = math.random(300, 600) / 10 
                                 local randAngleOut = math.random() * math.pi * 2
                                 local gabutPos = SavedFeederPosition + Vector3.new(math.cos(randAngleOut) * randDistOut, 0, math.sin(randAngleOut) * randDistOut)
                                 
                                 humanoid:MoveTo(gabutPos)
                                 
-                                -- Tunggu karakter sampai
+                                -- Tunggu karakter sampai di titik 60 stud (maksimal batas tunggu 8 detik)
                                 local waitTime = 0
-                                while (hrp.Position - gabutPos).Magnitude > 2 and waitTime < 3 do
+                                while (hrp.Position - gabutPos).Magnitude > 2 and waitTime < 8 do
                                     task.wait(0.5)
                                     waitTime = waitTime + 0.5
                                 end
                                 
-                                -- Aksi Gabut 1 sampai 2 detik (Diam atau Muter dikit)
-                                local isMuter = math.random(1, 2) == 1
-                                if isMuter then
-                                    local muterPos = gabutPos + Vector3.new(math.random(-3, 3), 0, math.random(-3, 3))
-                                    humanoid:MoveTo(muterPos)
+                                -- AKSI GABUT 3 sampai 6 detik (Muter, Loncat, atau Diam)
+                                local gabutDuration = math.random(3, 6)
+                                local gabutTimer = 0
+                                
+                                while gabutTimer < gabutDuration do
+                                    local actionChoice = math.random(1, 3)
+                                    
+                                    if actionChoice == 1 then
+                                        -- Aksi 1: Diam
+                                        task.wait(1)
+                                        gabutTimer = gabutTimer + 1
+                                    elseif actionChoice == 2 then
+                                        -- Aksi 2: Muter-muter / Geser dikit
+                                        local muterPos = hrp.Position + Vector3.new(math.random(-6, 6), 0, math.random(-6, 6))
+                                        humanoid:MoveTo(muterPos)
+                                        task.wait(1)
+                                        gabutTimer = gabutTimer + 1
+                                    elseif actionChoice == 3 then
+                                        -- Aksi 3: Loncat
+                                        humanoid.Jump = true
+                                        task.wait(1)
+                                        gabutTimer = gabutTimer + 1
+                                    end
                                 end
                                 
-                                task.wait(math.random(10, 20) / 10) 
-                                
+                                -- Selesai gabut, kembalikan kontrol
                                 IsGabut = false
                                 NextGabutTime = tick() + math.random(300, 600) 
                             end)
@@ -131,7 +148,6 @@ task.spawn(function()
                             end
                         end
                     else
-                        -- Jika skrip baru nyala dan belum pernah lihat Feeder sama sekali
                         IsInFeederZone = false 
                     end
                 end
