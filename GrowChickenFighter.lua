@@ -1,5 +1,5 @@
 -- ==========================================
--- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH + ANTI-PUSH V3
+-- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH V5 (NATURAL MOVEMENT & DELAY)
 -- ==========================================
 
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
@@ -28,12 +28,15 @@ local AutoAntiLag = false
 local AutoNoFog = false
 local MaxStuckTime = 5 
 
--- Variabel Internal
+-- Variabel Internal & Memori
 local LoopInterval = 1.2
-local UpgradeSpeed = 0.4
 local TargetRebirthFloor = nil
 local HighestFloorMemory = 0
 local LastFloorChangeTime = tick()
+
+-- Variabel Zona Feeder & Pergerakan Natural
+local IsInFeederZone = false
+local NextRandomMoveTime = 0
 
 -- ==========================================
 -- ANTI-AFK STEALTH (BYPASS EXECUTOR)
@@ -45,7 +48,57 @@ pcall(function()
 end)
 
 -- ==========================================
--- HELPER FUNCTION & SMART TRACKING (WORKSPACE & UI)
+-- LOGIKA ZONA AMAN & PERGERAKAN NATURAL (WANDERING)
+-- ==========================================
+task.spawn(function()
+    while task.wait(0.2) do
+        if MaxGeneratorTier == 1 and (AutoBuyGenerator or AutoUpgradeGenerator) then
+            pcall(function()
+                local character = LocalPlayer.Character
+                local humanoid = character and character:FindFirstChild("Humanoid")
+                local hrp = character and character:FindFirstChild("HumanoidRootPart")
+                
+                if humanoid and hrp then
+                    local coopUI = Workspace:FindFirstChild("CoopUI") or (Workspace:FindFirstChild("Coops") and Workspace.Coops:FindFirstChild("CoopUI"))
+                    
+                    if coopUI then
+                        local feeder = coopUI:FindFirstChild("Feeder")
+                        if feeder then
+                            local feederPos = feeder:GetPivot().Position
+                            local distance = (hrp.Position - feederPos).Magnitude
+                            
+                            if distance > 4 then
+                                IsInFeederZone = false
+                                humanoid:MoveTo(feederPos)
+                            else
+                                IsInFeederZone = true 
+                                
+                                if tick() >= NextRandomMoveTime then
+                                    local randDist = math.random(10, 30) / 10 
+                                    local randAngle = math.random() * math.pi * 2
+                                    local offsetX = math.cos(randAngle) * randDist
+                                    local offsetZ = math.sin(randAngle) * randDist
+                                    
+                                    local targetPos = hrp.Position + Vector3.new(offsetX, 0, offsetZ)
+                                    
+                                    if (targetPos - feederPos).Magnitude <= 4 then
+                                        humanoid:MoveTo(targetPos)
+                                        NextRandomMoveTime = tick() + math.random(3, 8)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+        else
+            IsInFeederZone = true 
+        end
+    end
+end)
+
+-- ==========================================
+-- HELPER FUNCTION & SMART TRACKING (3 SUMBER)
 -- ==========================================
 local CachedPlotNum = nil
 local MyTowerStack = nil
@@ -86,7 +139,7 @@ end
 
 task.spawn(function()
     while task.wait(0.2) do
-        -- 1. INSTANT WORKSPACE TRACKING
+        -- SUMBER 1: INSTANT WORKSPACE TRACKING
         pcall(function()
             local currentTower = FindMyTowerStack()
             if currentTower ~= MyTowerStack then
@@ -107,7 +160,7 @@ task.spawn(function()
             end
         end)
 
-        -- 2. UI REBIRTH TRACKING
+        -- SUMBER 2: UI REBIRTH TRACKING
         pcall(function()
             local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
             if playerGui then
@@ -137,71 +190,56 @@ task.spawn(function()
                 end
             end
         end)
+
+        -- SUMBER 3: LEADERBOARD TRACKING
+        pcall(function()
+            local leaderstats = LocalPlayer:FindFirstChild("leaderstats")
+            if leaderstats then
+                local towerStat = leaderstats:FindFirstChild("Tower") or leaderstats:FindFirstChild("Floor")
+                if towerStat then
+                    local floorVal = tonumber(towerStat.Value)
+                    if floorVal and floorVal > HighestFloorMemory then
+                        HighestFloorMemory = floorVal
+                        LastFloorChangeTime = tick()
+                    end
+                end
+            end
+        end)
     end
 end)
 
 -- ==========================================
--- LOOP OTOMASI REMOTE (KECEPATAN MURNI)
+-- LOOP OTOMASI REMOTE 
 -- ==========================================
 
 -- 1. Auto Buy Generator
 task.spawn(function()
     while task.wait(LoopInterval) do
         if AutoBuyGenerator and Remotes and Remotes:FindFirstChild("BuyGenerator") then
-            for gen = 1, MaxGeneratorTier do
-                if not AutoBuyGenerator then break end
-                pcall(function() Remotes.BuyGenerator:InvokeServer(gen) end)
+            if MaxGeneratorTier > 1 or IsInFeederZone then
+                for gen = 1, MaxGeneratorTier do
+                    if not AutoBuyGenerator then break end
+                    pcall(function() Remotes.BuyGenerator:InvokeServer(gen) end)
+                end
             end
         end
     end
 end)
 
--- 2. Auto Upgrade Generator (Syarat Jarak Zona Aman)
+-- 2. Auto Upgrade Generator (DENGAN JEDA ACAK MANUSIAWI 0.4 - 1.0 Detik)
 task.spawn(function()
-    while task.wait(UpgradeSpeed) do
+    while true do
+        -- Angka acak dari 40 sampai 100 dibagi 100, menghasilkan 0.4 hingga 1.0 detik
+        local randomHumanDelay = math.random(40, 120) / 100
+        task.wait(randomHumanDelay)
+        
         if AutoUpgradeGenerator and Remotes and Remotes:FindFirstChild("UpgradeGenerator") then
-            
-            local isSafeToFire = true -- Default: Aman untuk menembak remote
-            
-            -- LOGIKA ANTI-PUSH & ZONA AMAN (Hanya aktif jika argumen == 1)
-            if MaxGeneratorTier == 1 then
-                pcall(function()
-                    local character = LocalPlayer.Character
-                    local humanoid = character and character:FindFirstChild("Humanoid")
-                    local hrp = character and character:FindFirstChild("HumanoidRootPart")
-                    
-                    if humanoid and hrp then
-                        local coopUI = Workspace:FindFirstChild("CoopUI")
-                        if not coopUI then
-                            local coops = Workspace:FindFirstChild("Coops")
-                            if coops then coopUI = coops:FindFirstChild("CoopUI") end
-                        end
-                        
-                        if coopUI then
-                            local feeder = coopUI:FindFirstChild("Feeder")
-                            if feeder then
-                                local feederPos = feeder:GetPivot().Position
-                                local distance = (hrp.Position - feederPos).Magnitude
-                                
-                                -- CEK JARAK 4 STUD
-                                if distance > 4 then
-                                    isSafeToFire = false -- Karakter di luar zona, JANGAN tembak remote!
-                                    humanoid:MoveTo(feederPos) -- Suruh karakter jalan balik ke Feeder
-                                end
-                            end
-                        end
-                    end
-                end)
-            end
-
-            -- Eksekusi Remote Upgrade HANYA jika syarat zona aman terpenuhi
-            if isSafeToFire then
+            if MaxGeneratorTier > 1 or IsInFeederZone then
                 for gen = 1, MaxGeneratorTier do
                     if not AutoUpgradeGenerator then break end
                     pcall(function() Remotes.UpgradeGenerator:InvokeServer(gen) end)
                 end
             end
-            
         end
     end
 end)
