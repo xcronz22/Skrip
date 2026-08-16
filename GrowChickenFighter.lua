@@ -1,5 +1,5 @@
 -- ==========================================
--- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH V12 (AFK SIMULATION REFINED)
+-- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH V14 (NATURAL AFK CYCLE)
 -- ==========================================
 
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
@@ -41,7 +41,8 @@ local SavedCoopSignPosition = nil
 local NextRandomMoveTime = tick()
 
 local IsGabut = false
-local NextGabutTime = tick() + math.random(300, 420) -- Siklus 5-7 menit
+-- Update Siklus: 3 sampai 5 menit (180 - 300 detik)
+local NextGabutTime = tick() + math.random(180, 300) 
 
 -- ==========================================
 -- ANTI-AFK STEALTH (BYPASS EXECUTOR)
@@ -105,7 +106,7 @@ task.spawn(function()
                     if SavedButtonPosition then
                         local flatButtonPos = Vector3.new(SavedButtonPosition.X, hrp.Position.Y, SavedButtonPosition.Z)
                         
-                        -- SIKLUS AKTIF (Mengecek COOP Board per 5-7 menit)
+                        -- SIKLUS AKTIF (Mengecek COOP Board per 3-5 menit)
                         if not IsGabut and tick() >= NextGabutTime then
                             IsGabut = true
                             
@@ -123,15 +124,15 @@ task.spawn(function()
                                         walkTimer = walkTimer + 0.5
                                     end
                                     
-                                    -- 2. Diam membaca statistik (3 sampai 5 detik saja)
-                                    task.wait(math.random(3, 5))
+                                    -- 2. Diam membaca statistik (UPDATE: 5 sampai 10 detik)
+                                    task.wait(math.random(5, 10))
                                     
                                     -- 3. Langsung kembali ke Tombol Upgrade
                                     humanoid:MoveTo(flatButtonPos)
                                 end
                                 
                                 IsGabut = false
-                                NextGabutTime = tick() + math.random(300, 420) -- Reset siklus 5-7 menit
+                                NextGabutTime = tick() + math.random(180, 300) -- Reset siklus 3-5 menit
                             end)
                         end
 
@@ -167,6 +168,8 @@ task.spawn(function()
         end
     end
 end)
+
+-- [Sisa fungsi Helper, Remote, UI tetap sama seperti V10/V11]
 
 -- ==========================================
 -- HELPER FUNCTION & SMART TRACKING (3 SUMBER)
@@ -300,7 +303,7 @@ end)
 -- 2. Auto Upgrade Generator (JEDA ACAK & SYARAT ZONA TOMBOL)
 task.spawn(function()
     while true do
-        local randomHumanDelay = math.random(40, 120) / 100
+        local randomHumanDelay = math.random(50, 150) / 100
         task.wait(randomHumanDelay)
         
         if AutoUpgradeGenerator and Remotes and Remotes:FindFirstChild("UpgradeGenerator") then
