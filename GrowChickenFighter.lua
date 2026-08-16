@@ -1,5 +1,5 @@
 -- ==========================================
--- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH V7 (GABUT + FEEDER MEMORY)
+-- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH V9 (SAFE WANDERING)
 -- ==========================================
 
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
@@ -34,12 +34,10 @@ local TargetRebirthFloor = nil
 local HighestFloorMemory = 0
 local LastFloorChangeTime = tick()
 
--- Variabel Zona Feeder, Memori Posisi, Gerak Natural & Fase Gabut
+-- Variabel Zona Feeder & Memori Posisi
 local IsInFeederZone = false
-local SavedFeederPosition = nil -- Mengingat posisi Feeder sebelum Rebirth
+local SavedFeederPosition = nil 
 local NextRandomMoveTime = tick()
-local IsGabut = false
-local NextGabutTime = tick() + math.random(300, 600) -- Waktu Gabut: 5 sampai 10 menit
 
 -- ==========================================
 -- ANTI-AFK STEALTH (BYPASS EXECUTOR)
@@ -51,7 +49,7 @@ pcall(function()
 end)
 
 -- ==========================================
--- LOGIKA ZONA AMAN, PERGERAKAN NATURAL & FASE GABUT
+-- LOGIKA ZONA AMAN & PERGERAKAN NATURAL
 -- ==========================================
 task.spawn(function()
     while task.wait(0.2) do
@@ -75,76 +73,20 @@ task.spawn(function()
                     if SavedFeederPosition then
                         local distance = (hrp.Position - SavedFeederPosition).Magnitude
                         
-                        -- SISTEM FASE GABUT (Tiap 5 - 10 Menit)
-                        if not IsGabut and tick() >= NextGabutTime then
-                            IsGabut = true
-                            IsInFeederZone = false -- Hentikan Auto Buy & Upgrade!
+                        if distance > 4 then
+                            IsInFeederZone = false -- Kunci remote, tarik karakter masuk ke tengah
+                            humanoid:MoveTo(SavedFeederPosition) 
+                        else
+                            IsInFeederZone = true -- AMAN, Boleh Auto Buy & Upgrade!
                             
-                            task.spawn(function()
-                                -- Jalan keluar sejauh 30 sampai 60 stud
-                                local randDistOut = math.random(300, 600) / 10 
-                                local randAngleOut = math.random() * math.pi * 2
-                                local gabutPos = SavedFeederPosition + Vector3.new(math.cos(randAngleOut) * randDistOut, 0, math.sin(randAngleOut) * randDistOut)
+                            -- Gerak acak (2-10 stud, tiap 10-20 detik)
+                            if tick() >= NextRandomMoveTime then
+                                local randDistIn = math.random(20, 100) / 10 -- 2.0 sampai 10.0 stud
+                                local randAngleIn = math.random() * math.pi * 2
+                                local targetPos = hrp.Position + Vector3.new(math.cos(randAngleIn) * randDistIn, 0, math.sin(randAngleIn) * randDistIn)
                                 
-                                humanoid:MoveTo(gabutPos)
-                                
-                                -- Tunggu karakter sampai di titik 60 stud (maksimal batas tunggu 8 detik)
-                                local waitTime = 0
-                                while (hrp.Position - gabutPos).Magnitude > 2 and waitTime < 8 do
-                                    task.wait(0.5)
-                                    waitTime = waitTime + 0.5
-                                end
-                                
-                                -- AKSI GABUT 3 sampai 6 detik (Muter, Loncat, atau Diam)
-                                local gabutDuration = math.random(3, 6)
-                                local gabutTimer = 0
-                                
-                                while gabutTimer < gabutDuration do
-                                    local actionChoice = math.random(1, 3)
-                                    
-                                    if actionChoice == 1 then
-                                        -- Aksi 1: Diam
-                                        task.wait(1)
-                                        gabutTimer = gabutTimer + 1
-                                    elseif actionChoice == 2 then
-                                        -- Aksi 2: Muter-muter / Geser dikit
-                                        local muterPos = hrp.Position + Vector3.new(math.random(-6, 6), 0, math.random(-6, 6))
-                                        humanoid:MoveTo(muterPos)
-                                        task.wait(1)
-                                        gabutTimer = gabutTimer + 1
-                                    elseif actionChoice == 3 then
-                                        -- Aksi 3: Loncat
-                                        humanoid.Jump = true
-                                        task.wait(1)
-                                        gabutTimer = gabutTimer + 1
-                                    end
-                                end
-                                
-                                -- Selesai gabut, kembalikan kontrol
-                                IsGabut = false
-                                NextGabutTime = tick() + math.random(300, 600) 
-                            end)
-                        end
-
-                        -- PENGECEKAN NORMAL
-                        if not IsGabut then
-                            if distance > 4 then
-                                IsInFeederZone = false -- Kunci remote, tarik karakter masuk!
-                                humanoid:MoveTo(SavedFeederPosition) 
-                            else
-                                IsInFeederZone = true -- AMAN, Boleh Auto Buy & Upgrade!
-                                
-                                -- Gerak acak DI DALAM (2-4 stud, tiap 10-20 detik)
-                                if tick() >= NextRandomMoveTime then
-                                    local randDistIn = math.random(20, 40) / 10 
-                                    local randAngleIn = math.random() * math.pi * 2
-                                    local targetPos = hrp.Position + Vector3.new(math.cos(randAngleIn) * randDistIn, 0, math.sin(randAngleIn) * randDistIn)
-                                    
-                                    if (targetPos - SavedFeederPosition).Magnitude <= 4 then
-                                        humanoid:MoveTo(targetPos)
-                                        NextRandomMoveTime = tick() + math.random(10, 20)
-                                    end
-                                end
+                                humanoid:MoveTo(targetPos)
+                                NextRandomMoveTime = tick() + math.random(10, 20)
                             end
                         end
                     else
@@ -273,11 +215,10 @@ end)
 -- LOOP OTOMASI REMOTE 
 -- ==========================================
 
--- 1. Auto Buy Generator (KEMBALI MENGGUNAKAN SYARAT ZONA)
+-- 1. Auto Buy Generator (SYARAT ZONA)
 task.spawn(function()
     while task.wait(LoopInterval) do
         if AutoBuyGenerator and Remotes and Remotes:FindFirstChild("BuyGenerator") then
-            -- Tembak HANYA jika MaxGenerator > 1 ATAU sedang berada di dalam area memori Feeder
             if MaxGeneratorTier > 1 or IsInFeederZone then
                 for gen = 1, MaxGeneratorTier do
                     if not AutoBuyGenerator then break end
@@ -295,7 +236,6 @@ task.spawn(function()
         task.wait(randomHumanDelay)
         
         if AutoUpgradeGenerator and Remotes and Remotes:FindFirstChild("UpgradeGenerator") then
-            -- Tembak HANYA jika MaxGenerator > 1 ATAU sedang berada di dalam area memori Feeder
             if MaxGeneratorTier > 1 or IsInFeederZone then
                 for gen = 1, MaxGeneratorTier do
                     if not AutoUpgradeGenerator then break end
