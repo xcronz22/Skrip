@@ -1,5 +1,5 @@
 -- ==========================================
--- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH
+-- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH + ANTI-PUSH
 -- ==========================================
 
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
@@ -23,10 +23,10 @@ local AutoExpandCoop = false
 local AutoRebirth = false
 local AutoNoThanks = false
 local AutoTower = false
-local TowerDelay = 10 -- Default baru: 10
+local TowerDelay = 10 
 local AutoAntiLag = false
 local AutoNoFog = false
-local MaxStuckTime = 5 -- Default baru: 5
+local MaxStuckTime = 5 
 
 -- Variabel Internal
 local LoopInterval = 1.2
@@ -157,10 +157,40 @@ task.spawn(function()
     end
 end)
 
--- 2. Auto Upgrade Generator (Kecepatan Terpisah)
+-- 2. Auto Upgrade Generator (Kecepatan Terpisah + Anti-Push Feeder)
 task.spawn(function()
     while task.wait(UpgradeSpeed) do
         if AutoUpgradeGenerator and Remotes and Remotes:FindFirstChild("UpgradeGenerator") then
+            
+            -- LOGIKA ANTI-PUSH: Berjalan otomatis ke Feeder jika argumen == 1
+            if MaxGeneratorTier == 1 then
+                pcall(function()
+                    local character = LocalPlayer.Character
+                    local humanoid = character and character:FindFirstChild("Humanoid")
+                    local hrp = character and character:FindFirstChild("HumanoidRootPart")
+                    
+                    if humanoid and hrp then
+                        -- Cari folder CoopUI (berjaga-jaga jika ada di Workspace langsung atau di dalam folder Coops)
+                        local coopUI = Workspace:FindFirstChild("CoopUI")
+                        if not coopUI then
+                            local coops = Workspace:FindFirstChild("Coops")
+                            if coops then coopUI = coops:FindFirstChild("CoopUI") end
+                        end
+                        
+                        if coopUI then
+                            local feeder = coopUI:FindFirstChild("Feeder")
+                            if feeder and feeder:IsA("BasePart") then
+                                -- Jika jarak ditarik lebih dari 5 stud dari Feeder, paksa jalan kembali
+                                if (hrp.Position - feeder.Position).Magnitude > 3 then
+                                    humanoid:MoveTo(feeder.Position)
+                                end
+                            end
+                        end
+                    end
+                end)
+            end
+
+            -- Eksekusi Remote Upgrade
             for gen = 1, MaxGeneratorTier do
                 if not AutoUpgradeGenerator then break end
                 pcall(function() Remotes.UpgradeGenerator:InvokeServer(gen) end)
