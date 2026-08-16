@@ -79,14 +79,14 @@ task.spawn(function()
                         else
                             IsInFeederZone = true -- AMAN, Boleh Auto Buy & Upgrade!
                             
-                            -- Gerak acak (2-10 stud, tiap 10-20 detik)
+                            -- Gerak acak (2-4 stud, tiap 15-30 detik)
                             if tick() >= NextRandomMoveTime then
-                                local randDistIn = math.random(20, 100) / 10 -- 2.0 sampai 10.0 stud
+                                local randDistIn = math.random(20, 40) / 10 -- 2.0 sampai 4.0 stud
                                 local randAngleIn = math.random() * math.pi * 2
                                 local targetPos = hrp.Position + Vector3.new(math.cos(randAngleIn) * randDistIn, 0, math.sin(randAngleIn) * randDistIn)
                                 
                                 humanoid:MoveTo(targetPos)
-                                NextRandomMoveTime = tick() + math.random(10, 20)
+                                NextRandomMoveTime = tick() + math.random(15, 30)
                             end
                         end
                     else
