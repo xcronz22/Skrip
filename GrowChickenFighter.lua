@@ -83,7 +83,7 @@ task.spawn(function()
                                     
                                     if (targetPos - feederPos).Magnitude <= 4 then
                                         humanoid:MoveTo(targetPos)
-                                        NextRandomMoveTime = tick() + math.random(3, 8)
+                                        NextRandomMoveTime = tick() + math.random(10, 20)
                                     end
                                 end
                             end
