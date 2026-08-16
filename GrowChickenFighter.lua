@@ -1,5 +1,5 @@
 -- ==========================================
--- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH + ANTI-PUSH V2
+-- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH + ANTI-PUSH V3
 -- ==========================================
 
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
@@ -30,7 +30,7 @@ local MaxStuckTime = 5
 
 -- Variabel Internal
 local LoopInterval = 1.2
-local UpgradeSpeed = 0.3
+local UpgradeSpeed = 0.4
 local TargetRebirthFloor = nil
 local HighestFloorMemory = 0
 local LastFloorChangeTime = tick()
@@ -156,12 +156,14 @@ task.spawn(function()
     end
 end)
 
--- 2. Auto Upgrade Generator (Kecepatan Terpisah + Anti-Push Feeder V2)
+-- 2. Auto Upgrade Generator (Syarat Jarak Zona Aman)
 task.spawn(function()
     while task.wait(UpgradeSpeed) do
         if AutoUpgradeGenerator and Remotes and Remotes:FindFirstChild("UpgradeGenerator") then
             
-            -- LOGIKA ANTI-PUSH: Berjalan otomatis ke Feeder jika argumen == 1
+            local isSafeToFire = true -- Default: Aman untuk menembak remote
+            
+            -- LOGIKA ANTI-PUSH & ZONA AMAN (Hanya aktif jika argumen == 1)
             if MaxGeneratorTier == 1 then
                 pcall(function()
                     local character = LocalPlayer.Character
@@ -169,7 +171,6 @@ task.spawn(function()
                     local hrp = character and character:FindFirstChild("HumanoidRootPart")
                     
                     if humanoid and hrp then
-                        -- Cari folder CoopUI (Langsung di Workspace atau di dalam folder Coops)
                         local coopUI = Workspace:FindFirstChild("CoopUI")
                         if not coopUI then
                             local coops = Workspace:FindFirstChild("Coops")
@@ -179,12 +180,13 @@ task.spawn(function()
                         if coopUI then
                             local feeder = coopUI:FindFirstChild("Feeder")
                             if feeder then
-                                -- MENGGUNAKAN GetPivot() KARENA FEEDER ADALAH SEBUAH MODEL
                                 local feederPos = feeder:GetPivot().Position
+                                local distance = (hrp.Position - feederPos).Magnitude
                                 
-                                -- CEK JARAK 3 STUD
-                                if (hrp.Position - feederPos).Magnitude > 3 then
-                                    humanoid:MoveTo(feederPos)
+                                -- CEK JARAK 4 STUD
+                                if distance > 4 then
+                                    isSafeToFire = false -- Karakter di luar zona, JANGAN tembak remote!
+                                    humanoid:MoveTo(feederPos) -- Suruh karakter jalan balik ke Feeder
                                 end
                             end
                         end
@@ -192,11 +194,14 @@ task.spawn(function()
                 end)
             end
 
-            -- Eksekusi Remote Upgrade
-            for gen = 1, MaxGeneratorTier do
-                if not AutoUpgradeGenerator then break end
-                pcall(function() Remotes.UpgradeGenerator:InvokeServer(gen) end)
+            -- Eksekusi Remote Upgrade HANYA jika syarat zona aman terpenuhi
+            if isSafeToFire then
+                for gen = 1, MaxGeneratorTier do
+                    if not AutoUpgradeGenerator then break end
+                    pcall(function() Remotes.UpgradeGenerator:InvokeServer(gen) end)
+                end
             end
+            
         end
     end
 end)
