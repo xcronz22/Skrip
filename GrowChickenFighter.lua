@@ -1,5 +1,5 @@
 -- ==========================================
--- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH V5 (NATURAL MOVEMENT & DELAY)
+-- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH V7 (GABUT + FEEDER MEMORY)
 -- ==========================================
 
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
@@ -28,15 +28,18 @@ local AutoAntiLag = false
 local AutoNoFog = false
 local MaxStuckTime = 5 
 
--- Variabel Internal & Memori
+-- Variabel Internal & Memori Tower
 local LoopInterval = 1.2
 local TargetRebirthFloor = nil
 local HighestFloorMemory = 0
 local LastFloorChangeTime = tick()
 
--- Variabel Zona Feeder & Pergerakan Natural
+-- Variabel Zona Feeder, Memori Posisi, Gerak Natural & Fase Gabut
 local IsInFeederZone = false
-local NextRandomMoveTime = 0
+local SavedFeederPosition = nil -- Mengingat posisi Feeder sebelum Rebirth
+local NextRandomMoveTime = tick()
+local IsGabut = false
+local NextGabutTime = tick() + math.random(300, 600) -- Waktu Gabut: 5 sampai 10 menit
 
 -- ==========================================
 -- ANTI-AFK STEALTH (BYPASS EXECUTOR)
@@ -48,7 +51,7 @@ pcall(function()
 end)
 
 -- ==========================================
--- LOGIKA ZONA AMAN & PERGERAKAN NATURAL (WANDERING)
+-- LOGIKA ZONA AMAN, PERGERAKAN NATURAL & FASE GABUT
 -- ==========================================
 task.spawn(function()
     while task.wait(0.2) do
@@ -59,35 +62,77 @@ task.spawn(function()
                 local hrp = character and character:FindFirstChild("HumanoidRootPart")
                 
                 if humanoid and hrp then
+                    -- 1. Selalu update ingatan posisi Feeder jika wujudnya ada di Workspace
                     local coopUI = Workspace:FindFirstChild("CoopUI") or (Workspace:FindFirstChild("Coops") and Workspace.Coops:FindFirstChild("CoopUI"))
-                    
                     if coopUI then
                         local feeder = coopUI:FindFirstChild("Feeder")
                         if feeder then
-                            local feederPos = feeder:GetPivot().Position
-                            local distance = (hrp.Position - feederPos).Magnitude
+                            SavedFeederPosition = feeder:GetPivot().Position
+                        end
+                    end
+                    
+                    -- 2. Gunakan memori posisi Feeder untuk navigasi (Mencegah error saat Rebirth)
+                    if SavedFeederPosition then
+                        local distance = (hrp.Position - SavedFeederPosition).Magnitude
+                        
+                        -- SISTEM FASE GABUT (Tiap 5 - 10 Menit)
+                        if not IsGabut and tick() >= NextGabutTime then
+                            IsGabut = true
+                            IsInFeederZone = false -- Hentikan Auto Buy & Upgrade!
                             
-                            if distance > 4 then
-                                IsInFeederZone = false
-                                humanoid:MoveTo(feederPos)
-                            else
-                                IsInFeederZone = true 
+                            task.spawn(function()
+                                -- Jalan keluar sejauh 10 sampai 20 stud
+                                local randDistOut = math.random(100, 200) / 10 
+                                local randAngleOut = math.random() * math.pi * 2
+                                local gabutPos = SavedFeederPosition + Vector3.new(math.cos(randAngleOut) * randDistOut, 0, math.sin(randAngleOut) * randDistOut)
                                 
+                                humanoid:MoveTo(gabutPos)
+                                
+                                -- Tunggu karakter sampai
+                                local waitTime = 0
+                                while (hrp.Position - gabutPos).Magnitude > 2 and waitTime < 3 do
+                                    task.wait(0.5)
+                                    waitTime = waitTime + 0.5
+                                end
+                                
+                                -- Aksi Gabut 1 sampai 2 detik (Diam atau Muter dikit)
+                                local isMuter = math.random(1, 2) == 1
+                                if isMuter then
+                                    local muterPos = gabutPos + Vector3.new(math.random(-3, 3), 0, math.random(-3, 3))
+                                    humanoid:MoveTo(muterPos)
+                                end
+                                
+                                task.wait(math.random(10, 20) / 10) 
+                                
+                                IsGabut = false
+                                NextGabutTime = tick() + math.random(300, 600) 
+                            end)
+                        end
+
+                        -- PENGECEKAN NORMAL
+                        if not IsGabut then
+                            if distance > 4 then
+                                IsInFeederZone = false -- Kunci remote, tarik karakter masuk!
+                                humanoid:MoveTo(SavedFeederPosition) 
+                            else
+                                IsInFeederZone = true -- AMAN, Boleh Auto Buy & Upgrade!
+                                
+                                -- Gerak acak DI DALAM (2-4 stud, tiap 10-20 detik)
                                 if tick() >= NextRandomMoveTime then
-                                    local randDist = math.random(10, 30) / 10 
-                                    local randAngle = math.random() * math.pi * 2
-                                    local offsetX = math.cos(randAngle) * randDist
-                                    local offsetZ = math.sin(randAngle) * randDist
+                                    local randDistIn = math.random(20, 40) / 10 
+                                    local randAngleIn = math.random() * math.pi * 2
+                                    local targetPos = hrp.Position + Vector3.new(math.cos(randAngleIn) * randDistIn, 0, math.sin(randAngleIn) * randDistIn)
                                     
-                                    local targetPos = hrp.Position + Vector3.new(offsetX, 0, offsetZ)
-                                    
-                                    if (targetPos - feederPos).Magnitude <= 4 then
+                                    if (targetPos - SavedFeederPosition).Magnitude <= 4 then
                                         humanoid:MoveTo(targetPos)
                                         NextRandomMoveTime = tick() + math.random(10, 20)
                                     end
                                 end
                             end
                         end
+                    else
+                        -- Jika skrip baru nyala dan belum pernah lihat Feeder sama sekali
+                        IsInFeederZone = false 
                     end
                 end
             end)
@@ -212,10 +257,11 @@ end)
 -- LOOP OTOMASI REMOTE 
 -- ==========================================
 
--- 1. Auto Buy Generator
+-- 1. Auto Buy Generator (KEMBALI MENGGUNAKAN SYARAT ZONA)
 task.spawn(function()
     while task.wait(LoopInterval) do
         if AutoBuyGenerator and Remotes and Remotes:FindFirstChild("BuyGenerator") then
+            -- Tembak HANYA jika MaxGenerator > 1 ATAU sedang berada di dalam area memori Feeder
             if MaxGeneratorTier > 1 or IsInFeederZone then
                 for gen = 1, MaxGeneratorTier do
                     if not AutoBuyGenerator then break end
@@ -226,14 +272,14 @@ task.spawn(function()
     end
 end)
 
--- 2. Auto Upgrade Generator (DENGAN JEDA ACAK MANUSIAWI 0.4 - 1.0 Detik)
+-- 2. Auto Upgrade Generator (JEDA ACAK & SYARAT ZONA)
 task.spawn(function()
     while true do
-        -- Angka acak dari 40 sampai 100 dibagi 100, menghasilkan 0.4 hingga 1.0 detik
-        local randomHumanDelay = math.random(40, 120) / 100
+        local randomHumanDelay = math.random(40, 100) / 100
         task.wait(randomHumanDelay)
         
         if AutoUpgradeGenerator and Remotes and Remotes:FindFirstChild("UpgradeGenerator") then
+            -- Tembak HANYA jika MaxGenerator > 1 ATAU sedang berada di dalam area memori Feeder
             if MaxGeneratorTier > 1 or IsInFeederZone then
                 for gen = 1, MaxGeneratorTier do
                     if not AutoUpgradeGenerator then break end
