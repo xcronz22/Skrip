@@ -1,5 +1,5 @@
 -- ==========================================
--- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH V9 (SAFE WANDERING)
+-- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH V10 (BUTTON FOCUS)
 -- ==========================================
 
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
@@ -34,9 +34,9 @@ local TargetRebirthFloor = nil
 local HighestFloorMemory = 0
 local LastFloorChangeTime = tick()
 
--- Variabel Zona Feeder & Memori Posisi
-local IsInFeederZone = false
-local SavedFeederPosition = nil 
+-- Variabel Zona Tombol Upgrade & Memori Posisi
+local IsInButtonZone = false
+local SavedButtonPosition = nil 
 local NextRandomMoveTime = tick()
 
 -- ==========================================
@@ -49,7 +49,7 @@ pcall(function()
 end)
 
 -- ==========================================
--- LOGIKA ZONA AMAN & PERGERAKAN NATURAL
+-- LOGIKA ZONA AMAN TOMBOL & PERGERAKAN NATURAL
 -- ==========================================
 task.spawn(function()
     while task.wait(0.2) do
@@ -60,42 +60,66 @@ task.spawn(function()
                 local hrp = character and character:FindFirstChild("HumanoidRootPart")
                 
                 if humanoid and hrp then
-                    -- 1. Selalu update ingatan posisi Feeder
+                    -- 1. Selalu update ingatan posisi Tombol Upgrade (Part)
                     local coopUI = Workspace:FindFirstChild("CoopUI") or (Workspace:FindFirstChild("Coops") and Workspace.Coops:FindFirstChild("CoopUI"))
                     if coopUI then
                         local feeder = coopUI:FindFirstChild("Feeder")
+                        local targetButton = nil
+                        
+                        -- Cari Part(Tombol) yang posisinya paling dekat dengan Feeder
                         if feeder then
-                            SavedFeederPosition = feeder:GetPivot().Position
+                            local feederPos = feeder:GetPivot().Position
+                            local closestDist = 15 -- Maksimal pencarian radius 15 stud dari Feeder
+                            
+                            for _, obj in pairs(coopUI:GetChildren()) do
+                                if obj:IsA("BasePart") and obj.Name == "Part" then
+                                    local dist = (obj.Position - feederPos).Magnitude
+                                    if dist < closestDist then
+                                        closestDist = dist
+                                        targetButton = obj
+                                    end
+                                end
+                            end
+                        end
+                        
+                        -- Simpan memori posisi CFrame Part tersebut
+                        if targetButton then
+                            SavedButtonPosition = targetButton.Position
                         end
                     end
                     
-                    -- 2. Gunakan memori posisi Feeder untuk navigasi
-                    if SavedFeederPosition then
-                        local distance = (hrp.Position - SavedFeederPosition).Magnitude
+                    -- 2. Gunakan memori posisi Tombol untuk navigasi
+                    if SavedButtonPosition then
+                        -- Buat koordinat Y sejajar dengan karakter agar karakter tidak mencoba terbang/nunduk ke arah tombol melayang
+                        local flatButtonPos = Vector3.new(SavedButtonPosition.X, hrp.Position.Y, SavedButtonPosition.Z)
+                        local distance = (hrp.Position - flatButtonPos).Magnitude
                         
                         if distance > 4 then
-                            IsInFeederZone = false -- Kunci remote, tarik karakter masuk ke tengah
-                            humanoid:MoveTo(SavedFeederPosition) 
+                            IsInButtonZone = false -- Kunci remote, tarik karakter masuk!
+                            humanoid:MoveTo(flatButtonPos) 
                         else
-                            IsInFeederZone = true -- AMAN, Boleh Auto Buy & Upgrade!
+                            IsInButtonZone = true -- AMAN, Boleh Auto Buy & Upgrade!
                             
                             -- Gerak acak (2-4 stud, tiap 15-30 detik)
                             if tick() >= NextRandomMoveTime then
-                                local randDistIn = math.random(20, 40) / 10 -- 2.0 sampai 4.0 stud
+                                local randDistIn = math.random(20, 40) / 10 
                                 local randAngleIn = math.random() * math.pi * 2
                                 local targetPos = hrp.Position + Vector3.new(math.cos(randAngleIn) * randDistIn, 0, math.sin(randAngleIn) * randDistIn)
                                 
-                                humanoid:MoveTo(targetPos)
-                                NextRandomMoveTime = tick() + math.random(15, 30)
+                                -- Pastikan target jalan acak tetap berada di dalam radius 4 stud dari Tombol
+                                if (targetPos - flatButtonPos).Magnitude <= 4 then
+                                    humanoid:MoveTo(targetPos)
+                                    NextRandomMoveTime = tick() + math.random(15, 30)
+                                end
                             end
                         end
                     else
-                        IsInFeederZone = false 
+                        IsInButtonZone = false 
                     end
                 end
             end)
         else
-            IsInFeederZone = true 
+            IsInButtonZone = true 
         end
     end
 end)
@@ -215,11 +239,11 @@ end)
 -- LOOP OTOMASI REMOTE 
 -- ==========================================
 
--- 1. Auto Buy Generator (SYARAT ZONA)
+-- 1. Auto Buy Generator (SYARAT ZONA TOMBOL)
 task.spawn(function()
     while task.wait(LoopInterval) do
         if AutoBuyGenerator and Remotes and Remotes:FindFirstChild("BuyGenerator") then
-            if MaxGeneratorTier > 1 or IsInFeederZone then
+            if MaxGeneratorTier > 1 or IsInButtonZone then
                 for gen = 1, MaxGeneratorTier do
                     if not AutoBuyGenerator then break end
                     pcall(function() Remotes.BuyGenerator:InvokeServer(gen) end)
@@ -229,14 +253,14 @@ task.spawn(function()
     end
 end)
 
--- 2. Auto Upgrade Generator (JEDA ACAK & SYARAT ZONA)
+-- 2. Auto Upgrade Generator (JEDA ACAK & SYARAT ZONA TOMBOL)
 task.spawn(function()
     while true do
-        local randomHumanDelay = math.random(40, 100) / 100
+        local randomHumanDelay = math.random(40, 120) / 100
         task.wait(randomHumanDelay)
         
         if AutoUpgradeGenerator and Remotes and Remotes:FindFirstChild("UpgradeGenerator") then
-            if MaxGeneratorTier > 1 or IsInFeederZone then
+            if MaxGeneratorTier > 1 or IsInButtonZone then
                 for gen = 1, MaxGeneratorTier do
                     if not AutoUpgradeGenerator then break end
                     pcall(function() Remotes.UpgradeGenerator:InvokeServer(gen) end)
