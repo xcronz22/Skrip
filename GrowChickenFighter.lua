@@ -1,5 +1,5 @@
 -- ==========================================
--- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH V10 (BUTTON FOCUS)
+-- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH V12 (AFK SIMULATION REFINED)
 -- ==========================================
 
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
@@ -14,7 +14,7 @@ local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 local Remotes = ReplicatedStorage:WaitForChild("Remotes", 5)
 
--- State Variables (Diatur dari UI)
+-- State Variables
 local MaxGeneratorTier = 1
 local AutoBuyGenerator = false
 local AutoUpgradeGenerator = false
@@ -28,16 +28,20 @@ local AutoAntiLag = false
 local AutoNoFog = false
 local MaxStuckTime = 5 
 
--- Variabel Internal & Memori Tower
+-- Variabel Internal
 local LoopInterval = 1.2
 local TargetRebirthFloor = nil
 local HighestFloorMemory = 0
 local LastFloorChangeTime = tick()
 
--- Variabel Zona Tombol Upgrade & Memori Posisi
+-- Variabel Zona Tombol, COOP Sign, & Fase Gabut AFK
 local IsInButtonZone = false
 local SavedButtonPosition = nil 
+local SavedCoopSignPosition = nil
 local NextRandomMoveTime = tick()
+
+local IsGabut = false
+local NextGabutTime = tick() + math.random(300, 420) -- Siklus 5-7 menit
 
 -- ==========================================
 -- ANTI-AFK STEALTH (BYPASS EXECUTOR)
@@ -49,7 +53,7 @@ pcall(function()
 end)
 
 -- ==========================================
--- LOGIKA ZONA AMAN TOMBOL & PERGERAKAN NATURAL
+-- LOGIKA ZONA AMAN TOMBOL & SIKLUS AKTIF (COOP CHECK)
 -- ==========================================
 task.spawn(function()
     while task.wait(0.2) do
@@ -60,56 +64,96 @@ task.spawn(function()
                 local hrp = character and character:FindFirstChild("HumanoidRootPart")
                 
                 if humanoid and hrp then
-                    -- 1. Selalu update ingatan posisi Tombol Upgrade (Part)
                     local coopUI = Workspace:FindFirstChild("CoopUI") or (Workspace:FindFirstChild("Coops") and Workspace.Coops:FindFirstChild("CoopUI"))
+                    
                     if coopUI then
+                        -- Update Memori Posisi (Tombol & COOP Sign)
                         local feeder = coopUI:FindFirstChild("Feeder")
-                        local targetButton = nil
-                        
-                        -- Cari Part(Tombol) yang posisinya paling dekat dengan Feeder
                         if feeder then
                             local feederPos = feeder:GetPivot().Position
-                            local closestDist = 15 -- Maksimal pencarian radius 15 stud dari Feeder
-                            
+                            local closestDist = 15 
                             for _, obj in pairs(coopUI:GetChildren()) do
                                 if obj:IsA("BasePart") and obj.Name == "Part" then
                                     local dist = (obj.Position - feederPos).Magnitude
                                     if dist < closestDist then
                                         closestDist = dist
-                                        targetButton = obj
+                                        SavedButtonPosition = obj.Position
                                     end
                                 end
                             end
                         end
                         
-                        -- Simpan memori posisi CFrame Part tersebut
-                        if targetButton then
-                            SavedButtonPosition = targetButton.Position
+                        local tempCoopSign = nil
+                        for _, obj in pairs(coopUI:GetChildren()) do
+                            if obj:IsA("BasePart") then
+                                local sg = obj:FindFirstChildOfClass("SurfaceGui")
+                                if sg then
+                                    for _, desc in pairs(sg:GetDescendants()) do
+                                        if desc:IsA("TextLabel") and string.match(string.upper(desc.Text), "COOP") then
+                                            tempCoopSign = obj
+                                            break
+                                        end
+                                    end
+                                end
+                            end
+                            if tempCoopSign then break end
                         end
+                        if tempCoopSign then SavedCoopSignPosition = tempCoopSign.Position end
                     end
                     
-                    -- 2. Gunakan memori posisi Tombol untuk navigasi
+                    -- EKSEKUSI NAVIGASI
                     if SavedButtonPosition then
-                        -- Buat koordinat Y sejajar dengan karakter agar karakter tidak mencoba terbang/nunduk ke arah tombol melayang
                         local flatButtonPos = Vector3.new(SavedButtonPosition.X, hrp.Position.Y, SavedButtonPosition.Z)
-                        local distance = (hrp.Position - flatButtonPos).Magnitude
                         
-                        if distance > 4 then
-                            IsInButtonZone = false -- Kunci remote, tarik karakter masuk!
-                            humanoid:MoveTo(flatButtonPos) 
-                        else
-                            IsInButtonZone = true -- AMAN, Boleh Auto Buy & Upgrade!
+                        -- SIKLUS AKTIF (Mengecek COOP Board per 5-7 menit)
+                        if not IsGabut and tick() >= NextGabutTime then
+                            IsGabut = true
                             
-                            -- Gerak acak (2-4 stud, tiap 15-30 detik)
-                            if tick() >= NextRandomMoveTime then
-                                local randDistIn = math.random(20, 40) / 10 
-                                local randAngleIn = math.random() * math.pi * 2
-                                local targetPos = hrp.Position + Vector3.new(math.cos(randAngleIn) * randDistIn, 0, math.sin(randAngleIn) * randDistIn)
+                            task.spawn(function()
+                                if SavedCoopSignPosition then
+                                    local flatCoopPos = Vector3.new(SavedCoopSignPosition.X, hrp.Position.Y, SavedCoopSignPosition.Z)
+                                    
+                                    -- 1. Berjalan ke Papan COOP
+                                    humanoid:MoveTo(flatCoopPos)
+                                    
+                                    -- Tunggu sampai tiba
+                                    local walkTimer = 0
+                                    while (hrp.Position - flatCoopPos).Magnitude > 4 and walkTimer < 8 do
+                                        task.wait(0.5)
+                                        walkTimer = walkTimer + 0.5
+                                    end
+                                    
+                                    -- 2. Diam membaca statistik (3 sampai 5 detik saja)
+                                    task.wait(math.random(3, 5))
+                                    
+                                    -- 3. Langsung kembali ke Tombol Upgrade
+                                    humanoid:MoveTo(flatButtonPos)
+                                end
                                 
-                                -- Pastikan target jalan acak tetap berada di dalam radius 4 stud dari Tombol
-                                if (targetPos - flatButtonPos).Magnitude <= 4 then
-                                    humanoid:MoveTo(targetPos)
-                                    NextRandomMoveTime = tick() + math.random(15, 30)
+                                IsGabut = false
+                                NextGabutTime = tick() + math.random(300, 420) -- Reset siklus 5-7 menit
+                            end)
+                        end
+
+                        -- PENGECEKAN NORMAL
+                        if not IsGabut then
+                            local distToButton = (hrp.Position - flatButtonPos).Magnitude
+                            if distToButton > 4 then
+                                IsInButtonZone = false
+                                humanoid:MoveTo(flatButtonPos) 
+                            else
+                                IsInButtonZone = true
+                                
+                                -- Gerak iseng acak 2-4 stud, tiap 15-30 detik
+                                if tick() >= NextRandomMoveTime then
+                                    local randDistIn = math.random(20, 40) / 10 
+                                    local randAngleIn = math.random() * math.pi * 2
+                                    local targetPos = hrp.Position + Vector3.new(math.cos(randAngleIn) * randDistIn, 0, math.sin(randAngleIn) * randDistIn)
+                                    
+                                    if (targetPos - flatButtonPos).Magnitude <= 4 then
+                                        humanoid:MoveTo(targetPos)
+                                        NextRandomMoveTime = tick() + math.random(15, 30)
+                                    end
                                 end
                             end
                         end
