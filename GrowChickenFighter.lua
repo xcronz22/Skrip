@@ -1,5 +1,5 @@
 -- ==========================================
--- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH + ANTI-PUSH
+-- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH + ANTI-PUSH V2
 -- ==========================================
 
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
@@ -37,7 +37,6 @@ local LastFloorChangeTime = tick()
 
 -- ==========================================
 -- ANTI-AFK STEALTH (BYPASS EXECUTOR)
--- Berjalan otomatis di latar belakang, tak terdeteksi
 -- ==========================================
 pcall(function()
     for _, conn in pairs(getconnections(LocalPlayer.Idled)) do
@@ -157,7 +156,7 @@ task.spawn(function()
     end
 end)
 
--- 2. Auto Upgrade Generator (Kecepatan Terpisah + Anti-Push Feeder)
+-- 2. Auto Upgrade Generator (Kecepatan Terpisah + Anti-Push Feeder V2)
 task.spawn(function()
     while task.wait(UpgradeSpeed) do
         if AutoUpgradeGenerator and Remotes and Remotes:FindFirstChild("UpgradeGenerator") then
@@ -170,7 +169,7 @@ task.spawn(function()
                     local hrp = character and character:FindFirstChild("HumanoidRootPart")
                     
                     if humanoid and hrp then
-                        -- Cari folder CoopUI (berjaga-jaga jika ada di Workspace langsung atau di dalam folder Coops)
+                        -- Cari folder CoopUI (Langsung di Workspace atau di dalam folder Coops)
                         local coopUI = Workspace:FindFirstChild("CoopUI")
                         if not coopUI then
                             local coops = Workspace:FindFirstChild("Coops")
@@ -179,10 +178,13 @@ task.spawn(function()
                         
                         if coopUI then
                             local feeder = coopUI:FindFirstChild("Feeder")
-                            if feeder and feeder:IsA("BasePart") then
-                                -- Jika jarak ditarik lebih dari 5 stud dari Feeder, paksa jalan kembali
-                                if (hrp.Position - feeder.Position).Magnitude > 3 then
-                                    humanoid:MoveTo(feeder.Position)
+                            if feeder then
+                                -- MENGGUNAKAN GetPivot() KARENA FEEDER ADALAH SEBUAH MODEL
+                                local feederPos = feeder:GetPivot().Position
+                                
+                                -- CEK JARAK 3 STUD
+                                if (hrp.Position - feederPos).Magnitude > 3 then
+                                    humanoid:MoveTo(feederPos)
                                 end
                             end
                         end
