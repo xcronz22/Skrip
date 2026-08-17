@@ -1,11 +1,11 @@
 -- ==========================================
--- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH V14 (NATURAL AFK CYCLE)
+-- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH V17 (VIDEO-LIKE WANDERING)
 -- ==========================================
 
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
 local Window = Library:MakeWindow("Grow a Chicken Fighter")
 
--- Services (TANPA VIRTUAL USER)
+-- Services
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Lighting = game:GetService("Lighting")
@@ -41,11 +41,11 @@ local SavedCoopSignPosition = nil
 local NextRandomMoveTime = tick()
 
 local IsGabut = false
--- Update Siklus: 3 sampai 5 menit (180 - 300 detik)
+-- Siklus: 3 sampai 5 menit
 local NextGabutTime = tick() + math.random(180, 300) 
 
 -- ==========================================
--- ANTI-AFK STEALTH (ENHANCED HEARTBEAT)
+-- ANTI-AFK STEALTH (ENHANCED HEARTBEAT - TANPA LONCAT)
 -- ==========================================
 pcall(function()
     for _, conn in pairs(getconnections(LocalPlayer.Idled)) do
@@ -53,40 +53,42 @@ pcall(function()
     end
 end)
 
--- Tambahan: Periodic Active Movement (Menjamin server selalu melihat kamu aktif)
+-- Heartbeat agar tidak kena kick AFK Server-side (Hanya geser kamera)
 task.spawn(function()
-    while task.wait(math.random(480, 540)) do -- Setiap 8-9 menit sekali
-        pcall(function()
-            local char = LocalPlayer.Character
-            local hum = char and char:FindFirstChild("Humanoid")
-            if hum then
-                -- Loncat kecil agar terdeteksi aktif oleh server
-                hum.Jump = true
-                -- Sedikit geser arah pandang (opsional, untuk memastikan kamera aktif)
-                if char:FindFirstChild("HumanoidRootPart") then
-                    char.HumanoidRootPart.CFrame = char.HumanoidRootPart.CFrame * CFrame.Angles(0, math.rad(5), 0)
-                end
-            end
-        end)
-    end
-end)
-
--- Tambahkan ini untuk menggeser kamera secara halus dan natural
-task.spawn(function()
-    while task.wait(math.random(300, 480)) do -- Setiap 5-8 menit
+    while task.wait(math.random(300, 480)) do
         pcall(function()
             local camera = Workspace.CurrentCamera
             if camera then
-                -- Geser sudut kamera sedikit saja (1-3 derajat)
-                local currentRotation = camera.CFrame
-                camera.CFrame = currentRotation * CFrame.Angles(0, math.rad(math.random(-2, 2)), 0)
+                -- Geser kamera sedikit secara natural (1-3 derajat) ke arah acak
+                camera.CFrame = camera.CFrame * CFrame.Angles(0, math.rad(math.random(-3, 3)), 0)
             end
         end)
     end
 end)
 
 -- ==========================================
--- LOGIKA ZONA AMAN TOMBOL & SIKLUS AKTIF (COOP CHECK)
+-- FUNGSI BANTUAN GERAK NATURAL (MUTER-MUTER)
+-- ==========================================
+local function MuterMuter(humanoid, hrp)
+    -- Memaksa karakter berjalan melingkar dengan radius sempit 2-3 stud (seperti joystick diputar)
+    local center = hrp.Position
+    local steps = math.random(4, 7)
+    
+    for i = 1, steps do
+        if not humanoid or not hrp then break end
+        local angle = (i / steps) * math.pi * 2
+        -- Jarak acak 1.5 sampai 3 stud
+        local dist = math.random(15, 30) / 10 
+        local offset = Vector3.new(math.cos(angle) * dist, 0, math.sin(angle) * dist)
+        
+        humanoid:MoveTo(center + offset)
+        -- Jeda sangat singkat agar terlihat agresif/iseng
+        task.wait(math.random(2, 4) / 10) 
+    end
+end
+
+-- ==========================================
+-- LOGIKA ZONA AMAN TOMBOL & SIKLUS AKTIF
 -- ==========================================
 task.spawn(function()
     while task.wait(0.2) do
@@ -100,7 +102,7 @@ task.spawn(function()
                     local coopUI = Workspace:FindFirstChild("CoopUI") or (Workspace:FindFirstChild("Coops") and Workspace.Coops:FindFirstChild("CoopUI"))
                     
                     if coopUI then
-                        -- Update Memori Posisi (Tombol & COOP Sign)
+                        -- Update Memori Posisi
                         local feeder = coopUI:FindFirstChild("Feeder")
                         if feeder then
                             local feederPos = feeder:GetPivot().Position
@@ -116,6 +118,7 @@ task.spawn(function()
                             end
                         end
                         
+                        -- Cari Papan Tulisan COOP
                         local tempCoopSign = nil
                         for _, obj in pairs(coopUI:GetChildren()) do
                             if obj:IsA("BasePart") then
@@ -138,37 +141,47 @@ task.spawn(function()
                     if SavedButtonPosition then
                         local flatButtonPos = Vector3.new(SavedButtonPosition.X, hrp.Position.Y, SavedButtonPosition.Z)
                         
-                        -- SIKLUS AKTIF (Mengecek COOP Board per 3-5 menit)
+                        -- SIKLUS AKTIF GABUT (Tiap 3-5 menit)
                         if not IsGabut and tick() >= NextGabutTime then
                             IsGabut = true
+                            IsInButtonZone = false -- Kunci Remote!
                             
                             task.spawn(function()
                                 if SavedCoopSignPosition then
                                     local flatCoopPos = Vector3.new(SavedCoopSignPosition.X, hrp.Position.Y, SavedCoopSignPosition.Z)
                                     
-                                    -- 1. Berjalan ke Papan COOP
-                                    humanoid:MoveTo(flatCoopPos)
+                                    -- 1. Jalan sedikit melenceng ke arah sembarang (seolah iseng)
+                                    local isengPos = hrp.Position:Lerp(flatCoopPos, 0.5) + Vector3.new(math.random(-5, 5), 0, math.random(-5, 5))
+                                    humanoid:MoveTo(isengPos)
+                                    task.wait(1.5)
                                     
-                                    -- Tunggu sampai tiba
+                                    -- 2. Muter-muter kecil di tengah jalan
+                                    MuterMuter(humanoid, hrp)
+                                    
+                                    -- 3. Baru jalan ke Papan COOP
+                                    humanoid:MoveTo(flatCoopPos)
                                     local walkTimer = 0
-                                    while (hrp.Position - flatCoopPos).Magnitude > 4 and walkTimer < 8 do
+                                    while (hrp.Position - flatCoopPos).Magnitude > 4 and walkTimer < 6 do
                                         task.wait(0.5)
                                         walkTimer = walkTimer + 0.5
                                     end
                                     
-                                    -- 2. Diam membaca statistik (UPDATE: 5 sampai 10 detik)
-                                    task.wait(math.random(5, 10))
+                                    -- 4. Diam membaca statistik (3 sampai 5 detik)
+                                    task.wait(math.random(3, 5))
                                     
-                                    -- 3. Langsung kembali ke Tombol Upgrade
+                                    -- 5. Muter-muter lagi sehabis baca
+                                    MuterMuter(humanoid, hrp)
+                                    
+                                    -- 6. Langsung kembali ke Tombol Upgrade
                                     humanoid:MoveTo(flatButtonPos)
                                 end
                                 
                                 IsGabut = false
-                                NextGabutTime = tick() + math.random(180, 300) -- Reset siklus 3-5 menit
+                                NextGabutTime = tick() + math.random(180, 300) -- Reset siklus
                             end)
                         end
 
-                        -- PENGECEKAN NORMAL
+                        -- PENGECEKAN NORMAL (Farming Routine)
                         if not IsGabut then
                             local distToButton = (hrp.Position - flatButtonPos).Magnitude
                             if distToButton > 4 then
@@ -177,15 +190,15 @@ task.spawn(function()
                             else
                                 IsInButtonZone = true
                                 
-                                -- Gerak iseng acak 2-4 stud, tiap 15-30 detik
+                                -- Gerak iseng acak 2-6 stud, tiap 10-20 detik (Lebih aktif)
                                 if tick() >= NextRandomMoveTime then
-                                    local randDistIn = math.random(20, 40) / 10 
+                                    local randDistIn = math.random(20, 60) / 10 
                                     local randAngleIn = math.random() * math.pi * 2
                                     local targetPos = hrp.Position + Vector3.new(math.cos(randAngleIn) * randDistIn, 0, math.sin(randAngleIn) * randDistIn)
                                     
                                     if (targetPos - flatButtonPos).Magnitude <= 4 then
                                         humanoid:MoveTo(targetPos)
-                                        NextRandomMoveTime = tick() + math.random(15, 30)
+                                        NextRandomMoveTime = tick() + math.random(10, 20)
                                     end
                                 end
                             end
@@ -200,8 +213,6 @@ task.spawn(function()
         end
     end
 end)
-
--- [Sisa fungsi Helper, Remote, UI tetap sama seperti V10/V11]
 
 -- ==========================================
 -- HELPER FUNCTION & SMART TRACKING (3 SUMBER)
