@@ -53,14 +53,19 @@ pcall(function()
     end
 end)
 
--- Heartbeat agar tidak kena kick AFK Server-side (Hanya geser kamera)
+-- Heartbeat agar tidak kena kick AFK Server-side (Setiap 8-9 menit)
 task.spawn(function()
-    while task.wait(math.random(300, 480)) do
+    while task.wait(math.random(480, 540)) do
         pcall(function()
-            local camera = Workspace.CurrentCamera
-            if camera then
-                -- Geser kamera sedikit secara natural (1-3 derajat) ke arah acak
-                camera.CFrame = camera.CFrame * CFrame.Angles(0, math.rad(math.random(-3, 3)), 0)
+            local char = LocalPlayer.Character
+            local hum = char and char:FindFirstChild("Humanoid")
+            if hum then
+                hum.Jump = true -- Loncat kecil
+                -- Geser kamera sedikit secara natural (1-3 derajat)
+                local camera = Workspace.CurrentCamera
+                if camera then
+                    camera.CFrame = camera.CFrame * CFrame.Angles(0, math.rad(math.random(-2, 2)), 0)
+                end
             end
         end)
     end
@@ -83,7 +88,7 @@ local function MuterMuter(humanoid, hrp)
         
         humanoid:MoveTo(center + offset)
         -- Jeda sangat singkat agar terlihat agresif/iseng
-        task.wait(math.random(2, 4) / 10) 
+        task.wait(math.random(1, 2) / 10) 
     end
 end
 
@@ -346,7 +351,7 @@ end)
 -- 2. Auto Upgrade Generator (JEDA ACAK & SYARAT ZONA TOMBOL)
 task.spawn(function()
     while true do
-        local randomHumanDelay = math.random(50, 150) / 100
+        local randomHumanDelay = math.random(40, 100) / 100
         task.wait(randomHumanDelay)
         
         if AutoUpgradeGenerator and Remotes and Remotes:FindFirstChild("UpgradeGenerator") then
