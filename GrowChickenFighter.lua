@@ -45,11 +45,43 @@ local IsGabut = false
 local NextGabutTime = tick() + math.random(180, 300) 
 
 -- ==========================================
--- ANTI-AFK STEALTH (BYPASS EXECUTOR)
+-- ANTI-AFK STEALTH (ENHANCED HEARTBEAT)
 -- ==========================================
 pcall(function()
     for _, conn in pairs(getconnections(LocalPlayer.Idled)) do
         conn:Disable()
+    end
+end)
+
+-- Tambahan: Periodic Active Movement (Menjamin server selalu melihat kamu aktif)
+task.spawn(function()
+    while task.wait(math.random(480, 540)) do -- Setiap 8-9 menit sekali
+        pcall(function()
+            local char = LocalPlayer.Character
+            local hum = char and char:FindFirstChild("Humanoid")
+            if hum then
+                -- Loncat kecil agar terdeteksi aktif oleh server
+                hum.Jump = true
+                -- Sedikit geser arah pandang (opsional, untuk memastikan kamera aktif)
+                if char:FindFirstChild("HumanoidRootPart") then
+                    char.HumanoidRootPart.CFrame = char.HumanoidRootPart.CFrame * CFrame.Angles(0, math.rad(5), 0)
+                end
+            end
+        end)
+    end
+end)
+
+-- Tambahkan ini untuk menggeser kamera secara halus dan natural
+task.spawn(function()
+    while task.wait(math.random(300, 480)) do -- Setiap 5-8 menit
+        pcall(function()
+            local camera = Workspace.CurrentCamera
+            if camera then
+                -- Geser sudut kamera sedikit saja (1-3 derajat)
+                local currentRotation = camera.CFrame
+                camera.CFrame = currentRotation * CFrame.Angles(0, math.rad(math.random(-2, 2)), 0)
+            end
+        end)
     end
 end)
 
