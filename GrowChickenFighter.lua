@@ -88,7 +88,7 @@ local function MuterMuter(humanoid, hrp)
         
         humanoid:MoveTo(center + offset)
         -- Jeda sangat singkat agar terlihat agresif/iseng
-        task.wait(math.random(1, 2) / 10) 
+        task.wait(math.random(1, 1) / 10) 
     end
 end
 
@@ -203,7 +203,7 @@ task.spawn(function()
                                     
                                     if (targetPos - flatButtonPos).Magnitude <= 4 then
                                         humanoid:MoveTo(targetPos)
-                                        NextRandomMoveTime = tick() + math.random(10, 20)
+                                        NextRandomMoveTime = tick() + math.random(5, 10)
                                     end
                                 end
                             end
