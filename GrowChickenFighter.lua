@@ -351,7 +351,7 @@ end)
 -- 2. Auto Upgrade Generator (JEDA ACAK & SYARAT ZONA TOMBOL)
 task.spawn(function()
     while true do
-        local randomHumanDelay = math.random(40, 100) / 100
+        local randomHumanDelay = math.random(20, 60) / 100
         task.wait(randomHumanDelay)
         
         if AutoUpgradeGenerator and Remotes and Remotes:FindFirstChild("UpgradeGenerator") then
