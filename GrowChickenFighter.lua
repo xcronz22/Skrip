@@ -1,5 +1,5 @@
 -- ==========================================
--- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH V17 (VIDEO-LIKE WANDERING)
+-- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH V18 (ANTI-BUG UI REBIRTH)
 -- ==========================================
 
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
@@ -53,19 +53,14 @@ pcall(function()
     end
 end)
 
--- Heartbeat agar tidak kena kick AFK Server-side (Setiap 8-9 menit)
+-- Heartbeat agar tidak kena kick AFK Server-side (Hanya geser kamera)
 task.spawn(function()
-    while task.wait(math.random(480, 540)) do
+    while task.wait(math.random(300, 480)) do
         pcall(function()
-            local char = LocalPlayer.Character
-            local hum = char and char:FindFirstChild("Humanoid")
-            if hum then
-                hum.Jump = true -- Loncat kecil
-                -- Geser kamera sedikit secara natural (1-3 derajat)
-                local camera = Workspace.CurrentCamera
-                if camera then
-                    camera.CFrame = camera.CFrame * CFrame.Angles(0, math.rad(math.random(-2, 2)), 0)
-                end
+            local camera = Workspace.CurrentCamera
+            if camera then
+                -- Geser kamera sedikit secara natural (1-3 derajat) ke arah acak
+                camera.CFrame = camera.CFrame * CFrame.Angles(0, math.rad(math.random(-3, 3)), 0)
             end
         end)
     end
@@ -75,20 +70,17 @@ end)
 -- FUNGSI BANTUAN GERAK NATURAL (MUTER-MUTER)
 -- ==========================================
 local function MuterMuter(humanoid, hrp)
-    -- Memaksa karakter berjalan melingkar dengan radius sempit 2-3 stud (seperti joystick diputar)
     local center = hrp.Position
     local steps = math.random(4, 7)
     
     for i = 1, steps do
         if not humanoid or not hrp then break end
         local angle = (i / steps) * math.pi * 2
-        -- Jarak acak 1.5 sampai 3 stud
         local dist = math.random(15, 30) / 10 
         local offset = Vector3.new(math.cos(angle) * dist, 0, math.sin(angle) * dist)
         
         humanoid:MoveTo(center + offset)
-        -- Jeda sangat singkat agar terlihat agresif/iseng
-        task.wait(math.random(1, 1) / 10) 
+        task.wait(math.random(2, 4) / 10) 
     end
 end
 
@@ -155,15 +147,15 @@ task.spawn(function()
                                 if SavedCoopSignPosition then
                                     local flatCoopPos = Vector3.new(SavedCoopSignPosition.X, hrp.Position.Y, SavedCoopSignPosition.Z)
                                     
-                                    -- 1. Jalan sedikit melenceng ke arah sembarang (seolah iseng)
+                                    -- 1. Jalan sedikit melenceng
                                     local isengPos = hrp.Position:Lerp(flatCoopPos, 0.5) + Vector3.new(math.random(-5, 5), 0, math.random(-5, 5))
                                     humanoid:MoveTo(isengPos)
                                     task.wait(1.5)
                                     
-                                    -- 2. Muter-muter kecil di tengah jalan
+                                    -- 2. Muter-muter iseng
                                     MuterMuter(humanoid, hrp)
                                     
-                                    -- 3. Baru jalan ke Papan COOP
+                                    -- 3. Jalan ke Papan COOP
                                     humanoid:MoveTo(flatCoopPos)
                                     local walkTimer = 0
                                     while (hrp.Position - flatCoopPos).Magnitude > 4 and walkTimer < 6 do
@@ -171,10 +163,10 @@ task.spawn(function()
                                         walkTimer = walkTimer + 0.5
                                     end
                                     
-                                    -- 4. Diam membaca statistik (3 sampai 5 detik)
-                                    task.wait(math.random(3, 5))
+                                    -- 4. Diam membaca statistik (5 sampai 10 detik)
+                                    task.wait(math.random(5, 10))
                                     
-                                    -- 5. Muter-muter lagi sehabis baca
+                                    -- 5. Muter-muter sehabis baca
                                     MuterMuter(humanoid, hrp)
                                     
                                     -- 6. Langsung kembali ke Tombol Upgrade
@@ -182,7 +174,7 @@ task.spawn(function()
                                 end
                                 
                                 IsGabut = false
-                                NextGabutTime = tick() + math.random(180, 300) -- Reset siklus
+                                NextGabutTime = tick() + math.random(180, 300) 
                             end)
                         end
 
@@ -195,7 +187,7 @@ task.spawn(function()
                             else
                                 IsInButtonZone = true
                                 
-                                -- Gerak iseng acak 2-6 stud, tiap 10-20 detik (Lebih aktif)
+                                -- Gerak iseng acak 2-6 stud
                                 if tick() >= NextRandomMoveTime then
                                     local randDistIn = math.random(20, 60) / 10 
                                     local randAngleIn = math.random() * math.pi * 2
@@ -203,7 +195,7 @@ task.spawn(function()
                                     
                                     if (targetPos - flatButtonPos).Magnitude <= 4 then
                                         humanoid:MoveTo(targetPos)
-                                        NextRandomMoveTime = tick() + math.random(5, 10)
+                                        NextRandomMoveTime = tick() + math.random(10, 20)
                                     end
                                 end
                             end
@@ -282,29 +274,55 @@ task.spawn(function()
             end
         end)
 
-        -- SUMBER 2: UI REBIRTH TRACKING
+        -- SUMBER 2: UI REBIRTH TRACKING (DYNAMIC & BUG FILTER)
         pcall(function()
             local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
             if playerGui then
-                local rebirthGui = playerGui:FindFirstChild("Rebirth")
-                if rebirthGui and rebirthGui:FindFirstChild("Frame") and rebirthGui.Frame:FindFirstChild("window") then
-                    local reqCard = rebirthGui.Frame.window:FindFirstChild("panel")
-                        and rebirthGui.Frame.window.panel:FindFirstChild("face")
-                        and rebirthGui.Frame.window.panel.face:FindFirstChild("content")
-                        and rebirthGui.Frame.window.panel.face.content:FindFirstChild("content")
-                        and rebirthGui.Frame.window.panel.face.content.content:FindFirstChild("body")
-                        and rebirthGui.Frame.window.panel.face.content.content.body:FindFirstChild("reqCard")
+                -- Looping ke semua anak PlayerGui untuk mencari folder Rebirth
+                for _, gui in pairs(playerGui:GetChildren()) do
+                    if gui.Name == "Rebirth" and gui:FindFirstChild("Frame") then
+                        -- Mengecek apakah elemen 'window' ada (Artinya menu sedang DIBUKA)
+                        local window = gui.Frame:FindFirstChild("window")
+                        if window then
+                            local reqCard = window:FindFirstChild("panel")
+                                and window.panel:FindFirstChild("face")
+                                and window.panel.face:FindFirstChild("content")
+                                and window.panel.face.content:FindFirstChild("content")
+                                and window.panel.face.content.content:FindFirstChild("body")
+                                and window.panel.face.content.content.body:FindFirstChild("reqCard")
 
-                    if reqCard and reqCard:FindFirstChild("face") and reqCard.face:FindFirstChild("content") and reqCard.face.content:FindFirstChild("bar") then
-                        local textLabel = reqCard.face.content.bar:FindFirstChild("text")
-                        if textLabel and textLabel.Text then
-                            local curStr, reqStr = string.match(textLabel.Text, "(%d+)%s*/%s*(%d+)")
-                            if curStr and reqStr then
-                                local uiFloor = tonumber(curStr)
-                                TargetRebirthFloor = tonumber(reqStr)
-                                if uiFloor and uiFloor > HighestFloorMemory then
-                                    HighestFloorMemory = uiFloor
-                                    LastFloorChangeTime = tick()
+                            if reqCard and reqCard:FindFirstChild("face") and reqCard.face:FindFirstChild("content") and reqCard.face.content:FindFirstChild("bar") then
+                                local textLabel = reqCard.face.content.bar:FindFirstChild("text")
+                                if textLabel and textLabel.Text then
+                                    local curStr, reqStr = string.match(textLabel.Text, "(%d+)%s*/%s*(%d+)")
+                                    if curStr and reqStr then
+                                        local uiFloor = tonumber(curStr)
+                                        local reqFloor = tonumber(reqStr)
+                                        
+                                        -- FILTER UJI KEWAJARAN (SANITY CHECK)
+                                        -- Mengabaikan GUI bug (seperti 1000 / 66)
+                                        local isWajar = false
+                                        
+                                        if HighestFloorMemory > 0 then
+                                            -- Wajar jika lantai di UI mendekati lantai asli kita di leaderstats/workspace (toleransi beda 15 lantai)
+                                            if math.abs(uiFloor - HighestFloorMemory) <= 15 then
+                                                isWajar = true
+                                            end
+                                        else
+                                            -- Jika baru mulai, wajar jika selisihnya tidak ekstrem (di bawah 200)
+                                            if (uiFloor - reqFloor) < 200 then
+                                                isWajar = true
+                                            end
+                                        end
+                                        
+                                        if isWajar then
+                                            TargetRebirthFloor = reqFloor
+                                            if uiFloor > HighestFloorMemory then
+                                                HighestFloorMemory = uiFloor
+                                                LastFloorChangeTime = tick()
+                                            end
+                                        end
+                                    end
                                 end
                             end
                         end
@@ -334,7 +352,7 @@ end)
 -- LOOP OTOMASI REMOTE 
 -- ==========================================
 
--- 1. Auto Buy Generator (SYARAT ZONA TOMBOL)
+-- 1. Auto Buy Generator
 task.spawn(function()
     while task.wait(LoopInterval) do
         if AutoBuyGenerator and Remotes and Remotes:FindFirstChild("BuyGenerator") then
@@ -348,10 +366,10 @@ task.spawn(function()
     end
 end)
 
--- 2. Auto Upgrade Generator (JEDA ACAK & SYARAT ZONA TOMBOL)
+-- 2. Auto Upgrade Generator 
 task.spawn(function()
     while true do
-        local randomHumanDelay = math.random(20, 60) / 100
+        local randomHumanDelay = math.random(40, 100) / 100
         task.wait(randomHumanDelay)
         
         if AutoUpgradeGenerator and Remotes and Remotes:FindFirstChild("UpgradeGenerator") then
