@@ -1,5 +1,5 @@
 -- ==========================================
--- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH V18 (ANTI-BUG UI REBIRTH)
+-- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH V20 (FAST UPGRADE & ARENA)
 -- ==========================================
 
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
@@ -23,6 +23,7 @@ local AutoExpandCoop = false
 local AutoRebirth = false
 local AutoNoThanks = false
 local AutoTower = false
+local AutoArena = false
 local TowerDelay = 10 
 local AutoAntiLag = false
 local AutoNoFog = false
@@ -80,7 +81,7 @@ local function MuterMuter(humanoid, hrp)
         local offset = Vector3.new(math.cos(angle) * dist, 0, math.sin(angle) * dist)
         
         humanoid:MoveTo(center + offset)
-        task.wait(math.random(2, 4) / 10) 
+        task.wait(math.random(1, 1) / 10) 
     end
 end
 
@@ -278,10 +279,8 @@ task.spawn(function()
         pcall(function()
             local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
             if playerGui then
-                -- Looping ke semua anak PlayerGui untuk mencari folder Rebirth
                 for _, gui in pairs(playerGui:GetChildren()) do
                     if gui.Name == "Rebirth" and gui:FindFirstChild("Frame") then
-                        -- Mengecek apakah elemen 'window' ada (Artinya menu sedang DIBUKA)
                         local window = gui.Frame:FindFirstChild("window")
                         if window then
                             local reqCard = window:FindFirstChild("panel")
@@ -299,20 +298,11 @@ task.spawn(function()
                                         local uiFloor = tonumber(curStr)
                                         local reqFloor = tonumber(reqStr)
                                         
-                                        -- FILTER UJI KEWAJARAN (SANITY CHECK)
-                                        -- Mengabaikan GUI bug (seperti 1000 / 66)
                                         local isWajar = false
-                                        
                                         if HighestFloorMemory > 0 then
-                                            -- Wajar jika lantai di UI mendekati lantai asli kita di leaderstats/workspace (toleransi beda 15 lantai)
-                                            if math.abs(uiFloor - HighestFloorMemory) <= 15 then
-                                                isWajar = true
-                                            end
+                                            if math.abs(uiFloor - HighestFloorMemory) <= 15 then isWajar = true end
                                         else
-                                            -- Jika baru mulai, wajar jika selisihnya tidak ekstrem (di bawah 200)
-                                            if (uiFloor - reqFloor) < 200 then
-                                                isWajar = true
-                                            end
+                                            if (uiFloor - reqFloor) < 200 then isWajar = true end
                                         end
                                         
                                         if isWajar then
@@ -366,10 +356,10 @@ task.spawn(function()
     end
 end)
 
--- 2. Auto Upgrade Generator 
+-- 2. Auto Upgrade Generator (KECEPATAN DIPERBARUI: 0.2 - 0.5 detik)
 task.spawn(function()
     while true do
-        local randomHumanDelay = math.random(40, 100) / 100
+        local randomHumanDelay = math.random(20, 50) / 100 -- Menghasilkan jeda acak 0.2s - 0.5s
         task.wait(randomHumanDelay)
         
         if AutoUpgradeGenerator and Remotes and Remotes:FindFirstChild("UpgradeGenerator") then
@@ -504,6 +494,15 @@ task.spawn(function()
     end
 end)
 
+-- 8. AUTO ARENA FIGHT
+task.spawn(function()
+    while task.wait(LoopInterval) do
+        if AutoArena and Remotes and Remotes:FindFirstChild("ArenaFight") then
+            pcall(function() Remotes.ArenaFight:InvokeServer() end)
+        end
+    end
+end)
+
 -- ==========================================
 -- ANTI-LAG & NO FOG
 -- ==========================================
@@ -562,6 +561,7 @@ Window:AddToggle("Auto Upgrade Recycler", false, function(state) AutoUpgradeRecy
 Window:AddToggle("Auto Expand Coop", false, function(state) AutoExpandCoop = state end)
 Window:AddToggle("Auto Rebirth (Smart Tracking)", false, function(state) AutoRebirth = state end)
 Window:AddToggle("Auto No Thanks (Tower)", false, function(state) AutoNoThanks = state end)
+Window:AddToggle("Auto Arena Fight", false, function(state) AutoArena = state end)
 
 Window:AddInput("Waktu Jeda Makan / Tower Delay", "Angka (Def: 10)", function(text)
     local num = tonumber(text)
