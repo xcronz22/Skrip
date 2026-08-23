@@ -46,7 +46,7 @@ local IsGabut = false
 local NextGabutTime = tick() + math.random(180, 300) 
 
 -- ==========================================
--- ANTI-AFK STEALTH (ENHANCED HEARTBEAT - TANPA LONCAT)
+-- ANTI-AFK STEALTH (ENHANCED HEARTBEAT - LONCAT & KAMERA)
 -- ==========================================
 pcall(function()
     for _, conn in pairs(getconnections(LocalPlayer.Idled)) do
@@ -54,13 +54,20 @@ pcall(function()
     end
 end)
 
--- Heartbeat agar tidak kena kick AFK Server-side (Hanya geser kamera)
+-- Heartbeat agar tidak kena kick AFK Server-side (Tiap 3-5 Menit)
 task.spawn(function()
-    while task.wait(math.random(300, 480)) do
+    while task.wait(math.random(180, 300)) do
         pcall(function()
+            -- 1. Karakter Loncat
+            local char = LocalPlayer.Character
+            local hum = char and char:FindFirstChild("Humanoid")
+            if hum then
+                hum.Jump = true 
+            end
+            
+            -- 2. Geser kamera sedikit secara natural (1-3 derajat) ke arah acak
             local camera = Workspace.CurrentCamera
             if camera then
-                -- Geser kamera sedikit secara natural (1-3 derajat) ke arah acak
                 camera.CFrame = camera.CFrame * CFrame.Angles(0, math.rad(math.random(-3, 3)), 0)
             end
         end)
