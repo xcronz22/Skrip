@@ -1,5 +1,5 @@
 -- ==========================================
--- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH V23 (PURE REBIRTH FOCUS)
+-- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH V24 (FIX ELEVATOR & UI TRACKING)
 -- ==========================================
 
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
@@ -40,11 +40,10 @@ local SavedCoopSignPosition = nil
 local NextRandomMoveTime = tick()
 
 local IsGabut = false
--- Siklus: 3 sampai 5 menit
 local NextGabutTime = tick() + math.random(180, 300) 
 
 -- ==========================================
--- ANTI-AFK STEALTH (ENHANCED HEARTBEAT - LONCAT & KAMERA)
+-- ANTI-AFK STEALTH (HEARTBEAT - LONCAT & KAMERA)
 -- ==========================================
 pcall(function()
     for _, conn in pairs(getconnections(LocalPlayer.Idled)) do
@@ -52,7 +51,6 @@ pcall(function()
     end
 end)
 
--- Heartbeat agar tidak kena kick AFK Server-side (Tiap 3-5 Menit)
 task.spawn(function()
     while task.wait(math.random(180, 300)) do
         pcall(function()
@@ -69,7 +67,7 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- FUNGSI BANTUAN GERAK NATURAL (MUTER-MUTER)
+-- FUNGSI BANTUAN GERAK NATURAL
 -- ==========================================
 local function MuterMuter(humanoid, hrp)
     local center = hrp.Position
@@ -82,7 +80,7 @@ local function MuterMuter(humanoid, hrp)
         local offset = Vector3.new(math.cos(angle) * dist, 0, math.sin(angle) * dist)
         
         humanoid:MoveTo(center + offset)
-        task.wait(0.1) 
+        task.wait(math.random(2, 4) / 10) 
     end
 end
 
@@ -101,7 +99,6 @@ task.spawn(function()
                     local coopUI = Workspace:FindFirstChild("CoopUI") or (Workspace:FindFirstChild("Coops") and Workspace.Coops:FindFirstChild("CoopUI"))
                     
                     if coopUI then
-                        -- Update Memori Posisi
                         local feeder = coopUI:FindFirstChild("Feeder")
                         if feeder then
                             local feederPos = feeder:GetPivot().Position
@@ -117,7 +114,6 @@ task.spawn(function()
                             end
                         end
                         
-                        -- Cari Papan Tulisan COOP
                         local tempCoopSign = nil
                         for _, obj in pairs(coopUI:GetChildren()) do
                             if obj:IsA("BasePart") then
@@ -136,11 +132,9 @@ task.spawn(function()
                         if tempCoopSign then SavedCoopSignPosition = tempCoopSign.Position end
                     end
                     
-                    -- EKSEKUSI NAVIGASI
                     if SavedButtonPosition then
                         local flatButtonPos = Vector3.new(SavedButtonPosition.X, hrp.Position.Y, SavedButtonPosition.Z)
                         
-                        -- SIKLUS AKTIF GABUT (Tiap 3-5 menit)
                         if not IsGabut and tick() >= NextGabutTime then
                             IsGabut = true
                             IsInButtonZone = false 
@@ -173,7 +167,6 @@ task.spawn(function()
                             end)
                         end
 
-                        -- PENGECEKAN NORMAL
                         if not IsGabut then
                             local distToButton = (hrp.Position - flatButtonPos).Magnitude
                             if distToButton > 4 then
@@ -206,69 +199,11 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- HELPER FUNCTION & SMART TRACKING (3 SUMBER)
+-- SMART TRACKING (UI REBIRTH & LEADERBOARD)
 -- ==========================================
-local CachedPlotNum = nil
-local MyTowerStack = nil
-local TowerConnection = nil
-
-local function UpdateMaxFloorFromPart(part)
-    if part and part.Name then
-        local fNum = string.match(part.Name, "Floor(%d+)")
-        if fNum then
-            local num = tonumber(fNum)
-            if num and num > HighestFloorMemory then
-                HighestFloorMemory = num
-                LastFloorChangeTime = tick()
-            end
-        end
-    end
-end
-
-local function FindMyTowerStack()
-    if not CachedPlotNum then
-        local plots = Workspace:FindFirstChild("World") and Workspace.World:FindFirstChild("Plots")
-        if plots then
-            for _, plot in pairs(plots:GetChildren()) do
-                if plot:FindFirstChild("Owner") and plot.Owner:FindFirstChild("PlayerName") then
-                    if plot.Owner.PlayerName.Text == LocalPlayer.Name then
-                        CachedPlotNum = string.match(plot.Name, "%d+")
-                        break
-                    end
-                end
-            end
-        end
-    end
-    if CachedPlotNum then
-        return Workspace:FindFirstChild("TowerStack" .. CachedPlotNum)
-    end
-    return nil
-end
-
 task.spawn(function()
     while task.wait(0.2) do
-        -- SUMBER 1: INSTANT WORKSPACE TRACKING
-        pcall(function()
-            local currentTower = FindMyTowerStack()
-            if currentTower ~= MyTowerStack then
-                MyTowerStack = currentTower
-                if TowerConnection then TowerConnection:Disconnect() end
-                if MyTowerStack then
-                    for _, part in pairs(MyTowerStack:GetChildren()) do
-                        UpdateMaxFloorFromPart(part)
-                    end
-                    TowerConnection = MyTowerStack.ChildAdded:Connect(function(child)
-                        UpdateMaxFloorFromPart(child)
-                    end)
-                end
-            elseif MyTowerStack then
-                for _, part in pairs(MyTowerStack:GetChildren()) do
-                    UpdateMaxFloorFromPart(part)
-                end
-            end
-        end)
-
-        -- SUMBER 2: UI REBIRTH TRACKING (DIRECT PATH TANPA LIMIT)
+        -- SUMBER 1: UI REBIRTH TRACKING
         pcall(function()
             local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
             if playerGui then
@@ -287,9 +222,12 @@ task.spawn(function()
                             local curStr, reqStr = string.match(textLabel.Text, "(%d+)%s*/%s*(%d+)")
                             if curStr and reqStr then
                                 local uiFloor = tonumber(curStr)
-                                TargetRebirthFloor = tonumber(reqStr)
+                                local reqFloor = tonumber(reqStr)
                                 
-                                if uiFloor > HighestFloorMemory then
+                                TargetRebirthFloor = reqFloor
+                                
+                                -- Memperbarui memori lantai dari text (Misal: 14 / 66)
+                                if uiFloor and uiFloor > HighestFloorMemory then
                                     HighestFloorMemory = uiFloor
                                     LastFloorChangeTime = tick()
                                 end
@@ -300,7 +238,7 @@ task.spawn(function()
             end
         end)
 
-        -- SUMBER 3: LEADERBOARD TRACKING
+        -- SUMBER 2: LEADERBOARD TRACKING
         pcall(function()
             local leaderstats = LocalPlayer:FindFirstChild("leaderstats")
             if leaderstats then
