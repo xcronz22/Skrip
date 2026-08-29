@@ -1,5 +1,5 @@
 -- ==========================================
--- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH V26 (PURE UI TRACKING)
+-- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH V27 (LEADERSTATS & MANUAL TARGET)
 -- ==========================================
 
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
@@ -16,6 +16,7 @@ local Remotes = ReplicatedStorage:WaitForChild("Remotes", 5)
 
 -- State Variables
 local MaxGeneratorTier = 1
+local ManualRebirthTarget = 0 -- TARGET MANUAL (0 = Push Tower)
 local AutoBuyGenerator = false
 local AutoUpgradeGenerator = false
 local AutoRebirth = false
@@ -29,7 +30,6 @@ local MaxStuckTime = 5
 
 -- Variabel Internal
 local LoopInterval = 1.2
-local TargetRebirthFloor = nil
 local HighestFloorMemory = 0
 local LastFloorChangeTime = tick()
 
@@ -80,7 +80,7 @@ local function MuterMuter(humanoid, hrp)
         local offset = Vector3.new(math.cos(angle) * dist, 0, math.sin(angle) * dist)
         
         humanoid:MoveTo(center + offset)
-        task.wait(math.random(1, 1) / 10) 
+        task.wait(math.random(2, 4) / 10) 
     end
 end
 
@@ -199,37 +199,20 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- SMART TRACKING (UI REBIRTH ONLY)
+-- SMART TRACKING (LEADERSTATS ONLY)
 -- ==========================================
 task.spawn(function()
     while task.wait(0.2) do
         pcall(function()
-            local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-            if playerGui then
-                local rebirthGui = playerGui:FindFirstChild("Rebirth")
-                if rebirthGui and rebirthGui:FindFirstChild("Frame") and rebirthGui.Frame:FindFirstChild("window") then
-                    local reqCard = rebirthGui.Frame.window:FindFirstChild("panel")
-                        and rebirthGui.Frame.window.panel:FindFirstChild("face")
-                        and rebirthGui.Frame.window.panel.face:FindFirstChild("content")
-                        and rebirthGui.Frame.window.panel.face.content:FindFirstChild("content")
-                        and rebirthGui.Frame.window.panel.face.content.content:FindFirstChild("body")
-                        and rebirthGui.Frame.window.panel.face.content.content.body:FindFirstChild("reqCard")
-
-                    if reqCard and reqCard:FindFirstChild("face") and reqCard.face:FindFirstChild("content") and reqCard.face.content:FindFirstChild("bar") then
-                        local textLabel = reqCard.face.content.bar:FindFirstChild("text")
-                        if textLabel and textLabel.Text then
-                            local curStr, reqStr = string.match(textLabel.Text, "(%d+)%s*/%s*(%d+)")
-                            if curStr and reqStr then
-                                local uiFloor = tonumber(curStr)
-                                TargetRebirthFloor = tonumber(reqStr)
-                                
-                                -- Mengandalkan 100% dari angka di UI saat menu terbuka
-                                if uiFloor > HighestFloorMemory then
-                                    HighestFloorMemory = uiFloor
-                                    LastFloorChangeTime = tick()
-                                end
-                            end
-                        end
+            local leaderstats = LocalPlayer:FindFirstChild("leaderstats")
+            if leaderstats then
+                local towerStat = leaderstats:FindFirstChild("Tower")
+                if towerStat then
+                    local floorVal = tonumber(towerStat.Value)
+                    -- Terus perbarui jika angka leaderstats lebih besar dari memori kita
+                    if floorVal and floorVal > HighestFloorMemory then
+                        HighestFloorMemory = floorVal
+                        LastFloorChangeTime = tick()
                     end
                 end
             end
@@ -272,33 +255,24 @@ task.spawn(function()
     end
 end)
 
--- 3. SMART AUTO REBIRTH
+-- 3. SMART AUTO REBIRTH (MANUAL TARGET)
 task.spawn(function()
     while task.wait(LoopInterval) do
-        if AutoRebirth then
-            if TargetRebirthFloor then
-                if HighestFloorMemory >= TargetRebirthFloor then
-                    pcall(function()
-                        local surrenderEvent = Remotes:FindFirstChild("TowerSurrender")
-                        if surrenderEvent then
-                            surrenderEvent:InvokeServer()
-                            task.wait(1) 
-                        end
-                        local rebirthEvent = Remotes:FindFirstChild("Rebirth")
-                        if rebirthEvent then
-                            rebirthEvent:InvokeServer()
-                            TargetRebirthFloor = nil 
-                            HighestFloorMemory = 0
-                            LastFloorChangeTime = tick()
-                        end
-                    end)
-                end
-            else
+        if AutoRebirth and ManualRebirthTarget > 0 then
+            -- Trigger rebirth jika lantai leaderstats >= input manual
+            if HighestFloorMemory >= ManualRebirthTarget then
                 pcall(function()
-                    local rebirthEvent = Remotes and Remotes:FindFirstChild("Rebirth")
+                    local surrenderEvent = Remotes:FindFirstChild("TowerSurrender")
+                    if surrenderEvent then
+                        surrenderEvent:InvokeServer()
+                        task.wait(1) 
+                    end
+                    local rebirthEvent = Remotes:FindFirstChild("Rebirth")
                     if rebirthEvent then
                         rebirthEvent:InvokeServer()
-                        HighestFloorMemory = 0 
+                        -- Reset memori setelah rebirth sukses
+                        HighestFloorMemory = 0
+                        LastFloorChangeTime = tick()
                     end
                 end)
             end
@@ -436,9 +410,19 @@ Window:AddInput("Batas Maksimal Generator (1-6)", "Ketik 1 - 6 (Def: 1)", functi
     end
 end)
 
+-- INPUT BARU UNTUK TARGET MANUAL REBIRTH
+Window:AddInput("Target Auto Rebirth (0 = Push Tower)", "Ketik Angka (Def: 0)", function(text)
+    local num = tonumber(text)
+    if num then
+        ManualRebirthTarget = math.floor(num)
+    else
+        ManualRebirthTarget = 0
+    end
+end)
+
 Window:AddToggle("Auto Buy Generator", false, function(state) AutoBuyGenerator = state end)
 Window:AddToggle("Auto Upgrade Generator", false, function(state) AutoUpgradeGenerator = state end)
-Window:AddToggle("Auto Rebirth (Smart Tracking)", false, function(state) AutoRebirth = state end)
+Window:AddToggle("Auto Rebirth (Manual Target)", false, function(state) AutoRebirth = state end)
 Window:AddToggle("Auto No Thanks (Tower)", false, function(state) AutoNoThanks = state end)
 Window:AddToggle("Auto Arena Fight", false, function(state) AutoArena = state end)
 
