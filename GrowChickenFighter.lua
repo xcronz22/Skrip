@@ -1,5 +1,5 @@
 -- ==========================================
--- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH V25 (TOWERSTACK & UI ONLY)
+-- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH V26 (PURE UI TRACKING)
 -- ==========================================
 
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
@@ -199,69 +199,10 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- SMART TRACKING (TOWERSTACK & UI REBIRTH)
+-- SMART TRACKING (UI REBIRTH ONLY)
 -- ==========================================
-local CachedPlotNum = nil
-local MyTowerStack = nil
-local TowerConnection = nil
-
-local function UpdateMaxFloorFromPart(part)
-    if part and part.Name then
-        local fNum = string.match(part.Name, "Floor(%d+)")
-        if fNum then
-            local num = tonumber(fNum)
-            if num and num > HighestFloorMemory then
-                HighestFloorMemory = num
-                LastFloorChangeTime = tick()
-            end
-        end
-    end
-end
-
-local function FindMyTowerStack()
-    if not CachedPlotNum then
-        local plots = Workspace:FindFirstChild("World") and Workspace.World:FindFirstChild("Plots")
-        if plots then
-            for _, plot in pairs(plots:GetChildren()) do
-                if plot:FindFirstChild("Owner") and plot.Owner:FindFirstChild("PlayerName") then
-                    if plot.Owner.PlayerName.Text == LocalPlayer.Name then
-                        CachedPlotNum = string.match(plot.Name, "%d+")
-                        break
-                    end
-                end
-            end
-        end
-    end
-    if CachedPlotNum then
-        return Workspace:FindFirstChild("TowerStack" .. CachedPlotNum)
-    end
-    return nil
-end
-
 task.spawn(function()
     while task.wait(0.2) do
-        -- SUMBER 1: INSTANT WORKSPACE TRACKING (TOWERSTACK)
-        pcall(function()
-            local currentTower = FindMyTowerStack()
-            if currentTower ~= MyTowerStack then
-                MyTowerStack = currentTower
-                if TowerConnection then TowerConnection:Disconnect() end
-                if MyTowerStack then
-                    for _, part in pairs(MyTowerStack:GetChildren()) do
-                        UpdateMaxFloorFromPart(part)
-                    end
-                    TowerConnection = MyTowerStack.ChildAdded:Connect(function(child)
-                        UpdateMaxFloorFromPart(child)
-                    end)
-                end
-            elseif MyTowerStack then
-                for _, part in pairs(MyTowerStack:GetChildren()) do
-                    UpdateMaxFloorFromPart(part)
-                end
-            end
-        end)
-
-        -- SUMBER 2: UI REBIRTH TRACKING
         pcall(function()
             local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
             if playerGui then
@@ -282,6 +223,7 @@ task.spawn(function()
                                 local uiFloor = tonumber(curStr)
                                 TargetRebirthFloor = tonumber(reqStr)
                                 
+                                -- Mengandalkan 100% dari angka di UI saat menu terbuka
                                 if uiFloor > HighestFloorMemory then
                                     HighestFloorMemory = uiFloor
                                     LastFloorChangeTime = tick()
