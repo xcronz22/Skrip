@@ -80,7 +80,7 @@ local function MuterMuter(humanoid, hrp)
         local offset = Vector3.new(math.cos(angle) * dist, 0, math.sin(angle) * dist)
         
         humanoid:MoveTo(center + offset)
-        task.wait(math.random(2, 4) / 10) 
+        task.wait(0.1) 
     end
 end
 
