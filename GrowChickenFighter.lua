@@ -1,5 +1,5 @@
 -- ==========================================
--- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH V20 (FAST UPGRADE & ARENA)
+-- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH V23 (PURE REBIRTH FOCUS)
 -- ==========================================
 
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
@@ -18,8 +18,6 @@ local Remotes = ReplicatedStorage:WaitForChild("Remotes", 5)
 local MaxGeneratorTier = 1
 local AutoBuyGenerator = false
 local AutoUpgradeGenerator = false
-local AutoUpgradeRecycler = false
-local AutoExpandCoop = false
 local AutoRebirth = false
 local AutoNoThanks = false
 local AutoTower = false
@@ -58,14 +56,10 @@ end)
 task.spawn(function()
     while task.wait(math.random(180, 300)) do
         pcall(function()
-            -- 1. Karakter Loncat
             local char = LocalPlayer.Character
             local hum = char and char:FindFirstChild("Humanoid")
-            if hum then
-                hum.Jump = true 
-            end
+            if hum then hum.Jump = true end
             
-            -- 2. Geser kamera sedikit secara natural (1-3 derajat) ke arah acak
             local camera = Workspace.CurrentCamera
             if camera then
                 camera.CFrame = camera.CFrame * CFrame.Angles(0, math.rad(math.random(-3, 3)), 0)
@@ -88,7 +82,7 @@ local function MuterMuter(humanoid, hrp)
         local offset = Vector3.new(math.cos(angle) * dist, 0, math.sin(angle) * dist)
         
         humanoid:MoveTo(center + offset)
-        task.wait(math.random(1, 1) / 10) 
+        task.wait(0.1) 
     end
 end
 
@@ -149,21 +143,18 @@ task.spawn(function()
                         -- SIKLUS AKTIF GABUT (Tiap 3-5 menit)
                         if not IsGabut and tick() >= NextGabutTime then
                             IsGabut = true
-                            IsInButtonZone = false -- Kunci Remote!
+                            IsInButtonZone = false 
                             
                             task.spawn(function()
                                 if SavedCoopSignPosition then
                                     local flatCoopPos = Vector3.new(SavedCoopSignPosition.X, hrp.Position.Y, SavedCoopSignPosition.Z)
                                     
-                                    -- 1. Jalan sedikit melenceng
                                     local isengPos = hrp.Position:Lerp(flatCoopPos, 0.5) + Vector3.new(math.random(-5, 5), 0, math.random(-5, 5))
                                     humanoid:MoveTo(isengPos)
                                     task.wait(1.5)
                                     
-                                    -- 2. Muter-muter iseng
                                     MuterMuter(humanoid, hrp)
                                     
-                                    -- 3. Jalan ke Papan COOP
                                     humanoid:MoveTo(flatCoopPos)
                                     local walkTimer = 0
                                     while (hrp.Position - flatCoopPos).Magnitude > 4 and walkTimer < 6 do
@@ -171,13 +162,9 @@ task.spawn(function()
                                         walkTimer = walkTimer + 0.5
                                     end
                                     
-                                    -- 4. Diam membaca statistik (5 sampai 10 detik)
                                     task.wait(math.random(5, 10))
-                                    
-                                    -- 5. Muter-muter sehabis baca
                                     MuterMuter(humanoid, hrp)
                                     
-                                    -- 6. Langsung kembali ke Tombol Upgrade
                                     humanoid:MoveTo(flatButtonPos)
                                 end
                                 
@@ -186,7 +173,7 @@ task.spawn(function()
                             end)
                         end
 
-                        -- PENGECEKAN NORMAL (Farming Routine)
+                        -- PENGECEKAN NORMAL
                         if not IsGabut then
                             local distToButton = (hrp.Position - flatButtonPos).Magnitude
                             if distToButton > 4 then
@@ -195,7 +182,6 @@ task.spawn(function()
                             else
                                 IsInButtonZone = true
                                 
-                                -- Gerak iseng acak 2-6 stud
                                 if tick() >= NextRandomMoveTime then
                                     local randDistIn = math.random(20, 60) / 10 
                                     local randAngleIn = math.random() * math.pi * 2
@@ -282,44 +268,30 @@ task.spawn(function()
             end
         end)
 
-        -- SUMBER 2: UI REBIRTH TRACKING (DYNAMIC & BUG FILTER)
+        -- SUMBER 2: UI REBIRTH TRACKING (DIRECT PATH TANPA LIMIT)
         pcall(function()
             local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
             if playerGui then
-                for _, gui in pairs(playerGui:GetChildren()) do
-                    if gui.Name == "Rebirth" and gui:FindFirstChild("Frame") then
-                        local window = gui.Frame:FindFirstChild("window")
-                        if window then
-                            local reqCard = window:FindFirstChild("panel")
-                                and window.panel:FindFirstChild("face")
-                                and window.panel.face:FindFirstChild("content")
-                                and window.panel.face.content:FindFirstChild("content")
-                                and window.panel.face.content.content:FindFirstChild("body")
-                                and window.panel.face.content.content.body:FindFirstChild("reqCard")
+                local rebirthGui = playerGui:FindFirstChild("Rebirth")
+                if rebirthGui and rebirthGui:FindFirstChild("Frame") and rebirthGui.Frame:FindFirstChild("window") then
+                    local reqCard = rebirthGui.Frame.window:FindFirstChild("panel")
+                        and rebirthGui.Frame.window.panel:FindFirstChild("face")
+                        and rebirthGui.Frame.window.panel.face:FindFirstChild("content")
+                        and rebirthGui.Frame.window.panel.face.content:FindFirstChild("content")
+                        and rebirthGui.Frame.window.panel.face.content.content:FindFirstChild("body")
+                        and rebirthGui.Frame.window.panel.face.content.content.body:FindFirstChild("reqCard")
 
-                            if reqCard and reqCard:FindFirstChild("face") and reqCard.face:FindFirstChild("content") and reqCard.face.content:FindFirstChild("bar") then
-                                local textLabel = reqCard.face.content.bar:FindFirstChild("text")
-                                if textLabel and textLabel.Text then
-                                    local curStr, reqStr = string.match(textLabel.Text, "(%d+)%s*/%s*(%d+)")
-                                    if curStr and reqStr then
-                                        local uiFloor = tonumber(curStr)
-                                        local reqFloor = tonumber(reqStr)
-                                        
-                                        local isWajar = false
-                                        if HighestFloorMemory > 0 then
-                                            if math.abs(uiFloor - HighestFloorMemory) <= 15 then isWajar = true end
-                                        else
-                                            if (uiFloor - reqFloor) < 200 then isWajar = true end
-                                        end
-                                        
-                                        if isWajar then
-                                            TargetRebirthFloor = reqFloor
-                                            if uiFloor > HighestFloorMemory then
-                                                HighestFloorMemory = uiFloor
-                                                LastFloorChangeTime = tick()
-                                            end
-                                        end
-                                    end
+                    if reqCard and reqCard:FindFirstChild("face") and reqCard.face:FindFirstChild("content") and reqCard.face.content:FindFirstChild("bar") then
+                        local textLabel = reqCard.face.content.bar:FindFirstChild("text")
+                        if textLabel and textLabel.Text then
+                            local curStr, reqStr = string.match(textLabel.Text, "(%d+)%s*/%s*(%d+)")
+                            if curStr and reqStr then
+                                local uiFloor = tonumber(curStr)
+                                TargetRebirthFloor = tonumber(reqStr)
+                                
+                                if uiFloor > HighestFloorMemory then
+                                    HighestFloorMemory = uiFloor
+                                    LastFloorChangeTime = tick()
                                 end
                             end
                         end
@@ -363,10 +335,10 @@ task.spawn(function()
     end
 end)
 
--- 2. Auto Upgrade Generator (KECEPATAN DIPERBARUI: 0.2 - 0.5 detik)
+-- 2. Auto Upgrade Generator
 task.spawn(function()
     while true do
-        local randomHumanDelay = math.random(20, 50) / 100 -- Menghasilkan jeda acak 0.2s - 0.5s
+        local randomHumanDelay = math.random(20, 50) / 100 
         task.wait(randomHumanDelay)
         
         if AutoUpgradeGenerator and Remotes and Remotes:FindFirstChild("UpgradeGenerator") then
@@ -380,25 +352,7 @@ task.spawn(function()
     end
 end)
 
--- 3. Auto Upgrade Recycler
-task.spawn(function()
-    while task.wait(LoopInterval) do
-        if AutoUpgradeRecycler and Remotes and Remotes:FindFirstChild("UpgradeRecycler") then
-            pcall(function() Remotes.UpgradeRecycler:InvokeServer() end)
-        end
-    end
-end)
-
--- 4. Auto Expand Coop
-task.spawn(function()
-    while task.wait(LoopInterval) do
-        if AutoExpandCoop and Remotes and Remotes:FindFirstChild("ExpandCoop") then
-            pcall(function() Remotes.ExpandCoop:InvokeServer() end)
-        end
-    end
-end)
-
--- 5. SMART AUTO REBIRTH
+-- 3. SMART AUTO REBIRTH
 task.spawn(function()
     while task.wait(LoopInterval) do
         if AutoRebirth then
@@ -432,7 +386,7 @@ task.spawn(function()
     end
 end)
 
--- 6. Auto No Thanks
+-- 4. Auto No Thanks
 task.spawn(function()
     while task.wait(LoopInterval) do
         if AutoNoThanks then
@@ -450,7 +404,7 @@ task.spawn(function()
     end
 end)
 
--- 7. SMART AUTO TOWER (Elevator + Anti-Stuck)
+-- 5. SMART AUTO TOWER (Elevator + Anti-Stuck)
 task.spawn(function()
     while task.wait(1) do 
         if AutoTower then
@@ -501,7 +455,7 @@ task.spawn(function()
     end
 end)
 
--- 8. AUTO ARENA FIGHT
+-- 6. AUTO ARENA FIGHT
 task.spawn(function()
     while task.wait(LoopInterval) do
         if AutoArena and Remotes and Remotes:FindFirstChild("ArenaFight") then
@@ -564,8 +518,6 @@ end)
 
 Window:AddToggle("Auto Buy Generator", false, function(state) AutoBuyGenerator = state end)
 Window:AddToggle("Auto Upgrade Generator", false, function(state) AutoUpgradeGenerator = state end)
-Window:AddToggle("Auto Upgrade Recycler", false, function(state) AutoUpgradeRecycler = state end)
-Window:AddToggle("Auto Expand Coop", false, function(state) AutoExpandCoop = state end)
 Window:AddToggle("Auto Rebirth (Smart Tracking)", false, function(state) AutoRebirth = state end)
 Window:AddToggle("Auto No Thanks (Tower)", false, function(state) AutoNoThanks = state end)
 Window:AddToggle("Auto Arena Fight", false, function(state) AutoArena = state end)
