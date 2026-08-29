@@ -1,5 +1,5 @@
 -- ==========================================
--- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH V24 (FIX ELEVATOR & UI TRACKING)
+-- GROW A CHICKEN FIGHTER - OPTIMIZED STEALTH V25 (TOWERSTACK & UI ONLY)
 -- ==========================================
 
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xcronz22/Skrip/main/RZY_Library.lua"))()
@@ -80,7 +80,7 @@ local function MuterMuter(humanoid, hrp)
         local offset = Vector3.new(math.cos(angle) * dist, 0, math.sin(angle) * dist)
         
         humanoid:MoveTo(center + offset)
-        task.wait(0.1) 
+        task.wait(math.random(1, 1) / 10) 
     end
 end
 
@@ -199,11 +199,69 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- SMART TRACKING (UI REBIRTH & LEADERBOARD)
+-- SMART TRACKING (TOWERSTACK & UI REBIRTH)
 -- ==========================================
+local CachedPlotNum = nil
+local MyTowerStack = nil
+local TowerConnection = nil
+
+local function UpdateMaxFloorFromPart(part)
+    if part and part.Name then
+        local fNum = string.match(part.Name, "Floor(%d+)")
+        if fNum then
+            local num = tonumber(fNum)
+            if num and num > HighestFloorMemory then
+                HighestFloorMemory = num
+                LastFloorChangeTime = tick()
+            end
+        end
+    end
+end
+
+local function FindMyTowerStack()
+    if not CachedPlotNum then
+        local plots = Workspace:FindFirstChild("World") and Workspace.World:FindFirstChild("Plots")
+        if plots then
+            for _, plot in pairs(plots:GetChildren()) do
+                if plot:FindFirstChild("Owner") and plot.Owner:FindFirstChild("PlayerName") then
+                    if plot.Owner.PlayerName.Text == LocalPlayer.Name then
+                        CachedPlotNum = string.match(plot.Name, "%d+")
+                        break
+                    end
+                end
+            end
+        end
+    end
+    if CachedPlotNum then
+        return Workspace:FindFirstChild("TowerStack" .. CachedPlotNum)
+    end
+    return nil
+end
+
 task.spawn(function()
     while task.wait(0.2) do
-        -- SUMBER 1: UI REBIRTH TRACKING
+        -- SUMBER 1: INSTANT WORKSPACE TRACKING (TOWERSTACK)
+        pcall(function()
+            local currentTower = FindMyTowerStack()
+            if currentTower ~= MyTowerStack then
+                MyTowerStack = currentTower
+                if TowerConnection then TowerConnection:Disconnect() end
+                if MyTowerStack then
+                    for _, part in pairs(MyTowerStack:GetChildren()) do
+                        UpdateMaxFloorFromPart(part)
+                    end
+                    TowerConnection = MyTowerStack.ChildAdded:Connect(function(child)
+                        UpdateMaxFloorFromPart(child)
+                    end)
+                end
+            elseif MyTowerStack then
+                for _, part in pairs(MyTowerStack:GetChildren()) do
+                    UpdateMaxFloorFromPart(part)
+                end
+            end
+        end)
+
+        -- SUMBER 2: UI REBIRTH TRACKING
         pcall(function()
             local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
             if playerGui then
@@ -222,32 +280,14 @@ task.spawn(function()
                             local curStr, reqStr = string.match(textLabel.Text, "(%d+)%s*/%s*(%d+)")
                             if curStr and reqStr then
                                 local uiFloor = tonumber(curStr)
-                                local reqFloor = tonumber(reqStr)
+                                TargetRebirthFloor = tonumber(reqStr)
                                 
-                                TargetRebirthFloor = reqFloor
-                                
-                                -- Memperbarui memori lantai dari text (Misal: 14 / 66)
-                                if uiFloor and uiFloor > HighestFloorMemory then
+                                if uiFloor > HighestFloorMemory then
                                     HighestFloorMemory = uiFloor
                                     LastFloorChangeTime = tick()
                                 end
                             end
                         end
-                    end
-                end
-            end
-        end)
-
-        -- SUMBER 2: LEADERBOARD TRACKING
-        pcall(function()
-            local leaderstats = LocalPlayer:FindFirstChild("leaderstats")
-            if leaderstats then
-                local towerStat = leaderstats:FindFirstChild("Tower") or leaderstats:FindFirstChild("Floor")
-                if towerStat then
-                    local floorVal = tonumber(towerStat.Value)
-                    if floorVal and floorVal > HighestFloorMemory then
-                        HighestFloorMemory = floorVal
-                        LastFloorChangeTime = tick()
                     end
                 end
             end
